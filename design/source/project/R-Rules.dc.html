@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Responsive · Rules</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Manrope:wght@500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;color:#0F172A;background:#F7F8FA;font-feature-settings:'tnum' 1;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#2563EB} a:hover{color:#1D4ED8}
+button,input{font-family:inherit}
+a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid #2563EB;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1100px; position: relative; overflow: hidden; background: #F7F8FA; font-family: Inter, ui-sans-serif, system-ui, sans-serif; color: #0F172A;">
+<div style="width: 1440px; height: 1600px; padding: 64px 72px; display: flex; flex-direction: column; gap: 40px; background: #F7F8FA;"><header style="display: flex; flex-direction: column; gap: 10px;"><div style="font-size: 12px; line-height: 16px; font-weight: 600; color: #64748B; letter-spacing: 0.02em;">SMART HEALTH FINANCE · MVP 1.0</div><h1 style="margin: 0; font-family: Manrope, ui-sans-serif, system-ui, sans-serif; font-size: 40px; line-height: 48px; font-weight: 700; letter-spacing: -0.02em;">Responsividade</h1><p style="margin: 0; font-size: 18px; line-height: 28px; color: #64748B; max-width: 880px;">O layout se adapta ao contexto — não é o desktop encolhido. Referências: M-Home (mobile), T-Home (tablet), D-Home (desktop), XL-Home (large).</p></header><section style="background: #FFFFFF; border: 1px solid #E6E9EF; border-radius: 16px; padding: 32px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 1px 2px rgba(11, 18, 32, 0.04); color: #0F172A; "><div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 12px 0; border-bottom: 2px solid #0B1220; font-size: 13px; font-weight: 700;"><span></span><span>Mobile &lt; 640</span><span>Tablet 640–1023</span><span>Desktop 1024–1439</span><span>Large ≥ 1440</span></div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 0; border-bottom: 1px solid #E6E9EF; font-size: 14px; line-height: 20px;"><strong>Navegação</strong><span style="color: #334155;">Bottom nav: Início, Cartões, Análise, IA, Mais</span><span style="color: #334155;">Trilho de ícones 88 px com rótulo</span><span style="color: #334155;">Sidebar 248 px</span><span style="color: #334155;">Sidebar 248 px</span></div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 0; border-bottom: 1px solid #E6E9EF; font-size: 14px; line-height: 20px;"><strong>Home</strong><span style="color: #334155;">1 coluna · Health → Visão geral → Insight → Mudanças → Eventos → Ações</span><span style="color: #334155;">Health e Visão geral em largura total; Mudanças + Atenção em 2 colunas</span><span style="color: #334155;">Grid 5/7, depois 2 colunas e 2/1</span><span style="color: #334155;">Conteúdo máx. 1320 · coluna lateral fixa com Eventos e Ações</span></div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 0; border-bottom: 1px solid #E6E9EF; font-size: 14px; line-height: 20px;"><strong>Detalhes</strong><span style="color: #334155;">Bottom sheet com alça</span><span style="color: #334155;">Drawer 480 px sobre a lista</span><span style="color: #334155;">Drawer 480 px</span><span style="color: #334155;">Drawer 480 px</span></div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 0; border-bottom: 1px solid #E6E9EF; font-size: 14px; line-height: 20px;"><strong>Filtros</strong><span style="color: #334155;">Chips roláveis + sheet de filtros</span><span style="color: #334155;">Busca + segmentado em largura total; filtros em sheet</span><span style="color: #334155;">Linha única de filtros</span><span style="color: #334155;">Linha única de filtros</span></div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 0; border-bottom: 1px solid #E6E9EF; font-size: 14px; line-height: 20px;"><strong>Tabelas</strong><span style="color: #334155;">Viram listas de 2 linhas</span><span style="color: #334155;">Colunas essenciais (nome, total)</span><span style="color: #334155;">Tabela completa</span><span style="color: #334155;">Tabela completa</span></div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 0; border-bottom: 1px solid #E6E9EF; font-size: 14px; line-height: 20px;"><strong>Gráficos</strong><span style="color: #334155;">Largura total · 6 pontos no máximo · legenda abaixo</span><span style="color: #334155;">Largura total</span><span style="color: #334155;">Dentro do card, com legenda ao lado do título</span><span style="color: #334155;">Idem, sem esticar além de 1320</span></div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 0; border-bottom: 1px solid #E6E9EF; font-size: 14px; line-height: 20px;"><strong>Copilot</strong><span style="color: #334155;">Tela cheia; histórico em tela separada</span><span style="color: #334155;">Tela cheia; histórico em sheet</span><span style="color: #334155;">Conversa + coluna de histórico 300 px</span><span style="color: #334155;">Idem</span></div><div style="display: grid; grid-template-columns: 160px repeat(4, minmax(0, 1fr)); gap: 16px; padding: 14px 0; border-bottom: 1px solid #E6E9EF; font-size: 14px; line-height: 20px;"><strong>Toque</strong><span style="color: #334155;">Alvos ≥ 44 px · botões lg (48)</span><span style="color: #334155;">Alvos ≥ 44 px</span><span style="color: #334155;">Alvos ≥ 40 px · foco visível</span><span style="color: #334155;">Idem</span></div></div></section></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview": {"width": 1440, "height": 1100}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,1034 @@
+{
+ "v": 3,
+ "createdOnFiles": {
+  "v": 1,
+  "at": "2026-09-23T14:59:33Z"
+ },
+ "title": "Smart Health Finance — MVP Visual",
+ "launch": {
+  "view": "canvas",
+  "page": "overview"
+ },
+ "pages": [
+  {
+   "id": "overview",
+   "name": "00 · Visão geral"
+  },
+  {
+   "id": "foundations",
+   "name": "01 · Foundations"
+  },
+  {
+   "id": "components",
+   "name": "02 · Components"
+  },
+  {
+   "id": "desktop",
+   "name": "03 · Desktop"
+  },
+  {
+   "id": "mobile",
+   "name": "04 · Mobile"
+  },
+  {
+   "id": "states",
+   "name": "05 · States"
+  },
+  {
+   "id": "responsive",
+   "name": "06 · Responsive"
+  },
+  {
+   "id": "flows",
+   "name": "07 · Navigation e protótipo"
+  }
+ ],
+ "boards": {
+  "Main.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 1440,
+   "h": 1180,
+   "title": "Smart Health Finance · MVP Visual",
+   "page": "overview",
+   "is_interactive": true
+  },
+  "O-Inventory.dc.html": {
+   "x": 1520,
+   "y": 300,
+   "w": 1440,
+   "h": 2000,
+   "title": "Screen Inventory",
+   "page": "overview",
+   "is_interactive": true
+  },
+  "O-Decisions.dc.html": {
+   "x": 3040,
+   "y": 300,
+   "w": 1440,
+   "h": 1320,
+   "title": "Design Decisions",
+   "page": "overview"
+  },
+  "O-Coverage.dc.html": {
+   "x": 4560,
+   "y": 300,
+   "w": 1440,
+   "h": 1760,
+   "title": "MVP Coverage",
+   "page": "overview"
+  },
+  "F-Colors.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 1440,
+   "h": 1860,
+   "title": "Foundations · Colors",
+   "page": "foundations"
+  },
+  "F-Typography.dc.html": {
+   "x": 1520,
+   "y": 300,
+   "w": 1440,
+   "h": 1500,
+   "title": "Foundations · Typography",
+   "page": "foundations"
+  },
+  "F-Layout.dc.html": {
+   "x": 3040,
+   "y": 300,
+   "w": 1440,
+   "h": 2860,
+   "title": "Foundations · Space, Shape, Motion, Icons",
+   "page": "foundations"
+  },
+  "C-Foundation.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 1440,
+   "h": 2840,
+   "title": "Components · Foundation",
+   "page": "components"
+  },
+  "C-Financial.dc.html": {
+   "x": 1520,
+   "y": 300,
+   "w": 1440,
+   "h": 1880,
+   "title": "Components · Financial",
+   "page": "components"
+  },
+  "C-Intelligence.dc.html": {
+   "x": 3040,
+   "y": 300,
+   "w": 1440,
+   "h": 1800,
+   "title": "Components · Intelligence",
+   "page": "components"
+  },
+  "D-Welcome.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 1440,
+   "h": 900,
+   "title": "Welcome",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Login.dc.html": {
+   "x": 1520,
+   "y": 300,
+   "w": 1440,
+   "h": 900,
+   "title": "Login",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Signup.dc.html": {
+   "x": 3040,
+   "y": 300,
+   "w": 1440,
+   "h": 900,
+   "title": "Signup",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Setup.dc.html": {
+   "x": 4560,
+   "y": 300,
+   "w": 1440,
+   "h": 900,
+   "title": "Onboarding · Setup",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-FirstData.dc.html": {
+   "x": 6080,
+   "y": 300,
+   "w": 1440,
+   "h": 900,
+   "title": "Onboarding · First Data",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-FirstOverview.dc.html": {
+   "x": 7600,
+   "y": 300,
+   "w": 1440,
+   "h": 1560,
+   "title": "Home · First Overview",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Home.dc.html": {
+   "x": 0,
+   "y": 2280,
+   "w": 1440,
+   "h": 1440,
+   "title": "Home · Financial Overview",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Health.dc.html": {
+   "x": 0,
+   "y": 4140,
+   "w": 1440,
+   "h": 1560,
+   "title": "Financial Health",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-HealthMethod.dc.html": {
+   "x": 1520,
+   "y": 4140,
+   "w": 1440,
+   "h": 1024,
+   "title": "Financial Health · Como calculamos?",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Accounts.dc.html": {
+   "x": 0,
+   "y": 6120,
+   "w": 1440,
+   "h": 1024,
+   "title": "Accounts · List",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-AccountDetail.dc.html": {
+   "x": 1520,
+   "y": 6120,
+   "w": 1440,
+   "h": 1100,
+   "title": "Accounts · Detail",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-AddAccount.dc.html": {
+   "x": 3040,
+   "y": 6120,
+   "w": 1440,
+   "h": 1024,
+   "title": "Accounts · Add",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-EditAccount.dc.html": {
+   "x": 4560,
+   "y": 6120,
+   "w": 1440,
+   "h": 1100,
+   "title": "Accounts · Edit",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Transactions.dc.html": {
+   "x": 0,
+   "y": 7640,
+   "w": 1440,
+   "h": 1420,
+   "title": "Transactions · List",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-TxnDetail.dc.html": {
+   "x": 1520,
+   "y": 7640,
+   "w": 1440,
+   "h": 1024,
+   "title": "Transactions · Detail",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Cards.dc.html": {
+   "x": 0,
+   "y": 9480,
+   "w": 1440,
+   "h": 1180,
+   "title": "Cards · List",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-CardDetail.dc.html": {
+   "x": 1520,
+   "y": 9480,
+   "w": 1440,
+   "h": 1180,
+   "title": "Cards · Detail",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Invoice.dc.html": {
+   "x": 3040,
+   "y": 9480,
+   "w": 1440,
+   "h": 1320,
+   "title": "Cards · Current Invoice",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-FutureInvoices.dc.html": {
+   "x": 4560,
+   "y": 9480,
+   "w": 1440,
+   "h": 1180,
+   "title": "Cards · Future Invoices",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Installment.dc.html": {
+   "x": 6080,
+   "y": 9480,
+   "w": 1440,
+   "h": 1200,
+   "title": "Cards · Installment Impact",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Analysis.dc.html": {
+   "x": 0,
+   "y": 11220,
+   "w": 1440,
+   "h": 1500,
+   "title": "Analysis · Overview",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-AnalysisSpending.dc.html": {
+   "x": 1520,
+   "y": 11220,
+   "w": 1440,
+   "h": 1180,
+   "title": "Analysis · Spending",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-AnalysisIncome.dc.html": {
+   "x": 3040,
+   "y": 11220,
+   "w": 1440,
+   "h": 1024,
+   "title": "Analysis · Income",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-AnalysisCategories.dc.html": {
+   "x": 4560,
+   "y": 11220,
+   "w": 1440,
+   "h": 1024,
+   "title": "Analysis · Categories",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-AnalysisMerchants.dc.html": {
+   "x": 6080,
+   "y": 11220,
+   "w": 1440,
+   "h": 1100,
+   "title": "Analysis · Merchants",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-AnalysisEvolution.dc.html": {
+   "x": 7600,
+   "y": 11220,
+   "w": 1440,
+   "h": 1120,
+   "title": "Analysis · Evolution",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Insights.dc.html": {
+   "x": 0,
+   "y": 13140,
+   "w": 1440,
+   "h": 1024,
+   "title": "Insights · List",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-InsightDetail.dc.html": {
+   "x": 1520,
+   "y": 13140,
+   "w": 1440,
+   "h": 1320,
+   "title": "Insights · Detail",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Goals.dc.html": {
+   "x": 0,
+   "y": 14880,
+   "w": 1440,
+   "h": 1100,
+   "title": "Goals · List",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-GoalDetail.dc.html": {
+   "x": 1520,
+   "y": 14880,
+   "w": 1440,
+   "h": 1180,
+   "title": "Goals · Detail + Simulation",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-CreateGoal.dc.html": {
+   "x": 3040,
+   "y": 14880,
+   "w": 1440,
+   "h": 1024,
+   "title": "Goals · Create",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-GoalCreated.dc.html": {
+   "x": 4560,
+   "y": 14880,
+   "w": 1440,
+   "h": 1200,
+   "title": "Goals · Success",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Copilot.dc.html": {
+   "x": 0,
+   "y": 16500,
+   "w": 1440,
+   "h": 1024,
+   "title": "Copilot · Home",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-CopilotChat.dc.html": {
+   "x": 1520,
+   "y": 16500,
+   "w": 1440,
+   "h": 1180,
+   "title": "Copilot · Conversation",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-Profile.dc.html": {
+   "x": 0,
+   "y": 18100,
+   "w": 1440,
+   "h": 1024,
+   "title": "Profile · Dados pessoais",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-ProfileInstitutions.dc.html": {
+   "x": 1520,
+   "y": 18100,
+   "w": 1440,
+   "h": 1024,
+   "title": "Profile · Instituições",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-ProfileConnections.dc.html": {
+   "x": 3040,
+   "y": 18100,
+   "w": 1440,
+   "h": 1024,
+   "title": "Profile · Conexões",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-ProfileConsents.dc.html": {
+   "x": 4560,
+   "y": 18100,
+   "w": 1440,
+   "h": 1024,
+   "title": "Profile · Consentimentos",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-ProfileSecurity.dc.html": {
+   "x": 6080,
+   "y": 18100,
+   "w": 1440,
+   "h": 1024,
+   "title": "Profile · Segurança",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "D-ProfilePreferences.dc.html": {
+   "x": 7600,
+   "y": 18100,
+   "w": 1440,
+   "h": 1024,
+   "title": "Profile · Preferências",
+   "page": "desktop",
+   "is_interactive": true
+  },
+  "M-Welcome.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 390,
+   "h": 844,
+   "title": "Mobile · Welcome",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Setup.dc.html": {
+   "x": 470,
+   "y": 300,
+   "w": 390,
+   "h": 844,
+   "title": "Mobile · Onboarding Setup",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Home.dc.html": {
+   "x": 940,
+   "y": 300,
+   "w": 390,
+   "h": 1720,
+   "title": "Mobile · Home",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Health.dc.html": {
+   "x": 1410,
+   "y": 300,
+   "w": 390,
+   "h": 2000,
+   "title": "Mobile · Financial Health",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Transactions.dc.html": {
+   "x": 0,
+   "y": 2720,
+   "w": 390,
+   "h": 1180,
+   "title": "Mobile · Transactions",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-TxnDetail.dc.html": {
+   "x": 470,
+   "y": 2720,
+   "w": 390,
+   "h": 844,
+   "title": "Mobile · Transaction Detail",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Cards.dc.html": {
+   "x": 0,
+   "y": 4320,
+   "w": 390,
+   "h": 1280,
+   "title": "Mobile · Cards",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Invoice.dc.html": {
+   "x": 470,
+   "y": 4320,
+   "w": 390,
+   "h": 1640,
+   "title": "Mobile · Current Invoice",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Installment.dc.html": {
+   "x": 940,
+   "y": 4320,
+   "w": 390,
+   "h": 1180,
+   "title": "Mobile · Installment Impact",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Analysis.dc.html": {
+   "x": 0,
+   "y": 6380,
+   "w": 390,
+   "h": 1380,
+   "title": "Mobile · Analysis",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-More.dc.html": {
+   "x": 470,
+   "y": 6380,
+   "w": 390,
+   "h": 1000,
+   "title": "Mobile · Mais",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Insights.dc.html": {
+   "x": 940,
+   "y": 6380,
+   "w": 390,
+   "h": 1100,
+   "title": "Mobile · Insights",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-InsightDetail.dc.html": {
+   "x": 1410,
+   "y": 6380,
+   "w": 390,
+   "h": 1560,
+   "title": "Mobile · Insight Detail",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Goals.dc.html": {
+   "x": 0,
+   "y": 8360,
+   "w": 390,
+   "h": 1100,
+   "title": "Mobile · Goals",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-Copilot.dc.html": {
+   "x": 470,
+   "y": 8360,
+   "w": 390,
+   "h": 844,
+   "title": "Mobile · Copilot Home",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "M-CopilotChat.dc.html": {
+   "x": 940,
+   "y": 8360,
+   "w": 390,
+   "h": 1300,
+   "title": "Mobile · Copilot Conversation",
+   "page": "mobile",
+   "is_interactive": true
+  },
+  "S-Catalog.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 1440,
+   "h": 1640,
+   "title": "States · Catalog",
+   "page": "states"
+  },
+  "D-HomeLoading.dc.html": {
+   "x": 0,
+   "y": 2360,
+   "w": 1440,
+   "h": 1024,
+   "title": "States · Home Loading",
+   "page": "states"
+  },
+  "D-TxnEmpty.dc.html": {
+   "x": 1520,
+   "y": 2360,
+   "w": 1440,
+   "h": 1040,
+   "title": "States · Transactions Empty",
+   "page": "states"
+  },
+  "D-TxnError.dc.html": {
+   "x": 3040,
+   "y": 2360,
+   "w": 1440,
+   "h": 1024,
+   "title": "States · Transactions Error",
+   "page": "states"
+  },
+  "D-AccountsEmpty.dc.html": {
+   "x": 4560,
+   "y": 2360,
+   "w": 1440,
+   "h": 1024,
+   "title": "States · Accounts Empty",
+   "page": "states"
+  },
+  "D-CopilotStates.dc.html": {
+   "x": 6080,
+   "y": 2360,
+   "w": 1440,
+   "h": 1024,
+   "title": "States · Copilot",
+   "page": "states"
+  },
+  "M-HomeLoading.dc.html": {
+   "x": 0,
+   "y": 3820,
+   "w": 390,
+   "h": 844,
+   "title": "States · Mobile Home Loading",
+   "page": "states"
+  },
+  "T-Home.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 834,
+   "h": 1900,
+   "title": "Tablet · Home",
+   "page": "responsive",
+   "is_interactive": true
+  },
+  "T-Transactions.dc.html": {
+   "x": 914,
+   "y": 300,
+   "w": 834,
+   "h": 1200,
+   "title": "Tablet · Transactions",
+   "page": "responsive",
+   "is_interactive": true
+  },
+  "XL-Home.dc.html": {
+   "x": 0,
+   "y": 2620,
+   "w": 1680,
+   "h": 1180,
+   "title": "Large Desktop · Home (1680)",
+   "page": "responsive",
+   "is_interactive": true
+  },
+  "R-Rules.dc.html": {
+   "x": 0,
+   "y": 4220,
+   "w": 1440,
+   "h": 1100,
+   "title": "Responsive · Rules",
+   "page": "responsive"
+  },
+  "N-Flows.dc.html": {
+   "x": 0,
+   "y": 300,
+   "w": 1440,
+   "h": 1500,
+   "title": "Prototype Flows",
+   "page": "flows",
+   "is_interactive": true
+  },
+  "N-Map.dc.html": {
+   "x": 1520,
+   "y": 300,
+   "w": 1440,
+   "h": 1500,
+   "title": "Navigation Map",
+   "page": "flows"
+  }
+ },
+ "order": [
+  "Main.dc.html",
+  "O-Inventory.dc.html",
+  "O-Decisions.dc.html",
+  "O-Coverage.dc.html",
+  "F-Colors.dc.html",
+  "F-Typography.dc.html",
+  "F-Layout.dc.html",
+  "C-Foundation.dc.html",
+  "C-Financial.dc.html",
+  "C-Intelligence.dc.html",
+  "D-Welcome.dc.html",
+  "D-Login.dc.html",
+  "D-Signup.dc.html",
+  "D-Setup.dc.html",
+  "D-FirstData.dc.html",
+  "D-FirstOverview.dc.html",
+  "D-Home.dc.html",
+  "D-Health.dc.html",
+  "D-HealthMethod.dc.html",
+  "D-Accounts.dc.html",
+  "D-AccountDetail.dc.html",
+  "D-AddAccount.dc.html",
+  "D-EditAccount.dc.html",
+  "D-Transactions.dc.html",
+  "D-TxnDetail.dc.html",
+  "D-Cards.dc.html",
+  "D-CardDetail.dc.html",
+  "D-Invoice.dc.html",
+  "D-FutureInvoices.dc.html",
+  "D-Installment.dc.html",
+  "D-Analysis.dc.html",
+  "D-AnalysisSpending.dc.html",
+  "D-AnalysisIncome.dc.html",
+  "D-AnalysisCategories.dc.html",
+  "D-AnalysisMerchants.dc.html",
+  "D-AnalysisEvolution.dc.html",
+  "D-Insights.dc.html",
+  "D-InsightDetail.dc.html",
+  "D-Goals.dc.html",
+  "D-GoalDetail.dc.html",
+  "D-CreateGoal.dc.html",
+  "D-GoalCreated.dc.html",
+  "D-Copilot.dc.html",
+  "D-CopilotChat.dc.html",
+  "D-Profile.dc.html",
+  "D-ProfileInstitutions.dc.html",
+  "D-ProfileConnections.dc.html",
+  "D-ProfileConsents.dc.html",
+  "D-ProfileSecurity.dc.html",
+  "D-ProfilePreferences.dc.html",
+  "M-Welcome.dc.html",
+  "M-Setup.dc.html",
+  "M-Home.dc.html",
+  "M-Health.dc.html",
+  "M-Transactions.dc.html",
+  "M-TxnDetail.dc.html",
+  "M-Cards.dc.html",
+  "M-Invoice.dc.html",
+  "M-Installment.dc.html",
+  "M-Analysis.dc.html",
+  "M-More.dc.html",
+  "M-Insights.dc.html",
+  "M-InsightDetail.dc.html",
+  "M-Goals.dc.html",
+  "M-Copilot.dc.html",
+  "M-CopilotChat.dc.html",
+  "S-Catalog.dc.html",
+  "D-HomeLoading.dc.html",
+  "D-TxnEmpty.dc.html",
+  "D-TxnError.dc.html",
+  "D-AccountsEmpty.dc.html",
+  "D-CopilotStates.dc.html",
+  "M-HomeLoading.dc.html",
+  "T-Home.dc.html",
+  "T-Transactions.dc.html",
+  "XL-Home.dc.html",
+  "R-Rules.dc.html",
+  "N-Flows.dc.html",
+  "N-Map.dc.html"
+ ],
+ "notes": {
+  "t-overview-o1": {
+   "x": 0,
+   "y": 40,
+   "text": "Visão geral",
+   "kind": "title1",
+   "maxW": 6000,
+   "page": "overview"
+  },
+  "t-foundations-f": {
+   "x": 0,
+   "y": 40,
+   "text": "Foundations",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "foundations"
+  },
+  "t-components-c": {
+   "x": 0,
+   "y": 40,
+   "text": "Component Library",
+   "kind": "title1",
+   "maxW": 4480,
+   "page": "components"
+  },
+  "t-desktop-auth": {
+   "x": 0,
+   "y": 40,
+   "text": "Auth e Onboarding",
+   "kind": "title1",
+   "maxW": 9040,
+   "page": "desktop"
+  },
+  "t-desktop-home": {
+   "x": 0,
+   "y": 2020,
+   "text": "Home",
+   "kind": "title1",
+   "maxW": 1440,
+   "page": "desktop"
+  },
+  "t-desktop-health": {
+   "x": 0,
+   "y": 3880,
+   "text": "Financial Health",
+   "kind": "title1",
+   "maxW": 2960,
+   "page": "desktop"
+  },
+  "t-desktop-accounts": {
+   "x": 0,
+   "y": 5860,
+   "text": "Accounts",
+   "kind": "title1",
+   "maxW": 6000,
+   "page": "desktop"
+  },
+  "t-desktop-transactions": {
+   "x": 0,
+   "y": 7380,
+   "text": "Transactions",
+   "kind": "title1",
+   "maxW": 2960,
+   "page": "desktop"
+  },
+  "t-desktop-cards": {
+   "x": 0,
+   "y": 9220,
+   "text": "Credit Cards",
+   "kind": "title1",
+   "maxW": 7520,
+   "page": "desktop"
+  },
+  "t-desktop-analysis": {
+   "x": 0,
+   "y": 10960,
+   "text": "Analysis",
+   "kind": "title1",
+   "maxW": 9040,
+   "page": "desktop"
+  },
+  "t-desktop-insights": {
+   "x": 0,
+   "y": 12880,
+   "text": "Insights",
+   "kind": "title1",
+   "maxW": 2960,
+   "page": "desktop"
+  },
+  "t-desktop-goals": {
+   "x": 0,
+   "y": 14620,
+   "text": "Goals",
+   "kind": "title1",
+   "maxW": 6000,
+   "page": "desktop"
+  },
+  "t-desktop-copilot": {
+   "x": 0,
+   "y": 16240,
+   "text": "Copilot",
+   "kind": "title1",
+   "maxW": 2960,
+   "page": "desktop"
+  },
+  "t-desktop-profile": {
+   "x": 0,
+   "y": 17840,
+   "text": "Profile",
+   "kind": "title1",
+   "maxW": 9040,
+   "page": "desktop"
+  },
+  "t-mobile-m1": {
+   "x": 0,
+   "y": 40,
+   "text": "Onboarding, Home e Health",
+   "kind": "title1",
+   "maxW": 1800,
+   "page": "mobile"
+  },
+  "t-mobile-m2": {
+   "x": 0,
+   "y": 2460,
+   "text": "Transações",
+   "kind": "title1",
+   "maxW": 1400,
+   "page": "mobile"
+  },
+  "t-mobile-m3": {
+   "x": 0,
+   "y": 4060,
+   "text": "Cartões, fatura e parcela",
+   "kind": "title1",
+   "maxW": 1400,
+   "page": "mobile"
+  },
+  "t-mobile-m4": {
+   "x": 0,
+   "y": 6120,
+   "text": "Análise, Mais e Insights",
+   "kind": "title1",
+   "maxW": 1800,
+   "page": "mobile"
+  },
+  "t-mobile-m5": {
+   "x": 0,
+   "y": 8100,
+   "text": "Objetivos e Copilot",
+   "kind": "title1",
+   "maxW": 1400,
+   "page": "mobile"
+  },
+  "t-states-s1": {
+   "x": 0,
+   "y": 40,
+   "text": "Catálogo",
+   "kind": "title1",
+   "maxW": 1440,
+   "page": "states"
+  },
+  "t-states-s2": {
+   "x": 0,
+   "y": 2100,
+   "text": "Estados em tela (desktop)",
+   "kind": "title1",
+   "maxW": 7520,
+   "page": "states"
+  },
+  "t-states-s3": {
+   "x": 0,
+   "y": 3560,
+   "text": "Mobile",
+   "kind": "title1",
+   "maxW": 1400,
+   "page": "states"
+  },
+  "t-responsive-r1": {
+   "x": 0,
+   "y": 40,
+   "text": "Tablet · 834",
+   "kind": "title1",
+   "maxW": 1748,
+   "page": "responsive"
+  },
+  "t-responsive-r2": {
+   "x": 0,
+   "y": 2360,
+   "text": "Large · 1680",
+   "kind": "title1",
+   "maxW": 1680,
+   "page": "responsive"
+  },
+  "t-responsive-r0": {
+   "x": 0,
+   "y": 3960,
+   "text": "Regras",
+   "kind": "title1",
+   "maxW": 1440,
+   "page": "responsive"
+  },
+  "t-flows-n": {
+   "x": 0,
+   "y": 40,
+   "text": "Navegação e jornadas",
+   "kind": "title1",
+   "maxW": 2960,
+   "page": "flows"
+  }
+ },
+ "designSystems": []
+}
