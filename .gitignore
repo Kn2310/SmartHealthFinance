@@ -1,0 +1,7 @@
+# Segredos e configuração por ambiente (specs 05.11: "Secrets: nunca commit").
+# Apenas os modelos *.example são versionados.
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
