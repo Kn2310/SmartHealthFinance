@@ -1,0 +1,29 @@
+# Perfil de testes: conexões reais vêm do Testcontainers (@ServiceConnection).
+# Os valores abaixo apenas satisfazem os placeholders obrigatórios de application.yml.
+spring:
+  datasource:
+    url: jdbc:postgresql://overridden-by-testcontainers/shf
+    username: test
+    password: test
+  data:
+    redis:
+      host: overridden-by-testcontainers
+  rabbitmq:
+    host: overridden-by-testcontainers
+    username: test
+    password: test
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Nunca é contatado: os testes usam o post-processor jwt() do spring-security-test.
+          issuer-uri: http://issuer.test/realms/smart-health-finance
+
+shf:
+  security:
+    cors-allowed-origins: http://localhost:3000
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0

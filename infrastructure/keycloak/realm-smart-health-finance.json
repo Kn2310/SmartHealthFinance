@@ -1,0 +1,58 @@
+{
+  "realm": "smart-health-finance",
+  "displayName": "Smart Health Finance (local)",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "verifyEmail": false,
+  "accessTokenLifespan": 300,
+  "clients": [
+    {
+      "clientId": "shf-web",
+      "name": "Smart Health Finance Web (local)",
+      "description": "Cliente público com PKCE. directAccessGrants habilitado APENAS no realm local, para obter tokens via curl.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:3000/*"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "basic", "profile", "email", "roles"]
+    }
+  ],
+  "users": [
+    {
+      "username": "${SHF_DEV_ANA_USERNAME}",
+      "email": "${SHF_DEV_ANA_USERNAME}",
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "Dev",
+      "enabled": true,
+      "credentials": [
+        { "type": "password", "value": "${SHF_DEV_ANA_PASSWORD}", "temporary": false }
+      ]
+    },
+    {
+      "username": "${SHF_DEV_BRUNO_USERNAME}",
+      "email": "${SHF_DEV_BRUNO_USERNAME}",
+      "emailVerified": true,
+      "firstName": "Bruno",
+      "lastName": "Dev",
+      "enabled": true,
+      "credentials": [
+        { "type": "password", "value": "${SHF_DEV_BRUNO_PASSWORD}", "temporary": false }
+      ]
+    }
+  ]
+}

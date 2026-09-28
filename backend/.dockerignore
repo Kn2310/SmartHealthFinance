@@ -1,0 +1,10 @@
+# Mantém o contexto de build pequeno e sem segredos.
+.env
+.env.*
+*.env
+target/
+.idea/
+.vscode/
+*.iml
+.git/
+HELP.md

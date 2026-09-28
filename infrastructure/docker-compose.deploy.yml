@@ -1,0 +1,98 @@
+# STAGING e PRODUCTION — topologia MVP single host (specs 05.11).
+# O mesmo arquivo serve aos dois ambientes; o que muda é o env file (fora do repositório):
+#
+#   docker compose --env-file /etc/shf/staging.env    -f infrastructure/docker-compose.deploy.yml up -d
+#   docker compose --env-file /etc/shf/production.env -f infrastructure/docker-compose.deploy.yml up -d
+#
+# Modelo das variáveis: infrastructure/.env.deploy.example.
+# - A API é publicada apenas em 127.0.0.1: o reverse proxy (TLS) do host encaminha o tráfego.
+# - PostgreSQL, Redis e RabbitMQ não publicam portas no host.
+# - Imagem da API sempre por digest (deploy por SHA/digest).
+# - Variáveis obrigatórias usam ${VAR:?}: o compose falha antes de subir se faltar alguma.
+
+name: shf-${DEPLOY_ENV:?defina DEPLOY_ENV (staging|production)}
+
+services:
+
+  api:
+    image: ${API_IMAGE:?defina API_IMAGE (registry/smart-health-finance-api@sha256:...)}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:?}
+      DB_USERNAME: ${DB_USERNAME:?}
+      DB_PASSWORD: ${DB_PASSWORD:?}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?}
+      OIDC_ISSUER_URI: ${OIDC_ISSUER_URI:?}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:?}
+      SERVER_PORT: "8080"
+      # Actuator em porta própria, acessível só pela rede interna (monitoramento/probes).
+      MANAGEMENT_SERVER_PORT: "8081"
+      API_DOCS_ENABLED: ${API_DOCS_ENABLED:-false}
+      OTEL_EXPORT_ENABLED: ${OTEL_EXPORT_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}
+      TRACING_SAMPLING_PROBABILITY: ${TRACING_SAMPLING_PROBABILITY:-0.1}
+      TZ: UTC
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8080}:8080"
+    stop_grace_period: 30s # server.shutdown=graceful
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:?}
+      POSTGRES_USER: ${DB_USERNAME:?}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no --maxmemory-policy allkeys-lru"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-alpine
+    restart: unless-stopped
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  rabbitmq-data:

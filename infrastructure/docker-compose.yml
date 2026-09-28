@@ -1,0 +1,96 @@
+# Infra LOCAL do Smart Health Finance (specs 06-development/local-development.md).
+#
+# Na raiz do repositório:
+#   docker compose --env-file backend/.env -f infrastructure/docker-compose.yml up -d
+#   docker compose --env-file backend/.env -f infrastructure/docker-compose.yml --profile observability up -d
+#
+# A API roda fora do Docker (IDE ou ./mvnw spring-boot:run com perfil "local").
+# Portas publicadas apenas em 127.0.0.1. Credenciais sem default: obrigatórias em backend/.env.
+# Versões alinhadas com src/test/.../TestcontainersConfiguration.java.
+
+name: shf-local
+
+services:
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME:-shf}
+      POSTGRES_USER: ${DB_USERNAME:?defina DB_USERNAME em backend/.env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD em backend/.env}
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?defina REDIS_PASSWORD em backend/.env}
+    # Sem persistência: Redis nunca é source of truth.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    hostname: rabbitmq # nome estável: o RabbitMQ associa os dados do volume ao hostname
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?defina RABBITMQ_USERNAME em backend/.env}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?defina RABBITMQ_PASSWORD em backend/.env}
+    ports:
+      - "127.0.0.1:${RABBITMQ_PORT:-5672}:5672"
+      - "127.0.0.1:${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  keycloak:
+    # IdP OIDC local (issuer esperado por application-local.yml).
+    image: quay.io/keycloak/keycloak:26.3
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:?defina KEYCLOAK_ADMIN_USERNAME em backend/.env}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?defina KEYCLOAK_ADMIN_PASSWORD em backend/.env}
+      # Fixa o "iss" dos tokens em http://localhost:<porta>, igual ao OIDC_ISSUER_URI da API.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8180}
+      KC_HTTP_PORT: "8080"
+      KC_HEALTH_ENABLED: "true"
+      # Usuários sintéticos do realm: resolvidos pelos placeholders ${...} no JSON durante o import.
+      SHF_DEV_ANA_USERNAME: ${SHF_DEV_ANA_USERNAME:?defina SHF_DEV_ANA_USERNAME em backend/.env}
+      SHF_DEV_ANA_PASSWORD: ${SHF_DEV_ANA_PASSWORD:?defina SHF_DEV_ANA_PASSWORD em backend/.env}
+      SHF_DEV_BRUNO_USERNAME: ${SHF_DEV_BRUNO_USERNAME:?defina SHF_DEV_BRUNO_USERNAME em backend/.env}
+      SHF_DEV_BRUNO_PASSWORD: ${SHF_DEV_BRUNO_PASSWORD:?defina SHF_DEV_BRUNO_PASSWORD em backend/.env}
+    ports:
+      - "127.0.0.1:${KEYCLOAK_PORT:-8180}:8080"
+    volumes:
+      - ./keycloak/realm-smart-health-finance.json:/opt/keycloak/data/import/realm-smart-health-finance.json:ro
+
+  otel-lgtm:
+    # Opcional: Grafana + Tempo + Loki + Prometheus + OTel Collector em um container.
+    image: grafana/otel-lgtm:latest
+    profiles: ["observability"]
+    ports:
+      - "127.0.0.1:3001:3000" # Grafana (3000 fica livre para o Next.js)
+      - "127.0.0.1:4317:4317" # OTLP gRPC
+      - "127.0.0.1:4318:4318" # OTLP HTTP
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
