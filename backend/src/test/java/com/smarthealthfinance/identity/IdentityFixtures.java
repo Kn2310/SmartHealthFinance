@@ -2,11 +2,7 @@ package com.smarthealthfinance.identity;
 
 import java.time.Instant;
 
-import com.smarthealthfinance.identity.domain.DisplayName;
-import com.smarthealthfinance.identity.domain.Email;
-import com.smarthealthfinance.identity.domain.ExternalIdentity;
-import com.smarthealthfinance.identity.domain.User;
-import com.smarthealthfinance.identity.domain.UserId;
+import com.smarthealthfinance.identity.domain.*;
 
 public final class IdentityFixtures {
 
@@ -37,4 +33,7 @@ public final class IdentityFixtures {
 		return user;
 	}
 
+	public static Workspace personalWorkspace(User owner) {
+		return Workspace.createPersonal(WorkspaceId.generate(CREATED_AT), owner.id(), CREATED_AT);
+	}
 }

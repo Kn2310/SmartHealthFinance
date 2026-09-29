@@ -21,7 +21,9 @@ public enum ErrorCode {
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno inesperado."),
 	USER_NOT_PROVISIONED(HttpStatus.NOT_FOUND, "Usuário ainda não provisionado."),
 	USER_DISABLED(HttpStatus.FORBIDDEN, "Usuário desativado."),
-	IDENTITY_CLAIMS_INCOMPLETE(HttpStatus.UNPROCESSABLE_CONTENT, "O token não contém os dados de identidade necessários.");
+	IDENTITY_CLAIMS_INCOMPLETE(HttpStatus.UNPROCESSABLE_CONTENT, "O token não contém os dados de identidade necessários."),
+	/** Inexistente ou sem membership: indistinguíveis de propósito (ADR-0003). */
+	WORKSPACE_NOT_FOUND(HttpStatus.NOT_FOUND, "Workspace não encontrado.");
 
 	private final HttpStatus status;
 	private final String defaultMessage;

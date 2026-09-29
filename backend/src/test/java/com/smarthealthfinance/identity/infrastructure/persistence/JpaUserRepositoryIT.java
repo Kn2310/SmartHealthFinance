@@ -24,6 +24,7 @@ import com.smarthealthfinance.identity.domain.ExternalIdentity;
 import com.smarthealthfinance.identity.domain.User;
 import com.smarthealthfinance.identity.domain.UserId;
 import com.smarthealthfinance.identity.domain.UserRepository;
+import com.smarthealthfinance.identity.IdentityTables;
 import com.smarthealthfinance.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -56,7 +57,7 @@ class JpaUserRepositoryIT extends IntegrationTest {
 	@BeforeEach
 	void setUp() {
 		tx = new TransactionTemplate(transactionManager);
-		jdbc.update("delete from users");
+		IdentityTables.clean(jdbc);
 	}
 
 	@Test
