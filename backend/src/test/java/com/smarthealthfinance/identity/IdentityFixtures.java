@@ -2,7 +2,13 @@ package com.smarthealthfinance.identity;
 
 import java.time.Instant;
 
-import com.smarthealthfinance.identity.domain.*;
+import com.smarthealthfinance.identity.domain.model.User;
+import com.smarthealthfinance.identity.domain.model.Workspace;
+import com.smarthealthfinance.identity.domain.valueobject.DisplayName;
+import com.smarthealthfinance.identity.domain.valueobject.Email;
+import com.smarthealthfinance.identity.domain.valueobject.ExternalIdentity;
+import com.smarthealthfinance.identity.domain.valueobject.UserId;
+import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 
 public final class IdentityFixtures {
 

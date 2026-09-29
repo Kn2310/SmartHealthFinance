@@ -9,7 +9,12 @@ import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
+import jakarta.persistence.Embeddable;
+import jakarta.persistence.Entity;
+import org.springframework.data.repository.Repository;
+import org.springframework.stereotype.Service;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
  * Guarda da arquitetura aprovada (specs 05.3, ADR-0001):
@@ -17,6 +22,8 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @AnalyzeClasses(packages = "com.smarthealthfinance", importOptions = ImportOption.DoNotIncludeTests.class)
 class ArchitectureTest {
+
+	private static final String SHARED = "com.smarthealthfinance.shared..";
 
 	@ArchTest
 	static final ArchRule domainIsFrameworkAndLayerFree = noClasses().that()
@@ -46,11 +53,66 @@ class ArchitectureTest {
 		.allowEmptyShould(true)
 		.because("a API fala com casos de uso, nunca diretamente com adapters/persistência");
 
+	// Convenção de subpacotes dentro das camadas de cada módulo (ADR-0001).
+
 	@ArchTest
-	static final ArchRule controllersLiveInPresentation = classes().that()
+	static final ArchRule controllersLiveInPresentationController = classes().that()
 		.areAnnotatedWith(RestController.class)
 		.should()
-		.resideInAPackage("..presentation..")
+		.resideInAPackage("..presentation.controller..")
+		.allowEmptyShould(true);
+
+	@ArchTest
+	static final ArchRule moduleExceptionHandlersLiveInPresentationHandler = classes().that()
+		.areAnnotatedWith(RestControllerAdvice.class)
+		.and()
+		.resideOutsideOfPackage(SHARED)
+		.should()
+		.resideInAPackage("..presentation.handler..")
+		.allowEmptyShould(true);
+
+	@ArchTest
+	static final ArchRule applicationBeansAreUseCasesOrServices = classes().that()
+		.areAnnotatedWith(Service.class)
+		.should()
+		.resideInAnyPackage("..application.usecase..", "..application.service..")
+		.allowEmptyShould(true);
+
+	@ArchTest
+	static final ArchRule domainEnumsLiveInEnums = classes().that()
+		.areEnums()
+		.and()
+		.resideInAPackage("..domain..")
+		.should()
+		.resideInAPackage("..domain.enums..")
+		.allowEmptyShould(true);
+
+	@ArchTest
+	static final ArchRule moduleExceptionsLiveInExceptionPackages = classes().that()
+		.areAssignableTo(RuntimeException.class)
+		.and()
+		.resideInAnyPackage("..domain..", "..application..")
+		.and()
+		.resideOutsideOfPackage(SHARED)
+		.should()
+		.resideInAnyPackage("..domain.exception..", "..application.exception..")
+		.allowEmptyShould(true);
+
+	@ArchTest
+	static final ArchRule jpaMappingsLiveInPersistenceEntity = classes().that()
+		.areAnnotatedWith(Entity.class)
+		.or()
+		.areAnnotatedWith(Embeddable.class)
+		.should()
+		.resideInAPackage("..infrastructure.persistence.entity..")
+		.allowEmptyShould(true)
+		.because("entidades JPA são detalhe de persistência, distintas das entidades de domínio (domain.model)");
+
+	@ArchTest
+	static final ArchRule springDataRepositoriesLiveInPersistenceRepository = classes().that()
+		.areAssignableTo(Repository.class)
+		.should()
+		.resideInAPackage("..infrastructure.persistence.repository..")
 		.allowEmptyShould(true);
 
 	@ArchTest

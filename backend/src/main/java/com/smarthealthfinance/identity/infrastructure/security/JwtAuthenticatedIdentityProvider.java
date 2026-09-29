@@ -1,8 +1,8 @@
 package com.smarthealthfinance.identity.infrastructure.security;
 
-import com.smarthealthfinance.identity.application.AuthenticatedIdentity;
-import com.smarthealthfinance.identity.application.AuthenticatedIdentityProvider;
-import com.smarthealthfinance.identity.domain.ExternalIdentity;
+import com.smarthealthfinance.identity.application.dto.AuthenticatedIdentity;
+import com.smarthealthfinance.identity.application.port.AuthenticatedIdentityProvider;
+import com.smarthealthfinance.identity.domain.valueobject.ExternalIdentity;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;

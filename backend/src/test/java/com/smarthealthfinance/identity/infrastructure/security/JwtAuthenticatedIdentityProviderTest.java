@@ -1,11 +1,11 @@
 package com.smarthealthfinance.identity.infrastructure.security;
 
+import com.smarthealthfinance.identity.application.dto.AuthenticatedIdentity;
+import com.smarthealthfinance.identity.domain.valueobject.ExternalIdentity;
 import static com.smarthealthfinance.identity.IdentityFixtures.ISSUER;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import com.smarthealthfinance.identity.application.AuthenticatedIdentity;
-import com.smarthealthfinance.identity.domain.ExternalIdentity;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
