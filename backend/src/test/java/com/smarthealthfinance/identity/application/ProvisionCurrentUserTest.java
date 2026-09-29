@@ -3,6 +3,7 @@ package com.smarthealthfinance.identity.application;
 import static com.smarthealthfinance.identity.IdentityFixtures.activeUser;
 import static com.smarthealthfinance.identity.IdentityFixtures.disabledUser;
 import static com.smarthealthfinance.identity.IdentityFixtures.externalIdentity;
+import static com.smarthealthfinance.identity.IdentityFixtures.personalWorkspace;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -13,7 +14,12 @@ import java.time.ZoneOffset;
 import com.smarthealthfinance.identity.domain.Email;
 import com.smarthealthfinance.identity.domain.User;
 import com.smarthealthfinance.identity.domain.UserDisabledException;
+import com.smarthealthfinance.identity.domain.UserId;
 import com.smarthealthfinance.identity.domain.UserStatus;
+import com.smarthealthfinance.identity.domain.Workspace;
+import com.smarthealthfinance.identity.domain.WorkspaceId;
+import com.smarthealthfinance.identity.domain.WorkspaceKind;
+import com.smarthealthfinance.identity.domain.WorkspaceRole;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.NullAndEmptySource;
@@ -24,8 +30,9 @@ class ProvisionCurrentUserTest {
 	private static final Instant NOW = Instant.parse("2026-09-27T12:00:00Z");
 
 	private final InMemoryUserRepository users = new InMemoryUserRepository();
+	private final InMemoryWorkspaceRepository workspaces = new InMemoryWorkspaceRepository();
 	private AuthenticatedIdentity identity = identity("Ana.Silva@Example.com", "Ana Silva", "ana");
-	private final ProvisionCurrentUser provision = new ProvisionCurrentUser(() -> identity, users,
+	private final ProvisionCurrentUser provision = new ProvisionCurrentUser(() -> identity, users, workspaces,
 			Clock.fixed(NOW, ZoneOffset.UTC));
 
 	@Test
@@ -106,6 +113,7 @@ class ProvisionCurrentUserTest {
 
 		assertThatThrownBy(provision::execute).isInstanceOf(IncompleteIdentityClaimsException.class);
 		assertThat(users.size()).isZero();
+		assertThat(workspaces.size()).isZero();
 	}
 
 	@Test
@@ -114,6 +122,7 @@ class ProvisionCurrentUserTest {
 
 		assertThatThrownBy(provision::execute).isInstanceOf(UserDisabledException.class);
 		assertThat(users.saveCount()).isZero();
+		assertThat(workspaces.size()).isZero();
 	}
 
 	@Test
@@ -126,6 +135,96 @@ class ProvisionCurrentUserTest {
 		assertThat(result.created()).isFalse();
 		assertThat(result.user().id()).isEqualTo(winner.id().value());
 		assertThat(users.size()).isEqualTo(1);
+	}
+
+	// --- Workspace pessoal ---
+
+	@Test
+	void newUserGetsPersonalWorkspaceWithOwnerMembership() {
+		ProvisionCurrentUser.Result result = provision.execute();
+
+		Workspace workspace = workspaces.findById(new WorkspaceId(result.workspaceId())).orElseThrow();
+		UserId userId = new UserId(result.user().id());
+		assertThat(workspace.kind()).isEqualTo(WorkspaceKind.PERSONAL);
+		assertThat(workspace.ownerId()).isEqualTo(userId);
+		assertThat(workspace.name().value()).isEqualTo("Pessoal");
+		assertThat(workspace.baseCurrency().getCurrencyCode()).isEqualTo("BRL");
+		assertThat(workspace.roleOf(userId)).contains(WorkspaceRole.OWNER);
+		assertThat(workspace.createdAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void repeatedProvisioningKeepsTheSameWorkspaceWithoutNewInserts() {
+		ProvisionCurrentUser.Result first = provision.execute();
+		ProvisionCurrentUser.Result second = provision.execute();
+
+		assertThat(second.workspaceId()).isEqualTo(first.workspaceId());
+		assertThat(workspaces.size()).isEqualTo(1);
+		assertThat(workspaces.insertAttempts()).isEqualTo(1);
+	}
+
+	@Test
+	void userProvisionedBeforeWorkspacesReceivesTheMissingWorkspace() {
+		User legacy = activeUser("sub-ana", "ana.silva@example.com", "Ana Silva");
+		users.store(legacy);
+
+		ProvisionCurrentUser.Result result = provision.execute();
+
+		assertThat(result.created()).isFalse();
+		assertThat(workspaces.size()).isEqualTo(1);
+		assertThat(workspaces.findPersonalByOwner(legacy.id()).orElseThrow().id().value())
+			.isEqualTo(result.workspaceId());
+	}
+
+	@Test
+	void existingWorkspaceIsReused() {
+		User existing = activeUser("sub-ana", "ana.silva@example.com", "Ana Silva");
+		Workspace workspace = personalWorkspace(existing);
+		users.store(existing);
+		workspaces.store(workspace);
+
+		ProvisionCurrentUser.Result result = provision.execute();
+
+		assertThat(result.workspaceId()).isEqualTo(workspace.id().value());
+		assertThat(workspaces.insertAttempts()).isZero();
+	}
+
+	@Test
+	void concurrentWorkspaceCreationReturnsTheWinner() {
+		User legacy = activeUser("sub-ana", "ana.silva@example.com", "Ana Silva");
+		Workspace winner = personalWorkspace(legacy);
+		users.store(legacy);
+		workspaces.simulateConcurrentProvisioning(winner);
+
+		ProvisionCurrentUser.Result result = provision.execute();
+
+		assertThat(result.workspaceId()).isEqualTo(winner.id().value());
+		assertThat(workspaces.size()).isEqualTo(1);
+	}
+
+	@Test
+	void losingUserRaceReturnsTheWinnersWorkspace() {
+		User winner = activeUser("sub-ana", "ana.silva@example.com", "Ana Silva");
+		Workspace winnersWorkspace = personalWorkspace(winner);
+		users.simulateConcurrentProvisioning(winner);
+		workspaces.store(winnersWorkspace);
+
+		ProvisionCurrentUser.Result result = provision.execute();
+
+		assertThat(result.user().id()).isEqualTo(winner.id().value());
+		assertThat(result.workspaceId()).isEqualTo(winnersWorkspace.id().value());
+		assertThat(workspaces.size()).isEqualTo(1);
+	}
+
+	@Test
+	void eachUserGetsTheirOwnWorkspace() {
+		ProvisionCurrentUser.Result ana = provision.execute();
+		identity = new AuthenticatedIdentity(externalIdentity("sub-bob"), "bob@example.com", "Bob", null);
+
+		ProvisionCurrentUser.Result bob = provision.execute();
+
+		assertThat(bob.workspaceId()).isNotEqualTo(ana.workspaceId());
+		assertThat(workspaces.size()).isEqualTo(2);
 	}
 
 	private static AuthenticatedIdentity identity(String email, String name, String preferredUsername) {

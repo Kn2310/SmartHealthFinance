@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 @Service
@@ -19,15 +20,19 @@ public class ProvisionCurrentUser {
 
     private final AuthenticatedIdentityProvider identityProvider;
     private final UserRepository users;
+    private final WorkspaceRepository workspaces;
     private final Clock clock;
 
-    public ProvisionCurrentUser(AuthenticatedIdentityProvider identityProvider, UserRepository users, Clock clock) {
+    public ProvisionCurrentUser(AuthenticatedIdentityProvider identityProvider, UserRepository users,
+                                WorkspaceRepository workspaces, Clock clock) {
         this.identityProvider = identityProvider;
         this.users = users;
+        this.workspaces = workspaces;
         this.clock = clock;
     }
 
-    public record Result(UserView user, boolean created) {}
+    /** {@code created} refere-se ao usuário; o Workspace pessoal é garantido em ambos os casos. */
+    public record Result(UserView user, UUID workspaceId, boolean created) {}
 
     @Transactional
     public Result execute() {
@@ -44,7 +49,7 @@ public class ProvisionCurrentUser {
                 users.save(user);
             }
 
-            return new Result(UserView.from(user), false);
+            return new Result(UserView.from(user), ensurePersonalWorkspace(user.id(), now).id().value(), false);
         }
 
         User user = User.provision(UserId.generate(now), identity.externalIdentity(), email, displayNameFrom(identity, email), now);
@@ -52,12 +57,31 @@ public class ProvisionCurrentUser {
         if (!users.addIfAbsent(user)) {
 
             User winner = users.findByExternalIdentity(identity.externalIdentity()).orElseThrow();
-            return new Result(UserView.from(winner), false);
+            return new Result(UserView.from(winner), ensurePersonalWorkspace(winner.id(), now).id().value(), false);
         }
 
         log.info("User provisioned userId={}", user.id());
 
-        return new Result(UserView.from(user), true);
+        return new Result(UserView.from(user), ensurePersonalWorkspace(user.id(), now).id().value(), true);
+    }
+
+    /** Idempotente: cria o Workspace pessoal (com membership OWNER) apenas se ainda não existir. */
+    private Workspace ensurePersonalWorkspace(UserId ownerId, Instant now) {
+        Optional<Workspace> existing = workspaces.findPersonalByOwner(ownerId);
+
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+
+        Workspace workspace = Workspace.createPersonal(WorkspaceId.generate(now), ownerId, now);
+
+        if (!workspaces.addPersonalIfAbsent(workspace)) {
+            return workspaces.findPersonalByOwner(ownerId).orElseThrow();
+        }
+
+        log.info("Personal workspace created workspaceId={} userId={}", workspace.id(), ownerId);
+
+        return workspace;
     }
 
     private static Email emailFrom(AuthenticatedIdentity identity) {

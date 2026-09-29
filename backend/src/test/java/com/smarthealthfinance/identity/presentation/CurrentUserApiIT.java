@@ -7,6 +7,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import java.nio.charset.StandardCharsets;
 
 import com.jayway.jsonpath.JsonPath;
+import com.smarthealthfinance.identity.IdentityTables;
 import com.smarthealthfinance.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ class CurrentUserApiIT extends IntegrationTest {
 
 	@BeforeEach
 	void cleanUsers() {
-		jdbc.update("delete from users");
+		IdentityTables.clean(jdbc);
 	}
 
 	// --- autenticação ---

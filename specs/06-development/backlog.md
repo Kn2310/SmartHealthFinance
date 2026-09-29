@@ -21,9 +21,9 @@
 
 ## M1 Workspace + Accounts
 
-- [ ] Workspace
-- [ ] membership
-- [ ] roles/permissions
+- [x] Workspace (pessoal automático no provisionamento — ADR-0003)
+- [x] membership
+- [ ] roles/permissions (MVP: apenas OWNER — ADR-0003)
 - [ ] Account aggregate
 - [ ] account persistence
 - [ ] create/update account
