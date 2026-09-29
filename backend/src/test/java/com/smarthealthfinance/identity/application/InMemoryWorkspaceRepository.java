@@ -5,36 +5,36 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.smarthealthfinance.identity.domain.UserId;
-import com.smarthealthfinance.identity.domain.Workspace;
-import com.smarthealthfinance.identity.domain.WorkspaceId;
-import com.smarthealthfinance.identity.domain.WorkspaceKind;
-import com.smarthealthfinance.identity.domain.WorkspaceRepository;
+import com.smarthealthfinance.identity.domain.enums.WorkspaceKind;
+import com.smarthealthfinance.identity.domain.model.Workspace;
+import com.smarthealthfinance.identity.domain.repository.WorkspaceRepository;
+import com.smarthealthfinance.identity.domain.valueobject.UserId;
+import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 
 /**
  * Fake com semântica próxima do adapter JPA: no máximo um Workspace PERSONAL por dono.
  * Workspace é imutável hoje, então não há risco de aliasing; copie no store quando surgirem mutações.
  */
-final class InMemoryWorkspaceRepository implements WorkspaceRepository {
+public final class InMemoryWorkspaceRepository implements WorkspaceRepository {
 
 	private final Map<WorkspaceId, Workspace> workspaces = new LinkedHashMap<>();
 	private Workspace concurrentWinner;
 	private int insertAttempts;
 
 	/** Na próxima chamada de addPersonalIfAbsent, simula outra requisição criando este Workspace antes. */
-	void simulateConcurrentProvisioning(Workspace winner) {
+	public void simulateConcurrentProvisioning(Workspace winner) {
 		this.concurrentWinner = winner;
 	}
 
-	void store(Workspace workspace) {
+	public void store(Workspace workspace) {
 		workspaces.put(workspace.id(), workspace);
 	}
 
-	int size() {
+	public int size() {
 		return workspaces.size();
 	}
 
-	int insertAttempts() {
+	public int insertAttempts() {
 		return insertAttempts;
 	}
 

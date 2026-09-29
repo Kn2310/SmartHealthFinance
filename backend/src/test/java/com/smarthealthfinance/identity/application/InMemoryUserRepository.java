@@ -4,34 +4,34 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import com.smarthealthfinance.identity.domain.ExternalIdentity;
-import com.smarthealthfinance.identity.domain.User;
-import com.smarthealthfinance.identity.domain.UserId;
-import com.smarthealthfinance.identity.domain.UserRepository;
+import com.smarthealthfinance.identity.domain.model.User;
+import com.smarthealthfinance.identity.domain.repository.UserRepository;
+import com.smarthealthfinance.identity.domain.valueobject.ExternalIdentity;
+import com.smarthealthfinance.identity.domain.valueobject.UserId;
 
 /**
  * Fake com semântica próxima do adapter JPA: devolve cópias (sem aliasing) e incrementa version no save.
  */
-final class InMemoryUserRepository implements UserRepository {
+public final class InMemoryUserRepository implements UserRepository {
 
 	private final Map<UserId, User> users = new LinkedHashMap<>();
 	private User concurrentWinner;
 	private int saveCount;
 
 	/** Na próxima chamada de addIfAbsent, simula outra requisição inserindo este usuário antes. */
-	void simulateConcurrentProvisioning(User winner) {
+	public void simulateConcurrentProvisioning(User winner) {
 		this.concurrentWinner = winner;
 	}
 
-	void store(User user) {
+	public void store(User user) {
 		users.put(user.id(), copy(user, user.version()));
 	}
 
-	int size() {
+	public int size() {
 		return users.size();
 	}
 
-	int saveCount() {
+	public int saveCount() {
 		return saveCount;
 	}
 
