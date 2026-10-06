@@ -9,6 +9,7 @@ public final class IdentityTables {
 	}
 
 	public static void clean(JdbcTemplate jdbc) {
+		jdbc.update("delete from accounts");
 		jdbc.update("delete from workspaces");
 		jdbc.update("delete from users");
 	}

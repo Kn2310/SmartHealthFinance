@@ -14,6 +14,8 @@ public enum ErrorCode {
 	FORBIDDEN(HttpStatus.FORBIDDEN, "Acesso negado."),
 	NOT_FOUND(HttpStatus.NOT_FOUND, "Recurso não encontrado."),
 	METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "Método não permitido para este recurso."),
+	/** 409 genérico: precisa vir antes de qualquer 409 específico por causa de {@link #fromStatus}. */
+	CONFLICT(HttpStatus.CONFLICT, "O recurso foi alterado por outra requisição ou está em estado incompatível."),
 	NOT_ACCEPTABLE(HttpStatus.NOT_ACCEPTABLE, "Formato de resposta não suportado."),
 	UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de conteúdo não suportado."),
 	PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "Requisição excede o tamanho permitido."),
@@ -23,7 +25,10 @@ public enum ErrorCode {
 	USER_DISABLED(HttpStatus.FORBIDDEN, "Usuário desativado."),
 	IDENTITY_CLAIMS_INCOMPLETE(HttpStatus.UNPROCESSABLE_CONTENT, "O token não contém os dados de identidade necessários."),
 	/** Inexistente ou sem membership: indistinguíveis de propósito (ADR-0003). */
-	WORKSPACE_NOT_FOUND(HttpStatus.NOT_FOUND, "Workspace não encontrado.");
+	WORKSPACE_NOT_FOUND(HttpStatus.NOT_FOUND, "Workspace não encontrado."),
+	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0004). */
+	ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "Conta não encontrada."),
+	ACCOUNT_ARCHIVED(HttpStatus.CONFLICT, "Conta arquivada não pode ser alterada.");
 
 	private final HttpStatus status;
 	private final String defaultMessage;
