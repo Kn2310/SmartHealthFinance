@@ -6,6 +6,7 @@ import java.util.List;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
@@ -72,6 +73,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 	@ExceptionHandler(AuthenticationException.class)
 	ResponseEntity<ApiError> handleAuthentication(AuthenticationException ex) {
 		return respond(ErrorCode.UNAUTHENTICATED);
+	}
+
+	/** Lock otimista (@Version): outra requisição alterou o agregado primeiro. */
+	@ExceptionHandler(OptimisticLockingFailureException.class)
+	ResponseEntity<ApiError> handleConcurrentModification(OptimisticLockingFailureException ex) {
+		return respond(ErrorCode.CONFLICT);
 	}
 
 	@ExceptionHandler(Exception.class)
