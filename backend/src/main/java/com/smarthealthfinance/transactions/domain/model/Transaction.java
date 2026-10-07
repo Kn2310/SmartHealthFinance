@@ -5,6 +5,7 @@ import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.BalanceEffect;
 import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
@@ -227,6 +228,24 @@ public class Transaction {
 
     public boolean isVoided() {
         return status.isVoided();
+    }
+
+    /**
+     * Efeito desta transação no saldo de {@code account} (positivo, negativo ou zero). Fonte única da semântica de
+     * saldo (ADR-0006): só POSTED conta; transferência debita a origem e credita o destino.
+     */
+    public Money balanceEffectOn(AccountId account) {
+        Objects.requireNonNull(account, "account");
+        if (!status.affectsBalance()) {
+            return Money.zero(amount.currency());
+        }
+        if (accountId.equals(account)) {
+            return type.originEffect(adjustmentDirection) == BalanceEffect.CREDIT ? amount : amount.negate();
+        }
+        if (account.equals(destinationAccountId)) {
+            return amount;
+        }
+        return Money.zero(amount.currency());
     }
 
     /** A conta é origem ou destino desta transação. */

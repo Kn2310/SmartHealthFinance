@@ -133,12 +133,37 @@ class ArchitectureTest {
 		.allowEmptyShould(true)
 		.because("Accounts é upstream de Transactions; o inverso criaria acoplamento circular de domínio");
 
+	// Overview (ADR-0006) é read model downstream: Identity → Accounts → Transactions → Overview.
+
+	@ArchTest
+	static final ArchRule coreModulesDoNotDependOnOverview = noClasses().that()
+		.resideInAnyPackage("com.smarthealthfinance.identity..", "com.smarthealthfinance.accounts..",
+				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.shared..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.overview..")
+		.allowEmptyShould(true)
+		.because("Overview só consome o Financial Core; nada do núcleo pode depender de uma visão de leitura");
+
+	@ArchTest
+	static final ArchRule overviewOnlyReadsThroughPortsAndNeverWritesTheCore = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.overview..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.transactions.application.usecase..",
+				"com.smarthealthfinance.accounts.application.usecase..",
+				"com.smarthealthfinance.transactions.infrastructure..",
+				"com.smarthealthfinance.accounts.infrastructure..")
+		.allowEmptyShould(true)
+		.because("o Overview não executa comandos nem toca nos adapters de Accounts/Transactions: só lê (ADR-0006)");
+
 	@ArchTest
 	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()
 		.resideInAPackage("com.smarthealthfinance.identity..")
 		.should()
 		.dependOnClassesThat()
-		.resideInAnyPackage("com.smarthealthfinance.accounts..", "com.smarthealthfinance.transactions..")
+		.resideInAnyPackage("com.smarthealthfinance.accounts..", "com.smarthealthfinance.transactions..",
+				"com.smarthealthfinance.overview..")
 		.allowEmptyShould(true)
 		.because("Identity é a base de autorização (ADR-0003) e não conhece dados financeiros");
 

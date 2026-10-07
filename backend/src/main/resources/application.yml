@@ -50,6 +50,9 @@ server:
     include-exception: false
 
 shf:
+  overview:
+    # Fuso que define "hoje" no Overview (ADR-0006); o Workspace ainda não tem fuso próprio.
+    zone: ${OVERVIEW_ZONE:America/Sao_Paulo}
   security:
     cors-allowed-origins: ${CORS_ALLOWED_ORIGINS:}
     public-api-docs: false

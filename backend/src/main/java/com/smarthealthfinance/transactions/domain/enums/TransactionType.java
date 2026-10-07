@@ -14,6 +14,24 @@ public enum TransactionType {
     /** Reembolso; pode apontar para a despesa original. */
     REFUND;
 
+    /**
+     * Efeito no saldo da conta de origem (ADR-0005/0006). Em TRANSFER, o destino sempre recebe CREDIT.
+     *
+     * @param direction obrigatória apenas para ADJUSTMENT
+     */
+    public BalanceEffect originEffect(AdjustmentDirection direction) {
+        return switch (this) {
+            case INCOME, REFUND -> BalanceEffect.CREDIT;
+            case EXPENSE, TRANSFER -> BalanceEffect.DEBIT;
+            case ADJUSTMENT -> {
+                if (direction == null) {
+                    throw new InvalidValueException("adjustmentDirection", "REQUIRED");
+                }
+                yield direction == AdjustmentDirection.INCREASE ? BalanceEffect.CREDIT : BalanceEffect.DEBIT;
+            }
+        };
+    }
+
     public static TransactionType parse(String value) {
         if (value == null || value.isBlank()) {
             throw new InvalidValueException("type", "REQUIRED");
