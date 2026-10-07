@@ -1,0 +1,91 @@
+.wrap { display: flex; flex-direction: column; gap: var(--space-12); min-width: 0; }
+
+.segmented {
+  display: flex;
+  max-width: 100%;
+  padding: var(--space-4);
+  gap: var(--space-4);
+  overflow-x: auto;
+  border: 1px solid var(--color-neutral-border);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-surface);
+}
+
+.option {
+  flex: 1 1 auto;
+  min-height: var(--size-touch-min-mobile);
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-neutral-text-secondary);
+  font: var(--type-body-s);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color var(--duration-micro) var(--ease-standard), color var(--duration-micro) var(--ease-standard);
+}
+.option:hover { background: var(--color-neutral-subtle); }
+.option[aria-pressed='true'] { background: var(--color-brand-deep-navy); color: var(--color-neutral-surface); }
+
+.custom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-12);
+}
+
+/* Input do Design System (02-components): label 13/600 acima, campo 44 px, foco com borda Info + anel bg-info. */
+.field {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  color: var(--color-neutral-text-secondary);
+  font: var(--font-weight-body) 13px / var(--line-height-caption) var(--font-body);
+  font-weight: 600;
+}
+.field input {
+  min-width: 0;
+  min-height: var(--size-touch-min-mobile);
+  padding: 0 var(--space-12);
+  border: 1px solid var(--color-neutral-border-strong);
+  border-radius: var(--radius-input);
+  background: var(--color-neutral-surface);
+  color: var(--color-neutral-text);
+  font: var(--type-body-s);
+}
+.field input:focus-visible {
+  border-color: var(--color-semantic-info);
+  box-shadow: 0 0 0 3px var(--color-semantic-bg-info);
+}
+.field input[aria-invalid='true'] { border-color: var(--color-semantic-danger); }
+
+.apply {
+  flex: 1 1 100%;
+  min-height: var(--size-button-lg);
+  padding: 0 var(--space-20);
+  border: 0;
+  border-radius: var(--radius-button);
+  background: var(--color-brand-deep-navy);
+  color: var(--color-neutral-surface);
+  font: var(--type-body-s);
+  font-weight: 600;
+  cursor: pointer;
+}
+.apply:hover { background: var(--color-neutral-text); }
+.error { flex-basis: 100%; color: var(--color-semantic-text-danger); font: var(--type-body-s); }
+
+@media (min-width: 640px) {
+  .segmented { align-self: flex-start; }
+  .wrap { align-items: flex-start; }
+  .option { flex: none; padding: 0 var(--space-16); }
+  .field { flex: none; }
+  .apply { flex: none; min-height: var(--size-touch-min-mobile); }
+}
+
+@media (min-width: 1024px) {
+  .wrap { align-items: flex-end; }
+  .segmented { align-self: auto; }
+  .option, .field input, .apply { min-height: var(--size-button-md); }
+}

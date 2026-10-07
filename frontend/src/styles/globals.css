@@ -1,0 +1,52 @@
+/* Todos os valores visuais vêm de design-tokens.css (gerado de design/ por scripts/sync-design.mjs). */
+@import './design-tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font: var(--type-body);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, p { margin: 0; }
+ul { margin: 0; padding: 0; list-style: none; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+
+/* Foco do Design System (01-foundations): outline 2 px Info, offset 2 px. Único padrão do app. */
+:focus-visible {
+  outline: 2px solid var(--color-semantic-info);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * Valores financeiros: Inter com algarismos tabulares. O componente Money só permite quebra de linha nos
+ * separadores de milhar (<wbr>); sinal, símbolo e centavos nunca se separam.
+ */
+.money {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: 'tnum' 1, 'lnum' 1;
+}

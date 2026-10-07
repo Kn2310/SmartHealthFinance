@@ -1,0 +1,17 @@
+.seeAll {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex: none;
+  min-height: var(--size-touch-min-mobile);
+  color: var(--color-semantic-text-info);
+  font: var(--type-body-s);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.seeAll:hover { text-decoration: underline; }
+.empty { color: var(--color-neutral-muted); font: var(--type-body-s); }
+
+@media (min-width: 1024px) {
+  .seeAll { min-height: var(--size-touch-min-desktop); }
+}
