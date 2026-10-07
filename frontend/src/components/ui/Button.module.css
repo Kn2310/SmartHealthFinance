@@ -1,0 +1,42 @@
+/*
+ * Button do Design System (02-components): raio 10, 14–16 px/600.
+ * Tamanhos: mobile lg 48 + largura total; tablet ≥ 44 (alvo de toque); desktop md 40.
+ */
+.button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: var(--size-button-lg);
+  padding: 0 var(--space-20);
+  border-radius: var(--radius-button);
+  border: 1px solid transparent;
+  font: var(--type-body-s);
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--duration-micro) var(--ease-standard),
+    border-color var(--duration-micro) var(--ease-standard);
+}
+
+.primary {
+  background: var(--color-brand-deep-navy);
+  color: var(--color-neutral-surface);
+}
+.primary:hover { background: var(--color-neutral-text); }
+
+.secondary {
+  background: var(--color-neutral-surface);
+  color: var(--color-neutral-text);
+  border-color: var(--color-neutral-border-strong);
+}
+.secondary:hover { background: var(--color-neutral-subtle); }
+
+@media (min-width: 640px) {
+  .button { display: inline-flex; width: auto; min-height: var(--size-touch-min-mobile); }
+}
+
+@media (min-width: 1024px) {
+  .button { min-height: var(--size-button-md); }
+}

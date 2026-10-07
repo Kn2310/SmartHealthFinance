@@ -51,8 +51,9 @@
 - [x] overview query (`GetFinancialOverview`, ADR-0006)
 - [x] Home API — bloco Overview em `GET /api/v1/workspaces/{id}/overview` (o composto `/api/v1/home` entra com Health/Insights)
 - [ ] Health placeholder/first implementation
-- [ ] Home UI
-- [ ] responsive states
+- [x] Home UI — Overview: saldo, fluxo do período, contas, movimentações recentes, seletor de período (ADR-0007/0008; critérios da etapa validados em 2026-10-07; Health/Insights ficam para M6/M7)
+- [x] responsive states — READY, NO_ACCOUNTS, NO_TRANSACTIONS (com PENDING), NO_ACTIVITY_IN_PERIOD, loading, erro; 375/768/1024/1280/1440 sem overflow
+- [ ] dívida técnica: revisar a semântica de `recentTransactions` no Overview quando Transactions/Overview voltarem a evoluir (o ADR-0006 §13 diz que os recentes só são consultados com dados; o código os consulta sempre que há conta ativa, e devolve PENDING em `NO_TRANSACTIONS` — a Home já os exibe como pendentes)
 
 ## M4 Import
 

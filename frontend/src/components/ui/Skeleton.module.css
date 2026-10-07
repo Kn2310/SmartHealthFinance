@@ -1,0 +1,18 @@
+.skeleton {
+  display: block;
+  max-width: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-track);
+}
+
+.w-xs { width: 25%; }
+.w-sm { width: 40%; }
+.w-md { width: 60%; }
+.w-lg { width: 80%; }
+.w-full { width: 100%; }
+
+.h-caption { height: var(--line-height-caption); }
+.h-body { height: var(--line-height-body); }
+.h-title { height: var(--line-height-h2); }
+.h-value { height: var(--line-height-display); }
+.h-row { height: var(--size-button-md); }

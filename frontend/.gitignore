@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+coverage
+*.tsbuildinfo
+next-env.d.ts
+.env
+.env.*
+!.env.example
+# gerados por scripts/sync-design.mjs a partir de design/
+src/styles/design-tokens.css
+src/styles/design-tokens.json
+src/lib/api/openapi.generated.d.ts
+public/fonts
