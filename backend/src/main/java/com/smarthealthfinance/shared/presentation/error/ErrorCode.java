@@ -28,7 +28,13 @@ public enum ErrorCode {
 	WORKSPACE_NOT_FOUND(HttpStatus.NOT_FOUND, "Workspace não encontrado."),
 	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0004). */
 	ACCOUNT_NOT_FOUND(HttpStatus.NOT_FOUND, "Conta não encontrada."),
-	ACCOUNT_ARCHIVED(HttpStatus.CONFLICT, "Conta arquivada não pode ser alterada.");
+	ACCOUNT_ARCHIVED(HttpStatus.CONFLICT, "Conta arquivada não pode ser alterada."),
+	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0005). */
+	TRANSACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "Transação não encontrada."),
+	TRANSACTION_STATUS_CONFLICT(HttpStatus.CONFLICT, "A transação não permite esta mudança de status."),
+	/** Mesma Idempotency-Key com conteúdo diferente (spec 05.6). */
+	IDEMPOTENCY_KEY_REUSED(HttpStatus.UNPROCESSABLE_CONTENT,
+			"A Idempotency-Key já foi usada em uma requisição com outro conteúdo.");
 
 	private final HttpStatus status;
 	private final String defaultMessage;
