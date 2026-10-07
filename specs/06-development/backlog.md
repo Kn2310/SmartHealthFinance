@@ -33,15 +33,17 @@
 
 ## M2 Transactions
 
-- [ ] Transaction aggregate
-- [ ] money VO
-- [ ] transaction types
-- [ ] status
-- [ ] dedupe
-- [ ] transaction API
-- [ ] transaction list
-- [ ] filters
-- [ ] tests
+- [x] Transaction aggregate (ADR-0005)
+- [x] money VO (`shared.domain.Money`)
+- [x] transaction types
+- [x] status
+- [x] dedupe (lançamento manual: Idempotency-Key + request hash; dedupe de import por external ID fica no M4)
+- [x] transaction API
+- [x] transaction list
+- [x] filters
+- [x] tests
+- [ ] transaction UI
+- [ ] eventos `transaction.*` (depende do Transactional Outbox)
 
 ## M3 First Home
 

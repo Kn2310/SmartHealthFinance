@@ -121,6 +121,27 @@ class ArchitectureTest {
 		.beFreeOfCycles()
 		.allowEmptyShould(true);
 
+	// Direção entre módulos do First Financial Loop (ADR-0005): Transactions → Accounts → Identity.
+	// O saldo (M3) é derivado de transações; Accounts nunca conhece Transactions.
+
+	@ArchTest
+	static final ArchRule accountsDoNotDependOnTransactions = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.accounts..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.transactions..")
+		.allowEmptyShould(true)
+		.because("Accounts é upstream de Transactions; o inverso criaria acoplamento circular de domínio");
+
+	@ArchTest
+	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.identity..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.accounts..", "com.smarthealthfinance.transactions..")
+		.allowEmptyShould(true)
+		.because("Identity é a base de autorização (ADR-0003) e não conhece dados financeiros");
+
 	@ArchTest
 	static final ArchRule domainNeverUsesFloatingPoint = noFields().that()
 		.areDeclaredInClassesThat()
