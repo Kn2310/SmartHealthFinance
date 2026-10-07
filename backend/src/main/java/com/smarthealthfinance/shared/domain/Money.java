@@ -58,6 +58,15 @@ public record Money(BigDecimal amount, Currency currency) {
         return new Money(amount.add(other.amount), currency);
     }
 
+    public Money minus(Money other) {
+        requireSameCurrency(other);
+        return new Money(amount.subtract(other.amount), currency);
+    }
+
+    public Money negate() {
+        return new Money(amount.negate(), currency);
+    }
+
     public boolean isGreaterThan(Money other) {
         requireSameCurrency(other);
         return amount.compareTo(other.amount) > 0;

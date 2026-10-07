@@ -49,7 +49,9 @@ public final class TransactionsTestContext {
 
     private User actingUser = ana;
 
-    public final TransactionAccess access = new TransactionAccess(new CurrentUserService(this::currentIdentity, users),
+    public final CurrentUserService currentUserService = new CurrentUserService(this::currentIdentity, users);
+
+    public final TransactionAccess access = new TransactionAccess(currentUserService,
             new WorkspaceAccessGuard(workspaces), transactions, accounts);
 
     public TransactionsTestContext() {

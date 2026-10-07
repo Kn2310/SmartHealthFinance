@@ -47,9 +47,9 @@
 
 ## M3 First Home
 
-- [ ] balance calculation
-- [ ] overview query
-- [ ] Home API
+- [x] balance calculation (derivado de transações POSTED — ADR-0006)
+- [x] overview query (`GetFinancialOverview`, ADR-0006)
+- [x] Home API — bloco Overview em `GET /api/v1/workspaces/{id}/overview` (o composto `/api/v1/home` entra com Health/Insights)
 - [ ] Health placeholder/first implementation
 - [ ] Home UI
 - [ ] responsive states

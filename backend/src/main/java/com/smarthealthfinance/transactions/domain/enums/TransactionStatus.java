@@ -26,6 +26,11 @@ public enum TransactionStatus {
         }
     }
 
+    /** Só o que foi lançado move saldo: PENDING ainda não aconteceu e as anuladas não produzem efeito (ADR-0006). */
+    public boolean affectsBalance() {
+        return this == POSTED;
+    }
+
     /** Anulada: não produz efeito financeiro. */
     public boolean isVoided() {
         return this == CANCELLED || this == REVERSED;
