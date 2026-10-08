@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { readyOverview } from './fixtures'
+import { noAccountsOverview, readyOverview } from './fixtures'
 import { HomeView } from './HomeView'
 
 const replace = vi.fn()
@@ -40,6 +40,17 @@ describe('HomeView', () => {
     expect(screen.getByText('Resumo de 1 a 27 de setembro')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/bff/overview')
+  })
+
+  it('cabeçalho oferece "Importar extrato", exceto quando ainda não há conta', async () => {
+    fetchMock.mockReturnValueOnce(json(readyOverview())).mockReturnValueOnce(json(noAccountsOverview()))
+    const { unmount } = render(<HomeView firstName="Ana" />)
+    expect(await screen.findByRole('link', { name: 'Importar extrato' })).toHaveAttribute('href', '/import')
+    unmount()
+
+    render(<HomeView firstName="Ana" />)
+    await screen.findByRole('heading', { name: 'Você ainda não tem contas' })
+    expect(screen.queryByRole('link', { name: 'Importar extrato' })).not.toBeInTheDocument()
   })
 
   it('envia o período da URL ao BFF', async () => {

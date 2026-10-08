@@ -64,7 +64,7 @@
 - [x] dedupe (por conta: FITID+data+valor ou impressão digital com ocorrência — ADR-0009 §11)
 - [x] async job (Transactional Outbox + RabbitMQ + Import Worker com inbox, retry e DLQ — ADR-0009 §14/§15)
 - [x] status API (`/api/v1/workspaces/{id}/imports`, upload 201, confirm 202)
-- [ ] import UI
+- [x] import UI (`/import`: conta + arquivo → preview → confirmação → acompanhamento → resultado; selo "Importado" na Home — ADR-0009 §18)
 
 ## M5 Analytics
 

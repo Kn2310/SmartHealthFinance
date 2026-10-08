@@ -7,6 +7,7 @@ import com.smarthealthfinance.overview.domain.model.CashFlow;
 import com.smarthealthfinance.overview.domain.valueobject.OverviewPeriod;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
@@ -120,7 +121,7 @@ public class JdbcOverviewReadModel implements OverviewReadModel {
                                                 Currency currency) {
         return jdbc.query("""
                         select id, type, adjustment_direction, account_id, destination_account_id, amount,
-                               occurred_on, description, status, refund_of_transaction_id
+                               occurred_on, description, status, refund_of_transaction_id, source
                         from transactions
                         where workspace_id = ? and status in ('POSTED', 'PENDING') and occurred_on between ? and ?
                         order by occurred_on desc, created_at desc, id desc
@@ -145,7 +146,8 @@ public class JdbcOverviewReadModel implements OverviewReadModel {
                 rs.getObject("occurred_on", LocalDate.class),
                 rs.getString("description"),
                 TransactionStatus.valueOf(rs.getString("status")),
-                Optional.ofNullable(refundOf).map(TransactionId::new));
+                Optional.ofNullable(refundOf).map(TransactionId::new),
+                TransactionSource.valueOf(rs.getString("source")));
     }
 
     private static Money money(ResultSet rs, String column, Currency currency) throws SQLException {

@@ -107,7 +107,7 @@ public final class ReferenceOverviewReadModel implements OverviewReadModel {
                 .limit(limit)
                 .map(t -> new RecentMovement(t.id(), t.type(), t.adjustmentDirection().orElse(null), t.accountId(),
                         t.destinationAccountId(), t.amount(), t.occurredOn(), t.description().value(), t.status(),
-                        t.refundOfTransactionId()))
+                        t.refundOfTransactionId(), t.source()))
                 .toList();
     }
 

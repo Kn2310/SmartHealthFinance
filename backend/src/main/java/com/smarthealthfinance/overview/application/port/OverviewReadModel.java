@@ -6,6 +6,7 @@ import com.smarthealthfinance.overview.domain.model.CashFlow;
 import com.smarthealthfinance.overview.domain.valueobject.OverviewPeriod;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
@@ -50,5 +51,5 @@ public interface OverviewReadModel {
     record RecentMovement(TransactionId id, TransactionType type, AdjustmentDirection adjustmentDirection,
                           AccountId accountId, Optional<AccountId> destinationAccountId, Money amount,
                           LocalDate occurredOn, String description, TransactionStatus status,
-                          Optional<TransactionId> refundOfTransactionId) {}
+                          Optional<TransactionId> refundOfTransactionId, TransactionSource source) {}
 }

@@ -6,6 +6,7 @@ import com.smarthealthfinance.overview.domain.enums.OverviewState;
 import com.smarthealthfinance.overview.domain.enums.PeriodType;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 
@@ -50,5 +51,6 @@ public record OverviewView(UUID workspaceId, Period period, OverviewState state,
     public record RecentTransaction(UUID id, TransactionType type, MovementFlow flow,
                                     AdjustmentDirection adjustmentDirection, TransactionStatus status, Money amount,
                                     LocalDate occurredOn, String description, AccountRef account,
-                                    AccountRef destinationAccount, UUID refundOfTransactionId) {}
+                                    AccountRef destinationAccount, UUID refundOfTransactionId,
+                                    TransactionSource source) {}
 }

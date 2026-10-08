@@ -1,5 +1,5 @@
 /**
- * CONTRATO MANUAL E TEMPORÁRIO do backend usado pelo frontend (rotas de Identity e Overview) — ADR-0007 §6.
+ * CONTRATO MANUAL E TEMPORÁRIO do backend usado pelo frontend (Identity, Overview, Accounts e Imports) — ADR-0007 §6.
  *
  * Escrito no formato do openapi-typescript a partir dos DTOs reais (OverviewResponse, ProvisionedUserResponse,
  * ApiError). É a fonte de verdade do frontend enquanto o OpenAPI do backend não declarar:
@@ -65,10 +65,73 @@ export interface components {
         account: { id: string; name: string }
         destinationAccount: { id: string; name: string } | null
         refundOfTransactionId: string | null
+        source: 'MANUAL' | 'IMPORT'
       }[]
+    }
+    AccountResponse: {
+      id: string
+      workspaceId: string
+      name: string
+      type: 'CHECKING' | 'SAVINGS' | 'PAYMENT' | 'OTHER'
+      institutionName: string | null
+      currency: string
+      includedInTotal: boolean
+      status: 'ACTIVE' | 'ARCHIVED'
+      createdAt: string
+      updatedAt: string
+    }
+    AccountListResponse: { items: components['schemas']['AccountResponse'][] }
+    /** Importação de extrato (ADR-0009). `lines.total = valid + invalid + duplicate`. */
+    ImportResponse: {
+      id: string
+      workspaceId: string
+      accountId: string
+      format: 'CSV' | 'OFX'
+      status: 'PREVIEW' | 'CONFIRMED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'EXPIRED'
+      fileName: string
+      fileSize: number
+      lines: { total: number; valid: number; invalid: number; duplicate: number; imported: number }
+      period: { from: string; to: string } | null
+      sameFileImportedBefore: boolean
+      failureReason: string | null
+      createdAt: string
+      previewExpiresAt: string | null
+      confirmedAt: string | null
+      completedAt: string | null
+    }
+    ImportPageResponse: {
+      items: components['schemas']['ImportResponse'][]
+      page: number
+      pageSize: number
+      totalItems: number
+    }
+    /** Linha do arquivo. Em INVALID só `lineNumber`, `status` e `issue` vêm preenchidos. */
+    ImportRecordResponse: {
+      lineNumber: number
+      status: 'VALID' | 'INVALID' | 'DUPLICATE' | 'IMPORTED'
+      occurredOn: string | null
+      amount: components['schemas']['MoneyDto'] | null
+      direction: 'INFLOW' | 'OUTFLOW' | null
+      description: string | null
+      issue: { field: string; code: string } | null
+      transactionId: string | null
+    }
+    ImportRecordPageResponse: {
+      items: components['schemas']['ImportRecordResponse'][]
+      page: number
+      pageSize: number
+      totalItems: number
     }
   }
 }
+
+type ImportErrors = {
+  400: { content: { 'application/json': components['schemas']['ApiError'] } }
+  404: { content: { 'application/json': components['schemas']['ApiError'] } }
+  409: { content: { 'application/json': components['schemas']['ApiError'] } }
+}
+
+type ImportPath = { workspaceId: string; importId: string }
 
 export interface paths {
   '/api/v1/users/me': {
@@ -95,6 +158,73 @@ export interface paths {
         400: { content: { 'application/json': components['schemas']['ApiError'] } }
         404: { content: { 'application/json': components['schemas']['ApiError'] } }
       }
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/accounts': {
+    get: {
+      parameters: { query?: { includeArchived?: boolean }; path: { workspaceId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['AccountListResponse'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/imports': {
+    get: {
+      parameters: { query?: { page?: number; pageSize?: number }; path: { workspaceId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['ImportPageResponse'] } }
+      } & ImportErrors
+    }
+    post: {
+      parameters: {
+        query: { accountId: string }
+        header: { 'Idempotency-Key': string }
+        path: { workspaceId: string }
+      }
+      /** O BFF envia `FormData` com a parte `file`. */
+      requestBody: { content: { 'multipart/form-data': { file: Blob } } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['ImportResponse'] } }
+        201: { content: { 'application/json': components['schemas']['ImportResponse'] } }
+        413: { content: { 'application/json': components['schemas']['ApiError'] } }
+        422: { content: { 'application/json': components['schemas']['ApiError'] } }
+      } & ImportErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/imports/{importId}': {
+    get: {
+      parameters: { path: ImportPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['ImportResponse'] } }
+      } & ImportErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/imports/{importId}/records': {
+    get: {
+      parameters: {
+        query?: { status?: 'VALID' | 'INVALID' | 'DUPLICATE' | 'IMPORTED'; page?: number; pageSize?: number }
+        path: ImportPath
+      }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['ImportRecordPageResponse'] } }
+      } & ImportErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/imports/{importId}/confirm': {
+    post: {
+      parameters: { path: ImportPath }
+      responses: {
+        202: { content: { 'application/json': components['schemas']['ImportResponse'] } }
+      } & ImportErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/imports/{importId}/cancel': {
+    post: {
+      parameters: { path: ImportPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['ImportResponse'] } }
+      } & ImportErrors
     }
   }
 }

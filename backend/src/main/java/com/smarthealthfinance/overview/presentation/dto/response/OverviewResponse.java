@@ -30,7 +30,8 @@ public record OverviewResponse(UUID workspaceId, Period period, String state, Su
 
     public record RecentTransaction(UUID id, String type, String flow, String adjustmentDirection, String status,
                                     MoneyDto amount, LocalDate occurredOn, String description, AccountRef account,
-                                    AccountRef destinationAccount, UUID refundOfTransactionId) {}
+                                    AccountRef destinationAccount, UUID refundOfTransactionId,
+                                    String source) {}
 
     public static OverviewResponse from(OverviewView view) {
         return new OverviewResponse(view.workspaceId(),
@@ -56,7 +57,7 @@ public record OverviewResponse(UUID workspaceId, Period period, String state, Su
         return new RecentTransaction(t.id(), t.type().name(), t.flow().name(),
                 t.adjustmentDirection() == null ? null : t.adjustmentDirection().name(), t.status().name(),
                 money(t.amount()), t.occurredOn(), t.description(), ref(t.account()), ref(t.destinationAccount()),
-                t.refundOfTransactionId());
+                t.refundOfTransactionId(), t.source().name());
     }
 
     private static AccountRef ref(OverviewView.AccountRef ref) {

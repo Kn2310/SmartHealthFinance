@@ -39,7 +39,12 @@ export function NoTransactions({ accountCount, pendingTransactions }: { accountC
             } no saldo depois de lançada${pendingTransactions === 1 ? '' : 's'}.`
           : ''}
       </p>
-      <Button href="/transactions/new">Registrar movimentação</Button>
+      <div className={styles.actions}>
+        <Button href="/import">Importar extrato</Button>
+        <Button href="/transactions/new" variant="secondary">
+          Registrar movimentação
+        </Button>
+      </div>
     </section>
   )
 }

@@ -20,6 +20,7 @@ const pending = (overrides: Partial<OverviewTransaction> = {}): OverviewTransact
   account: { id: 'a1', name: 'Conta Aurora' },
   destinationAccount: null,
   refundOfTransactionId: null,
+  source: 'MANUAL',
   ...overrides,
 })
 
@@ -85,6 +86,19 @@ describe('HomeContent — READY', () => {
     expect(within(expense).getByText('− R$ 420,00')).toBeInTheDocument()
     expect(within(expense).getByText('menos R$ 420,00')).toHaveClass('sr-only')
     expect(within(expense).getByText('Despesa')).toBeInTheDocument()
+  })
+
+  it('movimentação importada leva o selo "Importado"; manual não (Trust UX, ADR-0009)', () => {
+    const overview = readyOverview()
+    overview.recentTransactions = overview.recentTransactions.map((t) =>
+      t.id === 't2' ? { ...t, source: 'IMPORT' as const } : t,
+    )
+    render(<HomeContent overview={overview} />)
+
+    const imported = screen.getByText('Mercado').closest('li') as HTMLElement
+    const manual = screen.getByText('Salário').closest('li') as HTMLElement
+    expect(within(imported).getByText('Importado')).toBeInTheDocument()
+    expect(within(manual).queryByText('Importado')).not.toBeInTheDocument()
   })
 
   it('saldo total negativo aparece com sinal e por extenso para leitor de tela', () => {
@@ -177,6 +191,7 @@ describe('HomeContent — NO_TRANSACTIONS', () => {
 
     expect(screen.getByRole('heading', { name: 'Registre sua primeira movimentação' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Registrar movimentação' })).toHaveAttribute('href', '/transactions/new')
+    expect(screen.getByRole('link', { name: 'Importar extrato' })).toHaveAttribute('href', '/import')
     expect(screen.queryByText(/R\$/)).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Saldo total' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Movimentações pendentes' })).not.toBeInTheDocument()

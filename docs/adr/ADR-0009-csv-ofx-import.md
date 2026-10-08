@@ -164,6 +164,14 @@ ainda não existe (ADR-0003/0004/0005 adiaram eventos por isso).
 18. Página `/import` (ação rápida "Importar extrato" da Home e da conta): conta + dropzone → preview (resumo,
     período, válidas/inválidas/duplicadas, tabela com motivos) → confirmar → progresso → resultado. Badge
     "Importado" (ícone de download) nas transações com `source = IMPORT`. Estados loading/empty/error/partial.
+    - O batch fica na URL (`/import?id=`): recarregar retoma o fluxo; o processamento é acompanhado por polling
+      do `GET` a cada 1,5 s até um status final.
+    - BFF (ADR-0007): `GET /api/bff/accounts`, `POST /api/bff/imports`, `GET /api/bff/imports/{id}[/records]`,
+      `POST /api/bff/imports/{id}/confirm|cancel`. Rotas que alteram dados exigem `Origin` do app (ADR-0007 §6);
+      ids e filtros são validados antes de chegar à API; só códigos estáveis (inclusive o motivo da recusa do
+      arquivo) chegam ao browser.
+    - Para o selo, `recentTransactions` do Overview passou a expor `source` (campo aditivo; ADR-0006).
+    - A UI oferece um modelo CSV (`/modelo-extrato.csv`, UTF-8 com BOM para o Excel).
 
 ## Alternatives
 

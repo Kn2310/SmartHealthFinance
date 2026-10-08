@@ -61,7 +61,7 @@ export function HomeView({ firstName }: { firstName: string }) {
 
   return (
     <>
-      <HomeHeader firstName={firstName} subtitle={subtitle}>
+      <HomeHeader firstName={firstName} subtitle={subtitle} showImport={data.state !== 'NO_ACCOUNTS'}>
         {hasPeriodData ? selector : null}
       </HomeHeader>
       <HomeContent overview={data} />

@@ -165,7 +165,7 @@ public class GetFinancialOverview {
                 movement.status(), movement.amount(), movement.occurredOn(), movement.description(),
                 ref(byId.get(movement.accountId())),
                 movement.destinationAccountId().map(byId::get).map(GetFinancialOverview::ref).orElse(null),
-                movement.refundOfTransactionId().map(refund -> refund.value()).orElse(null));
+                movement.refundOfTransactionId().map(refund -> refund.value()).orElse(null), movement.source());
     }
 
     private static OverviewView.AccountRef ref(Account account) {

@@ -32,6 +32,18 @@
   overflow: hidden;
 }
 .meta { color: var(--color-neutral-muted); font: var(--type-caption); overflow-wrap: anywhere; }
+.badges { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.source {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-xs);
+  background: var(--color-neutral-subtle);
+  color: var(--color-neutral-text-secondary);
+  font: var(--type-caption);
+  font-weight: 600;
+}
 .status {
   padding: 0 var(--space-8);
   border-radius: var(--radius-xs);

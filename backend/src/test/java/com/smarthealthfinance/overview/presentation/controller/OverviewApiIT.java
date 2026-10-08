@@ -160,6 +160,7 @@ class OverviewApiIT extends IntegrationTest {
                 .hasPathSatisfying("$.recentTransactions[0].type", v -> assertThat(v).asString().isEqualTo("TRANSFER"))
                 .hasPathSatisfying("$.recentTransactions[0].flow", v -> assertThat(v).asString().isEqualTo("TRANSFER"))
                 .hasPathSatisfying("$.recentTransactions[0].status", v -> assertThat(v).asString().isEqualTo("POSTED"))
+                .hasPathSatisfying("$.recentTransactions[0].source", v -> assertThat(v).asString().isEqualTo("MANUAL"))
                 .hasPathSatisfying("$.recentTransactions[0].description", v -> assertThat(v).asString().isEqualTo("Para reserva"))
                 .hasPathSatisfying("$.recentTransactions[0].amount.amount", v -> assertThat(v).asString().isEqualTo("500.00"))
                 .hasPathSatisfying("$.recentTransactions[0].occurredOn", v -> assertThat(v).asString().isEqualTo(today.toString()))

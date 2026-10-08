@@ -3,9 +3,15 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  ACCOUNT_STATUSES,
   ACCOUNT_TYPES,
   ADJUSTMENT_DIRECTIONS,
+  IMPORT_FORMATS,
+  IMPORT_STATUSES,
   MOVEMENT_FLOWS,
+  RECORD_DIRECTIONS,
+  RECORD_STATUSES,
+  TRANSACTION_SOURCES,
   OVERVIEW_STATES,
   PERIOD_TYPES,
   RECORD_FIELDS,
@@ -24,7 +30,8 @@ const hasBackend = existsSync(JAVA)
 const read = (path: string) => readFileSync(resolve(JAVA, path), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, '')
 
 function javaEnum(path: string): string[] {
-  const body = /enum\s+\w+\s*\{([^;]*);/.exec(read(path))?.[1] ?? ''
+  // Constantes até o `;` (enum com métodos) ou até o `}` (enum só com constantes).
+  const body = /enum\s+\w+\s*\{([^;}]*)[;}]/.exec(read(path))?.[1] ?? ''
   return body.split(',').map((c) => c.trim()).filter(Boolean)
 }
 
@@ -61,6 +68,41 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     ] as const) {
       expect(sorted(records[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
     }
+  })
+
+  it.each([
+    ['transactions/domain/enums/TransactionSource.java', TRANSACTION_SOURCES],
+    ['accounts/domain/enums/AccountStatus.java', ACCOUNT_STATUSES],
+    ['ingestion/domain/enums/ImportFormat.java', IMPORT_FORMATS],
+    ['ingestion/domain/enums/ImportStatus.java', IMPORT_STATUSES],
+    ['ingestion/domain/enums/RecordStatus.java', RECORD_STATUSES],
+  ])('enum %s', (path, frontend) => {
+    expect(sorted(frontend)).toEqual(sorted(javaEnum(path)))
+  })
+
+  it('records de Accounts e Imports têm exatamente os campos do contrato manual', () => {
+    const files: [string, (keyof typeof RECORD_FIELDS)[]][] = [
+      ['accounts/presentation/dto/response/AccountResponse.java', ['AccountResponse']],
+      ['accounts/presentation/dto/response/AccountListResponse.java', ['AccountListResponse']],
+      ['ingestion/presentation/dto/response/ImportResponse.java', ['ImportResponse', 'Lines']],
+      ['ingestion/presentation/dto/response/ImportRecordResponse.java', ['ImportRecordResponse', 'Issue']],
+      ['ingestion/presentation/dto/response/ImportPageResponses.java', ['ImportPageResponse', 'ImportRecordPageResponse']],
+    ]
+    for (const [path, names] of files) {
+      const records = javaRecords(path)
+      for (const name of names) expect(sorted(records[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
+    }
+    // O record Java se chama Period (aninhado em ImportResponse); no contrato, ImportPeriod.
+    expect(sorted(javaRecords('ingestion/presentation/dto/response/ImportResponse.java').Period ?? [])).toEqual(
+      sorted(RECORD_FIELDS.ImportPeriod),
+    )
+  })
+
+  it('direção da linha importada é só INFLOW/OUTFLOW', () => {
+    const source = read('ingestion/presentation/dto/response/ImportRecordResponse.java')
+    expect(source).toContain('"INFLOW"')
+    expect(source).toContain('"OUTFLOW"')
+    expect(sorted(RECORD_DIRECTIONS)).toEqual(['INFLOW', 'OUTFLOW'])
   })
 
   it('MoneyDto continua {amount: String, currency: String}', () => {
