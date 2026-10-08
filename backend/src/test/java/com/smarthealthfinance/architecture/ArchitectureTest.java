@@ -157,6 +157,29 @@ class ArchitectureTest {
 		.allowEmptyShould(true)
 		.because("o Overview não executa comandos nem toca nos adapters de Accounts/Transactions: só lê (ADR-0006)");
 
+	// Ingestion (ADR-0009) é downstream: identity → accounts → transactions → ingestion.
+
+	@ArchTest
+	static final ArchRule coreModulesDoNotDependOnIngestion = noClasses().that()
+		.resideInAnyPackage("com.smarthealthfinance.identity..", "com.smarthealthfinance.accounts..",
+				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.overview..",
+				"com.smarthealthfinance.shared..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.ingestion..")
+		.allowEmptyShould(true)
+		.because("importação alimenta o Financial Core; o núcleo nunca conhece de onde o dado veio");
+
+	@ArchTest
+	static final ArchRule ingestionNeverTouchesCoreAdapters = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.ingestion..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.transactions.infrastructure..",
+				"com.smarthealthfinance.accounts.infrastructure..")
+		.allowEmptyShould(true)
+		.because("Ingestion cria transações só pelo caso de uso de Transactions, nunca escrevendo na tabela (ADR-0009)");
+
 	@ArchTest
 	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()
 		.resideInAPackage("com.smarthealthfinance.identity..")
