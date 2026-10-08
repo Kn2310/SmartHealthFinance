@@ -1,3 +1,4 @@
+import { Download } from 'lucide-react'
 import type { OverviewTransaction } from '@/lib/api/types'
 import { formatShortDate } from '@/lib/format/date'
 import { Money } from '@/components/ui/Money'
@@ -15,6 +16,7 @@ export function TransactionItem({ transaction }: { transaction: OverviewTransact
   const Icon = TRANSACTION_TYPE_ICON[transaction.type] ?? FallbackTransactionIcon
   const typeLabel = transactionTypeLabel(transaction)
   const badge = statusLabel(transaction.status)
+  const imported = transaction.source === 'IMPORT'
   const accounts = transaction.destinationAccount
     ? `${transaction.account.name} → ${transaction.destinationAccount.name}`
     : transaction.account.name
@@ -30,7 +32,18 @@ export function TransactionItem({ transaction }: { transaction: OverviewTransact
         <span className={styles.meta}>
           {accounts} · <time dateTime={transaction.occurredOn}>{formatShortDate(transaction.occurredOn)}</time>
         </span>
-        {badge ? <span className={styles.status}>{badge}</span> : null}
+        {badge || imported ? (
+          <span className={styles.badges}>
+            {badge ? <span className={styles.status}>{badge}</span> : null}
+            {imported ? (
+              // Trust UX (design/specs/01-foundations): "Importado" = selo neutro + ícone de download.
+              <span className={styles.source}>
+                <Download size={12} strokeWidth={2} aria-hidden="true" />
+                Importado
+              </span>
+            ) : null}
+          </span>
+        ) : null}
       </span>
       <span className={`${styles.amount} ${badge ? styles.muted : ''}`}>
         <Money value={transaction.amount} sign={flowSign(transaction.flow)} />
