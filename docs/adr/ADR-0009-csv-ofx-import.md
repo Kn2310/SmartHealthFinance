@@ -2,11 +2,11 @@
 
 ## Status
 
-Proposed
+Accepted
 
-> As decisões 1 (Outbox + RabbitMQ já no M4), 3 (parse síncrono no upload), 6 (CSV canônico com autodetecção) e a
-> entrega em PRs por fatia foram aprovadas em 2026-10-08. As demais são propostas e ficam em revisão até o PR da
-> fatia 2. A fatia 1 (este ADR + domínio + parsers) não grava nada e não expõe API.
+> Aprovado em 2026-10-08. As decisões 14 (Outbox + RabbitMQ já no M4), 3 (parse síncrono no upload), 6 (CSV
+> canônico com autodetecção) e a entrega em PRs por fatia foram escolhidas antes da redação; o restante foi
+> aprovado na revisão do ADR. Fatias: 1) domínio + parsers; 2) Outbox, batches, dedupe, worker e API; 3) UI.
 
 ## Context
 
