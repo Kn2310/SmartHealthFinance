@@ -57,8 +57,8 @@
 
 ## M4 Import
 
-- [ ] CSV parser
-- [ ] OFX parser
+- [x] CSV parser (modelo canônico + autodetecção — ADR-0009 §6)
+- [x] OFX parser (1.x SGML e 2.x XML, parser próprio — ADR-0009 §5)
 - [ ] import batch
 - [ ] import records
 - [ ] dedupe
