@@ -12,6 +12,11 @@ public final class IdentityTables {
 	}
 
 	public static void clean(JdbcTemplate jdbc) {
+		jdbc.update("delete from imported_transaction_keys");
+		jdbc.update("delete from import_records");
+		jdbc.update("delete from import_batches");
+		jdbc.update("delete from outbox_events");
+		jdbc.update("delete from processed_events");
 		jdbc.update("delete from transaction_idempotency_keys");
 		jdbc.update("delete from transactions");
 		jdbc.update("delete from accounts");

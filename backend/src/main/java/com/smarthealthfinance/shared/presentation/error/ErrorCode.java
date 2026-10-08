@@ -32,6 +32,11 @@ public enum ErrorCode {
 	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0005). */
 	TRANSACTION_NOT_FOUND(HttpStatus.NOT_FOUND, "Transação não encontrada."),
 	TRANSACTION_STATUS_CONFLICT(HttpStatus.CONFLICT, "A transação não permite esta mudança de status."),
+	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0009). */
+	IMPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "Importação não encontrada."),
+	IMPORT_STATUS_CONFLICT(HttpStatus.CONFLICT, "A importação não permite esta ação no status atual."),
+	/** O arquivo inteiro foi recusado; o motivo vai em {@code details[0].code} (ADR-0009 §7). */
+	IMPORT_FILE_REJECTED(HttpStatus.UNPROCESSABLE_CONTENT, "O arquivo não pôde ser importado."),
 	/** Mesma Idempotency-Key com conteúdo diferente (spec 05.6). */
 	IDEMPOTENCY_KEY_REUSED(HttpStatus.UNPROCESSABLE_CONTENT,
 			"A Idempotency-Key já foi usada em uma requisição com outro conteúdo.");

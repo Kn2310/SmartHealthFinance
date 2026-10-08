@@ -43,7 +43,7 @@
 - [x] filters
 - [x] tests
 - [ ] transaction UI
-- [ ] eventos `transaction.*` (depende do Transactional Outbox)
+- [ ] eventos `transaction.*` (a Transactional Outbox já existe desde o M4; falta o consumidor — ADR-0009 §15)
 
 ## M3 First Home
 
@@ -59,11 +59,11 @@
 
 - [x] CSV parser (modelo canônico + autodetecção — ADR-0009 §6)
 - [x] OFX parser (1.x SGML e 2.x XML, parser próprio — ADR-0009 §5)
-- [ ] import batch
-- [ ] import records
-- [ ] dedupe
-- [ ] async job
-- [ ] status API
+- [x] import batch (PREVIEW → CONFIRMED → PROCESSING → COMPLETED/FAILED, CANCELLED, EXPIRED — ADR-0009 §2)
+- [x] import records (lineage por linha; arquivo bruto nunca guardado)
+- [x] dedupe (por conta: FITID+data+valor ou impressão digital com ocorrência — ADR-0009 §11)
+- [x] async job (Transactional Outbox + RabbitMQ + Import Worker com inbox, retry e DLQ — ADR-0009 §14/§15)
+- [x] status API (`/api/v1/workspaces/{id}/imports`, upload 201, confirm 202)
 - [ ] import UI
 
 ## M5 Analytics

@@ -8,6 +8,7 @@ import com.smarthealthfinance.transactions.domain.repository.TransactionReposito
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 import com.smarthealthfinance.transactions.infrastructure.persistence.entity.TransactionJpaEntity;
 import com.smarthealthfinance.transactions.infrastructure.persistence.repository.TransactionJpaRepository;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.Predicate;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,10 +31,15 @@ public class JpaTransactionRepository implements TransactionRepository {
 
     private static final char LIKE_ESCAPE = '\\';
 
-    private final TransactionJpaRepository jpa;
+    /** Libera o contexto de persistência periodicamente em lotes grandes. */
+    private static final int FLUSH_EVERY = 500;
 
-    public JpaTransactionRepository(TransactionJpaRepository jpa) {
+    private final TransactionJpaRepository jpa;
+    private final EntityManager entityManager;
+
+    public JpaTransactionRepository(TransactionJpaRepository jpa, EntityManager entityManager) {
         this.jpa = jpa;
+        this.entityManager = entityManager;
     }
 
     /** Sempre filtrado pelo Workspace: transação de outro Workspace é indistinguível de inexistente. */
@@ -68,6 +74,22 @@ public class JpaTransactionRepository implements TransactionRepository {
     @Override
     public void add(Transaction transaction) {
         jpa.save(TransactionJpaEntity.from(transaction));
+    }
+
+    /**
+     * {@code persist} em vez de {@code save}: com id atribuído e version primitiva, o {@code save} faria merge
+     * (um SELECT por linha). Os INSERTs saem em lotes de {@code hibernate.jdbc.batch_size}.
+     */
+    @Override
+    public void addAll(List<Transaction> transactions) {
+        for (int i = 0; i < transactions.size(); i++) {
+            entityManager.persist(TransactionJpaEntity.from(transactions.get(i)));
+            if ((i + 1) % FLUSH_EVERY == 0) {
+                entityManager.flush();
+                entityManager.clear();
+            }
+        }
+        entityManager.flush();
     }
 
     /** O version vindo do domínio faz o merge falhar com OptimisticLockingFailureException se estiver obsoleto. */
