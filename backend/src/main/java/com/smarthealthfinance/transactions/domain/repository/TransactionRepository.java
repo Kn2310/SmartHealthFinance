@@ -22,5 +22,8 @@ public interface TransactionRepository {
 
     void add(Transaction transaction);
 
+    /** Inserção em lote de transações novas (importação, ADR-0009): sem leitura prévia por linha. */
+    void addAll(List<Transaction> transactions);
+
     void save(Transaction transaction);
 }

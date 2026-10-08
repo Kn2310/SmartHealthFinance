@@ -81,6 +81,11 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
     }
 
     @Override
+    public void addAll(List<Transaction> newTransactions) {
+        newTransactions.forEach(this::add);
+    }
+
+    @Override
     public void save(Transaction transaction) {
         if (!transactions.containsKey(transaction.id())) {
             throw new IllegalStateException("save() só atualiza transações existentes");

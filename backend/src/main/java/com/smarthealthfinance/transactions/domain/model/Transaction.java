@@ -101,6 +101,46 @@ public class Transaction {
             TransactionId refundOfTransactionId,
             Instant now
     ) {
+        return newFact(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
+                occurredOn, description, initialStatus, TransactionSource.MANUAL, refundOfTransactionId, now);
+    }
+
+    /**
+     * Lançamento importado de extrato (ADR-0009 §9/§10): entrada vira INCOME, saída vira EXPENSE, sempre POSTED.
+     * Transferências e reembolsos nunca são inferidos.
+     *
+     * @param amount valor positivo da transação
+     * @param inflow true para entrada (valor positivo no extrato)
+     */
+    public static Transaction createImported(
+            TransactionId id,
+            WorkspaceId workspaceId,
+            AccountId accountId,
+            boolean inflow,
+            Money amount,
+            LocalDate occurredOn,
+            TransactionDescription description,
+            Instant now
+    ) {
+        return newFact(id, workspaceId, inflow ? TransactionType.INCOME : TransactionType.EXPENSE, accountId, null,
+                null, amount, occurredOn, description, TransactionStatus.POSTED, TransactionSource.IMPORT, null, now);
+    }
+
+    private static Transaction newFact(
+            TransactionId id,
+            WorkspaceId workspaceId,
+            TransactionType type,
+            AccountId accountId,
+            AccountId destinationAccountId,
+            AdjustmentDirection adjustmentDirection,
+            Money amount,
+            LocalDate occurredOn,
+            TransactionDescription description,
+            TransactionStatus initialStatus,
+            TransactionSource source,
+            TransactionId refundOfTransactionId,
+            Instant now
+    ) {
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(accountId, "accountId");
         Objects.requireNonNull(amount, "amount");
@@ -122,7 +162,7 @@ public class Transaction {
         requireTypeSpecificFields(type, accountId, destinationAccountId, adjustmentDirection, refundOfTransactionId);
 
         return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, initialStatus, TransactionSource.MANUAL, refundOfTransactionId, now, now, 0);
+                occurredOn, description, initialStatus, source, refundOfTransactionId, now, now, 0);
     }
 
     public static Transaction restore(

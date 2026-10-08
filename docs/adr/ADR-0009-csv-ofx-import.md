@@ -146,7 +146,9 @@ ainda não existe (ADR-0003/0004/0005 adiaram eventos por isso).
       `transaction.*` por lançamento ficam para quando houver consumidor, para não gerar milhares de mensagens
       sem uso.
 16. **Expiração:** previews não confirmados em 24h viram `EXPIRED` e seus records são apagados por job
-    agendado. Batches concluídos mantêm os records como lineage (05.4: rastreabilidade).
+    agendado. Um preview cancelado perde os records na hora. Batches concluídos mantêm os records como lineage
+    (05.4: rastreabilidade). Esgotadas as tentativas, o batch vira `FAILED` (`PROCESSING_ERROR`) e a mensagem
+    fica na DLQ para replay (`docs/runbooks/import-dlq.md`).
 
 ### API (fatia 2)
 
