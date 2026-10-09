@@ -65,7 +65,7 @@
 - [x] responsive states — READY, NO_ACCOUNTS, NO_TRANSACTIONS (com PENDING), NO_ACTIVITY_IN_PERIOD, loading, erro; 375/768/1024/1280/1440 sem overflow
 - [x] E2E (Playwright) do First Financial Loop (saldo inicial → receita → despesa → saldo e fluxo exatos na Home) e da
   Home vazia (`NO_ACCOUNTS`) — `frontend/e2e/`, `e2e.yml`, ADR-0011
-- [ ] dívida técnica: revisar a semântica de `recentTransactions` no Overview quando Transactions/Overview voltarem a evoluir (o ADR-0006 §13 diz que os recentes só são consultados com dados; o código os consulta sempre que há conta ativa, e devolve PENDING em `NO_TRANSACTIONS` — a Home já os exibe como pendentes)
+- [x] dívida técnica de `recentTransactions` resolvida: ADR-0006 §12/§13 emendado para o comportamento real (recentes consultados sempre que há conta ativa; em `NO_TRANSACTIONS` só `PENDING`, exibidos no card "Movimentações pendentes"); sem mudança de API nem de produto, coberto por `GetFinancialOverviewTest` e `OverviewApiIT`
 
 ## M4 Import
 
