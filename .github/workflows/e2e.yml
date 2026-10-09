@@ -1,0 +1,103 @@
+# E2E (Playwright) contra o ambiente local completo — ADR-0011.
+#
+# Fora do ci.yml de propósito: sobe o compose com o perfil `app` (imagem da API, Keycloak, `next dev`) e leva
+# minutos. Roda em push na `main` e manualmente (Actions → E2E → Run workflow).
+#
+# Nenhum segredo do repositório: todo valor do backend/.env é fictício e gerado por execução, mascarado no log,
+# e morre com o job (`down -v`). Cada teste cria o próprio usuário pelo auto-cadastro do realm local.
+# Artefatos só em falha: screenshot, error-context e trace iniciado DEPOIS do login (sem a senha gerada).
+
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      COMPOSE: docker compose --env-file backend/.env -f infrastructure/docker-compose.yml --profile app
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: backend/.env com valores fictícios gerados por execução
+        run: |
+          cp backend/.env.example backend/.env
+          set_value() {
+            echo "::add-mask::$2"
+            sed -i "s|^$1=\$|$1=$2|" backend/.env
+          }
+          random() { openssl rand -hex 24; }
+          for key in DB_USERNAME RABBITMQ_USERNAME KEYCLOAK_ADMIN_USERNAME; do set_value "$key" "u$(openssl rand -hex 8)"; done
+          for key in DB_PASSWORD REDIS_PASSWORD RABBITMQ_PASSWORD KEYCLOAK_ADMIN_PASSWORD SHF_DEV_ANA_PASSWORD \
+                     SHF_DEV_BRUNO_PASSWORD WEB_SESSION_SECRET; do set_value "$key" "$(random)"; done
+          set_value SHF_DEV_ANA_USERNAME "ana-$(openssl rand -hex 6)@example.com"
+          set_value SHF_DEV_BRUNO_USERNAME "bruno-$(openssl rand -hex 6)@example.com"
+          if grep -nE '^[A-Z_]+=$' backend/.env; then echo "variável sem valor no backend/.env" >&2; exit 1; fi
+
+      - name: Subir o ambiente (perfil app)
+        run: $COMPOSE up -d --build
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Dependências do frontend e Chromium
+        working-directory: frontend
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Aguardar API, Keycloak e app
+        run: |
+          wait_for() {
+            for _ in $(seq 1 120); do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "$1" || true)
+              if echo "$code" | grep -Eqx "$2"; then echo "$1 → $code"; return 0; fi
+              sleep 5
+            done
+            echo "timeout esperando $1 (último status: $code)" >&2; return 1
+          }
+          wait_for http://localhost:8080/actuator/health/readiness '200'
+          wait_for http://localhost:8180/realms/smart-health-finance/.well-known/openid-configuration '200'
+          wait_for http://localhost:3000/home '307|302'
+
+      - name: Playwright
+        working-directory: frontend
+        run: pnpm e2e
+
+      - name: Logs da API e do app (falha)
+        if: failure()
+        # Logs da API e do BFF só têm ids e status (testes de logs no backend e ADR-0007); o Keycloak fica de fora.
+        run: $COMPOSE logs --no-color --tail=300 api web
+
+      - name: Artefatos do Playwright (falha)
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-${{ github.run_id }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Derrubar o ambiente
+        if: always()
+        run: $COMPOSE down -v

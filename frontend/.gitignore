@@ -12,3 +12,7 @@ src/styles/design-tokens.css
 src/styles/design-tokens.json
 src/lib/api/openapi.generated.d.ts
 public/fonts
+# Playwright (pnpm e2e)
+test-results
+playwright-report
+blob-report

@@ -47,6 +47,33 @@ gerado por `api:generate` não é importado pelo app.
 `.github/workflows/ci.yml` roda em todo PR e em push na `main` os mesmos comandos da tabela acima
 (`pnpm install --frozen-lockfile`, `lint`, `typecheck`, `test`, `build`), em paralelo com o `./mvnw verify` do backend.
 
+## E2E (Playwright)
+
+[ADR-0011](../docs/adr/ADR-0011-e2e-playwright.md). Os testes rodam contra o ambiente local completo.
+
+```bash
+# na raiz do repositório (backend/.env preenchido — veja infrastructure/README.md)
+docker compose --env-file backend/.env -f infrastructure/docker-compose.yml --profile app up -d --build
+
+cd frontend
+pnpm exec playwright install chromium   # uma vez
+pnpm e2e                                # E2E_BASE_URL muda o alvo (padrão http://localhost:3000)
+```
+
+- **Usuário novo por teste:** cada teste se cadastra pelo auto-cadastro do Keycloak local, com e-mail
+  `e2e-<uuid>@example.com` e senha aleatória que fica só em memória. Por isso os testes não dependem da ordem nem de
+  limpeza. Os usuários ficam no Keycloak e no banco locais até o próximo `down -v`.
+- **Cenários:**
+  - [First Financial Loop](e2e/first-financial-loop.spec.ts), com aritmética exata em centavos;
+  - [importação do CSV fictício](e2e/import.spec.ts), usando o arquivo de `e2e/fixtures/`;
+  - [Home vazia](e2e/home-empty.spec.ts).
+- **Primeira compilação:** o `globalSetup` visita cada rota antes dos testes, para o `next dev` do container
+  compilar fora dos cenários.
+- **Artefatos de falha** (`test-results/`): screenshot, `error-context.md` e um trace que começa só **depois** do
+  login, então a senha gerada não fica nele. Veja com `pnpm exec playwright show-trace <trace.zip>`.
+- **CI:** `.github/workflows/e2e.yml` roda em push na `main` e manualmente (*Actions → E2E → Run workflow*). Os
+  artefatos só são publicados em caso de falha.
+
 ## Estrutura
 
 ```text

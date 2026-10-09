@@ -7,7 +7,7 @@ agência, CPF ou documento.
 
 | Arquivo | Conteúdo | Uso |
 |---|---|---|
-| `extrato-ficticio-2026-jul-set.csv` | 51 lançamentos de 01/07/2026 a 28/09/2026 no modelo CSV canônico (ADR-0009 §6): `data;descricao;valor;id`, separador `;`, vírgula decimal, milhar com ponto, UTF-8 com BOM e CRLF | cenário de importação (preview → confirmação → resultado → selo "Importado") |
+| `extrato-ficticio-2026-jul-set.csv` | 51 lançamentos de 01/07/2026 a 28/09/2026 no modelo CSV canônico (ADR-0009 §6): `data;descricao;valor;id`, separador `;`, vírgula decimal, milhar com ponto, UTF-8 com BOM e CRLF | `e2e/import.spec.ts`: preview → confirmação → resultado → selo "Importado"; as somas esperadas são calculadas do próprio arquivo (`support/statement.ts`) |
 
 Regras:
 

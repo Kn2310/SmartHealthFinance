@@ -63,6 +63,8 @@
 - [ ] Health placeholder/first implementation
 - [x] Home UI — Overview: saldo, fluxo do período, contas, movimentações recentes, seletor de período (ADR-0007/0008; critérios da etapa validados em 2026-10-07; Health/Insights ficam para M6/M7)
 - [x] responsive states — READY, NO_ACCOUNTS, NO_TRANSACTIONS (com PENDING), NO_ACTIVITY_IN_PERIOD, loading, erro; 375/768/1024/1280/1440 sem overflow
+- [x] E2E (Playwright) do First Financial Loop (saldo inicial → receita → despesa → saldo e fluxo exatos na Home) e da
+  Home vazia (`NO_ACCOUNTS`) — `frontend/e2e/`, `e2e.yml`, ADR-0011
 - [ ] dívida técnica: revisar a semântica de `recentTransactions` no Overview quando Transactions/Overview voltarem a evoluir (o ADR-0006 §13 diz que os recentes só são consultados com dados; o código os consulta sempre que há conta ativa, e devolve PENDING em `NO_TRANSACTIONS` — a Home já os exibe como pendentes)
 
 ## M4 Import
@@ -75,6 +77,8 @@
 - [x] async job (Transactional Outbox + RabbitMQ + Import Worker com inbox, retry e DLQ — ADR-0009 §14/§15)
 - [x] status API (`/api/v1/workspaces/{id}/imports`, upload 201, confirm 202)
 - [x] import UI (`/import`: conta + arquivo → preview → confirmação → acompanhamento → resultado; selo "Importado" na Home — ADR-0009 §18)
+- [x] E2E da importação: CSV fictício → preview → confirmação → resultado → selo "Importado", com somas exatas do
+  fixture (`frontend/e2e/import.spec.ts` — ADR-0011)
 
 ## M5 Analytics
 
