@@ -9,6 +9,10 @@ import {
   ADJUSTMENT_DIRECTIONS,
   IMPORT_FORMATS,
   INSTITUTION_NAME_MAX_LENGTH,
+  IDEMPOTENCY_KEY_MAX_LENGTH,
+  TRANSACTION_DESCRIPTION_MAX_LENGTH,
+  TRANSACTION_MAX_PAGE_SIZE,
+  TRANSACTION_SEARCH_MAX_LENGTH,
   IMPORT_STATUSES,
   MOVEMENT_FLOWS,
   RECORD_DIRECTIONS,
@@ -117,6 +121,32 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     const max = (path: string) => Number(/MAX_LENGTH\s*=\s*(\d+)/.exec(read(path))?.[1])
     expect(max('accounts/domain/valueobject/AccountName.java')).toBe(ACCOUNT_NAME_MAX_LENGTH)
     expect(max('accounts/domain/valueobject/InstitutionName.java')).toBe(INSTITUTION_NAME_MAX_LENGTH)
+  })
+
+  it('records e requests de Transactions têm exatamente os campos do contrato manual', () => {
+    const files: [string, (keyof typeof RECORD_FIELDS)[]][] = [
+      ['transactions/presentation/dto/response/TransactionResponse.java', ['TransactionResponse']],
+      ['transactions/presentation/dto/response/TransactionPageResponse.java', ['TransactionPageResponse']],
+      ['transactions/presentation/dto/request/CreateTransactionRequest.java', ['CreateTransactionRequest']],
+      ['transactions/presentation/dto/request/UpdateTransactionRequest.java', ['UpdateTransactionRequest']],
+    ]
+    for (const [path, names] of files) {
+      const records = javaRecords(path)
+      for (const name of names) expect(sorted(records[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
+    }
+    expect(read('transactions/presentation/dto/response/TransactionResponse.java')).toMatch(/MoneyDto\s+amount\b/)
+  })
+
+  it('limites de Transactions (descrição, busca, página, Idempotency-Key) são os do backend', () => {
+    const constant = (path: string, name: string) => Number(new RegExp(`${name}\\s*=\\s*(\\d+)`).exec(read(path))?.[1])
+    expect(constant('transactions/domain/valueobject/TransactionDescription.java', 'MAX_LENGTH')).toBe(
+      TRANSACTION_DESCRIPTION_MAX_LENGTH,
+    )
+    expect(constant('transactions/application/usecase/ListTransactions.java', 'MAX_TEXT_LENGTH')).toBe(
+      TRANSACTION_SEARCH_MAX_LENGTH,
+    )
+    expect(constant('transactions/application/usecase/ListTransactions.java', 'MAX_PAGE_SIZE')).toBe(TRANSACTION_MAX_PAGE_SIZE)
+    expect(constant('transactions/domain/valueobject/IdempotencyKey.java', 'MAX_LENGTH')).toBe(IDEMPOTENCY_KEY_MAX_LENGTH)
   })
 
   it('direção da linha importada é só INFLOW/OUTFLOW', () => {

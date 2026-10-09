@@ -55,7 +55,7 @@ function text(value: unknown, field: string, max: number, required: boolean, iss
 export async function readAccountFields(
   request: NextRequest,
   mode: 'create' | 'update',
-): Promise<{ fields: AccountFields } | { response: NextResponse }> {
+): Promise<{ fields: AccountFields; input: Record<string, unknown> } | { response: NextResponse }> {
   const raw = await request.text().catch(() => null)
   if (raw === null || raw.length > MAX_BODY_BYTES) return { response: noStoreJson({ code: 'INVALID_REQUEST' }, 400) }
   let body: unknown
@@ -85,6 +85,8 @@ export async function readAccountFields(
   if (issues.length > 0) return { response: validationFailed(issues) }
   return {
     fields: { name: name!, type: type as AccountType, institutionName, includedInTotal: includedInTotal as boolean },
+    // Corpo já lido (o stream só pode ser lido uma vez): a criação extrai daqui o `openingBalance` opcional.
+    input,
   }
 }
 

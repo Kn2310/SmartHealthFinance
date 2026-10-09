@@ -1,5 +1,5 @@
 /**
- * CONTRATO MANUAL E TEMPORÁRIO do backend usado pelo frontend (Identity, Overview, Accounts e Imports) — ADR-0007 §6.
+ * CONTRATO MANUAL E TEMPORÁRIO do backend usado pelo frontend (Identity, Overview, Accounts, Transactions e Imports) — ADR-0007 §6.
  *
  * Escrito no formato do openapi-typescript a partir dos DTOs reais (OverviewResponse, ProvisionedUserResponse,
  * ApiError). É a fonte de verdade do frontend enquanto o OpenAPI do backend não declarar:
@@ -95,6 +95,45 @@ export interface components {
       institutionName: string | null
       includedInTotal: boolean
     }
+    /** Transação (ADR-0005). Valor sempre positivo; o sentido vem de `type` (+ `adjustmentDirection`). */
+    TransactionResponse: {
+      id: string
+      workspaceId: string
+      accountId: string
+      /** Só TRANSFER. */
+      destinationAccountId: string | null
+      type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'ADJUSTMENT' | 'REFUND'
+      /** Só ADJUSTMENT. */
+      adjustmentDirection: 'INCREASE' | 'DECREASE' | null
+      amount: components['schemas']['MoneyDto']
+      occurredOn: string
+      description: string
+      status: 'PENDING' | 'POSTED' | 'CANCELLED' | 'REVERSED'
+      source: 'MANUAL' | 'IMPORT'
+      refundOfTransactionId: string | null
+      createdAt: string
+      updatedAt: string
+    }
+    TransactionPageResponse: {
+      items: components['schemas']['TransactionResponse'][]
+      page: number
+      pageSize: number
+      totalItems: number
+    }
+    /** Lançamento manual. `status` ausente assume POSTED; campos de outro tipo vão nulos/ausentes. */
+    CreateTransactionRequest: {
+      type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'ADJUSTMENT' | 'REFUND'
+      accountId: string
+      destinationAccountId?: string | null
+      adjustmentDirection?: 'INCREASE' | 'DECREASE' | null
+      amount: components['schemas']['MoneyDto']
+      occurredOn: string
+      description: string
+      status?: 'PENDING' | 'POSTED' | null
+      refundOfTransactionId?: string | null
+    }
+    /** Só a descrição é editável (ADR-0005 §8). */
+    UpdateTransactionRequest: { description: string }
     /** Importação de extrato (ADR-0009). `lines.total = valid + invalid + duplicate`. */
     ImportResponse: {
       id: string
@@ -158,6 +197,17 @@ type AccountResult = {
   200: { content: { 'application/json': components['schemas']['AccountResponse'] } }
 } & AccountErrors
 
+type TransactionErrors = {
+  400: { content: { 'application/json': components['schemas']['ApiError'] } }
+  404: { content: { 'application/json': components['schemas']['ApiError'] } }
+  409: { content: { 'application/json': components['schemas']['ApiError'] } }
+}
+
+type TransactionPath = { workspaceId: string; transactionId: string }
+type TransactionResult = {
+  200: { content: { 'application/json': components['schemas']['TransactionResponse'] } }
+} & TransactionErrors
+
 export interface paths {
   '/api/v1/users/me': {
     post: {
@@ -214,6 +264,52 @@ export interface paths {
   }
   '/api/v1/workspaces/{workspaceId}/accounts/{accountId}/reactivate': {
     post: { parameters: { path: AccountPath }; responses: AccountResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/transactions': {
+    get: {
+      parameters: {
+        query?: {
+          from?: string
+          to?: string
+          type?: components['schemas']['TransactionResponse']['type']
+          status?: components['schemas']['TransactionResponse']['status']
+          accountId?: string
+          q?: string
+          page?: number
+          pageSize?: number
+        }
+        path: { workspaceId: string }
+      }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['TransactionPageResponse'] } }
+      } & TransactionErrors
+    }
+    post: {
+      parameters: { header: { 'Idempotency-Key': string }; path: { workspaceId: string } }
+      requestBody: { content: { 'application/json': components['schemas']['CreateTransactionRequest'] } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['TransactionResponse'] } }
+        201: { content: { 'application/json': components['schemas']['TransactionResponse'] } }
+        422: { content: { 'application/json': components['schemas']['ApiError'] } }
+      } & TransactionErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}': {
+    get: { parameters: { path: TransactionPath }; responses: TransactionResult }
+    put: {
+      parameters: { path: TransactionPath }
+      requestBody: { content: { 'application/json': components['schemas']['UpdateTransactionRequest'] } }
+      responses: TransactionResult
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/post': {
+    post: { parameters: { path: TransactionPath }; responses: TransactionResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/cancel': {
+    post: { parameters: { path: TransactionPath }; responses: TransactionResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/reverse': {
+    post: { parameters: { path: TransactionPath }; responses: TransactionResult }
   }
   '/api/v1/workspaces/{workspaceId}/imports': {
     get: {
