@@ -15,6 +15,7 @@ import { GET as list, POST as create } from './route'
 import { GET as get, PUT as update } from './[accountId]/route'
 import { POST as archive } from './[accountId]/archive/route'
 import { POST as reactivate } from './[accountId]/reactivate/route'
+import { POST as retryOpeningBalance } from './[accountId]/opening-balance/route'
 
 const ORIGIN = 'http://app.test'
 const ACCOUNT = '01922f5e-0000-7000-8000-0000000000aa'
@@ -312,5 +313,95 @@ describe('POST archive / reactivate', () => {
     const response = await archive(post(`/api/bff/accounts/${ACCOUNT}/archive`), params())
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({ code: 'ACCOUNT_NOT_FOUND' })
+  })
+})
+
+describe('saldo inicial (ADJUSTMENT orquestrado pelo BFF — ADR-0004 §11)', () => {
+  const adjustment = { id: 'txn', type: 'ADJUSTMENT' }
+  const opening = { amount: '1500.00', direction: 'INCREASE' }
+
+  beforeEach(() => {
+    // 23h30 de 9/10 em Brasília = 10/10 em UTC: o ajuste é datado no fuso de negócio (ADR-0006 §10).
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-10-10T02:30:00Z'))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('cria a conta e depois o ajuste POSTED de hoje, com chave determinística pela conta', async () => {
+    POST_BACKEND.mockResolvedValueOnce({ data: account, response: { status: 201 } })
+    POST_BACKEND.mockResolvedValueOnce({ data: adjustment, response: { status: 201 } })
+    const response = await create(jsonRequest('/api/bff/accounts', 'POST', { ...valid, openingBalance: opening }))
+    expect(response.status).toBe(201)
+    expect(await response.json()).toEqual({ ...account, openingBalance: 'RECORDED' })
+
+    // A conta não recebe `openingBalance` (ADR-0004 rejeita o campo): o saldo é uma transação.
+    expect(POST_BACKEND.mock.calls[0]?.[1].body).toEqual(valid)
+    const [path, options] = POST_BACKEND.mock.calls[1]!
+    expect(path).toBe('/api/v1/workspaces/{workspaceId}/transactions')
+    expect(options.params).toEqual({
+      path: { workspaceId: 'ws-da-sessao' },
+      header: { 'Idempotency-Key': `opening-balance:${ACCOUNT}` },
+    })
+    expect(options.body).toEqual({
+      type: 'ADJUSTMENT',
+      accountId: ACCOUNT,
+      adjustmentDirection: 'INCREASE',
+      amount: { amount: '1500.00', currency: 'BRL' },
+      occurredOn: '2026-10-09',
+      description: 'Saldo inicial',
+      status: 'POSTED',
+    })
+  })
+
+  it('saldo inicial negativo (cheque especial) vai como DECREASE', async () => {
+    POST_BACKEND.mockResolvedValueOnce({ data: account, response: { status: 201 } })
+    POST_BACKEND.mockResolvedValueOnce({ data: adjustment, response: { status: 201 } })
+    await create(jsonRequest('/api/bff/accounts', 'POST', { ...valid, openingBalance: { amount: '200.00', direction: 'DECREASE' } }))
+    expect(POST_BACKEND.mock.calls[1]?.[1].body.adjustmentDirection).toBe('DECREASE')
+  })
+
+  it('ajuste falhou: a conta continua criada (201) e a resposta diz FAILED, sem valor no log', async () => {
+    POST_BACKEND.mockResolvedValueOnce({ data: account, response: { status: 201 } })
+    POST_BACKEND.mockRejectedValueOnce(new Error('ECONNRESET'))
+    const response = await create(jsonRequest('/api/bff/accounts', 'POST', { ...valid, openingBalance: opening }))
+    expect(response.status).toBe(201)
+    expect(await response.json()).toEqual({ ...account, openingBalance: 'FAILED' })
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toMatch(/1500|Aurora/)
+  })
+
+  it.each([
+    ['número em vez de string', { amount: 1500, direction: 'INCREASE' }, [{ field: 'openingBalance.amount', code: 'INVALID_FORMAT' }]],
+    ['zero', { amount: '0.00', direction: 'INCREASE' }, [{ field: 'openingBalance.amount', code: 'NOT_POSITIVE' }]],
+    ['três casas', { amount: '10.125', direction: 'INCREASE' }, [{ field: 'openingBalance.amount', code: 'TOO_MANY_DECIMALS' }]],
+    ['sem direção', { amount: '10.00' }, [{ field: 'openingBalance.direction', code: 'REQUIRED' }]],
+  ])('saldo inicial inválido (%s): 400 e NENHUMA conta criada', async (_label, openingBalance, details) => {
+    const response = await create(jsonRequest('/api/bff/accounts', 'POST', { ...valid, openingBalance }))
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ code: 'VALIDATION_FAILED', details })
+    expect(POST_BACKEND).not.toHaveBeenCalled()
+  })
+
+  it('tentar de novo usa a mesma chave; se já existia com outro conteúdo → OPENING_BALANCE_EXISTS', async () => {
+    POST_BACKEND.mockResolvedValueOnce({ data: adjustment, response: { status: 200 } })
+    const ok = await retryOpeningBalance(jsonRequest(`/api/bff/accounts/${ACCOUNT}/opening-balance`, 'POST', opening), params())
+    expect(ok.status).toBe(200)
+    expect(await ok.json()).toEqual({ openingBalance: 'RECORDED' })
+    expect(POST_BACKEND.mock.calls[0]?.[1].params.header).toEqual({ 'Idempotency-Key': `opening-balance:${ACCOUNT}` })
+
+    POST_BACKEND.mockResolvedValueOnce({ error: { code: 'IDEMPOTENCY_KEY_REUSED' }, response: { status: 422 } })
+    const exists = await retryOpeningBalance(jsonRequest(`/api/bff/accounts/${ACCOUNT}/opening-balance`, 'POST', opening), params())
+    expect(exists.status).toBe(409)
+    expect(await exists.json()).toEqual({ code: 'OPENING_BALANCE_EXISTS' })
+
+    POST_BACKEND.mockResolvedValueOnce({ error: { code: 'ACCOUNT_ARCHIVED' }, response: { status: 409 } })
+    const archived = await retryOpeningBalance(jsonRequest(`/api/bff/accounts/${ACCOUNT}/opening-balance`, 'POST', opening), params())
+    expect(await archived.json()).toEqual({ code: 'ACCOUNT_ARCHIVED' })
+  })
+
+  it('tentar de novo exige Origin, id válido e corpo', async () => {
+    expect((await retryOpeningBalance(jsonRequest(`/api/bff/accounts/${ACCOUNT}/opening-balance`, 'POST', opening, { origin: null }), params())).status).toBe(403)
+    expect((await retryOpeningBalance(jsonRequest('/api/bff/accounts/x/opening-balance', 'POST', opening), params('x'))).status).toBe(404)
+    expect((await retryOpeningBalance(jsonRequest(`/api/bff/accounts/${ACCOUNT}/opening-balance`, 'POST', {}), params())).status).toBe(400)
+    expect(POST_BACKEND).not.toHaveBeenCalled()
   })
 })

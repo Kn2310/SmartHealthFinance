@@ -44,10 +44,13 @@ importado pelo app.
 ```text
 src/proxy.ts            CSP com nonce por requisição
 src/instrumentation.ts  valida a configuração ao iniciar (produção exige HTTPS)
-src/app/                rotas: (app)/home, auth/{login,callback,logout,signed-out,error}, api/bff/overview
+src/app/                rotas: (app)/{home,accounts,import,transactions,more}, auth/*, api/bff/{overview,accounts,imports,transactions}
 src/features/home/      HomeView → HomeContent → BalanceHero, CashFlowSummary, AccountsSummary, RecentTransactions
+src/features/accounts/  lista, detalhe (com movimentações), nova conta com saldo inicial (ADR-0004 §11/§12)
+src/features/import/    importação de extrato (ADR-0009)
+src/features/transactions/ lista com filtros, lançamento manual (Idempotency-Key por intenção), detalhe e ações (ADR-0005 §16)
 src/components/         ui/ (Button, Card, Money, Skeleton) e shell/ (sidebar, trilho, bottom nav)
-src/lib/                api/ (contrato), format/ (dinheiro e datas), security/ (CSP), overview-query
+src/lib/                api/ (contrato), format/ (dinheiro, valor digitado, datas e "hoje" no fuso de negócio), security/ (CSP)
 src/server/             BFF: env, sessão selada, OIDC, cliente da API, respostas no-store (server-only)
 src/test/               helpers de teste (cookies/fetch falsos, axe)
 ```

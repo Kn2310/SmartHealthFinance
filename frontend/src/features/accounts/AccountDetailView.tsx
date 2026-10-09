@@ -1,6 +1,6 @@
 'use client'
 
-import { Archive, ChevronLeft, CircleAlert, Download, ListX, RotateCcw, SearchX } from 'lucide-react'
+import { Archive, ChevronLeft, CircleAlert, Download, RotateCcw, SearchX } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
@@ -8,6 +8,8 @@ import { Card } from '@/components/ui/Card'
 import { Money } from '@/components/ui/Money'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { accountTypeLabel } from '@/features/home/labels'
+import { AccountMovements } from '@/features/transactions/AccountMovements'
+import { registeredNotice } from '@/features/transactions/return-to'
 import { formatShortDate } from '@/lib/format/date'
 import { AccountForm } from './AccountForm'
 import { archiveAccount, reactivateAccount, updateAccount, type Account, type AccountFields } from './api'
@@ -27,9 +29,9 @@ const BACK = (
  * D-AccountDetail + D-EditAccount (como seção da página): dados da conta, saldo (do Overview), edição e
  * arquivar/reativar. `id` que não é UUID nem chega ao BFF: é o mesmo "não encontrada" de outro Workspace.
  */
-export function AccountDetailView({ id }: { id: string | null }) {
+export function AccountDetailView({ id, registered = null }: { id: string | null; registered?: string | null }) {
   if (!id) return <NotFound />
-  return <AccountDetail id={id} />
+  return <AccountDetail id={id} registered={registered} />
 }
 
 function NotFound() {
@@ -50,7 +52,7 @@ function NotFound() {
   )
 }
 
-function AccountDetail({ id }: { id: string }) {
+function AccountDetail({ id, registered }: { id: string; registered: string | null }) {
   const account = useAccount(id)
 
   if (account.status === 'loading') {
@@ -88,20 +90,30 @@ function AccountDetail({ id }: { id: string }) {
   }
 
   // A cada recarga (ex.: depois de um conflito) o formulário recomeça com os dados do servidor.
-  return <Loaded key={account.attempt} account={account.data} onChange={account.replace} onReload={account.retry} />
+  return (
+    <Loaded
+      key={account.attempt}
+      account={account.data}
+      onChange={account.replace}
+      onReload={account.retry}
+      initialNotice={registeredNotice(registered)}
+    />
+  )
 }
 
 function Loaded({
   account,
   onChange,
   onReload,
+  initialNotice,
 }: {
   account: Account
   onChange: (account: Account) => void
   onReload: () => void
+  initialNotice: string | null
 }) {
   const balances = useBalances()
-  const [notice, setNotice] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(initialNotice)
   const [actionError, setActionError] = useState<{ code: string } | null>(null)
   const [busy, setBusy] = useState(false)
   const archived = account.status === 'ARCHIVED'
@@ -255,19 +267,7 @@ function Loaded({
         </section>
       )}
 
-      <section className={styles.unavailablePanel} aria-labelledby="movements-title">
-        <span className={styles.unavailableIcon} aria-hidden="true">
-          <ListX size={20} strokeWidth={1.75} />
-        </span>
-        <div>
-          <h2 id="movements-title" className={styles.sectionTitle}>
-            Movimentações <span className={styles.soonBadge}>Em breve</span>
-          </h2>
-          <p className={styles.muted}>
-            A lista de movimentações por conta chega em uma próxima versão. As mais recentes já aparecem no Início.
-          </p>
-        </div>
-      </section>
+      <AccountMovements accountId={account.id} archived={archived} />
     </div>
   )
 }

@@ -53,6 +53,23 @@ As specs (05.2, 05.3, 05.4, 05.6) e o design (D-Accounts, D-AddAccount, D-EditAc
     - D-AddAccount e D-EditAccount (modais no design) viraram página/seção de página; a opção de importar do
       D-AddAccount continua em `/import`, que exige a conta antes (ADR-0009 §4). Movimentações por conta ficam
       para o BFF de transações.
+12. **Saldo inicial pela UI (adendo de 2026-10-09, aprovado):** o BFF orquestra duas chamadas, sem mudar a API
+    nem o modelo (§4 continua: a conta não tem saldo).
+    - `POST /api/bff/accounts` aceita `openingBalance {amount: string decimal, direction: INCREASE|DECREASE}`
+      opcional. O BFF valida o saldo **antes** de criar a conta (valor malformado, zero ou com mais de 2 casas → 400
+      e nenhuma conta criada), cria a conta e lança um `ADJUSTMENT` `POSTED`, datado de hoje no fuso de negócio
+      (ADR-0006 §10), com a descrição fixa "Saldo inicial".
+    - `Idempotency-Key` determinística: `opening-balance:<accountId>`. Duplo clique, retry ou aba reaberta repetem a
+      mesma intenção; o backend devolve o original (mesmo conteúdo) ou `IDEMPOTENCY_KEY_REUSED` (outro conteúdo),
+      então este fluxo nunca cria dois saldos iniciais.
+    - **Não é atômico.** Se o ajuste falhar, a conta continua criada e a resposta (201) traz
+      `openingBalance: "FAILED"`; a tela oferece "Tentar lançar saldo inicial novamente"
+      (`POST /api/bff/accounts/{id}/opening-balance`, mesma chave) ou seguir sem saldo. Chave já usada com outro
+      conteúdo → `409 OPENING_BALANCE_EXISTS`. O valor fica só na memória da tela (nunca na URL).
+    - Alternativas consideradas: o navegador orquestrar as duas chamadas (perde o saldo se a aba fechar entre elas
+      e põe fluxo no cliente) e um endpoint composto no backend (atômico, mas muda a API, reabre o `openingBalance`
+      rejeitado abaixo e exige um orquestrador entre módulos, já que Accounts não conhece Transactions —
+      ADR-0005 §15). Revisar se a falha parcial aparecer em produção com frequência.
 
 ## Alternatives
 

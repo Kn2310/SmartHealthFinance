@@ -4,7 +4,20 @@ import { isUuid } from '@/lib/uuid'
 
 export const metadata: Metadata = { title: 'Conta' }
 
-export default async function AccountPage({ params }: { params: Promise<{ accountId: string }> }) {
+/** `?registered=` só traz o nome de um aviso fixo (depois de registrar uma transação), nunca dados. */
+export default async function AccountPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ accountId: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
   const { accountId } = await params
-  return <AccountDetailView id={isUuid(accountId) ? accountId : null} />
+  const { registered } = await searchParams
+  return (
+    <AccountDetailView
+      id={isUuid(accountId) ? accountId : null}
+      registered={typeof registered === 'string' ? registered : null}
+    />
+  )
 }

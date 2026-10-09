@@ -53,3 +53,22 @@ export function validateCustomRange(from: string, to: string): CustomRangeError 
   if (b - a + 1 > MAX_CUSTOM_PERIOD_DAYS) return 'TOO_LONG'
   return null
 }
+
+const WEEKDAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado']
+
+/** Dia da semana de uma data de calendário (sem fuso: a data de negócio já é o dia). */
+function weekday(p: { year: number; month: number; day: number }): string {
+  return WEEKDAYS[new Date(Date.UTC(p.year, p.month - 1, p.day)).getUTCDay()] ?? ''
+}
+
+/** Cabeçalho de grupo da lista: "22 set · terça". */
+export function formatDayHeading(iso: string): string {
+  const p = parts(iso)
+  return p ? `${p.day} ${monthAbbr(p.month)} · ${weekday(p)}` : iso
+}
+
+/** "terça, 22 de setembro de 2026". */
+export function formatLongDate(iso: string): string {
+  const p = parts(iso)
+  return p ? `${weekday(p)}, ${p.day} de ${monthName(p.month)} de ${p.year}` : iso
+}

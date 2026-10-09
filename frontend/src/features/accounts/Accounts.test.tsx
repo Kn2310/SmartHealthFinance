@@ -43,6 +43,12 @@ const overview = readyOverview({
   ],
 })
 
+/** Seção Movimentações do detalhe: lista vazia da conta e nomes das contas. */
+const MOVEMENTS = {
+  'GET /api/bff/transactions': () => json({ items: [], page: 0, pageSize: 50, totalItems: 0 }),
+  'GET /api/bff/accounts?': () => json({ items: [account()] }),
+}
+
 const body = (init: RequestInit | undefined) => JSON.parse(String(init?.body)) as unknown
 
 beforeEach(() => push.mockReset())
@@ -218,6 +224,7 @@ describe('/accounts/{id} — detalhe e edição', () => {
     const calls = stubBff({
       'GET /api/bff/accounts/': () => json(account()),
       'GET /api/bff/overview': () => json(overview),
+      ...MOVEMENTS,
       'PUT /api/bff/accounts/': (init) => json(account({ ...(body(init) as object), updatedAt: '2026-10-08T00:00:00Z' })),
     })
     const user = userEvent.setup()
@@ -245,6 +252,7 @@ describe('/accounts/{id} — detalhe e edição', () => {
     const calls = stubBff({
       'GET /api/bff/accounts/': () => json(account({ status: 'ARCHIVED' })),
       'GET /api/bff/overview': () => json(overview),
+      ...MOVEMENTS,
       'POST /api/bff/accounts/': () => json(account()),
     })
     const user = userEvent.setup()
@@ -267,6 +275,7 @@ describe('/accounts/{id} — detalhe e edição', () => {
     const calls = stubBff({
       'GET /api/bff/accounts/': () => json(account()),
       'GET /api/bff/overview': () => json(overview),
+      ...MOVEMENTS,
       'POST /api/bff/accounts/': () => json(account({ status: 'ARCHIVED' })),
     })
     const user = userEvent.setup()
@@ -282,6 +291,7 @@ describe('/accounts/{id} — detalhe e edição', () => {
     stubBff({
       'GET /api/bff/accounts/': () => json(account()),
       'GET /api/bff/overview': () => json(overview),
+      ...MOVEMENTS,
       'PUT /api/bff/accounts/': () => json({ code: 'CONFLICT' }, 409),
     })
     const user = userEvent.setup()
@@ -294,7 +304,7 @@ describe('/accounts/{id} — detalhe e edição', () => {
   })
 
   it('conta de outro Workspace ou inexistente: "não encontrada", sem detalhes', async () => {
-    stubBff({ 'GET /api/bff/accounts/': () => json({ code: 'ACCOUNT_NOT_FOUND' }, 404), 'GET /api/bff/overview': () => json(overview) })
+    stubBff({ 'GET /api/bff/accounts/': () => json({ code: 'ACCOUNT_NOT_FOUND' }, 404), 'GET /api/bff/overview': () => json(overview), ...MOVEMENTS })
     const { container } = render(<AccountDetailView id={AURORA} />)
     expect(await screen.findByRole('heading', { name: 'Conta não encontrada' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver minhas contas' })).toHaveAttribute('href', '/accounts')

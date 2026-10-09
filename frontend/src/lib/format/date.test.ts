@@ -43,3 +43,12 @@ describe('validateCustomRange', () => {
     expect(validateCustomRange('2026-13-01', '2026-09-01')).toBe('INVALID')
   })
 })
+
+describe('cabeçalhos de dia', () => {
+  it('formatDayHeading e formatLongDate usam o dia de calendário, sem fuso', async () => {
+    const { formatDayHeading, formatLongDate } = await import('./date')
+    expect(formatDayHeading('2026-09-22')).toBe('22 set · terça')
+    expect(formatLongDate('2026-10-09')).toBe('sexta, 9 de outubro de 2026')
+    expect(formatDayHeading('ontem')).toBe('ontem')
+  })
+})
