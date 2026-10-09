@@ -11,7 +11,6 @@ test('extrato CSV fictício é importado e aparece na Home com o selo "Importado
   const lines = readStatement()
   const september = lines.filter((line) => line.date.startsWith('2026-09'))
 
-
   await page.goto('/import')
   await page.getByRole('main').getByRole('link', { name: 'Adicionar conta' }).click()
   await page.getByLabel('Nome da conta').fill('Conta Importação E2E')
