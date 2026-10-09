@@ -28,6 +28,9 @@ definem:
    - Filtros: `from`/`to` (inclusivos), `type`, `status`, `accountId` (origem **ou** destino) e `q`
      (trecho da descrição, literal, sem diferenciar maiúsculas).
    - Envelope `{items, page, pageSize, totalItems}`.
+   - **Adendo (2026-10-09, aprovado):** `accountId` de outro Workspace no filtro se comporta como conta
+     inexistente: `200` com lista vazia, resposta idêntica, sem validar a conta e sem leitura extra. Coberto pelo
+     `WorkspaceIsolationIT`.
 2. **`Money` em `shared.domain`.** `BigDecimal` com escala fixa 4 + `Currency`.
    - Precisão acima de 4 casas ou mais de 15 dígitos inteiros é rejeitada, nunca arredondada.
    - Será reutilizado por Cards, Goals e Forecast.

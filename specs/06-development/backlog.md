@@ -35,8 +35,9 @@
 - [x] account UI (`/accounts` lista com saldo do Overview e filtro de arquivadas, `/accounts/new` com retorno para `/import`, `/accounts/{id}` edição + arquivar/reativar; BFF `/api/bff/accounts[/{id}[/archive|/reactivate]]` — ADR-0004 §11, PR #12)
 - [x] movimentações por conta em `/accounts/{id}` (D-AccountDetail): lista de transações filtrada pela conta, com "Nova transação" (ADR-0005 §16, PR #13)
 - [x] saldo inicial em `/accounts/new` como `ADJUSTMENT` orquestrado pelo BFF, com retry idempotente (ADR-0004 §12, PR #13)
-- [ ] isolation tests (hoje espalhados por `*ApiIT`, `JdbcOverviewReadModelIT` e `ImportApiIT`; falta a suíte dedicada
-  cobrindo todas as rotas `/workspaces/{id}`)
+- [x] isolation tests (`isolation/WorkspaceIsolationIT`: as 21 operações sob `/workspaces/{id}` contra Workspace
+  alheio, 18 casos de id alheio no próprio Workspace e checagem de cobertura de endpoints novos — ADR-0003, adendo
+  ADR-0005 §1)
 
 ## M2 Transactions
 
