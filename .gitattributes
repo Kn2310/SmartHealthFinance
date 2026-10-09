@@ -3,3 +3,6 @@
 
 # Fixtures de E2E são arquivos de extrato: mantidos byte a byte (BOM + CRLF, como exportam os bancos).
 frontend/e2e/fixtures/** -text
+
+# Snapshot do contrato OpenAPI (ADR-0010): LF em qualquer SO, para o diff do PR mostrar só mudanças reais.
+backend/src/test/resources/openapi/*.json text eol=lf
