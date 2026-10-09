@@ -78,6 +78,13 @@ qualquer conta existir. O provisionamento de usuário está definido no ADR-0002
 - Os logs registram apenas IDs (`workspaceId`, `userId`), nunca e-mail ou nome.
 - Testes de isolamento cobrem a listagem, a consulta por id e a indistinguibilidade entre Workspace
   inexistente e alheio.
+- **Suíte dedicada (2026-10-09):** `isolation/WorkspaceIsolationIT` cobre toda operação sob
+  `/api/v1/workspaces/{workspaceId}`, com três verificações:
+  - outro usuário recebe `404 WORKSPACE_NOT_FOUND`, idêntico ao de um Workspace inexistente, sem ids ou dados no
+    corpo e sem alterar nenhuma tabela;
+  - ids de outro Workspace usados dentro do próprio Workspace (conta, transação, reembolso, importação, filtro)
+    respondem como ids inexistentes;
+  - um endpoint novo sob esse prefixo sem caso na suíte faz o teste falhar.
 
 ## Financial Integrity
 
