@@ -1,6 +1,7 @@
 'use client'
 
 import type { components } from '@/lib/api/schema'
+import { bffCall as call } from '@/lib/bff-client'
 
 type Schemas = components['schemas']
 export type ImportBatch = Schemas['ImportResponse']
@@ -9,42 +10,9 @@ export type ImportRecordPage = Schemas['ImportRecordPageResponse']
 export type Account = Schemas['AccountResponse']
 export type RecordStatus = ImportRecord['status']
 
-/** Falha do BFF já traduzida em código estável; `reason` só vem em `FILE_REJECTED`. */
-export interface Failure {
-  ok: false
-  code: string
-  reason?: string
-}
-export type Result<T> = { ok: true; status: number; data: T } | Failure
+export type { Failure, Result } from '@/lib/bff-client'
 
-const JSON_ACCEPT = { Accept: 'application/json' }
-
-/**
- * Chamadas ao BFF da importação. Sessão expirada (401) volta ao login; qualquer outra falha vira um código
- * estável — nunca uma mensagem do servidor.
- */
-async function call<T>(input: string, init: RequestInit = {}): Promise<Result<T>> {
-  try {
-    const response = await fetch(input, { ...init, cache: 'no-store', headers: { ...JSON_ACCEPT, ...init.headers } })
-    if (response.status === 401) {
-      // Navegação completa de propósito: /auth/login é um Route Handler que redireciona ao IdP.
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-      window.location.assign('/auth/login')
-      return { ok: false, code: 'UNAUTHENTICATED' }
-    }
-    const body = (await response.json().catch(() => null)) as unknown
-    if (response.ok && body) return { ok: true, status: response.status, data: body as T }
-    const failure = (body ?? {}) as { code?: unknown; reason?: unknown }
-    return {
-      ok: false,
-      code: typeof failure.code === 'string' ? failure.code : 'UNAVAILABLE',
-      reason: typeof failure.reason === 'string' ? failure.reason : undefined,
-    }
-  } catch {
-    return { ok: false, code: 'UNAVAILABLE' }
-  }
-}
-
+/** Chamadas ao BFF da importação (`bffCall`: 401 volta ao login, falhas viram códigos estáveis). */
 export const fetchAccounts = () => call<Schemas['AccountListResponse']>('/api/bff/accounts')
 
 export function uploadStatement(file: File, accountId: string, idempotencyKey: string) {

@@ -51,7 +51,7 @@ export function UploadStep({ preselectedAccountId }: { preselectedAccountId: str
             Adicione uma conta antes de importar
           </h2>
           <p className={styles.noticeText}>As movimentações do extrato entram em uma conta sua. Crie a conta e volte aqui.</p>
-          <Button href="/accounts/new">Adicionar conta</Button>
+          <Button href="/accounts/new?returnTo=import">Adicionar conta</Button>
         </section>
       ) : (
         <UploadForm

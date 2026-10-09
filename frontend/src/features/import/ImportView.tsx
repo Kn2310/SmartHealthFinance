@@ -1,11 +1,10 @@
 'use client'
 
 import { useSearchParams } from 'next/navigation'
+import { isUuid } from '@/lib/uuid'
 import { BatchView } from './BatchView'
 import { UploadStep } from './UploadStep'
 import styles from './Import.module.css'
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Fluxo de importação (specs/03-ux/core-user-flows: arquivo → validação → preview → confirmação → processamento
@@ -24,10 +23,10 @@ export function ImportView() {
           Traga as movimentações de um arquivo OFX ou CSV do seu banco. Nada é gravado antes da sua confirmação.
         </p>
       </header>
-      {id && UUID.test(id) ? (
+      {isUuid(id) ? (
         <BatchView key={id} id={id} />
       ) : (
-        <UploadStep preselectedAccountId={accountId && UUID.test(accountId) ? accountId : null} />
+        <UploadStep preselectedAccountId={isUuid(accountId) ? accountId : null} />
       )}
     </div>
   )

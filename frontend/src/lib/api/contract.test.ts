@@ -3,10 +3,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  ACCOUNT_NAME_MAX_LENGTH,
   ACCOUNT_STATUSES,
   ACCOUNT_TYPES,
   ADJUSTMENT_DIRECTIONS,
   IMPORT_FORMATS,
+  INSTITUTION_NAME_MAX_LENGTH,
   IMPORT_STATUSES,
   MOVEMENT_FLOWS,
   RECORD_DIRECTIONS,
@@ -37,7 +39,9 @@ function javaEnum(path: string): string[] {
 
 function javaRecords(path: string): Record<string, string[]> {
   const records: Record<string, string[]> = {}
-  for (const [, name, params] of read(path).matchAll(/record\s+(\w+)\s*\(([^)]*)\)/g)) {
+  // Anotações com parênteses (`@Size(max = …)` nos requests) saem antes de ler os parâmetros.
+  const source = read(path).replace(/@\w+(?:\([^)]*\))?/g, '')
+  for (const [, name, params] of source.matchAll(/record\s+(\w+)\s*\(([^)]*)\)/g)) {
     records[name!] = params!
       .split(',')
       .map((p) => p.trim().split(/\s+/).pop()!)
@@ -96,6 +100,23 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     expect(sorted(javaRecords('ingestion/presentation/dto/response/ImportResponse.java').Period ?? [])).toEqual(
       sorted(RECORD_FIELDS.ImportPeriod),
     )
+  })
+
+  it('requests de Accounts têm exatamente os campos do contrato manual', () => {
+    for (const name of ['CreateAccountRequest', 'UpdateAccountRequest'] as const) {
+      const records = javaRecords(`accounts/presentation/dto/request/${name}.java`)
+      expect(sorted(records[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
+    }
+    // No PUT, includedInTotal é obrigatório (substituição completa); no POST, opcional.
+    const notNull = /@NotNull\s+Boolean\s+includedInTotal/
+    expect(read('accounts/presentation/dto/request/UpdateAccountRequest.java')).toMatch(notNull)
+    expect(read('accounts/presentation/dto/request/CreateAccountRequest.java')).not.toMatch(notNull)
+  })
+
+  it('limites de nome e instituição são os mesmos do domínio', () => {
+    const max = (path: string) => Number(/MAX_LENGTH\s*=\s*(\d+)/.exec(read(path))?.[1])
+    expect(max('accounts/domain/valueobject/AccountName.java')).toBe(ACCOUNT_NAME_MAX_LENGTH)
+    expect(max('accounts/domain/valueobject/InstitutionName.java')).toBe(INSTITUTION_NAME_MAX_LENGTH)
   })
 
   it('direção da linha importada é só INFLOW/OUTFLOW', () => {

@@ -27,8 +27,9 @@
 - [ ] Account aggregate
 - [ ] account persistence
 - [ ] create/update account
-- [ ] account API
-- [ ] account UI
+- [x] account API (`/api/v1/workspaces/{id}/accounts`: listar, consultar, criar, editar com lock otimista, arquivar/reativar — ADR-0004)
+- [x] account UI (`/accounts` lista com saldo do Overview e filtro de arquivadas, `/accounts/new` com retorno para `/import`, `/accounts/{id}` edição + arquivar/reativar; BFF `/api/bff/accounts[/{id}[/archive|/reactivate]]`)
+- [ ] pendência: movimentações por conta em `/accounts/{id}` (D-AccountDetail) — depende do BFF de transações (M2 "transaction UI"); hoje a seção aparece como "Em breve"
 - [ ] isolation tests
 
 ## M2 Transactions

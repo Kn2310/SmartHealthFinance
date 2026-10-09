@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation'
 import { ComingSoon } from '@/components/ComingSoon'
 
 const SECTIONS: Record<string, string> = {
-  accounts: 'Contas',
   transactions: 'Movimentações',
   cards: 'Cartões',
   analysis: 'Análise',
@@ -14,7 +13,7 @@ const SECTIONS: Record<string, string> = {
 }
 
 /**
- * Destinos ainda não implementados que a Home já referencia (contas, movimentações) e a navegação aprovada.
+ * Destinos ainda não implementados que a Home já referencia (movimentações) e a navegação aprovada.
  * Rotas fora desta lista seguem 404.
  */
 export default async function SectionPlaceholder({ params }: { params: Promise<{ section: string }> }) {

@@ -199,7 +199,7 @@ describe('ImportView — envio', () => {
     stubBff({ 'GET /api/bff/accounts': () => json({ items: [] }) })
     render(<ImportView />)
     expect(await screen.findByRole('heading', { name: 'Adicione uma conta antes de importar' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Adicionar conta' })).toHaveAttribute('href', '/accounts/new')
+    expect(screen.getByRole('link', { name: 'Adicionar conta' })).toHaveAttribute('href', '/accounts/new?returnTo=import')
   })
 
   it('formulário sem violações de acessibilidade', async () => {
