@@ -33,9 +33,7 @@ export function rejectCrossOrigin(request: NextRequest): NextResponse | null {
   return noStoreJson({ code: 'FORBIDDEN' }, 403)
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-export const isUuid = (value: unknown): value is string => typeof value === 'string' && UUID.test(value)
+export { isUuid } from '@/lib/uuid'
 
 /** Código estável do backend (ex.: `MISSING_COLUMN`). Qualquer outra coisa é descartada: nada de texto livre. */
 const STABLE_CODE = /^[A-Z][A-Z0-9_]{0,49}$/

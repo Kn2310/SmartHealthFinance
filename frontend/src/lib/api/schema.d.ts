@@ -81,6 +81,20 @@ export interface components {
       updatedAt: string
     }
     AccountListResponse: { items: components['schemas']['AccountResponse'][] }
+    /** `includedInTotal` ausente assume true. Nome e instituição: até 100 caracteres (AccountName/InstitutionName). */
+    CreateAccountRequest: {
+      name: string
+      type: 'CHECKING' | 'SAVINGS' | 'PAYMENT' | 'OTHER'
+      institutionName?: string | null
+      includedInTotal?: boolean
+    }
+    /** Substituição completa dos campos editáveis (ADR-0004 §8). */
+    UpdateAccountRequest: {
+      name: string
+      type: 'CHECKING' | 'SAVINGS' | 'PAYMENT' | 'OTHER'
+      institutionName: string | null
+      includedInTotal: boolean
+    }
     /** Importação de extrato (ADR-0009). `lines.total = valid + invalid + duplicate`. */
     ImportResponse: {
       id: string
@@ -133,6 +147,17 @@ type ImportErrors = {
 
 type ImportPath = { workspaceId: string; importId: string }
 
+type AccountErrors = {
+  400: { content: { 'application/json': components['schemas']['ApiError'] } }
+  404: { content: { 'application/json': components['schemas']['ApiError'] } }
+  409: { content: { 'application/json': components['schemas']['ApiError'] } }
+}
+
+type AccountPath = { workspaceId: string; accountId: string }
+type AccountResult = {
+  200: { content: { 'application/json': components['schemas']['AccountResponse'] } }
+} & AccountErrors
+
 export interface paths {
   '/api/v1/users/me': {
     post: {
@@ -168,6 +193,27 @@ export interface paths {
         404: { content: { 'application/json': components['schemas']['ApiError'] } }
       }
     }
+    post: {
+      parameters: { path: { workspaceId: string } }
+      requestBody: { content: { 'application/json': components['schemas']['CreateAccountRequest'] } }
+      responses: {
+        201: { content: { 'application/json': components['schemas']['AccountResponse'] } }
+      } & AccountErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/accounts/{accountId}': {
+    get: { parameters: { path: AccountPath }; responses: AccountResult }
+    put: {
+      parameters: { path: AccountPath }
+      requestBody: { content: { 'application/json': components['schemas']['UpdateAccountRequest'] } }
+      responses: AccountResult
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/accounts/{accountId}/archive': {
+    post: { parameters: { path: AccountPath }; responses: AccountResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/accounts/{accountId}/reactivate': {
+    post: { parameters: { path: AccountPath }; responses: AccountResult }
   }
   '/api/v1/workspaces/{workspaceId}/imports': {
     get: {

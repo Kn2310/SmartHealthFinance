@@ -30,8 +30,14 @@ export const RECORD_STATUSES = ['VALID', 'INVALID', 'DUPLICATE', 'IMPORTED'] as 
 /** Direção de uma linha importada (ImportRecordResponse): só entrada ou saída, nunca transferência. */
 export const RECORD_DIRECTIONS = ['INFLOW', 'OUTFLOW'] as const
 
+/** `AccountName.MAX_LENGTH` e `InstitutionName.MAX_LENGTH` do backend: o BFF e o formulário recusam antes. */
+export const ACCOUNT_NAME_MAX_LENGTH = 100
+export const INSTITUTION_NAME_MAX_LENGTH = 100
+
 type Tx = O['recentTransactions'][number]
 type Acc = S['AccountResponse']
+type CreateAcc = S['CreateAccountRequest']
+type UpdateAcc = S['UpdateAccountRequest']
 type Imp = S['ImportResponse']
 type Rec = S['ImportRecordResponse']
 export type EnumChecks = [
@@ -45,6 +51,8 @@ export type EnumChecks = [
   Assert<Equals<Values<typeof TRANSACTION_SOURCES>, Tx['source']>>,
   Assert<Equals<Values<typeof ACCOUNT_TYPES>, Acc['type']>>,
   Assert<Equals<Values<typeof ACCOUNT_STATUSES>, Acc['status']>>,
+  Assert<Equals<Values<typeof ACCOUNT_TYPES>, CreateAcc['type']>>,
+  Assert<Equals<Values<typeof ACCOUNT_TYPES>, UpdateAcc['type']>>,
   Assert<Equals<Values<typeof IMPORT_FORMATS>, Imp['format']>>,
   Assert<Equals<Values<typeof IMPORT_STATUSES>, Imp['status']>>,
   Assert<Equals<Values<typeof RECORD_STATUSES>, Rec['status']>>,
@@ -70,6 +78,8 @@ export const RECORD_FIELDS = {
     'updatedAt',
   ],
   AccountListResponse: ['items'],
+  CreateAccountRequest: ['name', 'type', 'institutionName', 'includedInTotal'],
+  UpdateAccountRequest: ['name', 'type', 'institutionName', 'includedInTotal'],
   ImportResponse: [
     'id', 'workspaceId', 'accountId', 'format', 'status', 'fileName', 'fileSize', 'lines', 'period',
     'sameFileImportedBefore', 'failureReason', 'createdAt', 'previewExpiresAt', 'confirmedAt', 'completedAt',
@@ -97,6 +107,8 @@ export type FieldChecks = [
   Assert<Equals<Values<F['MoneyDto']>, keyof S['MoneyDto']>>,
   Assert<Equals<Values<F['AccountResponse']>, keyof Acc>>,
   Assert<Equals<Values<F['AccountListResponse']>, keyof S['AccountListResponse']>>,
+  Assert<Equals<Values<F['CreateAccountRequest']>, keyof CreateAcc>>,
+  Assert<Equals<Values<F['UpdateAccountRequest']>, keyof UpdateAcc>>,
   Assert<Equals<Values<F['ImportResponse']>, keyof Imp>>,
   Assert<Equals<Values<F['Lines']>, keyof Imp['lines']>>,
   Assert<Equals<Values<F['ImportPeriod']>, keyof NonNullable<Imp['period']>>>,

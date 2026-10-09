@@ -41,6 +41,18 @@ As specs (05.2, 05.3, 05.4, 05.6) e o design (D-Accounts, D-AddAccount, D-EditAc
    - Para isso, foi adicionado o código genérico `CONFLICT` em `ErrorCode`.
 9. **Eventos `account.*` adiados** até existir o Transactional Outbox (mesma decisão do ADR-0003).
 10. **Organização:** segue os subpacotes por camada do ADR-0001 (revisão de 2026-09-29).
+11. **UI (adendo de 2026-10-08, sem decisão arquitetural nova):** telas `/accounts`, `/accounts/new` e `/accounts/{id}`
+    sobre o BFF do ADR-0007: `GET|POST /api/bff/accounts` (`?includeArchived=true` inclui arquivadas; sem parâmetro,
+    só ativas, como a importação usa), `GET|PUT /api/bff/accounts/{id}`, `POST .../{id}/archive|reactivate`.
+    - Mutações exigem `Origin` do app; id e corpo (tipos, 100 caracteres, sem controle) validados no BFF; só
+      `VALIDATION_FAILED` (com `field` + `code` conhecidos), `ACCOUNT_NOT_FOUND`, `ACCOUNT_ARCHIVED` e `CONFLICT`
+      passam; o resto vira `UNAVAILABLE`.
+    - Saldos na lista e no detalhe vêm do Overview (ADR-0006); a conta continua sem saldo e o frontend não calcula.
+    - Criar a partir de `/import` usa `?returnTo=import` e volta para `/import?accountId=<nova>`. Só nomes de
+      destinos fixos são aceitos, nunca uma URL (sem open redirect).
+    - D-AddAccount e D-EditAccount (modais no design) viraram página/seção de página; a opção de importar do
+      D-AddAccount continua em `/import`, que exige a conta antes (ADR-0009 §4). Movimentações por conta ficam
+      para o BFF de transações.
 
 ## Alternatives
 
