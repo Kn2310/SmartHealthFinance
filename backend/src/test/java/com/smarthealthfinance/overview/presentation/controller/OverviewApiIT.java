@@ -85,6 +85,33 @@ class OverviewApiIT extends IntegrationTest {
         assertThat(read(result, "$.cashFlow")).isNull();
     }
 
+    /**
+     * ADR-0006 §13 (emenda de 2026-10-09): só pendentes → NO_TRANSACTIONS sem saldo nem fluxo, mas a atividade
+     * recente traz os PENDING (a Home mostra o card "Movimentações pendentes").
+     */
+    @Test
+    void onlyPendingTransactionsAppearAsRecentWithoutBalances() throws Exception {
+        String aurora = createAccount(ana(), anasWorkspace, "Banco Aurora");
+        postTransaction(ana(), anasWorkspace, "EXPENSE", aurora, null, "50.00", today, "Conta de luz",
+                "\"status\": \"PENDING\"");
+
+        MvcTestResult result = overview(ana(), anasWorkspace, "");
+
+        assertThat(result).hasStatus(HttpStatus.OK)
+                .bodyJson()
+                .hasPathSatisfying("$.state", v -> assertThat(v).asString().isEqualTo("NO_TRANSACTIONS"))
+                .hasPathSatisfying("$.summary.pendingTransactions", v -> assertThat(v).isEqualTo(1))
+                .hasPathSatisfying("$.recentTransactions.length()", v -> assertThat(v).isEqualTo(1))
+                .hasPathSatisfying("$.recentTransactions[0].status", v -> assertThat(v).asString().isEqualTo("PENDING"))
+                .hasPathSatisfying("$.recentTransactions[0].description",
+                        v -> assertThat(v).asString().isEqualTo("Conta de luz"))
+                .hasPathSatisfying("$.recentTransactions[0].amount.amount",
+                        v -> assertThat(v).asString().isEqualTo("50.00"));
+        assertThat(read(result, "$.summary.totalBalance")).isNull();
+        assertThat(read(result, "$.cashFlow")).isNull();
+        assertThat(read(result, "$.accounts[0].balance")).isNull();
+    }
+
     @Test
     void historyOutsideThePeriodReturnsRealZeros() throws Exception {
         String aurora = createAccount(ana(), anasWorkspace, "Banco Aurora");

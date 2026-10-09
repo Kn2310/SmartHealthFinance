@@ -10,9 +10,12 @@ import com.smarthealthfinance.identity.domain.model.Workspace;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.overview.application.ReferenceOverviewReadModel;
 import com.smarthealthfinance.overview.application.dto.OverviewView;
+import com.smarthealthfinance.overview.application.port.OverviewReadModel;
 import com.smarthealthfinance.overview.domain.enums.MovementFlow;
 import com.smarthealthfinance.overview.domain.enums.OverviewState;
 import com.smarthealthfinance.overview.domain.enums.PeriodType;
+import com.smarthealthfinance.overview.domain.model.CashFlow;
+import com.smarthealthfinance.overview.domain.valueobject.OverviewPeriod;
 import com.smarthealthfinance.transactions.application.TransactionsTestContext;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
@@ -26,6 +29,10 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.Currency;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static com.smarthealthfinance.identity.IdentityFixtures.CREATED_AT;
@@ -105,6 +112,77 @@ class GetFinancialOverviewTest {
         assertThat(view.summary().pendingTransactions()).isEqualTo(1);
         assertThat(view.recentTransactions()).extracting(OverviewView.RecentTransaction::description)
                 .containsExactly("Conta de luz");
+        assertThat(view.recentTransactions()).extracting(OverviewView.RecentTransaction::status)
+                .containsOnly(TransactionStatus.PENDING);
+    }
+
+    /**
+     * ADR-0006 §13 (emenda de 2026-10-09): saldo por conta e fluxo de caixa só consultam com dados financeiros
+     * (READY/NO_ACTIVITY_IN_PERIOD); a atividade recente consulta sempre que há conta ativa — em NO_TRANSACTIONS
+     * ela traz só PENDING. Sem conta ativa, nenhuma consulta de transações roda.
+     */
+    @Test
+    void queriesRunPerStateAsTheAdrDescribes() {
+        RecordingReadModel readModel = new RecordingReadModel(new ReferenceOverviewReadModel(ctx.transactions, ctx.accounts));
+        GetFinancialOverview recorded = new GetFinancialOverview(ctx.currentUserService,
+                new com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard(ctx.workspaces),
+                ctx.accounts, readModel, ctx.clock, SAO_PAULO, new SimpleMeterRegistry());
+
+        User carol = activeUser("sub-carol");
+        Workspace carolsWorkspace = personalWorkspace(carol);
+        ctx.users.store(carol);
+        ctx.workspaces.store(carolsWorkspace);
+        ctx.actAs(carol);
+        assertThat(recorded.execute(carolsWorkspace.id().value(), current()).state()).isEqualTo(OverviewState.NO_ACCOUNTS);
+        assertThat(readModel.calls).isEmpty();
+
+        ctx.actAs(ctx.ana);
+        ctx.store(create(ws, TransactionType.EXPENSE, ctx.aurora.id(), null, null, "50", day("2026-09-20"), "Conta de luz",
+                TransactionStatus.PENDING, null, CREATED_AT));
+        assertThat(recorded.execute(ctx.anasWorkspaceId(), current()).state()).isEqualTo(OverviewState.NO_TRANSACTIONS);
+        assertThat(readModel.calls).containsExactly("activity", "recentMovements");
+
+        readModel.calls.clear();
+        ctx.store(income(ws, ctx.aurora.id(), "1000", day("2026-09-10"), "Salário"));
+        assertThat(recorded.execute(ctx.anasWorkspaceId(), current()).state()).isEqualTo(OverviewState.READY);
+        assertThat(readModel.calls).containsExactlyInAnyOrder("activity", "recentMovements", "accountFigures", "cashFlow");
+    }
+
+    /** Registra quais consultas o caso de uso dispara, delegando à implementação de referência. */
+    private static final class RecordingReadModel implements OverviewReadModel {
+
+        final List<String> calls = new ArrayList<>();
+        private final OverviewReadModel delegate;
+
+        RecordingReadModel(OverviewReadModel delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public Map<AccountId, AccountFigures> accountFigures(WorkspaceId workspaceId, OverviewPeriod period,
+                                                                    Currency currency) {
+            calls.add("accountFigures");
+            return delegate.accountFigures(workspaceId, period, currency);
+        }
+
+        @Override
+        public CashFlow cashFlow(WorkspaceId workspaceId, OverviewPeriod period, Currency currency) {
+            calls.add("cashFlow");
+            return delegate.cashFlow(workspaceId, period, currency);
+        }
+
+        @Override
+        public Activity activity(WorkspaceId workspaceId, OverviewPeriod period, Currency currency) {
+            calls.add("activity");
+            return delegate.activity(workspaceId, period, currency);
+        }
+
+        @Override
+        public List<RecentMovement> recentMovements(WorkspaceId workspaceId, OverviewPeriod period, int limit,
+                                                              Currency currency) {
+            calls.add("recentMovements");
+            return delegate.recentMovements(workspaceId, period, limit, currency);
+        }
     }
 
     @Test

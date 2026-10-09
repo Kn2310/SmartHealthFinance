@@ -94,12 +94,26 @@ e o ADR-0005: **POSTED é o único status com efeito financeiro**.
     e arquivadas), mais recentes primeiro (mesma ordem de `/transactions`). Cada item traz `flow`
     (`INFLOW`/`OUTFLOW`/`TRANSFER`, derivado do mesmo contrato do saldo), contas de origem/destino com nome,
     status, valor, data, descrição e vínculo de reembolso. Sem paginação: é um resumo (limite 1–20).
+    - Em `NO_TRANSACTIONS` a lista traz só `PENDING`, porque ainda não há `POSTED`. A Home os mostra num card próprio
+      ("Movimentações pendentes"), separado do realizado e sem saldo nem fluxo. Em `NO_ACCOUNTS` a lista é vazia.
 
 ### Persistência e desempenho
 
 13. **PostgreSQL puro, sem cache e sem tabela materializada.** Cinco consultas agregadas por request, nenhuma por
     linha (sem N+1): contas (porta de Accounts), atividade, saldo/movimentações por conta (uma varredura com
-    "pernas" origem/destino), fluxo de caixa e recentes. Os últimos três só executam se houver dados.
+    "pernas" origem/destino), fluxo de caixa e recentes.
+    - Sem conta ativa (`NO_ACCOUNTS`), só a consulta de contas roda.
+    - Com conta ativa, rodam sempre a atividade e os recentes. Os recentes usam
+      `ix_transactions_workspace_occurred` com `LIMIT`.
+    - Saldo/movimentações por conta e fluxo de caixa só rodam com dados financeiros (`READY`,
+      `NO_ACTIVITY_IN_PERIOD`).
+    - **Emenda (2026-10-09, aprovada):** o texto original dizia que os recentes também só executavam "se houver
+      dados". Desde a primeira implementação, porém, o código os consulta sempre que há conta ativa, e a Home depende
+      disso para exibir as pendentes em `NO_TRANSACTIONS`.
+      - Decidiu-se emendar o ADR em vez de mudar o comportamento.
+      - Não há mudança de API nem de produto.
+      - Coberto por `GetFinancialOverviewTest` (consultas por estado e pendentes em `NO_TRANSACTIONS`) e pelo
+        `OverviewApiIT`; o teste de paridade (`JdbcOverviewReadModelIT`) não muda.
 14. **Migration `V6__index_transactions_for_overview.sql`:** índice parcial e cobrindo
     `(workspace_id, occurred_on) INCLUDE (account_id, destination_account_id, type, adjustment_direction, amount)
     WHERE status = 'POSTED'`. Permite index-only scan nas agregações e não paga o custo de PENDING/anuladas.
