@@ -29,7 +29,8 @@
 - [ ] create/update account
 - [x] account API (`/api/v1/workspaces/{id}/accounts`: listar, consultar, criar, editar com lock otimista, arquivar/reativar — ADR-0004)
 - [x] account UI (`/accounts` lista com saldo do Overview e filtro de arquivadas, `/accounts/new` com retorno para `/import`, `/accounts/{id}` edição + arquivar/reativar; BFF `/api/bff/accounts[/{id}[/archive|/reactivate]]`)
-- [ ] pendência: movimentações por conta em `/accounts/{id}` (D-AccountDetail) — depende do BFF de transações (M2 "transaction UI"); hoje a seção aparece como "Em breve"
+- [x] movimentações por conta em `/accounts/{id}` (D-AccountDetail): lista de transações filtrada pela conta, com "Nova transação" (ADR-0005 §16)
+- [x] saldo inicial em `/accounts/new` como `ADJUSTMENT` orquestrado pelo BFF, com retry idempotente (ADR-0004 §12)
 - [ ] isolation tests
 
 ## M2 Transactions
@@ -43,7 +44,9 @@
 - [x] transaction list
 - [x] filters
 - [x] tests
-- [ ] transaction UI
+- [x] transaction UI (`/transactions` com filtros, `/transactions/new` receita/despesa/ajuste com `Idempotency-Key` por intenção, `/transactions/{id}` efetivar/cancelar/estornar e editar descrição; BFF `/api/bff/transactions[/{id}[/post|/cancel|/reverse]]`; M-More mínimo — ADR-0005 §16)
+- [ ] pendência: métricas do topo de D-Transactions (Entradas/Saídas/Transferências/Resultado do período filtrado) e "Por que meu dinheiro mudou?" (depende de categorias, M5)
+- [ ] pendência: transferência e reembolso pela UI (a API já suporta; a UI só exibe)
 - [ ] eventos `transaction.*` (a Transactional Outbox já existe desde o M4; falta o consumidor — ADR-0009 §15)
 
 ## M3 First Home

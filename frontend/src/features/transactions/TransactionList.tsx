@@ -139,7 +139,7 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
               value={filters.type ?? ''}
               onChange={(event) => set({ type: (event.target.value || undefined) as TransactionType | undefined })}
             >
-              <option value="">Todos os tipos</option>
+              <option value="">Todos</option>
               {TYPE_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -157,7 +157,7 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
               value={filters.status ?? ''}
               onChange={(event) => set({ status: (event.target.value || undefined) as TransactionStatus | undefined })}
             >
-              <option value="">Todos os status</option>
+              <option value="">Todos</option>
               {STATUS_OPTIONS.map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
@@ -176,7 +176,7 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
                 value={filters.accountId ?? ''}
                 onChange={(event) => set({ accountId: event.target.value || undefined })}
               >
-                <option value="">Todas as contas</option>
+                <option value="">Todas</option>
                 {accounts.status === 'success'
                   ? accounts.data.map((account) => (
                       <option key={account.id} value={account.id}>

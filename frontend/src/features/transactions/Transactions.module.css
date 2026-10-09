@@ -13,6 +13,8 @@
   min-width: 0;
 }
 .search { display: flex; gap: var(--space-8); min-width: 0; }
+/* O botão do DS ocupa a largura toda no celular; aqui ele fica ao lado do campo. */
+.search > :last-child { flex: none; width: auto; }
 .searchField { position: relative; flex: 1 1 0; min-width: 0; }
 .searchIcon {
   position: absolute;
@@ -24,6 +26,8 @@
 }
 .searchInput { padding-left: calc(var(--space-12) + 20px + var(--space-8)); }
 .selects { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-12); min-width: 0; }
+/* No celular o período ocupa a linha inteira (rótulos longos como "Todo o período"). */
+.selects > :first-child { grid-column: 1 / -1; }
 .custom { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-12); align-items: end; }
 .custom > :last-child { grid-column: 1 / -1; }
 .clear {
@@ -205,6 +209,7 @@
 
 @media (min-width: 640px) {
   .selects { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .selects > :first-child { grid-column: auto; }
   .selects.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .custom { grid-template-columns: repeat(2, minmax(0, 1fr)) auto; }
   .custom > :last-child { grid-column: auto; }

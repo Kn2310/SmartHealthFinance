@@ -84,6 +84,30 @@ definem:
 15. **Direção entre módulos:** Transactions → Accounts → Identity, garantida por ArchUnit.
     - Transactions usa `AccountRepository` (porta de domínio de Accounts) e as exceções de Accounts.
     - Accounts nunca conhece Transactions.
+16. **UI (adendo de 2026-10-09; decisões de UX aprovadas, nenhuma decisão arquitetural nova):** telas sobre o BFF
+    do ADR-0007.
+    - BFF: `GET|POST /api/bff/transactions`, `GET|PUT /api/bff/transactions/{id}`,
+      `POST .../{id}/post|cancel|reverse`. O Workspace vem só da sessão; mutações exigem `Origin` do app; ids e
+      filtros fora do formato são descartados (página fixa de 50). O `POST` aceita só `INCOME`, `EXPENSE` e
+      `ADJUSTMENT` (transferência e reembolso pela UI estão fora do escopo; os existentes são exibidos), valor
+      **sempre string** (`number` em JSON é recusado) e repassa a `Idempotency-Key` sem alteração. Só passam
+      códigos estáveis: `VALIDATION_FAILED` (campo conhecido + código), `TRANSACTION_NOT_FOUND`,
+      `ACCOUNT_NOT_FOUND`, `ACCOUNT_ARCHIVED`, `TRANSACTION_STATUS_CONFLICT`, `CONFLICT` e
+      `IDEMPOTENCY_KEY_REUSED`; o resto vira `UNAVAILABLE`. Logs só com status HTTP.
+    - Idempotência na UI: uma `Idempotency-Key` (`web:<uuid>`) por abertura do formulário (= uma intenção). Duplo
+      clique é travado e, se escapasse, usaria a mesma chave; "tentar de novo" após falha de rede reenvia a mesma
+      chave. Só um `IDEMPOTENCY_KEY_REUSED` gera chave nova (a anterior já registrou outro conteúdo), com aviso.
+    - Telas: `/transactions` (lista agrupada por dia, filtros de período, tipo, status e conta na URL; a busca por
+      texto fica só no estado da tela, nunca na URL), `/transactions/new` e `/transactions/{id}`. O detail drawer
+      (D-TxnDetail) virou página, como os modais do ADR-0004 §11. Efetivar, cancelar e estornar seguem o §7;
+      cancelar e estornar pedem confirmação. Só a descrição é editável (§8). Padrões: `POSTED` e data de hoje no
+      fuso de negócio (ADR-0006 §10).
+    - Navegação conforme `design/specs/04-navigation-flows.md` (sem área principal nova): desktop pela Home ("Ver
+      todas") e pela conta; mobile por Mais (M-More mínimo com Contas e Transações).
+    - Fora desta etapa: as métricas do topo de D-Transactions (Entradas/Saídas/Transferências/Resultado) e
+      "Por que meu dinheiro mudou?" (depende de categorias, M5).
+    - O sinal exibido (+/−) é apresentação do tipo/direção já decididos pelo backend (mesma tabela de
+      `originEffect`); transferência só tem sinal na página de uma das contas. Nenhum valor é somado no frontend.
 
 ## Alternatives
 
