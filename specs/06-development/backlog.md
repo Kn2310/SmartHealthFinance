@@ -17,7 +17,8 @@
 - [x] OpenTelemetry (starter + export OTLP opcional, Grafana LGTM no perfil `observability` — PR #1)
 - [x] Testcontainers (PostgreSQL, RabbitMQ e Redis reais nos `*IT` — `support/TestcontainersConfiguration`)
 - [x] ArchUnit (`architecture/ArchitectureTest` — ADR-0001)
-- [ ] CI
+- [x] CI (`.github/workflows/ci.yml`: backend `./mvnw verify` + frontend lint/typecheck/test/build, snapshot do
+  contrato OpenAPI verificado dos dois lados — ADR-0010)
 - [x] Design System foundation (`design/` como fonte de tokens/fontes, `scripts/sync-design.mjs`, componentes
   `components/ui` — ADR-0007 §13, PR #7)
 - [x] ADR template (`specs/06-development/adr-template.md`)

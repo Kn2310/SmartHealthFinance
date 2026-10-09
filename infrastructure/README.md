@@ -3,7 +3,7 @@
 | Ambiente | Arquivo | Variáveis |
 |---|---|---|
 | Local | `docker-compose.yml` | `backend/.env` (modelo: `backend/.env.example`) |
-| CI | — (Testcontainers sobe PostgreSQL, RabbitMQ e Redis nos testes de integração) | — |
+| CI | `.github/workflows/ci.yml` (Testcontainers sobe PostgreSQL, RabbitMQ e Redis nos testes de integração — ADR-0010) | nenhuma (sem segredos) |
 | Staging / Production | `docker-compose.deploy.yml` + `backend/Dockerfile` | env file fora do repositório (modelo: `.env.deploy.example`) |
 
 ## Local

@@ -36,8 +36,16 @@ Build de produção na própria máquina (`pnpm build && pnpm start`): em produ�
 
 `src/lib/api/schema.d.ts` é o contrato **manual e temporário** usado pelo app: o OpenAPI atual expõe enums como
 `string` e não declara nulos, o que apagaria a distinção null ≠ zero. `src/lib/api/contract.test.ts` compara o
-contrato com os records e enums Java do backend e falha se houver drift. O arquivo gerado por `api:generate` não é
-importado pelo app.
+contrato com os records e enums Java do backend e falha se houver drift. `src/lib/api/openapi.test.ts` confere rotas,
+métodos, parâmetros, corpos e campos contra o snapshot do OpenAPI do backend
+(`backend/src/test/resources/openapi/openapi.json`, [ADR-0010](../docs/adr/ADR-0010-ci-and-openapi-contract-snapshot.md)).
+Mudou a API: `./mvnw verify -Dshf.openapi.update=true` no backend, revise o diff e ajuste o `schema.d.ts`. O arquivo
+gerado por `api:generate` não é importado pelo app.
+
+## CI
+
+`.github/workflows/ci.yml` roda em todo PR e em push na `main` os mesmos comandos da tabela acima
+(`pnpm install --frozen-lockfile`, `lint`, `typecheck`, `test`, `build`), em paralelo com o `./mvnw verify` do backend.
 
 ## Estrutura
 

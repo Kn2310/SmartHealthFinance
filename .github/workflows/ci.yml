@@ -1,0 +1,83 @@
+# CI do Smart Health Finance (specs 05.10 e 05.11; decisões no ADR-0010).
+#
+# Dois jobs em paralelo, com os mesmos comandos do desenvolvimento local:
+#   backend  → ./mvnw -B verify (unit + ArchUnit no `test`; *IT com Testcontainers e o snapshot do OpenAPI no `verify`)
+#   frontend → pnpm install --frozen-lockfile, lint, typecheck, test (inclui o contrato × OpenAPI) e build
+#
+# Nenhum segredo: os testes usam Testcontainers e valores fictícios do perfil `test`.
+# Actions oficiais fixadas por SHA de commit (tag correspondente no comentário).
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25' # = <java.version> do backend/pom.xml
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Build e testes (unit, arquitetura, integração e contrato OpenAPI)
+        run: ./mvnw -B -ntp verify
+
+  frontend:
+    name: frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22' # engines.node: >=22
+
+      # pnpm na versão do `packageManager` do package.json, via Corepack (sem action de terceiros).
+      - name: pnpm (Corepack)
+        run: |
+          corepack enable
+          pnpm --version
+          echo "PNPM_STORE=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.PNPM_STORE }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build

@@ -125,6 +125,10 @@ form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests (só em HT
 - `pnpm api:generate` (script Node, funciona no Windows) gera `openapi.generated.d.ts` **separado**, não
   versionado e não importado, só para comparação. **Gatilho para virar fonte de verdade:** o backend anotar
   enums e nulos no OpenAPI.
+- **Adendo (2026-10-09, ADR-0010):** o OpenAPI do backend virou um snapshot versionado
+  (`backend/src/test/resources/openapi/openapi.json`, verificado pelo `OpenApiContractIT`), e
+  `openapi.test.ts` confere rotas, métodos, parâmetros, corpos e campos do `schema.d.ts` contra ele. O contrato manual
+  continua sendo a fonte de verdade do frontend.
 - Enums desconhecidos não quebram a UI: rótulo e ícone neutros, sem sinal, estado desconhecido com mensagem
   neutra (há testes).
 
