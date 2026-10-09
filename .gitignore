@@ -5,3 +5,14 @@
 *.env
 !.env.example
 !.env.*.example
+
+# Store local do pnpm (aparece, por exemplo, quando o container "web" do compose instala no bind mount).
+frontend/.pnpm-store/
+
+# Claude Code: só a configuração compartilhada do projeto é versionada (settings.json, commands/, agents/,
+# skills/). O restante é pessoal ou da máquina (settings.local.json, launch.json com comandos do Windows, ...).
+.claude/*
+!.claude/settings.json
+!.claude/commands/
+!.claude/agents/
+!.claude/skills/

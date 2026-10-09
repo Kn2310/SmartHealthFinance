@@ -1,2 +1,5 @@
 # Scripts shell precisam de LF para rodar no Git Bash, Linux e CI.
 *.sh text eol=lf
+
+# Fixtures de E2E são arquivos de extrato: mantidos byte a byte (BOM + CRLF, como exportam os bancos).
+frontend/e2e/fixtures/** -text

@@ -2,36 +2,40 @@
 
 ## M0 Foundation
 
-- [ ] monorepo
-- [ ] Docker Compose
-- [ ] Spring Boot
-- [ ] Next.js
-- [ ] PostgreSQL
-- [ ] Redis
-- [ ] RabbitMQ
-- [ ] Flyway
-- [ ] Spring Security
-- [ ] OpenAPI
-- [ ] OpenTelemetry
-- [ ] Testcontainers
-- [ ] ArchUnit
+- [x] monorepo (`backend/`, `frontend/`, `infrastructure/`, `design/`, `specs/`, `docs/adr/` — PR #1)
+- [x] Docker Compose (`infrastructure/docker-compose.yml` local, perfis `app` e `observability`;
+  `docker-compose.deploy.yml` para staging/produção — PR #1)
+- [x] Spring Boot (4.1, Java 25, monólito modular — ADR-0001, PR #1)
+- [x] Next.js (App Router + BFF — ADR-0007, PR #7)
+- [x] PostgreSQL (17, fonte de verdade — PR #1)
+- [x] Redis (infra local/deploy e readiness da API; ainda sem uso funcional — nunca fonte de verdade, specs 05.5)
+- [x] RabbitMQ (Transactional Outbox + Import Worker com retry e DLQ — ADR-0009 §14/§15, PR #10)
+- [x] Flyway (`V1`–`V8`, `ddl-auto: validate`)
+- [x] Spring Security (OAuth2 Resource Server sobre o IdP OIDC — ADR-0002, PR #1)
+- [x] OpenAPI (springdoc code-first, `/v3/api-docs` desligado por padrão; o frontend usa contrato manual com teste
+  de drift — ADR-0007 §11)
+- [x] OpenTelemetry (starter + export OTLP opcional, Grafana LGTM no perfil `observability` — PR #1)
+- [x] Testcontainers (PostgreSQL, RabbitMQ e Redis reais nos `*IT` — `support/TestcontainersConfiguration`)
+- [x] ArchUnit (`architecture/ArchitectureTest` — ADR-0001)
 - [ ] CI
-- [ ] Design System foundation
-- [ ] ADR template
+- [x] Design System foundation (`design/` como fonte de tokens/fontes, `scripts/sync-design.mjs`, componentes
+  `components/ui` — ADR-0007 §13, PR #7)
+- [x] ADR template (`specs/06-development/adr-template.md`)
 
 ## M1 Workspace + Accounts
 
-- [x] Workspace (pessoal automático no provisionamento — ADR-0003)
-- [x] membership
-- [ ] roles/permissions (MVP: apenas OWNER — ADR-0003)
-- [ ] Account aggregate
-- [ ] account persistence
-- [ ] create/update account
-- [x] account API (`/api/v1/workspaces/{id}/accounts`: listar, consultar, criar, editar com lock otimista, arquivar/reativar — ADR-0004)
-- [x] account UI (`/accounts` lista com saldo do Overview e filtro de arquivadas, `/accounts/new` com retorno para `/import`, `/accounts/{id}` edição + arquivar/reativar; BFF `/api/bff/accounts[/{id}[/archive|/reactivate]]`)
-- [x] movimentações por conta em `/accounts/{id}` (D-AccountDetail): lista de transações filtrada pela conta, com "Nova transação" (ADR-0005 §16)
-- [x] saldo inicial em `/accounts/new` como `ADJUSTMENT` orquestrado pelo BFF, com retry idempotente (ADR-0004 §12)
-- [ ] isolation tests
+- [x] Workspace (pessoal automático no provisionamento — ADR-0003, PR #2)
+- [x] membership (`WorkspaceAccessGuard.requireMember`, regra do 404 — ADR-0003, PR #2)
+- [ ] roles/permissions (MVP: apenas OWNER — ADR-0003; papéis adicionais exigem revisão do ADR)
+- [x] Account aggregate (`accounts.domain.model.Account` — ADR-0004, PR #4)
+- [x] account persistence (`V4__create_accounts.sql`, `JpaAccountRepository`, lock otimista por `version` — PR #4)
+- [x] create/update account (`CreateAccount`, `UpdateAccount`, `ArchiveAccount`, `ReactivateAccount` — PR #4)
+- [x] account API (`/api/v1/workspaces/{id}/accounts`: listar, consultar, criar, editar com lock otimista, arquivar/reativar — ADR-0004, PR #4)
+- [x] account UI (`/accounts` lista com saldo do Overview e filtro de arquivadas, `/accounts/new` com retorno para `/import`, `/accounts/{id}` edição + arquivar/reativar; BFF `/api/bff/accounts[/{id}[/archive|/reactivate]]` — ADR-0004 §11, PR #12)
+- [x] movimentações por conta em `/accounts/{id}` (D-AccountDetail): lista de transações filtrada pela conta, com "Nova transação" (ADR-0005 §16, PR #13)
+- [x] saldo inicial em `/accounts/new` como `ADJUSTMENT` orquestrado pelo BFF, com retry idempotente (ADR-0004 §12, PR #13)
+- [ ] isolation tests (hoje espalhados por `*ApiIT`, `JdbcOverviewReadModelIT` e `ImportApiIT`; falta a suíte dedicada
+  cobrindo todas as rotas `/workspaces/{id}`)
 
 ## M2 Transactions
 
