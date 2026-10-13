@@ -5,10 +5,12 @@ import type { Failure } from '@/lib/bff-client'
 import { useKeyed } from '@/lib/use-keyed'
 import {
   fetchAllAccounts,
+  fetchCategories,
   fetchTransaction,
   fetchTransactions,
   listSearch,
   type Account,
+  type Category,
   type ListParams,
   type Transaction,
   type TransactionPage,
@@ -84,4 +86,21 @@ export function useAccounts() {
 
 export function accountNames(accounts: { status: string; data?: Account[] }): Map<string, string> {
   return new Map(accounts.status === 'success' && accounts.data ? accounts.data.map((a) => [a.id, a.name]) : [])
+}
+
+/**
+ * Catálogo de categorias para nomes, filtro e edição (ADR-0012). Falhar aqui não derruba a lista: a transação
+ * aparece com o tipo no lugar da categoria (estado parcial), como nos nomes de conta.
+ */
+export function useCategories() {
+  const [attempt, setAttempt] = useState(0)
+  const { value } = useKeyed<Category[]>(`categories#${attempt}`, async () => {
+    const result = await fetchCategories()
+    return result.ok ? { status: 'success', data: result.data.items } : { status: 'error', failure: result }
+  })
+  return { ...value, retry: () => setAttempt((n) => n + 1) }
+}
+
+export function categoryNames(categories: { status: string; data?: Category[] }): Map<string, string> {
+  return new Map(categories.status === 'success' && categories.data ? categories.data.map((c) => [c.code, c.name]) : [])
 }

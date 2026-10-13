@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Lista paginada das transações do Workspace da sessão (ADR-0005 §1). Só filtros conhecidos e bem formados
- * passam (`from`, `to`, `type`, `status`, `accountId`, `q`, `page`); o tamanho da página é fixo no BFF.
+ * passam (`from`, `to`, `type`, `status`, `accountId`, `q`, `categoryCode`, `uncategorized`, `page`); o
+ * tamanho da página é fixo no BFF.
  */
 export async function GET(request: NextRequest) {
   const query = parseListQuery(request.nextUrl.searchParams)

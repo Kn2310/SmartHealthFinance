@@ -208,12 +208,19 @@
 .menuChevron { color: var(--color-neutral-muted); }
 
 @media (min-width: 640px) {
-  .selects { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .selects { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .selects > :first-child { grid-column: auto; }
-  .selects.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* Página da conta: sem o seletor de conta. */
+  .selects.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .custom { grid-template-columns: repeat(2, minmax(0, 1fr)) auto; }
   .custom > :last-child { grid-column: auto; }
   .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .actionRow { flex-direction: row; flex-wrap: wrap; }
   .confirm .actionRow { justify-content: flex-start; }
+}
+
+/* Desktop: os cinco filtros (quatro na página da conta) numa linha só. */
+@media (min-width: 1024px) {
+  .selects { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .selects.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

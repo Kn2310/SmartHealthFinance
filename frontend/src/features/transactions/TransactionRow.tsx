@@ -8,20 +8,22 @@ import {
   transactionTypeLabel,
 } from '@/features/home/labels'
 import type { Transaction } from './api'
-import { statusBadge, transactionSign } from './labels'
+import { rowCategoryLabel, statusBadge, transactionSign } from './labels'
 import styles from './Transactions.module.css'
 
 interface Props {
   transaction: Transaction
   names: Map<string, string>
+  /** Nomes do catálogo por código; sem o nome, a linha mostra o tipo. */
+  categories: Map<string, string>
   /** Página da conta: o sentido da transferência é relativo a ela e o nome da própria conta não se repete. */
   perspectiveAccountId?: string
 }
 
 /** Linha da lista (Transaction Item do DS) que abre o detalhe. Status e origem sempre com texto, nunca só cor. */
-export function TransactionRow({ transaction, names, perspectiveAccountId }: Props) {
+export function TransactionRow({ transaction, names, categories, perspectiveAccountId }: Props) {
   const Icon = TRANSACTION_TYPE_ICON[transaction.type] ?? FallbackTransactionIcon
-  const typeLabel = transactionTypeLabel(transaction)
+  const typeLabel = rowCategoryLabel(transaction, categories) ?? transactionTypeLabel(transaction)
   const account = names.get(transaction.accountId) ?? 'Conta'
   const destination = transaction.destinationAccountId ? (names.get(transaction.destinationAccountId) ?? 'Conta') : null
   const where = destination ? `${account} → ${destination}` : perspectiveAccountId ? null : account

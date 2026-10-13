@@ -111,6 +111,8 @@ export interface components {
       status: 'PENDING' | 'POSTED' | 'CANCELLED' | 'REVERSED'
       source: 'MANUAL' | 'IMPORT'
       refundOfTransactionId: string | null
+      /** Código do catálogo (`CategoryResponse.code`); `null` = "Sem categoria" (ADR-0012 §4). */
+      categoryCode: string | null
       createdAt: string
       updatedAt: string
     }
@@ -134,6 +136,16 @@ export interface components {
     }
     /** Só a descrição é editável (ADR-0005 §8). */
     UpdateTransactionRequest: { description: string }
+    /** `null` volta a "Sem categoria" (ADR-0012 §7). */
+    CategorizeTransactionRequest: { categoryCode: string | null }
+    /** Categoria do catálogo do sistema (ADR-0012). `EXPENSE` serve a despesa e reembolso; `INCOME`, a receita. */
+    CategoryResponse: {
+      code: string
+      name: string
+      nature: 'EXPENSE' | 'INCOME'
+      active: boolean
+    }
+    CategoryListResponse: { items: components['schemas']['CategoryResponse'][] }
     /** Importação de extrato (ADR-0009). `lines.total = valid + invalid + duplicate`. */
     ImportResponse: {
       id: string
@@ -275,6 +287,8 @@ export interface paths {
           status?: components['schemas']['TransactionResponse']['status']
           accountId?: string
           q?: string
+          categoryCode?: string
+          uncategorized?: boolean
           page?: number
           pageSize?: number
         }
@@ -302,6 +316,13 @@ export interface paths {
       responses: TransactionResult
     }
   }
+  '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/category': {
+    put: {
+      parameters: { path: TransactionPath }
+      requestBody: { content: { 'application/json': components['schemas']['CategorizeTransactionRequest'] } }
+      responses: TransactionResult
+    }
+  }
   '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/post': {
     post: { parameters: { path: TransactionPath }; responses: TransactionResult }
   }
@@ -310,6 +331,15 @@ export interface paths {
   }
   '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/reverse': {
     post: { parameters: { path: TransactionPath }; responses: TransactionResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/categories': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CategoryListResponse'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
   }
   '/api/v1/workspaces/{workspaceId}/imports': {
     get: {

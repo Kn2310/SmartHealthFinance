@@ -8,6 +8,7 @@ export type TransactionType = Transaction['type']
 export type TransactionStatus = Transaction['status']
 export type AdjustmentDirection = NonNullable<Transaction['adjustmentDirection']>
 export type Account = Schemas['AccountResponse']
+export type Category = Schemas['CategoryResponse']
 
 /** Tipos que a UI lança (transferência e reembolso pela UI ficam fora do escopo; se existirem, só são exibidos). */
 export type ManualType = 'INCOME' | 'EXPENSE' | 'ADJUSTMENT'
@@ -31,6 +32,10 @@ export interface ListParams {
   status?: TransactionStatus
   accountId?: string
   q?: string
+  /** Uma categoria do catálogo (ADR-0012). */
+  categoryCode?: string
+  /** Só "Sem categoria". */
+  uncategorized?: 'true'
 }
 
 const JSON_BODY = { 'Content-Type': 'application/json' }
@@ -61,6 +66,10 @@ export const createTransaction = (fields: NewTransaction, idempotencyKey: string
 export const updateDescription = (id: string, description: string) =>
   bffCall<Transaction>(path(id), { method: 'PUT', headers: JSON_BODY, body: JSON.stringify({ description }) })
 
+/** Atribui uma categoria do catálogo ou volta a "Sem categoria" (`null`) — ADR-0012 §7. */
+export const categorizeTransaction = (id: string, categoryCode: string | null) =>
+  bffCall<Transaction>(`${path(id)}/category`, { method: 'PUT', headers: JSON_BODY, body: JSON.stringify({ categoryCode }) })
+
 export type TransitionAction = 'post' | 'cancel' | 'reverse'
 
 export const transitionTransaction = (id: string, action: TransitionAction) =>
@@ -69,6 +78,9 @@ export const transitionTransaction = (id: string, action: TransitionAction) =>
 /** Todas as contas (inclusive arquivadas): os nomes aparecem no histórico mesmo depois de arquivar. */
 export const fetchAllAccounts = () =>
   bffCall<Schemas['AccountListResponse']>('/api/bff/accounts?includeArchived=true')
+
+/** Catálogo de categorias (inclusive inativas, para os nomes de transações antigas), na ordem de exibição. */
+export const fetchCategories = () => bffCall<Schemas['CategoryListResponse']>('/api/bff/categories')
 
 /** Chave nova por intenção de lançamento (formato aceito pelo backend: não reservados de URI + ':'). */
 export const newIdempotencyKey = () => `web:${crypto.randomUUID()}`

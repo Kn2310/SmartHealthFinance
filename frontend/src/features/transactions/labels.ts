@@ -72,3 +72,22 @@ export const STATUS_OPTIONS = [
 ] as const
 
 export const SOURCE_LABEL: Partial<Record<string, string>> = { MANUAL: 'Lançamento manual', IMPORT: 'Importado de extrato' }
+
+/**
+ * Categoria na linha da lista, como no layout ("Alimentação fora · Conta Aurora"): o nome do catálogo toma o lugar do
+ * tipo; no reembolso, o tipo continua visível. Sem categoria (ou sem o nome do catálogo), `null`: a linha mostra o tipo.
+ */
+export function rowCategoryLabel(t: Pick<Transaction, 'type' | 'categoryCode'>, categories: Map<string, string>): string | null {
+  const name = t.categoryCode ? categories.get(t.categoryCode) : undefined
+  if (!name) return null
+  return t.type === 'REFUND' ? `Reembolso · ${name}` : name
+}
+
+/** Natureza das categorias que cada tipo aceita (ADR-0012 §2). Transferência e ajuste não têm categoria. */
+export function acceptedNature(type: string): 'EXPENSE' | 'INCOME' | null {
+  if (type === 'EXPENSE' || type === 'REFUND') return 'EXPENSE'
+  if (type === 'INCOME') return 'INCOME'
+  return null
+}
+
+export const NO_CATEGORY_LABEL = 'Sem categoria'

@@ -2,7 +2,7 @@
 
 import { Ban, CheckCircle2, ChevronLeft, CircleAlert, Download, SearchX, Undo2 } from 'lucide-react'
 import Link from 'next/link'
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Money } from '@/components/ui/Money'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -14,10 +14,17 @@ import {
 } from '@/features/home/labels'
 import { TRANSACTION_DESCRIPTION_MAX_LENGTH } from '@/lib/api/contract'
 import { formatLongDate } from '@/lib/format/date'
-import { transitionTransaction, updateDescription, type Transaction, type TransitionAction } from './api'
-import { accountNames, useAccounts, useTransaction } from './hooks'
-import { SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
-import { fieldErrorMessage, requestFailureMessage } from './messages'
+import {
+  categorizeTransaction,
+  transitionTransaction,
+  updateDescription,
+  type Category,
+  type Transaction,
+  type TransitionAction,
+} from './api'
+import { accountNames, categoryNames, useAccounts, useCategories, useTransaction } from './hooks'
+import { acceptedNature, NO_CATEGORY_LABEL, SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
+import { categoryErrorMessage, fieldErrorMessage, requestFailureMessage } from './messages'
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
 
@@ -29,8 +36,9 @@ const BACK = (
 )
 
 /**
- * D-TxnDetail como página (`/transactions/{id}`): valor, tipo, status e origem, conta, datas; editar a descrição
- * (único campo editável — ADR-0005 §8) e efetivar, cancelar ou estornar conforme o status permitir.
+ * D-TxnDetail como página (`/transactions/{id}`): valor, tipo, status e origem, conta, datas; alterar a categoria
+ * (ADR-0012) e a descrição (os únicos campos editáveis — ADR-0005 §8) e efetivar, cancelar ou estornar conforme o
+ * status permitir.
  * `id` que não é UUID nem chega ao BFF: é o mesmo "não encontrada" de outro Workspace.
  */
 export function TransactionDetailView({ id }: { id: string | null }) {
@@ -129,6 +137,9 @@ function Loaded({
 }) {
   const accounts = useAccounts()
   const names = accountNames(accounts)
+  const categories = useCategories()
+  const categoriesByCode = categoryNames(categories)
+  const nature = acceptedNature(transaction.type)
   const [notice, setNotice] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState<TransitionAction | null>(null)
@@ -237,6 +248,17 @@ function Loaded({
             <dt>Tipo</dt>
             <dd>{typeLabel}</dd>
           </div>
+          {nature ? (
+            <div className={styles.fact}>
+              <dt>Categoria</dt>
+              <dd>
+                {transaction.categoryCode
+                  ? (categoriesByCode.get(transaction.categoryCode) ??
+                    (categories.status === 'loading' ? 'Carregando…' : 'Categoria'))
+                  : NO_CATEGORY_LABEL}
+              </dd>
+            </div>
+          ) : null}
           <div className={styles.fact}>
             <dt>Status</dt>
             <dd>{badge.label}</dd>
@@ -310,11 +332,152 @@ function Loaded({
         </section>
       ) : null}
 
+      {nature ? (
+        <CategoryForm
+          key={transaction.categoryCode ?? ''}
+          transaction={transaction}
+          nature={nature}
+          categories={categories}
+          onSaved={(saved) => {
+            onChange(saved)
+            setNotice(saved.categoryCode ? 'Categoria atualizada.' : 'Categoria removida. A transação ficou sem categoria.')
+          }}
+          onConflict={onReload}
+        />
+      ) : null}
+
       <DescriptionForm transaction={transaction} onSaved={(saved) => {
         onChange(saved)
         setNotice('Descrição atualizada.')
       }} onConflict={onReload} />
     </div>
+  )
+}
+
+/**
+ * "Alterar categoria" (ADR-0012 §7): só as categorias ativas da natureza que o tipo aceita (despesa e reembolso →
+ * despesa; receita → receita), mais "Sem categoria". Uma categoria já desativada continua visível enquanto for a atual.
+ */
+function CategoryForm({
+  transaction,
+  nature,
+  categories,
+  onSaved,
+  onConflict,
+}: {
+  transaction: Transaction
+  nature: Category['nature']
+  categories: ReturnType<typeof useCategories>
+  onSaved: (transaction: Transaction) => void
+  onConflict: () => void
+}) {
+  const id = useId()
+  const current = transaction.categoryCode ?? ''
+  const [value, setValue] = useState(current)
+  const [error, setError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [sending, setSending] = useState(false)
+  const select = useRef<HTMLSelectElement>(null)
+
+  // O select fica desabilitado durante o envio: o foco no erro só funciona depois que ele volta a ser habilitado.
+  useEffect(() => {
+    if (error && !sending) select.current?.focus()
+  }, [error, sending])
+
+  const options =
+    categories.status === 'success'
+      ? categories.data.filter((c) => c.nature === nature && (c.active || c.code === transaction.categoryCode))
+      : []
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault()
+    if (sending) return
+    setFormError(null)
+    setSending(true)
+    const result = await categorizeTransaction(transaction.id, value || null)
+    setSending(false)
+    if (result.ok) return onSaved(result.data)
+    const detail = result.details?.find((issue) => issue.field === 'categoryCode')
+    if (detail) {
+      setError(categoryErrorMessage(detail.code))
+    } else if (result.code === 'CONFLICT' || result.code === 'TRANSACTION_NOT_FOUND') {
+      onConflict()
+    } else {
+      setFormError(requestFailureMessage(result.code))
+    }
+  }
+
+  return (
+    <section className={accountStyles.panel} aria-labelledby={`${id}-title`}>
+      <h2 id={`${id}-title`} className={accountStyles.sectionTitle}>
+        Alterar categoria
+      </h2>
+      {categories.status === 'loading' ? (
+        <div role="status" aria-busy="true">
+          <span className="sr-only">Carregando categorias…</span>
+          <Skeleton height="row" />
+        </div>
+      ) : categories.status === 'error' ? (
+        <div className={accountStyles.error} role="alert">
+          <CircleAlert size={18} strokeWidth={1.75} aria-hidden="true" />
+          <div className={accountStyles.errorBody}>
+            <span>Não conseguimos carregar as categorias agora. Nada foi alterado.</span>
+            <Button variant="secondary" onClick={categories.retry}>
+              Tentar novamente
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <form className={accountStyles.form} onSubmit={submit} aria-busy={sending} noValidate>
+          <div className={accountStyles.field}>
+            <label htmlFor={`${id}-category`} className={accountStyles.label}>
+              Categoria
+            </label>
+            <select
+              ref={select}
+              id={`${id}-category`}
+              className={accountStyles.select}
+              value={value}
+              disabled={sending}
+              onChange={(event) => {
+                setValue(event.target.value)
+                setError(null)
+              }}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={[`${id}-hint`, error ? `${id}-error` : null].filter(Boolean).join(' ')}
+            >
+              <option value="">{NO_CATEGORY_LABEL}</option>
+              {options.map((category) => (
+                <option key={category.code} value={category.code}>
+                  {category.active ? category.name : `${category.name} (fora de uso)`}
+                </option>
+              ))}
+            </select>
+            <p id={`${id}-hint`} className={accountStyles.fieldHint}>
+              {nature === 'INCOME' ? 'Categorias de receita.' : 'Categorias de despesa.'} A categoria organiza as
+              análises e não muda o valor nem o saldo.
+            </p>
+            {error ? (
+              <p id={`${id}-error`} className={accountStyles.fieldError}>
+                <CircleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
+                <span>{error}</span>
+              </p>
+            ) : null}
+          </div>
+          {formError ? (
+            <p className={accountStyles.error} role="alert">
+              <CircleAlert size={18} strokeWidth={1.75} aria-hidden="true" />
+              <span>{formError}</span>
+            </p>
+          ) : null}
+          <div className={accountStyles.actions}>
+            <Button type="submit" variant="secondary" disabled={sending || value === current}>
+              {sending ? 'Salvando…' : 'Salvar categoria'}
+            </Button>
+          </div>
+        </form>
+      )}
+    </section>
   )
 }
 

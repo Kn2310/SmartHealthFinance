@@ -4,6 +4,8 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   ACCOUNT_NAME_MAX_LENGTH,
+  CATEGORY_CODE_MAX_LENGTH,
+  CATEGORY_NATURES,
   ACCOUNT_STATUSES,
   ACCOUNT_TYPES,
   ADJUSTMENT_DIRECTIONS,
@@ -65,6 +67,7 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     ['transactions/domain/enums/TransactionType.java', TRANSACTION_TYPES],
     ['transactions/domain/enums/TransactionStatus.java', TRANSACTION_STATUSES],
     ['transactions/domain/enums/AdjustmentDirection.java', ADJUSTMENT_DIRECTIONS],
+    ['transactions/domain/enums/CategoryNature.java', CATEGORY_NATURES],
   ])('enum %s', (path, frontend) => {
     expect(sorted(frontend)).toEqual(sorted(javaEnum(path)))
   })
@@ -129,6 +132,8 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
       ['transactions/presentation/dto/response/TransactionPageResponse.java', ['TransactionPageResponse']],
       ['transactions/presentation/dto/request/CreateTransactionRequest.java', ['CreateTransactionRequest']],
       ['transactions/presentation/dto/request/UpdateTransactionRequest.java', ['UpdateTransactionRequest']],
+      ['transactions/presentation/dto/request/CategorizeTransactionRequest.java', ['CategorizeTransactionRequest']],
+      ['transactions/presentation/dto/response/CategoryListResponse.java', ['CategoryListResponse', 'CategoryResponse']],
     ]
     for (const [path, names] of files) {
       const records = javaRecords(path)
@@ -147,6 +152,7 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     )
     expect(constant('transactions/application/usecase/ListTransactions.java', 'MAX_PAGE_SIZE')).toBe(TRANSACTION_MAX_PAGE_SIZE)
     expect(constant('transactions/domain/valueobject/IdempotencyKey.java', 'MAX_LENGTH')).toBe(IDEMPOTENCY_KEY_MAX_LENGTH)
+    expect(constant('transactions/domain/valueobject/CategoryCode.java', 'MAX_LENGTH')).toBe(CATEGORY_CODE_MAX_LENGTH)
   })
 
   it('direção da linha importada é só INFLOW/OUTFLOW', () => {

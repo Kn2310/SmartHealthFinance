@@ -53,6 +53,7 @@ const txn = (overrides: Partial<Transaction> = {}): Transaction => ({
   status: 'POSTED',
   source: 'MANUAL',
   refundOfTransactionId: null,
+  categoryCode: null,
   createdAt: '2026-10-08T12:00:00Z',
   updatedAt: '2026-10-08T12:00:00Z',
   ...overrides,
@@ -60,6 +61,14 @@ const txn = (overrides: Partial<Transaction> = {}): Transaction => ({
 
 const page = (items: Transaction[], totalItems = items.length, pageNumber = 0) => ({ items, page: pageNumber, pageSize: 50, totalItems })
 const accountsList = (items: Account[] = [account(), account({ id: NORTE, name: 'Reserva', type: 'SAVINGS' })]) => ({ items })
+const catalog = {
+  items: [
+    { code: 'GROCERIES', name: 'Mercado', nature: 'EXPENSE', active: true },
+    { code: 'DINING_OUT', name: 'Alimentação fora', nature: 'EXPENSE', active: true },
+    { code: 'RETIRED', name: 'Antiga', nature: 'EXPENSE', active: false },
+    { code: 'SALARY', name: 'Salário', nature: 'INCOME', active: true },
+  ],
+}
 const body = (init: RequestInit | undefined) => JSON.parse(String(init?.body)) as Record<string, unknown>
 const header = (init: RequestInit | undefined, name: string) => (init?.headers as Record<string, string>)[name]
 
@@ -128,6 +137,43 @@ describe('/transactions — lista', () => {
     await user.selectOptions(screen.getByLabelText('Conta'), NORTE)
     await user.selectOptions(screen.getByLabelText('Período'), 'PREVIOUS_MONTH')
     expect(replace).toHaveBeenLastCalledWith('/transactions?period=PREVIOUS_MONTH', { scroll: false })
+  })
+
+  it('categoria: nome no lugar do tipo, filtro na URL e "Sem categoria" vai ao BFF como uncategorized', async () => {
+    const calls = stubBff({
+      'GET /api/bff/transactions': () =>
+        json(page([txn({ categoryCode: 'DINING_OUT' }), txn({ id: 'x', description: 'Feira', categoryCode: null })])),
+      'GET /api/bff/accounts': () => json(accountsList()),
+      'GET /api/bff/categories': () => json(catalog),
+    })
+    const user = userEvent.setup()
+    const { unmount } = render(<TransactionsView />)
+    expect(await screen.findByText('Alimentação fora · Conta Aurora')).toBeInTheDocument()
+    expect(screen.getByText('Despesa · Conta Aurora')).toBeInTheDocument()
+
+    const filter = screen.getByLabelText('Categoria')
+    expect(within(filter).getByRole('group', { name: 'Receitas' })).toHaveTextContent('Salário')
+    await user.selectOptions(filter, 'DINING_OUT')
+    expect(replace).toHaveBeenLastCalledWith('/transactions?category=DINING_OUT', { scroll: false })
+    unmount()
+
+    search = new URLSearchParams('category=none')
+    render(<TransactionsView />)
+    const lastList = () => calls.filter((c) => c.url.startsWith('/api/bff/transactions')).at(-1)!.url
+    await waitFor(() => expect(lastList()).toContain('uncategorized=true'))
+    expect(lastList()).not.toContain('categoryCode')
+    expect(screen.getByRole('button', { name: 'Limpar filtros' })).toBeInTheDocument()
+  })
+
+  it('catálogo indisponível: a lista continua, com o tipo no lugar da categoria (parcial)', async () => {
+    stubBff({
+      'GET /api/bff/transactions': () => json(page([txn({ categoryCode: 'DINING_OUT' })])),
+      'GET /api/bff/accounts': () => json(accountsList()),
+    })
+    render(<TransactionsView />)
+    expect(await screen.findByText('Não conseguimos carregar os nomes das categorias agora. As transações continuam corretas.'))
+      .toBeInTheDocument()
+    expect(screen.getByText('Despesa · Conta Aurora')).toBeInTheDocument()
   })
 
   it('lê os filtros da URL e envia ao BFF com o período convertido; a busca vai só na chamada', async () => {
@@ -346,7 +392,7 @@ describe('/transactions/new — lançamento manual', () => {
 })
 
 describe('/transactions/{id} — detalhe e ações', () => {
-  const accounts = { 'GET /api/bff/accounts': () => json(accountsList()) }
+  const accounts = { 'GET /api/bff/accounts': () => json(accountsList()) , 'GET /api/bff/categories': () => json(catalog) }
 
   it('pendente: mostra dados e efetiva (POSTED) com aviso de saldo', async () => {
     const calls = stubBff({
@@ -422,6 +468,59 @@ describe('/transactions/{id} — detalhe e ações', () => {
     expect(await screen.findByText('Descrição atualizada.')).toBeInTheDocument()
     expect(body(calls.find((c) => c.method === 'PUT')!.init)).toEqual({ description: 'Jantar' })
     expect(screen.getByRole('heading', { level: 1, name: 'Jantar' })).toBeInTheDocument()
+  })
+
+  it('altera a categoria: só as ativas da natureza do tipo; salvar e voltar a "Sem categoria"', async () => {
+    const calls = stubBff({
+      ...accounts,
+      'GET /api/bff/transactions/': () => json(txn()),
+      'PUT /api/bff/transactions/': (init) => json(txn({ categoryCode: body(init).categoryCode as string | null })),
+    })
+    const user = userEvent.setup()
+    const { container } = render(<TransactionDetailView id={TXN} />)
+    const select = await screen.findByRole('combobox', { name: 'Categoria' })
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Sem categoria', 'Mercado', 'Alimentação fora'])
+    expect(screen.getByRole('button', { name: 'Salvar categoria' })).toBeDisabled()
+    expect(await axeViolations(container)).toEqual([])
+
+    await user.selectOptions(select, 'DINING_OUT')
+    await user.click(screen.getByRole('button', { name: 'Salvar categoria' }))
+    expect(await screen.findByText('Categoria atualizada.')).toBeInTheDocument()
+    expect(body(calls.find((c) => c.method === 'PUT')!.init)).toEqual({ categoryCode: 'DINING_OUT' })
+    expect(calls.find((c) => c.method === 'PUT')!.url).toBe(`/api/bff/transactions/${TXN}/category`)
+    expect(screen.getByText('Alimentação fora', { selector: 'dd' })).toBeInTheDocument()
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Categoria' }), '')
+    await user.click(screen.getByRole('button', { name: 'Salvar categoria' }))
+    expect(await screen.findByText(/Categoria removida/)).toBeInTheDocument()
+    expect(body(calls.filter((c) => c.method === 'PUT').at(-1)!.init)).toEqual({ categoryCode: null })
+    expect(screen.getByText('Sem categoria', { selector: 'dd' })).toBeInTheDocument()
+  })
+
+  it('receita oferece categorias de receita; recusa do backend vira erro no campo', async () => {
+    stubBff({
+      ...accounts,
+      'GET /api/bff/transactions/': () => json(txn({ type: 'INCOME', description: 'Salário' })),
+      'PUT /api/bff/transactions/': () =>
+        json({ code: 'VALIDATION_FAILED', details: [{ field: 'categoryCode', code: 'INACTIVE' }] }, 400),
+    })
+    const user = userEvent.setup()
+    render(<TransactionDetailView id={TXN} />)
+    const select = await screen.findByRole('combobox', { name: 'Categoria' })
+    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Sem categoria', 'Salário'])
+    await user.selectOptions(select, 'SALARY')
+    await user.click(screen.getByRole('button', { name: 'Salvar categoria' }))
+    expect(await screen.findByText('Esta categoria não está mais disponível. Escolha outra.')).toBeInTheDocument()
+    expect(select).toHaveAttribute('aria-invalid', 'true')
+    expect(select).toHaveFocus()
+  })
+
+  it('transferência não tem categoria', async () => {
+    stubBff({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ type: 'TRANSFER', destinationAccountId: NORTE })) })
+    render(<TransactionDetailView id={TXN} />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bistrô Lume' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Alterar categoria' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Categoria')).not.toBeInTheDocument()
   })
 
   it('cancelada/estornada: sem ações e valor sem sinal', async () => {

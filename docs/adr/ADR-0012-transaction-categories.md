@@ -124,10 +124,26 @@ tela de gestão de categorias. Nas linhas de transferência e de receita, a list
       natureza ao tipo (`INCOME` ↔ `INCOME`; `EXPENSE`/`REFUND` ↔ `EXPENSE`; `TRANSFER`/`ADJUSTMENT` sem
       categoria). A regra vale no banco mesmo com bug na aplicação, no mesmo espírito das FKs compostas do ADR-0005
       §10;
-    - índice `(workspace_id, category_code, occurred_on desc)` para o filtro por categoria e para as agregações do
-      M5.
+    - índice parcial `(workspace_id, category_code, occurred_on desc) where category_code is not null` para o
+      filtro por categoria e para as agregações do M5.
     - No mapeamento JPA, os campos financeiros continuam `updatable = false`. Só a descrição, o status e a categoria
       mudam.
+
+### UI (sobre o BFF do ADR-0007)
+
+11. **BFF:** `GET /api/bff/categories` e `PUT /api/bff/transactions/{id}/category`; a lista aceita `categoryCode`
+    (só no formato do catálogo) ou `uncategorized=true`. O `PUT` exige `Origin` do app e aceita só
+    `{categoryCode: string | null}`. Os códigos de validação do campo passam para o browser; o resto vira
+    `UNAVAILABLE`.
+    - **Lista (D-Transactions):** como no layout, o nome da categoria toma o lugar do tipo na linha ("Alimentação
+      fora · Conta Aurora"). No reembolso, o tipo continua visível ("Reembolso · Compras"). Sem categoria, a linha
+      mostra o tipo, como antes.
+    - **Filtro "Categoria"** na URL (`category=<código>` ou `category=none`), com "Sem categoria" e o catálogo
+      agrupado em Despesas e Receitas.
+    - **Detalhe (D-TxnDetail):** o fato "Categoria" e o painel "Alterar categoria". O painel oferece só as categorias
+      ativas da natureza aceita pelo tipo, mais "Sem categoria". Transferência e ajuste não mostram categoria.
+    - Se o catálogo falhar, a lista continua com o tipo no lugar da categoria e um aviso de estado parcial; no
+      detalhe, o painel oferece "Tentar novamente".
 
 ### Fora desta decisão
 
