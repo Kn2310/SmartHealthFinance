@@ -2,14 +2,18 @@ package com.smarthealthfinance.analytics.application.port;
 
 import com.smarthealthfinance.analytics.domain.model.CategoryFlow;
 import com.smarthealthfinance.analytics.domain.model.DailyFlow;
+import com.smarthealthfinance.analytics.domain.model.ExpenseItem;
+import com.smarthealthfinance.analytics.domain.model.FlowEntry;
 import com.smarthealthfinance.analytics.domain.model.MerchantFlow;
 import com.smarthealthfinance.analytics.domain.model.MonthlyFlow;
 import com.smarthealthfinance.analytics.domain.model.ProjectionFreshness;
 import com.smarthealthfinance.analytics.domain.valueobject.AnalyticsPeriod;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 
+import java.time.LocalDate;
 import java.util.Currency;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Leitura da projeção de Analytics (ADR-0014 §5). Sempre por Workspace; dinheiro em NUMERIC/BigDecimal.
@@ -28,4 +32,19 @@ public interface AnalyticsReadModel {
     List<DailyFlow> daily(WorkspaceId workspaceId, AnalyticsPeriod period, Currency currency);
 
     ProjectionFreshness freshness(WorkspaceId workspaceId);
+
+    /**
+     * Linhas do fluxo de caixa (INCOME, EXPENSE, REFUND de contas ativas incluídas no total) por dia, papel,
+     * categoria e comerciante: o insumo dos cálculos da Análise (ADR-0015 §1).
+     */
+    List<FlowEntry> entries(WorkspaceId workspaceId, AnalyticsPeriod period, Currency currency);
+
+    /** Primeiro dia com movimento no fluxo de caixa do Workspace; vazio se nenhum. */
+    Optional<LocalDate> firstActivity(WorkspaceId workspaceId);
+
+    /**
+     * Maiores despesas individuais do intervalo (ADR-0015 §6), lidas de {@code transactions}: valor desc, data desc,
+     * id. Mesma regra de contas do fluxo de caixa.
+     */
+    List<ExpenseItem> largestExpenses(WorkspaceId workspaceId, AnalyticsPeriod period, int limit, Currency currency);
 }

@@ -332,6 +332,8 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
                 transactions.search(anas, com.smarthealthfinance.transactions.domain.repository.TransactionCriteria
                         .none(), 0, 1000).items(), anasAccounts, BRL);
 
+        assertThat(readModel.firstActivity(anas)).isEqualTo(reference.firstActivity());
+
         for (AnalyticsPeriod period : PERIODS) {
             assertThat(monthly(readModel.monthly(anas, period, BRL))).as("monthly %s", period)
                     .containsExactlyElementsOf(monthly(reference.monthly(period)));
@@ -341,6 +343,10 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
                     .containsExactlyInAnyOrderElementsOf(merchants(reference.byMerchant(period)));
             assertThat(daily(readModel.daily(anas, period, BRL))).as("daily %s", period)
                     .containsExactlyInAnyOrderElementsOf(daily(reference.daily(period)));
+            assertThat(entries(readModel.entries(anas, period, BRL))).as("entries %s", period)
+                    .containsExactlyInAnyOrderElementsOf(entries(reference.entries(period)));
+            assertThat(expenses(readModel.largestExpenses(anas, period, 3, BRL))).as("largestExpenses %s", period)
+                    .containsExactlyElementsOf(expenses(reference.largestExpenses(period, 3)));
         }
     }
 
@@ -364,6 +370,16 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
     private static List<String> daily(List<DailyFlow> rows) {
         return rows.stream().map(r -> r.day() + "|" + r.role() + "|" + plain(r.amount()) + "|"
                 + r.transactionCount()).toList();
+    }
+
+    private static List<String> entries(List<com.smarthealthfinance.analytics.domain.model.FlowEntry> rows) {
+        return rows.stream().map(r -> r.day() + "|" + r.role() + "|" + r.categoryCode() + "|" + r.merchantKey() + "|"
+                + r.merchantName() + "|" + plain(r.amount()) + "|" + r.transactionCount()).toList();
+    }
+
+    private static List<String> expenses(List<com.smarthealthfinance.analytics.domain.model.ExpenseItem> rows) {
+        return rows.stream().map(r -> r.transactionId() + "|" + r.occurredOn() + "|" + r.description() + "|"
+                + r.merchantName() + "|" + r.categoryCode() + "|" + plain(r.amount())).toList();
     }
 
     private static String plain(Money money) {

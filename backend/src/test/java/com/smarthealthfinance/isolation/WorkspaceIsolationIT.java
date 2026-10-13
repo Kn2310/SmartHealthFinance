@@ -159,6 +159,14 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("categories: listar", HttpMethod.GET, WORKSPACE_SCOPE + "/categories", f -> new Object[0], NONE),
 
             op("analytics: status", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/status", f -> new Object[0], NONE),
+            op("analytics: overview", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/overview", f -> new Object[0], NONE),
+            op("analytics: spending", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/spending", f -> new Object[0], NONE),
+            op("analytics: income", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/income", f -> new Object[0], NONE),
+            op("analytics: categories", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/categories", f -> new Object[0], NONE),
+            op("analytics: merchants", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/merchants", f -> new Object[0], NONE),
+            op("analytics: evolution", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/evolution", f -> new Object[0], NONE),
+            op("analytics: categoria", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/categories/{categoryCode}",
+                    f -> new Object[] {"DINING_OUT"}, NONE),
 
             op("overview: consultar", HttpMethod.GET, WORKSPACE_SCOPE + "/overview", f -> new Object[0], NONE),
 
