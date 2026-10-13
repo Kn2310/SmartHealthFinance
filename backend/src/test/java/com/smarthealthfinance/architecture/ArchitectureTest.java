@@ -180,6 +180,31 @@ class ArchitectureTest {
 		.allowEmptyShould(true)
 		.because("Ingestion cria transações só pelo caso de uso de Transactions, nunca escrevendo na tabela (ADR-0009)");
 
+	// Analytics (ADR-0014) é read model downstream de tudo: lê Transactions/Accounts e consome eventos pelo nome.
+
+	@ArchTest
+	static final ArchRule nothingDependsOnAnalytics = noClasses().that()
+		.resideInAnyPackage("com.smarthealthfinance.identity..", "com.smarthealthfinance.accounts..",
+				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.overview..",
+				"com.smarthealthfinance.ingestion..", "com.smarthealthfinance.shared..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.analytics..")
+		.allowEmptyShould(true)
+		.because("Analytics é derivado; o núcleo e o Overview nunca dependem dele sem decisão registrada (ADR-0014)");
+
+	@ArchTest
+	static final ArchRule analyticsOnlyReadsTheCore = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.analytics..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.transactions.application..",
+				"com.smarthealthfinance.transactions.infrastructure..",
+				"com.smarthealthfinance.accounts.application..", "com.smarthealthfinance.accounts.infrastructure..",
+				"com.smarthealthfinance.ingestion..", "com.smarthealthfinance.overview..")
+		.allowEmptyShould(true)
+		.because("o Analytics não executa comandos: lê a fonte da verdade e reage a eventos pelo nome (ADR-0014)");
+
 	@ArchTest
 	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()
 		.resideInAPackage("com.smarthealthfinance.identity..")

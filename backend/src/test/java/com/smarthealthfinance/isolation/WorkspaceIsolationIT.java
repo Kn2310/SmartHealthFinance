@@ -93,6 +93,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
         IdentityTables.clean(jdbc);
         ana = seed(ana(), ANAS_ACCOUNT_NAME, ANAS_DESCRIPTION, ANAS_AMOUNT);
         bob = seed(bob(), "Conta do Bob", "Compra do Bob", "10.00");
+        // Os eventos do seed (transaction.created) são processados de forma assíncrona: o snapshot espera.
+        IdentityTables.awaitQuiescence(jdbc);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -155,6 +157,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("transactions: categorizar pendentes", HttpMethod.POST, TRANSACTIONS + "/categorize-pending",
                     f -> new Object[0], NONE),
             op("categories: listar", HttpMethod.GET, WORKSPACE_SCOPE + "/categories", f -> new Object[0], NONE),
+
+            op("analytics: status", HttpMethod.GET, WORKSPACE_SCOPE + "/analytics/status", f -> new Object[0], NONE),
 
             op("overview: consultar", HttpMethod.GET, WORKSPACE_SCOPE + "/overview", f -> new Object[0], NONE),
 

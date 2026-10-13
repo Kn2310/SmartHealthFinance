@@ -91,6 +91,22 @@
         },
         "type" : "object"
       },
+      "AnalyticsStatusResponse" : {
+        "properties" : {
+          "pendingEvents" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "refreshedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ApiError" : {
         "properties" : {
           "code" : {
@@ -1150,6 +1166,44 @@
         },
         "summary" : "Reativa uma conta arquivada (idempotente)",
         "tags" : [ "Accounts" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/analytics/status" : {
+      "get" : {
+        "operationId" : "status",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnalyticsStatusResponse"
+                }
+              }
+            },
+            "description" : "Estado da projeção"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Freshness da projeção de Analytics: UP_TO_DATE, UPDATING (eventos pendentes) ou NOT_BUILT",
+        "tags" : [ "Analytics" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/categories" : {
