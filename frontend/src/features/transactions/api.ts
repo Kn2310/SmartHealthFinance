@@ -67,8 +67,13 @@ export const updateDescription = (id: string, description: string) =>
   bffCall<Transaction>(path(id), { method: 'PUT', headers: JSON_BODY, body: JSON.stringify({ description }) })
 
 /** Atribui uma categoria do catálogo ou volta a "Sem categoria" (`null`) — ADR-0012 §7. */
-export const categorizeTransaction = (id: string, categoryCode: string | null) =>
-  bffCall<Transaction>(`${path(id)}/category`, { method: 'PUT', headers: JSON_BODY, body: JSON.stringify({ categoryCode }) })
+/** `applyToSimilar`: aprende a regra do comerciante e a aplica às transações semelhantes (ADR-0013 §2). */
+export const categorizeTransaction = (id: string, categoryCode: string | null, applyToSimilar = false) =>
+  bffCall<Transaction>(`${path(id)}/category`, {
+    method: 'PUT',
+    headers: JSON_BODY,
+    body: JSON.stringify(applyToSimilar ? { categoryCode, applyToSimilar } : { categoryCode }),
+  })
 
 export type TransitionAction = 'post' | 'cancel' | 'reverse'
 

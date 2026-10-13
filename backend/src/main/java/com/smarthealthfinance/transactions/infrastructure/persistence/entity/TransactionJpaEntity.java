@@ -5,11 +5,14 @@ import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
 import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
+import com.smarthealthfinance.transactions.domain.enums.CategorySource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryCode;
+import com.smarthealthfinance.transactions.domain.valueobject.CategoryOrigin;
+import com.smarthealthfinance.transactions.domain.valueobject.Merchant;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionCategory;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
@@ -79,6 +82,22 @@ public class TransactionJpaEntity {
     @Column(name = "category_nature")
     private CategoryNature categoryNature;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category_source")
+    private CategorySource categorySource;
+
+    @Column(name = "category_rule_version")
+    private String categoryRuleVersion;
+
+    @Column(name = "merchant_key")
+    private String merchantKey;
+
+    @Column(name = "merchant_name")
+    private String merchantName;
+
+    @Column(name = "merchant_normalizer_version")
+    private String merchantNormalizerVersion;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -109,6 +128,11 @@ public class TransactionJpaEntity {
         entity.refundOfTransactionId = transaction.refundOfTransactionId().map(TransactionId::value).orElse(null);
         entity.categoryCode = transaction.category().map(category -> category.code().value()).orElse(null);
         entity.categoryNature = transaction.category().map(TransactionCategory::nature).orElse(null);
+        entity.categorySource = transaction.categoryOrigin().map(CategoryOrigin::source).orElse(null);
+        entity.categoryRuleVersion = transaction.categoryOrigin().map(CategoryOrigin::ruleVersion).orElse(null);
+        entity.merchantKey = transaction.merchant().map(Merchant::key).orElse(null);
+        entity.merchantName = transaction.merchant().map(Merchant::name).orElse(null);
+        entity.merchantNormalizerVersion = transaction.merchant().map(Merchant::normalizerVersion).orElse(null);
         entity.createdAt = transaction.createdAt();
         entity.updatedAt = transaction.updatedAt();
         entity.version = transaction.version();
@@ -122,6 +146,8 @@ public class TransactionJpaEntity {
                 new Money(amount, Currency.getInstance(currency)), occurredOn, new TransactionDescription(description),
                 status, source, refundOfTransactionId == null ? null : new TransactionId(refundOfTransactionId),
                 categoryCode == null ? null : new TransactionCategory(new CategoryCode(categoryCode), categoryNature),
+                categorySource == null ? null : new CategoryOrigin(categorySource, categoryRuleVersion),
+                merchantKey == null ? null : new Merchant(merchantKey, merchantName, merchantNormalizerVersion),
                 createdAt, updatedAt, version);
     }
 }

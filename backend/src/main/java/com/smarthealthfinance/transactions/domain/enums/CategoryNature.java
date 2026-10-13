@@ -1,5 +1,6 @@
 package com.smarthealthfinance.transactions.domain.enums;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -10,6 +11,11 @@ public enum CategoryNature {
 
     EXPENSE,
     INCOME;
+
+    /** Tipos de transação que aceitam categorias desta natureza. */
+    public List<TransactionType> acceptingTypes() {
+        return this == INCOME ? List.of(TransactionType.INCOME) : List.of(TransactionType.EXPENSE, TransactionType.REFUND);
+    }
 
     /** @return a natureza aceita pelo tipo, ou vazio se o tipo não admite categoria */
     public static Optional<CategoryNature> acceptedBy(TransactionType type) {

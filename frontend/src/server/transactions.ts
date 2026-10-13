@@ -204,18 +204,24 @@ export async function readDescriptionBody(
   return { body: { description: text! } }
 }
 
-/** Corpo do `PUT ./category`: um código do catálogo ou `null` ("Sem categoria" — ADR-0012 §7). */
+/**
+ * Corpo do `PUT ./category`: um código do catálogo ou `null` ("Sem categoria" — ADR-0012 §7), mais o
+ * `applyToSimilar` opcional (ADR-0013 §2).
+ */
 export async function readCategoryBody(
   request: NextRequest,
 ): Promise<{ body: Schemas['CategorizeTransactionRequest'] } | { response: NextResponse }> {
   const input = await readJsonObject(request)
   if (!input || !('categoryCode' in input)) return { response: invalidRequest() }
   const code = input.categoryCode
-  if (code === null) return { body: { categoryCode: null } }
+  const applyToSimilar = input.applyToSimilar
+  if (applyToSimilar !== undefined && typeof applyToSimilar !== 'boolean') return { response: invalidRequest() }
+  const similar = applyToSimilar === true ? { applyToSimilar: true } : {}
+  if (code === null) return { body: { categoryCode: null, ...similar } }
   if (typeof code !== 'string' || !CATEGORY_CODE.test(code)) {
     return { response: validationFailed([{ field: 'categoryCode', code: 'INVALID' }]) }
   }
-  return { body: { categoryCode: code } }
+  return { body: { categoryCode: code, ...similar } }
 }
 
 /** Saldo inicial de uma conta nova (ADR-0004 §4): valor positivo + direção, como num ADJUSTMENT. */

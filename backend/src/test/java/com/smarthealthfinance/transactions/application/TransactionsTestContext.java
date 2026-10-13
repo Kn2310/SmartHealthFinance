@@ -9,6 +9,7 @@ import com.smarthealthfinance.identity.application.service.CurrentUserService;
 import com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard;
 import com.smarthealthfinance.identity.domain.model.User;
 import com.smarthealthfinance.identity.domain.model.Workspace;
+import com.smarthealthfinance.transactions.application.service.AutoCategorizer;
 import com.smarthealthfinance.transactions.application.service.TransactionAccess;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 
@@ -35,6 +36,9 @@ public final class TransactionsTestContext {
     public final InMemoryAccountRepository accounts = new InMemoryAccountRepository();
     public final InMemoryTransactionRepository transactions = new InMemoryTransactionRepository();
     public final InMemoryTransactionIdempotencyStore idempotency = new InMemoryTransactionIdempotencyStore();
+    public final InMemoryCategoryRepository categories = new InMemoryCategoryRepository();
+    public final InMemoryCategoryRuleRepository rules = new InMemoryCategoryRuleRepository();
+    public final AutoCategorizer categorizer = new AutoCategorizer(categories, rules);
     public final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
     public final User ana = activeUser("sub-ana");

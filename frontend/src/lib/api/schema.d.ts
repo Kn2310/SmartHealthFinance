@@ -113,6 +113,10 @@ export interface components {
       refundOfTransactionId: string | null
       /** Código do catálogo (`CategoryResponse.code`); `null` = "Sem categoria" (ADR-0012 §4). */
       categoryCode: string | null
+      /** Como a categoria foi atribuída (ADR-0013 §3); `null` enquanto ninguém (regra ou usuário) a tratou. */
+      categorySource: 'MANUAL' | 'RULE_LEARNED' | 'RULE_SYSTEM' | null
+      /** Comerciante identificado na descrição (ADR-0013 §1); `null` se não identificado. */
+      merchantName: string | null
       createdAt: string
       updatedAt: string
     }
@@ -136,8 +140,11 @@ export interface components {
     }
     /** Só a descrição é editável (ADR-0005 §8). */
     UpdateTransactionRequest: { description: string }
-    /** `null` volta a "Sem categoria" (ADR-0012 §7). */
-    CategorizeTransactionRequest: { categoryCode: string | null }
+    /**
+     * `null` volta a "Sem categoria" (ADR-0012 §7). `applyToSimilar` aprende a regra do comerciante e a aplica às
+     * transações semelhantes que o usuário ainda não escolheu (ADR-0013 §2).
+     */
+    CategorizeTransactionRequest: { categoryCode: string | null; applyToSimilar?: boolean }
     /** Categoria do catálogo do sistema (ADR-0012). `EXPENSE` serve a despesa e reembolso; `INCOME`, a receita. */
     CategoryResponse: {
       code: string
@@ -155,7 +162,7 @@ export interface components {
       status: 'PREVIEW' | 'CONFIRMED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'EXPIRED'
       fileName: string
       fileSize: number
-      lines: { total: number; valid: number; invalid: number; duplicate: number; imported: number }
+      lines: { total: number; valid: number; invalid: number; duplicate: number; imported: number; categorized: number }
       period: { from: string; to: string } | null
       sameFileImportedBefore: boolean
       failureReason: string | null

@@ -1,6 +1,8 @@
 package com.smarthealthfinance.transactions.application;
 
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
+import com.smarthealthfinance.transactions.domain.enums.CategorySource;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionCriteria;
 import com.smarthealthfinance.transactions.domain.repository.TransactionPage;
@@ -73,6 +75,28 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
     }
 
     @Override
+    public List<Transaction> findAwaitingAutomation(WorkspaceId workspaceId, TransactionId after, int limit) {
+        return inWorkspace(workspaceId)
+                .filter(transaction -> CategoryNature.acceptedBy(transaction.type()).isPresent())
+                .filter(transaction -> transaction.categoryOrigin().isEmpty() || transaction.merchant().isEmpty())
+                .filter(transaction -> after == null || transaction.id().value().compareTo(after.value()) > 0)
+                .sorted(Comparator.comparing(transaction -> transaction.id().value()))
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
+    public List<Transaction> findAutomatableByMerchant(WorkspaceId workspaceId, String merchantKey,
+                                                       CategoryNature nature) {
+        return inWorkspace(workspaceId)
+                .filter(transaction -> nature.acceptingTypes().contains(transaction.type()))
+                .filter(transaction -> transaction.merchant().filter(m -> m.key().equals(merchantKey)).isPresent())
+                .filter(transaction -> transaction.categoryOrigin().isEmpty()
+                        || transaction.categoryOrigin().get().source() != CategorySource.MANUAL)
+                .toList();
+    }
+
+    @Override
     public void add(Transaction transaction) {
         if (transactions.containsKey(transaction.id())) {
             throw new IllegalStateException("add() só insere transações novas");
@@ -117,6 +141,7 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
         return Transaction.restore(t.id(), t.workspaceId(), t.type(), t.accountId(),
                 t.destinationAccountId().orElse(null), t.adjustmentDirection().orElse(null), t.amount(),
                 t.occurredOn(), t.description(), t.status(), t.source(), t.refundOfTransactionId().orElse(null),
-                t.category().orElse(null), t.createdAt(), t.updatedAt(), version);
+                t.category().orElse(null), t.categoryOrigin().orElse(null), t.merchant().orElse(null), t.createdAt(),
+                t.updatedAt(), version);
     }
 }

@@ -40,6 +40,8 @@ const transaction = {
   source: 'MANUAL',
   refundOfTransactionId: null,
   categoryCode: null,
+  categorySource: null,
+  merchantName: null,
   createdAt: '2026-10-09T12:00:00Z',
   updatedAt: '2026-10-09T12:00:00Z',
 }
@@ -366,6 +368,18 @@ describe('categorias', () => {
     ])
     await categorize(jsonRequest(path, 'PUT', { categoryCode: null }), params())
     expect(PUT_BACKEND.mock.calls[1]?.[1].body).toEqual({ categoryCode: null })
+  })
+
+  it('PUT .../category repassa applyToSimilar só quando verdadeiro e só como booleano (ADR-0013 §2)', async () => {
+    PUT_BACKEND.mockResolvedValue({ data: { ...transaction, categoryCode: 'GROCERIES' }, response: { status: 200 } })
+    const path = `/api/bff/transactions/${TXN}/category`
+    await categorize(jsonRequest(path, 'PUT', { categoryCode: 'GROCERIES', applyToSimilar: true }), params())
+    expect(PUT_BACKEND.mock.calls[0]?.[1].body).toEqual({ categoryCode: 'GROCERIES', applyToSimilar: true })
+    await categorize(jsonRequest(path, 'PUT', { categoryCode: 'GROCERIES', applyToSimilar: false }), params())
+    expect(PUT_BACKEND.mock.calls[1]?.[1].body).toEqual({ categoryCode: 'GROCERIES' })
+    const invalid = await categorize(jsonRequest(path, 'PUT', { categoryCode: 'GROCERIES', applyToSimilar: 'yes' }), params())
+    expect(invalid.status).toBe(400)
+    expect(PUT_BACKEND).toHaveBeenCalledTimes(2)
   })
 
   it('recusa no BFF: código fora do formato, corpo sem o campo, sem Origin e id inválido', async () => {

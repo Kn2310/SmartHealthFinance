@@ -54,6 +54,8 @@ const txn = (overrides: Partial<Transaction> = {}): Transaction => ({
   source: 'MANUAL',
   refundOfTransactionId: null,
   categoryCode: null,
+  categorySource: null,
+  merchantName: null,
   createdAt: '2026-10-08T12:00:00Z',
   updatedAt: '2026-10-08T12:00:00Z',
   ...overrides,
@@ -468,6 +470,41 @@ describe('/transactions/{id} — detalhe e ações', () => {
     expect(await screen.findByText('Descrição atualizada.')).toBeInTheDocument()
     expect(body(calls.find((c) => c.method === 'PUT')!.init)).toEqual({ description: 'Jantar' })
     expect(screen.getByRole('heading', { level: 1, name: 'Jantar' })).toBeInTheDocument()
+  })
+
+  it('mostra o comerciante e a origem da categoria; "aplicar a semelhantes" só aparece com comerciante e categoria', async () => {
+    const calls = stubBff({
+      ...accounts,
+      'GET /api/bff/transactions/': () =>
+        json(txn({ categoryCode: 'DINING_OUT', categorySource: 'RULE_SYSTEM', merchantName: 'Bistrô Lume' })),
+      'PUT /api/bff/transactions/': (init) =>
+        json(txn({ categoryCode: body(init).categoryCode as string, categorySource: 'MANUAL', merchantName: 'Bistrô Lume' })),
+    })
+    const user = userEvent.setup()
+    const { container } = render(<TransactionDetailView id={TXN} />)
+
+    expect(await screen.findByText('Alimentação fora · automática', { selector: 'dd' })).toBeInTheDocument()
+    expect(screen.getByText('Bistrô Lume', { selector: 'dd' })).toBeInTheDocument()
+    const similar = screen.getByRole('checkbox', { name: /Aplicar a outras transações de Bistrô Lume/ })
+    expect(similar).not.toBeChecked()
+    expect(screen.getByRole('button', { name: 'Salvar categoria' })).toBeDisabled()
+    expect(await axeViolations(container)).toEqual([])
+
+    await user.click(similar)
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Categoria' }), 'GROCERIES')
+    await user.click(screen.getByRole('button', { name: 'Salvar categoria' }))
+
+    expect(await screen.findByText('Categoria atualizada.')).toBeInTheDocument()
+    expect(body(calls.find((c) => c.method === 'PUT')!.init)).toEqual({ categoryCode: 'GROCERIES', applyToSimilar: true })
+    expect(screen.getByText('Mercado · escolhida por você', { selector: 'dd' })).toBeInTheDocument()
+  })
+
+  it('sem comerciante ou escolhendo "Sem categoria", não oferece aplicar a semelhantes', async () => {
+    stubBff({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ categoryCode: 'DINING_OUT', categorySource: 'MANUAL' })) })
+    render(<TransactionDetailView id={TXN} />)
+    await screen.findByRole('combobox', { name: 'Categoria' })
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+    expect(screen.queryByText('Comerciante')).not.toBeInTheDocument()
   })
 
   it('altera a categoria: só as ativas da natureza do tipo; salvar e voltar a "Sem categoria"', async () => {

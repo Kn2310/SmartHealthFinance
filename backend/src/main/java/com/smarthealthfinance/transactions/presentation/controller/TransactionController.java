@@ -1,6 +1,7 @@
 package com.smarthealthfinance.transactions.presentation.controller;
 
 import com.smarthealthfinance.shared.presentation.error.ApiError;
+import com.smarthealthfinance.transactions.application.usecase.AutoCategorizePending;
 import com.smarthealthfinance.transactions.application.usecase.CancelTransaction;
 import com.smarthealthfinance.transactions.application.usecase.CategorizeTransaction;
 import com.smarthealthfinance.transactions.application.usecase.CreateTransaction;
@@ -12,6 +13,7 @@ import com.smarthealthfinance.transactions.application.usecase.UpdateTransaction
 import com.smarthealthfinance.transactions.presentation.dto.request.CategorizeTransactionRequest;
 import com.smarthealthfinance.transactions.presentation.dto.request.CreateTransactionRequest;
 import com.smarthealthfinance.transactions.presentation.dto.request.UpdateTransactionRequest;
+import com.smarthealthfinance.transactions.presentation.dto.response.CategorizePendingResponse;
 import com.smarthealthfinance.transactions.presentation.dto.response.TransactionPageResponse;
 import com.smarthealthfinance.transactions.presentation.dto.response.TransactionResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,11 +46,13 @@ public class TransactionController {
     private final CancelTransaction cancelTransaction;
     private final ReverseTransaction reverseTransaction;
     private final CategorizeTransaction categorizeTransaction;
+    private final AutoCategorizePending autoCategorizePending;
 
     public TransactionController(ListTransactions listTransactions, GetTransaction getTransaction,
                                  CreateTransaction createTransaction, UpdateTransaction updateTransaction,
                                  PostTransaction postTransaction, CancelTransaction cancelTransaction,
-                                 ReverseTransaction reverseTransaction, CategorizeTransaction categorizeTransaction) {
+                                 ReverseTransaction reverseTransaction, CategorizeTransaction categorizeTransaction,
+                                 AutoCategorizePending autoCategorizePending) {
         this.listTransactions = listTransactions;
         this.getTransaction = getTransaction;
         this.createTransaction = createTransaction;
@@ -57,6 +61,7 @@ public class TransactionController {
         this.cancelTransaction = cancelTransaction;
         this.reverseTransaction = reverseTransaction;
         this.categorizeTransaction = categorizeTransaction;
+        this.autoCategorizePending = autoCategorizePending;
     }
 
     @GetMapping
@@ -141,10 +146,10 @@ public class TransactionController {
     }
 
     @PutMapping("/{transactionId}/category")
-    @Operation(summary = "Atribui ou remove (categoryCode null) a categoria; idempotente, em qualquer status")
+    @Operation(summary = "Atribui ou remove (categoryCode null) a categoria; idempotente, em qualquer status. A escolha é sempre MANUAL; com applyToSimilar, vira regra do comerciante para as transações semelhantes")
     @ApiResponse(responseCode = "200", description = "Transação atualizada")
     @ApiResponse(responseCode = "400",
-            description = "VALIDATION_FAILED (categoryCode INVALID, INACTIVE, NOT_ALLOWED ou INCOMPATIBLE_WITH_TYPE)",
+            description = "VALIDATION_FAILED (categoryCode INVALID, INACTIVE, NOT_ALLOWED ou INCOMPATIBLE_WITH_TYPE; applyToSimilar REQUIRES_CATEGORY ou NO_MERCHANT)",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND ou TRANSACTION_NOT_FOUND",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
@@ -153,7 +158,16 @@ public class TransactionController {
     public TransactionResponse categorize(@PathVariable UUID workspaceId, @PathVariable UUID transactionId,
                                           @Valid @RequestBody CategorizeTransactionRequest request) {
         return TransactionResponse.from(categorizeTransaction.execute(workspaceId, transactionId,
-                new CategorizeTransaction.Command(request.categoryCode())));
+                new CategorizeTransaction.Command(request.categoryCode(), Boolean.TRUE.equals(request.applyToSimilar()))));
+    }
+
+    @PostMapping("/categorize-pending")
+    @Operation(summary = "Identifica comerciantes e aplica as regras às transações ainda não tratadas; idempotente, nunca altera escolha do usuário")
+    @ApiResponse(responseCode = "200", description = "Resumo da categorização")
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public CategorizePendingResponse categorizePending(@PathVariable UUID workspaceId) {
+        return CategorizePendingResponse.from(autoCategorizePending.execute(workspaceId));
     }
 
     @PostMapping("/{transactionId}/post")

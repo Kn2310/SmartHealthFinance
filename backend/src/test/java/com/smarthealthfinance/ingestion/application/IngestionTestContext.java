@@ -68,7 +68,7 @@ public final class IngestionTestContext {
     public final ListImports list = new ListImports(access, batches);
     public final ListImportRecords listRecords = new ListImportRecords(access, records);
     public final ProcessImport process = new ProcessImport(access, batches, records, keys,
-            new RecordImportedTransactions(core.access, core.transactions, clock), inbox, outbox, transactions,
+            new RecordImportedTransactions(core.access, core.transactions, core.categorizer, clock), inbox, outbox, transactions,
             clock);
     public final FailImport fail = new FailImport(batches, clock);
     public final ExpireImportPreviews expire = new ExpireImportPreviews(batches, records, clock);

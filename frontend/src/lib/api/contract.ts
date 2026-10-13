@@ -104,7 +104,7 @@ export const RECORD_FIELDS = {
     'id', 'workspaceId', 'accountId', 'format', 'status', 'fileName', 'fileSize', 'lines', 'period',
     'sameFileImportedBefore', 'failureReason', 'createdAt', 'previewExpiresAt', 'confirmedAt', 'completedAt',
   ],
-  Lines: ['total', 'valid', 'invalid', 'duplicate', 'imported'],
+  Lines: ['total', 'valid', 'invalid', 'duplicate', 'imported', 'categorized'],
   ImportPeriod: ['from', 'to'],
   ImportRecordResponse: [
     'lineNumber', 'status', 'occurredOn', 'amount', 'direction', 'description', 'issue', 'transactionId',
@@ -114,7 +114,8 @@ export const RECORD_FIELDS = {
   ImportRecordPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   TransactionResponse: [
     'id', 'workspaceId', 'accountId', 'destinationAccountId', 'type', 'adjustmentDirection', 'amount', 'occurredOn',
-    'description', 'status', 'source', 'refundOfTransactionId', 'categoryCode', 'createdAt', 'updatedAt',
+    'description', 'status', 'source', 'refundOfTransactionId', 'categoryCode', 'categorySource', 'merchantName',
+    'createdAt', 'updatedAt',
   ],
   TransactionPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   CreateTransactionRequest: [
@@ -122,7 +123,7 @@ export const RECORD_FIELDS = {
     'refundOfTransactionId',
   ],
   UpdateTransactionRequest: ['description'],
-  CategorizeTransactionRequest: ['categoryCode'],
+  CategorizeTransactionRequest: ['categoryCode', 'applyToSimilar'],
   CategoryListResponse: ['items'],
   CategoryResponse: ['code', 'name', 'nature', 'active'],
 } as const

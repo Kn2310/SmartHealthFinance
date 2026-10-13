@@ -85,7 +85,7 @@ class CategoryApiIT extends IntegrationTest {
 
     @Test
     void categorizesChangesAndClears() throws Exception {
-        String lume = createExpense("86.40", "BISTRO LUME PIRACICABA");
+        String lume = createExpense("86.40", "Loja Alfa");
         assertThat(read(get(lume), "$.categoryCode")).isNull();
 
         assertThat(categorize(lume, "\"DINING_OUT\"")).hasStatus(HttpStatus.OK)
@@ -118,7 +118,7 @@ class CategoryApiIT extends IntegrationTest {
 
     @Test
     void rejectsInvalidCategories() throws Exception {
-        String lume = createExpense("86.40", "Bistrô Lume");
+        String lume = createExpense("86.40", "Loja Alfa");
         String move = create("""
                 {"type": "TRANSFER", "accountId": "%s", "destinationAccountId": "%s",
                  "amount": {"amount": "500.00", "currency": "BRL"}, "occurredOn": "2026-09-21",
@@ -137,7 +137,7 @@ class CategoryApiIT extends IntegrationTest {
     /** Transação alheia é indistinguível de inexistente (regra do 404). */
     @Test
     void cannotCategorizeAnotherWorkspacesTransaction() throws Exception {
-        String lume = createExpense("86.40", "Bistrô Lume");
+        String lume = createExpense("86.40", "Loja Alfa");
 
         assertThat(mvc.put().uri(CATEGORY, bobsWorkspace, lume).with(bob()).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"categoryCode\": \"DINING_OUT\"}").exchange())
@@ -153,12 +153,12 @@ class CategoryApiIT extends IntegrationTest {
 
     @Test
     void filtersTheListByCategory() throws Exception {
-        String lume = createExpense("86.40", "Bistrô Lume");
-        createExpense("296.08", "Mercado Bom Preço");
+        String lume = createExpense("86.40", "Loja Alfa");
+        createExpense("296.08", "Loja Beta");
         categorize(lume, "\"DINING_OUT\"");
 
-        assertThat(descriptions(list("categoryCode=DINING_OUT"))).containsExactly("Bistrô Lume");
-        assertThat(descriptions(list("uncategorized=true"))).containsExactly("Mercado Bom Preço");
+        assertThat(descriptions(list("categoryCode=DINING_OUT"))).containsExactly("Loja Alfa");
+        assertThat(descriptions(list("uncategorized=true"))).containsExactly("Loja Beta");
         assertThat(descriptions(list("categoryCode=TRAVEL"))).isEmpty();
         assertValidationFailed(list("categoryCode=DINING_OUT&uncategorized=true"), "uncategorized",
                 "CONFLICTS_WITH_CATEGORY");
@@ -168,14 +168,103 @@ class CategoryApiIT extends IntegrationTest {
     /** A categoria revela hábitos de consumo: o log carrega só os IDs. */
     @Test
     void logsOnlyIds(CapturedOutput output) throws Exception {
-        String lume = createExpense("86.40", "Bistrô Lume");
+        String lume = createExpense("86.40", "Loja Alfa");
 
         assertThat(categorize(lume, "\"DINING_OUT\"")).hasStatus(HttpStatus.OK);
 
         assertThat(output).contains("Transaction categorized")
                 .doesNotContain("DINING_OUT")
                 .doesNotContain("Alimentação fora")
-                .doesNotContain("Bistrô Lume");
+                .doesNotContain("Loja Alfa");
+    }
+
+    // --- categorização automática e comerciantes (ADR-0013) ---
+
+    @Test
+    void manualEntriesAreCategorizedByRulesAndExposeSourceAndMerchant() throws Exception {
+        String market = createExpense("296.08", "MERCADO BOM PREÇO 0712");
+        String unknown = createExpense("10.00", "Pix enviado - Maria Exemplo");
+
+        assertThat(get(market)).bodyJson()
+                .hasPathSatisfying("$.categoryCode", c -> assertThat(c).asString().isEqualTo("GROCERIES"))
+                .hasPathSatisfying("$.categorySource", c -> assertThat(c).asString().isEqualTo("RULE_SYSTEM"))
+                .hasPathSatisfying("$.merchantName", c -> assertThat(c).asString().isEqualTo("Mercado Bom Preço"));
+        assertThat(get(unknown)).bodyJson()
+                .hasPathSatisfying("$.categoryCode", c -> assertThat(c).isNull())
+                .hasPathSatisfying("$.categorySource", c -> assertThat(c).isNull())
+                .hasPathSatisfying("$.merchantName", c -> assertThat(c).asString().isEqualTo("Maria Exemplo"));
+        assertThat(jdbc.queryForObject("select category_rule_version from transactions where id = ?::uuid",
+                String.class, market)).isEqualTo("system-v1");
+    }
+
+    @Test
+    void userChoiceIsManualAndLaterRulesNeverOverwriteIt() throws Exception {
+        String market = createExpense("296.08", "Mercado Bom Preço");
+
+        assertThat(categorize(market, "\"HOME\"")).bodyJson()
+                .hasPathSatisfying("$.categorySource", c -> assertThat(c).asString().isEqualTo("MANUAL"));
+        createExpense("10.00", "Mercado Bom Preço");
+        assertThat(categorizePending()).hasStatus(HttpStatus.OK);
+
+        assertThat(read(get(market), "$.categoryCode")).isEqualTo("HOME");
+        assertThat(read(get(market), "$.categorySource")).isEqualTo("MANUAL");
+    }
+
+    @Test
+    void applyToSimilarLearnsTheRuleForTheMerchant() throws Exception {
+        String first = createExpense("20.00", "Loja Alfa 01/09");
+        String second = createExpense("30.00", "Loja Alfa 05/09");
+        String manual = createExpense("40.00", "Loja Alfa 09/09");
+        categorize(manual, "\"SHOPPING\"");
+        String other = createExpense("50.00", "Loja Beta");
+
+        assertThat(mvc.put().uri(CATEGORY, anasWorkspace, first).with(ana()).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"categoryCode\": \"GIFTS_DONATIONS\", \"applyToSimilar\": true}").exchange())
+                .hasStatus(HttpStatus.OK);
+
+        assertThat(read(get(second), "$.categoryCode")).isEqualTo("GIFTS_DONATIONS");
+        assertThat(read(get(second), "$.categorySource")).isEqualTo("RULE_LEARNED");
+        assertThat(read(get(manual), "$.categoryCode")).isEqualTo("SHOPPING");
+        assertThat(read(get(other), "$.categoryCode")).isNull();
+
+        // O aprendizado vale para os próximos lançamentos do comerciante.
+        String next = createExpense("60.00", "LOJA ALFA 22/09");
+        assertThat(read(get(next), "$.categoryCode")).isEqualTo("GIFTS_DONATIONS");
+        assertThat(read(get(next), "$.categorySource")).isEqualTo("RULE_LEARNED");
+        assertThat(jdbc.queryForObject("select count(*) from category_rules", Integer.class)).isEqualTo(1);
+    }
+
+    @Test
+    void applyToSimilarNeedsACategory() throws Exception {
+        String lume = createExpense("86.40", "Loja Alfa");
+
+        assertValidationFailed(mvc.put().uri(CATEGORY, anasWorkspace, lume).with(ana())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"categoryCode\": null, \"applyToSimilar\": true}").exchange(),
+                "applyToSimilar", "REQUIRES_CATEGORY");
+    }
+
+    @Test
+    void categorizePendingTreatsOnlyUntouchedTransactionsOfTheWorkspace() throws Exception {
+        String market = createExpense("296.08", "Mercado Bom Preço");
+        String chosen = createExpense("10.00", "Mercado Sol");
+        categorize(chosen, "\"DINING_OUT\"");
+        // Transação anterior ao ADR-0013: sem comerciante nem origem.
+        jdbc.update("""
+                update transactions set category_code = null, category_nature = null, category_source = null,
+                  category_rule_version = null, merchant_key = null, merchant_name = null,
+                  merchant_normalizer_version = null where id = ?::uuid""", market);
+
+        assertThat(categorizePending()).hasStatus(HttpStatus.OK).bodyJson()
+                .hasPathSatisfying("$.categorized", n -> assertThat(n).asNumber().isEqualTo(1))
+                .hasPathSatisfying("$.merchantsIdentified", n -> assertThat(n).asNumber().isEqualTo(1));
+        assertThat(read(get(market), "$.categoryCode")).isEqualTo("GROCERIES");
+        assertThat(read(get(chosen), "$.categoryCode")).isEqualTo("DINING_OUT");
+
+        assertThat(categorizePending()).bodyJson()
+                .hasPathSatisfying("$.categorized", n -> assertThat(n).asNumber().isEqualTo(0));
+        assertWorkspaceNotFound(mvc.post().uri(TRANSACTIONS + "/categorize-pending", anasWorkspace).with(bob())
+                .exchange());
     }
 
     // --- helpers ---
@@ -183,6 +272,10 @@ class CategoryApiIT extends IntegrationTest {
     private MvcTestResult categorize(String transactionId, String codeJson) {
         return mvc.put().uri(CATEGORY, anasWorkspace, transactionId).with(ana())
                 .contentType(MediaType.APPLICATION_JSON).content("{\"categoryCode\": " + codeJson + "}").exchange();
+    }
+
+    private MvcTestResult categorizePending() {
+        return mvc.post().uri(TRANSACTIONS + "/categorize-pending", anasWorkspace).with(ana()).exchange();
     }
 
     private MvcTestResult get(String transactionId) {

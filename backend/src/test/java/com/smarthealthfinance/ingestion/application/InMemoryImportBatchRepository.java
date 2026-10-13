@@ -94,7 +94,8 @@ public final class InMemoryImportBatchRepository implements ImportBatchRepositor
     private static ImportBatch copy(ImportBatch b, long version) {
         return ImportBatch.restore(b.id(), b.workspaceId(), b.accountId(), b.createdBy(), b.format(), b.status(),
                 b.fileName(), b.fileSize(), b.fileSha256(), b.idempotencyKey(), b.requestHash(), b.totalLines(),
-                b.validLines(), b.invalidLines(), b.duplicateLines(), b.importedLines(), b.firstDate().orElse(null),
+                b.validLines(), b.invalidLines(), b.duplicateLines(), b.importedLines(), b.categorizedLines(),
+                b.firstDate().orElse(null),
                 b.lastDate().orElse(null), b.failureReason().orElse(null), b.createdAt(), b.updatedAt(),
                 b.confirmedAt().orElse(null), b.completedAt().orElse(null), version);
     }

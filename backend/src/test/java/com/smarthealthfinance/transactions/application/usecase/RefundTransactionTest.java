@@ -23,7 +23,7 @@ class RefundTransactionTest {
 
     private final TransactionsTestContext ctx = new TransactionsTestContext();
     private final CreateTransaction create = new CreateTransaction(ctx.access, ctx.transactions, ctx.idempotency,
-            ctx.clock);
+            ctx.categorizer, ctx.clock);
     private final Transaction purchase = ctx.store(expense(ctx.anasWorkspace.id(), ctx.aurora.id(), "100.00", "Loja"));
 
     @Test

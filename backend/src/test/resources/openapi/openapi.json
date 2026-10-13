@@ -131,8 +131,28 @@
         },
         "type" : "object"
       },
+      "CategorizePendingResponse" : {
+        "properties" : {
+          "categorized" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "evaluated" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "merchantsIdentified" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "CategorizeTransactionRequest" : {
         "properties" : {
+          "applyToSimilar" : {
+            "type" : "boolean"
+          },
           "categoryCode" : {
             "maxLength" : 40,
             "minLength" : 0,
@@ -306,6 +326,10 @@
       },
       "Lines" : {
         "properties" : {
+          "categorized" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "duplicate" : {
             "format" : "int32",
             "type" : "integer"
@@ -517,6 +541,9 @@
           "categoryCode" : {
             "type" : "string"
           },
+          "categorySource" : {
+            "type" : "string"
+          },
           "createdAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -530,6 +557,9 @@
           },
           "id" : {
             "format" : "uuid",
+            "type" : "string"
+          },
+          "merchantName" : {
             "type" : "string"
           },
           "occurredOn" : {
@@ -1810,6 +1840,44 @@
         "tags" : [ "Transactions" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/transactions/categorize-pending" : {
+      "post" : {
+        "operationId" : "categorizePending",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CategorizePendingResponse"
+                }
+              }
+            },
+            "description" : "Resumo da categorização"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Identifica comerciantes e aplica as regras às transações ainda não tratadas; idempotente, nunca altera escolha do usuário",
+        "tags" : [ "Transactions" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/transactions/{transactionId}" : {
       "get" : {
         "operationId" : "get",
@@ -1995,7 +2063,7 @@
                 }
               }
             },
-            "description" : "VALIDATION_FAILED (categoryCode INVALID, INACTIVE, NOT_ALLOWED ou INCOMPATIBLE_WITH_TYPE)"
+            "description" : "VALIDATION_FAILED (categoryCode INVALID, INACTIVE, NOT_ALLOWED ou INCOMPATIBLE_WITH_TYPE; applyToSimilar REQUIRES_CATEGORY ou NO_MERCHANT)"
           },
           "404" : {
             "content" : {
@@ -2018,7 +2086,7 @@
             "description" : "CONFLICT (edição concorrente)"
           }
         },
-        "summary" : "Atribui ou remove (categoryCode null) a categoria; idempotente, em qualquer status",
+        "summary" : "Atribui ou remove (categoryCode null) a categoria; idempotente, em qualquer status. A escolha é sempre MANUAL; com applyToSimilar, vira regra do comerciante para as transações semelhantes",
         "tags" : [ "Transactions" ]
       }
     },
