@@ -5,6 +5,7 @@ import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.CashFlowRole;
 import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.enums.CategorySource;
 import com.smarthealthfinance.transactions.domain.enums.BalanceEffect;
@@ -430,6 +431,13 @@ public class Transaction {
             return amount;
         }
         return Money.zero(amount.currency());
+    }
+
+    /**
+     * Papel desta transação no fluxo de caixa (ADR-0006 §9): só POSTED conta; as demais são {@code NONE}.
+     */
+    public CashFlowRole cashFlowRole() {
+        return status.affectsBalance() ? CashFlowRole.of(type) : CashFlowRole.NONE;
     }
 
     /** A conta é origem ou destino desta transação. */

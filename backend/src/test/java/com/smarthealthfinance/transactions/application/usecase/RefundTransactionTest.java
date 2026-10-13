@@ -23,7 +23,7 @@ class RefundTransactionTest {
 
     private final TransactionsTestContext ctx = new TransactionsTestContext();
     private final CreateTransaction create = new CreateTransaction(ctx.access, ctx.transactions, ctx.idempotency,
-            ctx.categorizer, ctx.clock);
+            ctx.categorizer, ctx.events, ctx.clock);
     private final Transaction purchase = ctx.store(expense(ctx.anasWorkspace.id(), ctx.aurora.id(), "100.00", "Loja"));
 
     @Test
@@ -56,7 +56,7 @@ class RefundTransactionTest {
     void cancelledRefundFreesTheRefundableAmount() {
         TransactionView pending = execute(refundOf(purchase, ctx.aurora).amount("100").status("PENDING"))
                 .transaction();
-        new CancelTransaction(ctx.access, ctx.transactions, ctx.clock).execute(ctx.anasWorkspaceId(), pending.id());
+        new CancelTransaction(ctx.access, ctx.transactions, ctx.events, ctx.clock).execute(ctx.anasWorkspaceId(), pending.id());
 
         assertThat(execute(refundOf(purchase, ctx.aurora).amount("100")).replayed()).isFalse();
     }

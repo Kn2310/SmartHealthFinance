@@ -3,6 +3,7 @@ package com.smarthealthfinance.transactions.application.usecase;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.transactions.application.service.AutoCategorizer;
 import com.smarthealthfinance.transactions.application.service.TransactionAccess;
+import com.smarthealthfinance.transactions.application.service.TransactionEvents;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
 import com.smarthealthfinance.transactions.domain.service.MerchantNormalizer;
@@ -32,13 +33,15 @@ public class AutoCategorizePending {
     private final TransactionAccess access;
     private final TransactionRepository transactions;
     private final AutoCategorizer categorizer;
+    private final TransactionEvents events;
     private final Clock clock;
 
     public AutoCategorizePending(TransactionAccess access, TransactionRepository transactions,
-                                 AutoCategorizer categorizer, Clock clock) {
+                                 AutoCategorizer categorizer, TransactionEvents events, Clock clock) {
         this.access = access;
         this.transactions = transactions;
         this.categorizer = categorizer;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -70,6 +73,7 @@ public class AutoCategorizePending {
                 boolean categorizedNow = session.apply(transaction, now);
                 if (identified || categorizedNow) {
                     transactions.save(transaction);
+                    events.categorized(transaction);
                 }
                 merchants += identified ? 1 : 0;
                 categorized += categorizedNow ? 1 : 0;

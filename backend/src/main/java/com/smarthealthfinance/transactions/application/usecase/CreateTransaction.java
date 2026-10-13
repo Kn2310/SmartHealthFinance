@@ -10,6 +10,7 @@ import com.smarthealthfinance.transactions.application.exception.IdempotencyKeyR
 import com.smarthealthfinance.transactions.application.port.TransactionIdempotencyStore;
 import com.smarthealthfinance.transactions.application.service.AutoCategorizer;
 import com.smarthealthfinance.transactions.application.service.TransactionAccess;
+import com.smarthealthfinance.transactions.application.service.TransactionEvents;
 import com.smarthealthfinance.transactions.application.service.TransactionFingerprint;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
@@ -46,14 +47,17 @@ public class CreateTransaction {
     private final TransactionRepository transactions;
     private final TransactionIdempotencyStore idempotency;
     private final AutoCategorizer categorizer;
+    private final TransactionEvents events;
     private final Clock clock;
 
     public CreateTransaction(TransactionAccess access, TransactionRepository transactions,
-                             TransactionIdempotencyStore idempotency, AutoCategorizer categorizer, Clock clock) {
+                             TransactionIdempotencyStore idempotency, AutoCategorizer categorizer,
+                             TransactionEvents events, Clock clock) {
         this.access = access;
         this.transactions = transactions;
         this.idempotency = idempotency;
         this.categorizer = categorizer;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -89,6 +93,7 @@ public class CreateTransaction {
         // Regras de categoria (ADR-0013 §4); a escolha do usuário vem depois, pelo PUT da categoria.
         categorizer.forWorkspace(workspace).apply(candidate, now);
         transactions.add(candidate);
+        events.created(candidate);
 
         log.info("Transaction created transactionId={} workspaceId={}", candidate.id(), workspace);
 

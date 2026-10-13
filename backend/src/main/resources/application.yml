@@ -70,6 +70,17 @@ shf:
       confirm-timeout: 5s
     published-retention: 7d
     processed-retention: 30d
+  # Projeção de Analytics (ADR-0014).
+  analytics:
+    # Na inicialização: missing (backfill do deploy e de nova versão), all (runbook) ou off.
+    rebuild: ${ANALYTICS_REBUILD:missing}
+    # Evento publicado até esta margem antes do último recálculo do mês já está refletido (coalescência).
+    coalesce-margin: 2s
+    retry:
+      max-retries: 4
+      delay: 1s
+      max-delay: 30s
+      jitter: 500ms
   ingestion:
     import:
       # Retry de falhas transitórias do Import Worker: backoff exponencial (x2) + jitter; depois, DLQ.

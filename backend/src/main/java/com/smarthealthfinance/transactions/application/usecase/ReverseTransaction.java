@@ -2,6 +2,7 @@ package com.smarthealthfinance.transactions.application.usecase;
 
 import com.smarthealthfinance.transactions.application.dto.TransactionView;
 import com.smarthealthfinance.transactions.application.service.TransactionAccess;
+import com.smarthealthfinance.transactions.application.service.TransactionEvents;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
@@ -21,11 +22,14 @@ public class ReverseTransaction {
 
     private final TransactionAccess access;
     private final TransactionRepository transactions;
+    private final TransactionEvents events;
     private final Clock clock;
 
-    public ReverseTransaction(TransactionAccess access, TransactionRepository transactions, Clock clock) {
+    public ReverseTransaction(TransactionAccess access, TransactionRepository transactions, TransactionEvents events,
+                              Clock clock) {
         this.access = access;
         this.transactions = transactions;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -38,6 +42,7 @@ public class ReverseTransaction {
 
         if (transaction.status() != before) {
             transactions.save(transaction);
+            events.statusChanged(transaction);
             log.info("Transaction reversed transactionId={} workspaceId={}", transaction.id(),
                     transaction.workspaceId());
         }

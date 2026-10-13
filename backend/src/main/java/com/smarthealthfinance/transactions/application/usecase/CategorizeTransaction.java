@@ -4,6 +4,7 @@ import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.transactions.application.dto.TransactionView;
 import com.smarthealthfinance.transactions.application.service.TransactionAccess;
+import com.smarthealthfinance.transactions.application.service.TransactionEvents;
 import com.smarthealthfinance.transactions.domain.model.Category;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.CategoryRepository;
@@ -39,14 +40,17 @@ public class CategorizeTransaction {
     private final TransactionRepository transactions;
     private final CategoryRepository categories;
     private final CategoryRuleRepository rules;
+    private final TransactionEvents events;
     private final Clock clock;
 
     public CategorizeTransaction(TransactionAccess access, TransactionRepository transactions,
-                                 CategoryRepository categories, CategoryRuleRepository rules, Clock clock) {
+                                 CategoryRepository categories, CategoryRuleRepository rules, TransactionEvents events,
+                                 Clock clock) {
         this.access = access;
         this.transactions = transactions;
         this.categories = categories;
         this.rules = rules;
+        this.events = events;
         this.clock = clock;
     }
 
@@ -89,6 +93,7 @@ public class CategorizeTransaction {
         if (!Objects.equals(before, transaction.category().orElse(null))
                 || !Objects.equals(originBefore, transaction.categoryOrigin().orElse(null))) {
             transactions.save(transaction);
+            events.categorized(transaction);
             log.info("Transaction categorized transactionId={} workspaceId={}", transaction.id(),
                     transaction.workspaceId());
         }
@@ -115,6 +120,7 @@ public class CategorizeTransaction {
                 category.nature())) {
             if (!similar.id().equals(chosen.id()) && similar.categorizeByRule(category, CategoryOrigin.LEARNED, now)) {
                 transactions.save(similar);
+                events.categorized(similar);
                 updated++;
             }
         }

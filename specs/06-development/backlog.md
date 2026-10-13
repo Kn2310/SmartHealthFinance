@@ -53,7 +53,8 @@
 - [x] transaction UI (`/transactions` com filtros, `/transactions/new` receita/despesa/ajuste com `Idempotency-Key` por intenção, `/transactions/{id}` efetivar/cancelar/estornar e editar descrição; BFF `/api/bff/transactions[/{id}[/post|/cancel|/reverse]]`; M-More mínimo — ADR-0005 §16)
 - [ ] pendência: métricas do topo de D-Transactions (Entradas/Saídas/Transferências/Resultado do período filtrado) e "Por que meu dinheiro mudou?" (depende de categorias, M5)
 - [ ] pendência: transferência e reembolso pela UI (a API já suporta; a UI só exibe)
-- [ ] eventos `transaction.*` (a Transactional Outbox já existe desde o M4; falta o consumidor — ADR-0009 §15)
+- [x] eventos `transaction.*` (created, posted, cancelled, reversed, categorized) pela outbox, consumidos pela
+  projeção de Analytics (ADR-0014); importações seguem pelo `import.completed`
 
 ## M3 First Home
 
@@ -95,7 +96,12 @@
 - [x] merchants (comerciante derivado da descrição por `MerchantNormalizer` v1, atributo da transação, sem entidade —
   ADR-0013; renomear/mesclar comerciantes e botão de "categorizar pendentes" na UI ficam para depois)
 - [ ] evolution
-- [ ] read models
+- [x] read models (projeção materializada `analytics_daily_flows` por eventos, consumidor idempotente com inbox,
+  retry e DLQ, rebuild na inicialização + runbook, freshness em `GET .../analytics/status`, paridade com a
+  referência do domínio — ADR-0014)
+- [ ] decisão de produto: "marcar como reembolso" para estornos importados (hoje INCOME pelo ADR-0009 §9; inflam
+  as receitas na Análise)
+- [ ] normalizador de comerciante v2: rótulo genérico seguido de preposição ("Compra do Bob" vira "do Bob")
 
 ## M6 Health
 

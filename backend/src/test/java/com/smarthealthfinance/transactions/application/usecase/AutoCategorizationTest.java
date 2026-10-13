@@ -36,11 +36,11 @@ class AutoCategorizationTest {
     private final WorkspaceId ws = ctx.anasWorkspace.id();
 
     private final CategorizeTransaction categorize = new CategorizeTransaction(ctx.access, ctx.transactions,
-            ctx.categories, ctx.rules, ctx.clock);
+            ctx.categories, ctx.rules, ctx.events, ctx.clock);
     private final CreateTransaction create = new CreateTransaction(ctx.access, ctx.transactions, ctx.idempotency,
-            ctx.categorizer, ctx.clock);
+            ctx.categorizer, ctx.events, ctx.clock);
     private final AutoCategorizePending pending = new AutoCategorizePending(ctx.access, ctx.transactions,
-            ctx.categorizer, ctx.clock);
+            ctx.categorizer, ctx.events, ctx.clock);
 
     private Transaction store(String description) {
         return ctx.store(expense(ws, ctx.aurora.id(), "50.00", description));

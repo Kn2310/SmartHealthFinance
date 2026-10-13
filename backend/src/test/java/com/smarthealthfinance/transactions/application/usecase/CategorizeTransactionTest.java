@@ -30,7 +30,7 @@ class CategorizeTransactionTest {
     private final TransactionsTestContext ctx = new TransactionsTestContext();
     private final InMemoryCategoryRepository categories = new InMemoryCategoryRepository();
     private final CategorizeTransaction categorize = new CategorizeTransaction(ctx.access, ctx.transactions,
-            categories, ctx.rules, ctx.clock);
+            categories, ctx.rules, ctx.events, ctx.clock);
     private final ListCategories listCategories = new ListCategories(ctx.access, categories);
     private final ListTransactions list = new ListTransactions(ctx.access, ctx.transactions);
     private final WorkspaceId ws = ctx.anasWorkspace.id();
