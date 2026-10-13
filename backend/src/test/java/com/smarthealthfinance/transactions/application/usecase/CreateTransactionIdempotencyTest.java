@@ -15,7 +15,7 @@ class CreateTransactionIdempotencyTest {
 
     private final TransactionsTestContext ctx = new TransactionsTestContext();
     private final CreateTransaction create = new CreateTransaction(ctx.access, ctx.transactions, ctx.idempotency,
-            ctx.categorizer, ctx.clock);
+            ctx.categorizer, ctx.events, ctx.clock);
 
     @Test
     void retryWithSameKeyAndPayloadReplaysTheOriginal() {

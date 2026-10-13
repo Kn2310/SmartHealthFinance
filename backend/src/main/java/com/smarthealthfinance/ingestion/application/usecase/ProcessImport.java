@@ -25,6 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -153,16 +154,27 @@ public class ProcessImport {
         batch.complete(lines.size(), lost.size(), recorded.categorized(), now);
         batches.save(batch);
         outbox.append(new IntegrationEvent(COMPLETED_EVENT_TYPE, 1, workspace.value(), "ImportBatch",
-                importId.value(), eventId, Map.of(
-                        "importId", importId.value().toString(),
-                        "accountId", batch.accountId().value().toString(),
-                        "importedLines", batch.importedLines(),
-                        "categorizedLines", batch.categorizedLines(),
-                        "duplicateLines", batch.duplicateLines(),
-                        "invalidLines", batch.invalidLines())));
+                importId.value(), eventId, completedPayload(importId, batch)));
 
         log.info("Import completed importId={} workspaceId={} imported={} duplicates={} invalid={}", importId,
                 workspace, batch.importedLines(), batch.duplicateLines(), batch.invalidLines());
+    }
+
+    /**
+     * Contagens e o período do arquivo ({@code firstDate}/{@code lastDate}, só quando há linhas com data): o
+     * Analytics recalcula os meses desse período (ADR-0014 §2). Nunca valores ou descrições.
+     */
+    private static Map<String, Object> completedPayload(ImportBatchId importId, ImportBatch batch) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("importId", importId.value().toString());
+        payload.put("accountId", batch.accountId().value().toString());
+        payload.put("importedLines", batch.importedLines());
+        payload.put("categorizedLines", batch.categorizedLines());
+        payload.put("duplicateLines", batch.duplicateLines());
+        payload.put("invalidLines", batch.invalidLines());
+        batch.firstDate().ifPresent(date -> payload.put("firstDate", date.toString()));
+        batch.lastDate().ifPresent(date -> payload.put("lastDate", date.toString()));
+        return payload;
     }
 
     /** @return o motivo da falha, ou nulo se a conta aceita movimento */

@@ -10,12 +10,16 @@ import com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard;
 import com.smarthealthfinance.identity.domain.model.User;
 import com.smarthealthfinance.identity.domain.model.Workspace;
 import com.smarthealthfinance.transactions.application.service.AutoCategorizer;
+import com.smarthealthfinance.shared.application.event.IntegrationEvent;
 import com.smarthealthfinance.transactions.application.service.TransactionAccess;
+import com.smarthealthfinance.transactions.application.service.TransactionEvents;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static com.smarthealthfinance.accounts.AccountsFixtures.account;
@@ -39,6 +43,12 @@ public final class TransactionsTestContext {
     public final InMemoryCategoryRepository categories = new InMemoryCategoryRepository();
     public final InMemoryCategoryRuleRepository rules = new InMemoryCategoryRuleRepository();
     public final AutoCategorizer categorizer = new AutoCategorizer(categories, rules);
+    /** Outbox em memória: os eventos que os casos de uso gravariam na transação do fato. */
+    public final List<IntegrationEvent> published = new ArrayList<>();
+    public final TransactionEvents events = new TransactionEvents(event -> {
+        published.add(event);
+        return UUID.randomUUID();
+    });
     public final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
 
     public final User ana = activeUser("sub-ana");

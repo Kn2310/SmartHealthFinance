@@ -192,7 +192,9 @@ class ImportFlowTest {
 
             IntegrationEvent completed = ctx.events.getLast();
             assertThat(completed.eventType()).isEqualTo("import.completed");
-            assertThat(completed.payload()).containsEntry("importedLines", 3).containsEntry("categorizedLines", 3);
+            assertThat(completed.payload()).containsEntry("importedLines", 3).containsEntry("categorizedLines", 3)
+                    // Período do arquivo: o Analytics recalcula esses meses (ADR-0014 §2).
+                    .containsEntry("firstDate", "2026-09-01").containsEntry("lastDate", "2026-09-03");
         }
 
         @Test

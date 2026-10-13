@@ -21,9 +21,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TransactionStatusChangesTest {
 
     private final TransactionsTestContext ctx = new TransactionsTestContext();
-    private final PostTransaction post = new PostTransaction(ctx.access, ctx.transactions, ctx.clock);
-    private final CancelTransaction cancel = new CancelTransaction(ctx.access, ctx.transactions, ctx.clock);
-    private final ReverseTransaction reverse = new ReverseTransaction(ctx.access, ctx.transactions, ctx.clock);
+    private final PostTransaction post = new PostTransaction(ctx.access, ctx.transactions, ctx.events, ctx.clock);
+    private final CancelTransaction cancel = new CancelTransaction(ctx.access, ctx.transactions, ctx.events, ctx.clock);
+    private final ReverseTransaction reverse = new ReverseTransaction(ctx.access, ctx.transactions, ctx.events, ctx.clock);
     private final WorkspaceId ws = ctx.anasWorkspace.id();
 
     @Test
