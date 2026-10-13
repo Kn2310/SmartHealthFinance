@@ -47,6 +47,8 @@ const CATEGORY_ERROR: Partial<Record<string, string>> = {
   INACTIVE: 'Esta categoria não está mais disponível. Escolha outra.',
   NOT_ALLOWED: 'Transferências e ajustes não têm categoria.',
   INCOMPATIBLE_WITH_TYPE: 'Esta categoria não combina com o tipo da transação. Escolha outra da lista.',
+  REQUIRES_CATEGORY: 'Escolha uma categoria para aplicar às transações semelhantes.',
+  NO_MERCHANT: 'Não identificamos o comerciante desta transação, então não há transações semelhantes.',
 }
 
 /** Erros do campo de categoria (ADR-0012 §7). */

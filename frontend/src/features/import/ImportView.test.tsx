@@ -39,7 +39,7 @@ const batch = (overrides: Partial<ImportBatch> = {}): ImportBatch => ({
   status: 'PREVIEW',
   fileName: 'extrato.csv',
   fileSize: 2048,
-  lines: { total: 3, valid: 2, invalid: 1, duplicate: 0, imported: 0 },
+  lines: { total: 3, valid: 2, invalid: 1, duplicate: 0, imported: 0, categorized: 0 },
   period: { from: '2026-09-01', to: '2026-09-03' },
   sameFileImportedBefore: false,
   failureReason: null,
@@ -223,7 +223,7 @@ describe('ImportView — preview, confirmação e resultado', () => {
         json(
           polls++ === 0
             ? batch()
-            : batch({ status: 'COMPLETED', lines: { total: 3, valid: 2, invalid: 1, duplicate: 0, imported: 2 } }),
+            : batch({ status: 'COMPLETED', lines: { total: 3, valid: 2, invalid: 1, duplicate: 0, imported: 2, categorized: 1 } }),
         ),
       [`POST /api/bff/imports/${IMPORT}/confirm`]: () => json(batch({ status: 'CONFIRMED' }), 202),
     })
@@ -245,6 +245,7 @@ describe('ImportView — preview, confirmação e resultado', () => {
       await screen.findByRole('heading', { name: '2 movimentações importadas' }, { timeout: 4000 }),
     ).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver meu panorama' })).toHaveAttribute('href', '/home')
+    expect(screen.getByText(/Categorizamos 1 de 2 transações\. Nada aqui é definitivo/)).toBeInTheDocument()
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1)
   })
 
@@ -252,7 +253,7 @@ describe('ImportView — preview, confirmação e resultado', () => {
     stubBff({
       [`GET /api/bff/imports/${IMPORT}/records`]: () => json({ items: [], page: 0, pageSize: 50, totalItems: 0 }),
       [`GET /api/bff/imports/${IMPORT}`]: () =>
-        json(batch({ sameFileImportedBefore: true, lines: { total: 2, valid: 0, invalid: 0, duplicate: 2, imported: 0 } })),
+        json(batch({ sameFileImportedBefore: true, lines: { total: 2, valid: 0, invalid: 0, duplicate: 2, imported: 0, categorized: 0 } })),
     })
     render(<ImportView />)
 

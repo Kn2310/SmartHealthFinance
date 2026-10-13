@@ -200,6 +200,12 @@ function Completed({ batch }: { batch: ImportBatch }) {
             : 'Elas já aparecem no seu saldo e nas movimentações, marcadas como “Importado”.'}
           {batch.lines.duplicate > 0 ? ` ${plural(batch.lines.duplicate, 'repetida foi ignorada', 'repetidas foram ignoradas')}.` : ''}
         </p>
+        {batch.lines.imported > 0 ? (
+          <p className={styles.noticeText}>
+            Categorizamos {batch.lines.categorized.toLocaleString('pt-BR')} de {batch.lines.imported.toLocaleString('pt-BR')}{' '}
+            {batch.lines.imported === 1 ? 'transação' : 'transações'}. Nada aqui é definitivo: você pode corrigir qualquer categoria.
+          </p>
+        ) : null}
         <div className={styles.actions}>
           <Button href="/import" variant="secondary">
             Importar outro arquivo

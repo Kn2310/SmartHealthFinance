@@ -29,6 +29,10 @@ test('extrato CSV fictício é importado e aparece na Home com o selo "Importado
   await expect(page.getByRole('heading', { name: `${lines.length} movimentações importadas` })).toBeVisible({
     timeout: 60_000,
   })
+  // ADR-0013 §4: as regras do sistema categorizam tudo, menos as pessoas ("Pix enviado") e o estorno sem comerciante
+  // reconhecível. A conta é independente do backend: vem das descrições do próprio fixture.
+  const uncategorized = lines.filter((l) => /^(Pix enviado|Estorno)/.test(l.description)).length
+  await expect(page.getByText(`Categorizamos ${lines.length - uncategorized} de ${lines.length} transações.`)).toBeVisible()
   await page.getByRole('link', { name: 'Ver meu panorama' }).click()
   await expect(page).toHaveURL(/\/home/)
 

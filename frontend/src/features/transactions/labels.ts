@@ -91,3 +91,10 @@ export function acceptedNature(type: string): 'EXPENSE' | 'INCOME' | null {
 }
 
 export const NO_CATEGORY_LABEL = 'Sem categoria'
+
+/** Origem da categoria (ADR-0013 §3). */
+export const CATEGORY_SOURCE_LABEL = {
+  MANUAL: 'escolhida por você',
+  RULE_LEARNED: 'aprendida das suas escolhas',
+  RULE_SYSTEM: 'automática',
+} as const

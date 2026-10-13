@@ -23,7 +23,7 @@ import {
   type TransitionAction,
 } from './api'
 import { accountNames, categoryNames, useAccounts, useCategories, useTransaction } from './hooks'
-import { acceptedNature, NO_CATEGORY_LABEL, SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
+import { acceptedNature, CATEGORY_SOURCE_LABEL, NO_CATEGORY_LABEL, SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
 import { categoryErrorMessage, fieldErrorMessage, requestFailureMessage } from './messages'
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
@@ -256,7 +256,16 @@ function Loaded({
                   ? (categoriesByCode.get(transaction.categoryCode) ??
                     (categories.status === 'loading' ? 'Carregando…' : 'Categoria'))
                   : NO_CATEGORY_LABEL}
+                {transaction.categoryCode && transaction.categorySource
+                  ? ` · ${CATEGORY_SOURCE_LABEL[transaction.categorySource]}`
+                  : ''}
               </dd>
+            </div>
+          ) : null}
+          {nature && transaction.merchantName ? (
+            <div className={styles.fact}>
+              <dt>Comerciante</dt>
+              <dd>{transaction.merchantName}</dd>
             </div>
           ) : null}
           <div className={styles.fact}>
@@ -374,6 +383,7 @@ function CategoryForm({
   const id = useId()
   const current = transaction.categoryCode ?? ''
   const [value, setValue] = useState(current)
+  const [applyToSimilar, setApplyToSimilar] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
@@ -394,7 +404,7 @@ function CategoryForm({
     if (sending) return
     setFormError(null)
     setSending(true)
-    const result = await categorizeTransaction(transaction.id, value || null)
+    const result = await categorizeTransaction(transaction.id, value || null, applyToSimilar && value !== '')
     setSending(false)
     if (result.ok) return onSaved(result.data)
     const detail = result.details?.find((issue) => issue.field === 'categoryCode')
@@ -457,6 +467,17 @@ function CategoryForm({
               {nature === 'INCOME' ? 'Categorias de receita.' : 'Categorias de despesa.'} A categoria organiza as
               análises e não muda o valor nem o saldo.
             </p>
+            {transaction.merchantName && value !== '' ? (
+              <label className={accountStyles.fieldHint}>
+                <input
+                  type="checkbox"
+                  checked={applyToSimilar}
+                  disabled={sending}
+                  onChange={(event) => setApplyToSimilar(event.target.checked)}
+                />{' '}
+                Aplicar a outras transações de {transaction.merchantName} que você ainda não categorizou
+              </label>
+            ) : null}
             {error ? (
               <p id={`${id}-error`} className={accountStyles.fieldError}>
                 <CircleAlert size={16} strokeWidth={1.75} aria-hidden="true" />
@@ -471,7 +492,7 @@ function CategoryForm({
             </p>
           ) : null}
           <div className={accountStyles.actions}>
-            <Button type="submit" variant="secondary" disabled={sending || value === current}>
+            <Button type="submit" variant="secondary" disabled={sending || (value === current && !applyToSimilar)}>
               {sending ? 'Salvando…' : 'Salvar categoria'}
             </Button>
           </div>
