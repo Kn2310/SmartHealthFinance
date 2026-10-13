@@ -3,6 +3,10 @@ import { businessToday, isIsoDate, monthRange } from '@/lib/format/business-date
 import { isUuid } from '@/lib/uuid'
 import type { ListParams, TransactionStatus, TransactionType } from './api'
 
+/** Valor do filtro de categoria para "Sem categoria" (os códigos do catálogo são sempre maiúsculos). */
+export const UNCATEGORIZED = 'none'
+const CATEGORY_CODE = /^[A-Z][A-Z0-9_]{0,39}$/
+
 /** Período da lista. `CUSTOM` usa `from`/`to` (inclusivos, como no backend). */
 export type PeriodPreset = 'CURRENT_MONTH' | 'PREVIOUS_MONTH' | 'ALL' | 'CUSTOM'
 
@@ -24,6 +28,8 @@ export interface Filters {
   accountId?: string
   type?: TransactionType
   status?: TransactionStatus
+  /** Código do catálogo ou {@link UNCATEGORIZED}. */
+  category?: string
 }
 
 type Params = { get(name: string): string | null }
@@ -40,6 +46,7 @@ export function parseFilters(params: Params, defaultPeriod: PeriodPreset = 'CURR
   const accountId = params.get('accountId')
   const type = params.get('type')
   const status = params.get('status')
+  const category = params.get('category')
   const filters: Filters = { period: period && PRESETS.includes(period) ? (period as PeriodPreset) : defaultPeriod }
   if (filters.period === 'CUSTOM') {
     if (isIsoDate(from) && isIsoDate(to) && from <= to) Object.assign(filters, { from, to })
@@ -48,6 +55,7 @@ export function parseFilters(params: Params, defaultPeriod: PeriodPreset = 'CURR
   if (isUuid(accountId)) filters.accountId = accountId
   if (type && TYPES.includes(type)) filters.type = type as TransactionType
   if (status && STATUSES.includes(status)) filters.status = status as TransactionStatus
+  if (category === UNCATEGORIZED || (category && CATEGORY_CODE.test(category))) filters.category = category
   return filters
 }
 
@@ -61,6 +69,7 @@ export function filtersToSearch(filters: Filters, defaultPeriod: PeriodPreset = 
   if (filters.accountId) search.set('accountId', filters.accountId)
   if (filters.type) search.set('type', filters.type)
   if (filters.status) search.set('status', filters.status)
+  if (filters.category) search.set('category', filters.category)
   return search.toString()
 }
 
@@ -85,6 +94,8 @@ export function toListParams(filters: Filters, q: string, today?: string): ListP
     type: filters.type,
     status: filters.status,
     q: q.trim() || undefined,
+    categoryCode: filters.category && filters.category !== UNCATEGORIZED ? filters.category : undefined,
+    uncategorized: filters.category === UNCATEGORIZED ? 'true' : undefined,
   }
 }
 
@@ -92,6 +103,6 @@ export function toListParams(filters: Filters, q: string, today?: string): ListP
 export function isFiltered(filters: Filters, q: string, defaultPeriod: PeriodPreset, fixedAccount = false): boolean {
   return (
     filters.period !== defaultPeriod ||
-    Boolean((!fixedAccount && filters.accountId) || filters.type || filters.status || q.trim())
+    Boolean((!fixedAccount && filters.accountId) || filters.type || filters.status || filters.category || q.trim())
   )
 }

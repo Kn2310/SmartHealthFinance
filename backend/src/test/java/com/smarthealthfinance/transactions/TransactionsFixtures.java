@@ -5,9 +5,12 @@ import com.smarthealthfinance.identity.domain.model.Workspace;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
+import com.smarthealthfinance.transactions.domain.model.Category;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
+import com.smarthealthfinance.transactions.domain.valueobject.CategoryCode;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 
@@ -21,6 +24,19 @@ public final class TransactionsFixtures {
     public static final LocalDate SEP_22 = LocalDate.parse("2026-09-22");
 
     private TransactionsFixtures() {
+    }
+
+    /** Categorias do catálogo da V9 usadas nos testes (ADR-0012 §3). */
+    public static final Category DINING_OUT = category("DINING_OUT", CategoryNature.EXPENSE, "Alimentação fora", 40);
+    public static final Category GROCERIES = category("GROCERIES", CategoryNature.EXPENSE, "Mercado", 30);
+    public static final Category SALARY = category("SALARY", CategoryNature.INCOME, "Salário", 310);
+
+    /** Fora do catálogo: continua nas transações antigas, mas não pode ser escolhida de novo. */
+    public static final Category RETIRED = new Category(new CategoryCode("RETIRED"), CategoryNature.EXPENSE,
+            "Antiga", 999, false);
+
+    public static Category category(String code, CategoryNature nature, String name, int displayOrder) {
+        return new Category(new CategoryCode(code), nature, name, displayOrder, true);
     }
 
     public static Money brl(String amount) {

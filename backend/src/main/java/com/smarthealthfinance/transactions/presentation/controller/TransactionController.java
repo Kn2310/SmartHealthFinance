@@ -2,12 +2,14 @@ package com.smarthealthfinance.transactions.presentation.controller;
 
 import com.smarthealthfinance.shared.presentation.error.ApiError;
 import com.smarthealthfinance.transactions.application.usecase.CancelTransaction;
+import com.smarthealthfinance.transactions.application.usecase.CategorizeTransaction;
 import com.smarthealthfinance.transactions.application.usecase.CreateTransaction;
 import com.smarthealthfinance.transactions.application.usecase.GetTransaction;
 import com.smarthealthfinance.transactions.application.usecase.ListTransactions;
 import com.smarthealthfinance.transactions.application.usecase.PostTransaction;
 import com.smarthealthfinance.transactions.application.usecase.ReverseTransaction;
 import com.smarthealthfinance.transactions.application.usecase.UpdateTransaction;
+import com.smarthealthfinance.transactions.presentation.dto.request.CategorizeTransactionRequest;
 import com.smarthealthfinance.transactions.presentation.dto.request.CreateTransactionRequest;
 import com.smarthealthfinance.transactions.presentation.dto.request.UpdateTransactionRequest;
 import com.smarthealthfinance.transactions.presentation.dto.response.TransactionPageResponse;
@@ -41,11 +43,12 @@ public class TransactionController {
     private final PostTransaction postTransaction;
     private final CancelTransaction cancelTransaction;
     private final ReverseTransaction reverseTransaction;
+    private final CategorizeTransaction categorizeTransaction;
 
     public TransactionController(ListTransactions listTransactions, GetTransaction getTransaction,
                                  CreateTransaction createTransaction, UpdateTransaction updateTransaction,
                                  PostTransaction postTransaction, CancelTransaction cancelTransaction,
-                                 ReverseTransaction reverseTransaction) {
+                                 ReverseTransaction reverseTransaction, CategorizeTransaction categorizeTransaction) {
         this.listTransactions = listTransactions;
         this.getTransaction = getTransaction;
         this.createTransaction = createTransaction;
@@ -53,6 +56,7 @@ public class TransactionController {
         this.postTransaction = postTransaction;
         this.cancelTransaction = cancelTransaction;
         this.reverseTransaction = reverseTransaction;
+        this.categorizeTransaction = categorizeTransaction;
     }
 
     @GetMapping
@@ -74,11 +78,15 @@ public class TransactionController {
             @RequestParam(required = false) UUID accountId,
             @Parameter(description = "Trecho da descrição")
             @RequestParam(required = false) String q,
+            @Parameter(description = "Código da categoria (ADR-0012)")
+            @RequestParam(required = false) String categoryCode,
+            @Parameter(description = "true = só transações sem categoria; exclusivo com categoryCode")
+            @RequestParam(required = false) Boolean uncategorized,
             @RequestParam(required = false) Integer page,
             @Parameter(description = "1 a 100 (padrão 50)")
             @RequestParam(required = false) Integer pageSize) {
-        return TransactionPageResponse.from(listTransactions.execute(workspaceId,
-                new ListTransactions.Query(from, to, type, status, accountId, q, page, pageSize)));
+        return TransactionPageResponse.from(listTransactions.execute(workspaceId, new ListTransactions.Query(
+                from, to, type, status, accountId, q, categoryCode, uncategorized, page, pageSize)));
     }
 
     @PostMapping
@@ -130,6 +138,22 @@ public class TransactionController {
                                       @Valid @RequestBody UpdateTransactionRequest request) {
         return TransactionResponse.from(updateTransaction.execute(workspaceId, transactionId,
                 new UpdateTransaction.Command(request.description())));
+    }
+
+    @PutMapping("/{transactionId}/category")
+    @Operation(summary = "Atribui ou remove (categoryCode null) a categoria; idempotente, em qualquer status")
+    @ApiResponse(responseCode = "200", description = "Transação atualizada")
+    @ApiResponse(responseCode = "400",
+            description = "VALIDATION_FAILED (categoryCode INVALID, INACTIVE, NOT_ALLOWED ou INCOMPATIBLE_WITH_TYPE)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND ou TRANSACTION_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "409", description = "CONFLICT (edição concorrente)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public TransactionResponse categorize(@PathVariable UUID workspaceId, @PathVariable UUID transactionId,
+                                          @Valid @RequestBody CategorizeTransactionRequest request) {
+        return TransactionResponse.from(categorizeTransaction.execute(workspaceId, transactionId,
+                new CategorizeTransaction.Command(request.categoryCode())));
     }
 
     @PostMapping("/{transactionId}/post")

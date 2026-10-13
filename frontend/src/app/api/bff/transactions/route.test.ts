@@ -16,6 +16,8 @@ import { GET as get, PUT as update } from './[transactionId]/route'
 import { POST as postTxn } from './[transactionId]/post/route'
 import { POST as cancel } from './[transactionId]/cancel/route'
 import { POST as reverse } from './[transactionId]/reverse/route'
+import { PUT as categorize } from './[transactionId]/category/route'
+import { GET as categories } from '../categories/route'
 
 const ORIGIN = 'http://app.test'
 const ACCOUNT = '01922f5e-0000-7000-8000-0000000000aa'
@@ -37,6 +39,7 @@ const transaction = {
   status: 'POSTED',
   source: 'MANUAL',
   refundOfTransactionId: null,
+  categoryCode: null,
   createdAt: '2026-10-09T12:00:00Z',
   updatedAt: '2026-10-09T12:00:00Z',
 }
@@ -128,6 +131,17 @@ describe('GET /api/bff/transactions', () => {
       page: 0,
       pageSize: 50,
     })
+  })
+
+  it('filtro de categoria: código no formato do catálogo ou "Sem categoria", nunca os dois', async () => {
+    GET_BACKEND.mockResolvedValue({ data: { items: [], page: 0, pageSize: 50, totalItems: 0 }, response: { status: 200 } })
+    await list(new NextRequest(`${ORIGIN}/api/bff/transactions?categoryCode=DINING_OUT&uncategorized=true`))
+    await list(new NextRequest(`${ORIGIN}/api/bff/transactions?uncategorized=true`))
+    await list(new NextRequest(`${ORIGIN}/api/bff/transactions?categoryCode=dining%20out&uncategorized=1`))
+    const query = (call: number) => GET_BACKEND.mock.calls[call]?.[1].params.query
+    expect(query(0)).toMatchObject({ categoryCode: 'DINING_OUT', uncategorized: undefined })
+    expect(query(1)).toMatchObject({ categoryCode: undefined, uncategorized: true })
+    expect(query(2)).toMatchObject({ categoryCode: undefined, uncategorized: undefined })
   })
 
   it('VALIDATION_FAILED do backend (ex.: to antes de from) repassa só field + code', async () => {
@@ -324,5 +338,61 @@ describe('POST efetivar / cancelar / estornar', () => {
     expect((await cancel(post(`/api/bff/transactions/${TXN}/cancel`, null), params())).status).toBe(403)
     expect((await postTxn(post('/api/bff/transactions/x/post'), params('x'))).status).toBe(404)
     expect(POST_BACKEND).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('categorias', () => {
+  it('GET /api/bff/categories lê o catálogo no Workspace da sessão', async () => {
+    const catalog = { items: [{ code: 'DINING_OUT', name: 'Alimentação fora', nature: 'EXPENSE', active: true }] }
+    GET_BACKEND.mockResolvedValue({ data: catalog, response: { status: 200 } })
+    const response = await categories()
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(await response.json()).toEqual(catalog)
+    expect(GET_BACKEND.mock.calls[0]).toEqual([
+      '/api/v1/workspaces/{workspaceId}/categories',
+      { params: { path: { workspaceId: 'ws-da-sessao' } } },
+    ])
+  })
+
+  it('PUT .../category envia só o código (ou null) para o Workspace da sessão', async () => {
+    PUT_BACKEND.mockResolvedValue({ data: { ...transaction, categoryCode: 'DINING_OUT' }, response: { status: 200 } })
+    const path = `/api/bff/transactions/${TXN}/category`
+    const ok = await categorize(jsonRequest(path, 'PUT', { categoryCode: 'DINING_OUT', amount: '1.00' }), params())
+    expect(ok.status).toBe(200)
+    expect(PUT_BACKEND.mock.calls[0]).toEqual([
+      '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/category',
+      { params: { path: { workspaceId: 'ws-da-sessao', transactionId: TXN } }, body: { categoryCode: 'DINING_OUT' } },
+    ])
+    await categorize(jsonRequest(path, 'PUT', { categoryCode: null }), params())
+    expect(PUT_BACKEND.mock.calls[1]?.[1].body).toEqual({ categoryCode: null })
+  })
+
+  it('recusa no BFF: código fora do formato, corpo sem o campo, sem Origin e id inválido', async () => {
+    const path = `/api/bff/transactions/${TXN}/category`
+    const malformed = await categorize(jsonRequest(path, 'PUT', { categoryCode: 'dining out' }), params())
+    expect(await malformed.json()).toEqual({ code: 'VALIDATION_FAILED', details: [{ field: 'categoryCode', code: 'INVALID' }] })
+    expect((await categorize(jsonRequest(path, 'PUT', {}), params())).status).toBe(400)
+    expect((await categorize(jsonRequest(path, 'PUT', { categoryCode: 7 }), params())).status).toBe(400)
+    expect((await categorize(jsonRequest(path, 'PUT', { categoryCode: null }, { origin: null }), params())).status).toBe(403)
+    expect((await categorize(jsonRequest('/api/bff/transactions/x/category', 'PUT', { categoryCode: null }), params('x'))).status).toBe(404)
+    expect(PUT_BACKEND).not.toHaveBeenCalled()
+  })
+
+  it('validação do domínio passa com o código estável; transação alheia é o mesmo 404', async () => {
+    const path = `/api/bff/transactions/${TXN}/category`
+    PUT_BACKEND.mockResolvedValueOnce({
+      error: apiError('VALIDATION_FAILED', [{ field: 'categoryCode', code: 'INCOMPATIBLE_WITH_TYPE', message: 'x' }]),
+      response: { status: 400 },
+    })
+    const incompatible = await categorize(jsonRequest(path, 'PUT', { categoryCode: 'SALARY' }), params())
+    expect(await incompatible.json()).toEqual({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'categoryCode', code: 'INCOMPATIBLE_WITH_TYPE' }],
+    })
+    PUT_BACKEND.mockResolvedValueOnce({ error: apiError('TRANSACTION_NOT_FOUND'), response: { status: 404 } })
+    const foreign = await categorize(jsonRequest(path, 'PUT', { categoryCode: 'SALARY' }), params())
+    expect(foreign.status).toBe(404)
+    expect(await foreign.json()).toEqual({ code: 'TRANSACTION_NOT_FOUND' })
   })
 })

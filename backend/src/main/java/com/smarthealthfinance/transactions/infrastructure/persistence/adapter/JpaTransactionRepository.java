@@ -120,6 +120,12 @@ public class JpaTransactionRepository implements TransactionRepository {
                         cb.equal(root.get("accountId"), criteria.accountId().value()),
                         cb.equal(root.get("destinationAccountId"), criteria.accountId().value())));
             }
+            if (criteria.categoryCode() != null) {
+                predicates.add(cb.equal(root.get("categoryCode"), criteria.categoryCode().value()));
+            }
+            if (criteria.uncategorized()) {
+                predicates.add(cb.isNull(root.get("categoryCode")));
+            }
             if (criteria.text() != null) {
                 String pattern = "%" + escapeLike(criteria.text().toLowerCase(Locale.ROOT)) + "%";
                 predicates.add(cb.like(cb.lower(root.<String>get("description")), pattern, LIKE_ESCAPE));

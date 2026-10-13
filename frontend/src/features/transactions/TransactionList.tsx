@@ -8,9 +8,17 @@ import { TRANSACTION_SEARCH_MAX_LENGTH } from '@/lib/api/contract'
 import { formatDayHeading, formatPeriodRange } from '@/lib/format/date'
 import { businessToday } from '@/lib/format/business-date'
 import type { Transaction, TransactionStatus, TransactionType } from './api'
-import { isFiltered, PERIOD_OPTIONS, periodRange, toListParams, type Filters, type PeriodPreset } from './filters'
-import { accountNames, useAccounts, useTransactionPages } from './hooks'
-import { STATUS_OPTIONS, TYPE_OPTIONS } from './labels'
+import {
+  isFiltered,
+  PERIOD_OPTIONS,
+  periodRange,
+  toListParams,
+  UNCATEGORIZED,
+  type Filters,
+  type PeriodPreset,
+} from './filters'
+import { accountNames, categoryNames, useAccounts, useCategories, useTransactionPages } from './hooks'
+import { NO_CATEGORY_LABEL, STATUS_OPTIONS, TYPE_OPTIONS } from './labels'
 import { plural, requestFailureMessage } from './messages'
 import { TransactionRow } from './TransactionRow'
 import accountStyles from '@/features/accounts/Accounts.module.css'
@@ -50,6 +58,8 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
   const pages = useTransactionPages(toListParams(effective, query, today))
   const accounts = useAccounts()
   const names = accountNames(accounts)
+  const categories = useCategories()
+  const categoriesByCode = categoryNames(categories)
   const range = periodRange(effective, today)
   const filtered = isFiltered(effective, query, defaultPeriod, Boolean(fixedAccountId))
 
@@ -111,7 +121,7 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
           </Button>
         </div>
 
-        <div className={`${styles.selects} ${fixedAccountId ? styles.three : ''}`}>
+        <div className={`${styles.selects} ${fixedAccountId ? styles.four : ''}`}>
           <div className={accountStyles.field}>
             <label htmlFor={`${id}-period`} className={accountStyles.label}>
               Período
@@ -189,6 +199,42 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
               </select>
             </div>
           )}
+          <div className={accountStyles.field}>
+            <label htmlFor={`${id}-category`} className={accountStyles.label}>
+              Categoria
+            </label>
+            <select
+              id={`${id}-category`}
+              className={accountStyles.select}
+              value={filters.category ?? ''}
+              onChange={(event) => set({ category: event.target.value || undefined })}
+            >
+              <option value="">Todas</option>
+              <option value={UNCATEGORIZED}>{NO_CATEGORY_LABEL}</option>
+              {categories.status === 'success'
+                ? (
+                    [
+                      ['EXPENSE', 'Despesas'],
+                      ['INCOME', 'Receitas'],
+                    ] as const
+                  ).map(([nature, label]) => (
+                    <optgroup key={nature} label={label}>
+                      {categories.data
+                        .filter((category) => category.nature === nature)
+                        .map((category) => (
+                          <option key={category.code} value={category.code}>
+                            {category.name}
+                          </option>
+                        ))}
+                    </optgroup>
+                  ))
+                : null}
+              {/* Categoria da URL ainda sem nome (carregando ou falhou): o filtro continua visível e removível. */}
+              {filters.category && filters.category !== UNCATEGORIZED && !categoriesByCode.has(filters.category) ? (
+                <option value={filters.category}>Categoria selecionada</option>
+              ) : null}
+            </select>
+          </div>
         </div>
 
         {filters.period === 'CUSTOM' ? (
@@ -242,6 +288,11 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
 
       {accounts.status === 'error' ? (
         <p className={accountStyles.partial}>Não conseguimos carregar os nomes das contas agora. As transações continuam corretas.</p>
+      ) : null}
+      {categories.status === 'error' ? (
+        <p className={accountStyles.partial}>
+          Não conseguimos carregar os nomes das categorias agora. As transações continuam corretas.
+        </p>
       ) : null}
 
       <p className={styles.count} role="status">
@@ -307,6 +358,7 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
                       key={transaction.id}
                       transaction={transaction}
                       names={names}
+                      categories={categoriesByCode}
                       perspectiveAccountId={fixedAccountId}
                     />
                   ))}

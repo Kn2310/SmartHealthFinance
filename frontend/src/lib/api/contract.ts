@@ -29,6 +29,8 @@ export const IMPORT_STATUSES = ['PREVIEW', 'CONFIRMED', 'PROCESSING', 'COMPLETED
 export const RECORD_STATUSES = ['VALID', 'INVALID', 'DUPLICATE', 'IMPORTED'] as const
 /** Direção de uma linha importada (ImportRecordResponse): só entrada ou saída, nunca transferência. */
 export const RECORD_DIRECTIONS = ['INFLOW', 'OUTFLOW'] as const
+/** Natureza da categoria (ADR-0012 §2): EXPENSE serve a despesa e reembolso; INCOME, a receita. */
+export const CATEGORY_NATURES = ['EXPENSE', 'INCOME'] as const
 
 /** `AccountName.MAX_LENGTH` e `InstitutionName.MAX_LENGTH` do backend: o BFF e o formulário recusam antes. */
 export const ACCOUNT_NAME_MAX_LENGTH = 100
@@ -40,6 +42,8 @@ export const TRANSACTION_SEARCH_MAX_LENGTH = 100
 export const TRANSACTION_MAX_PAGE_SIZE = 100
 /** `IdempotencyKey.MAX_LENGTH` do backend (só caracteres não reservados de URI + ':'). */
 export const IDEMPOTENCY_KEY_MAX_LENGTH = 100
+/** `CategoryCode.MAX_LENGTH` do backend (maiúsculas, dígitos e `_`). */
+export const CATEGORY_CODE_MAX_LENGTH = 40
 
 type Tx = O['recentTransactions'][number]
 type Txn = S['TransactionResponse']
@@ -49,6 +53,7 @@ type CreateAcc = S['CreateAccountRequest']
 type UpdateAcc = S['UpdateAccountRequest']
 type Imp = S['ImportResponse']
 type Rec = S['ImportRecordResponse']
+type Cat = S['CategoryResponse']
 export type EnumChecks = [
   Assert<Equals<Values<typeof OVERVIEW_STATES>, O['state']>>,
   Assert<Equals<Values<typeof PERIOD_TYPES>, O['period']['type']>>,
@@ -71,6 +76,7 @@ export type EnumChecks = [
   Assert<Equals<Values<typeof ADJUSTMENT_DIRECTIONS>, NonNullable<Txn['adjustmentDirection']>>>,
   Assert<Equals<Values<typeof TRANSACTION_SOURCES>, Txn['source']>>,
   Assert<Equals<Values<typeof TRANSACTION_TYPES>, CreateTxn['type']>>,
+  Assert<Equals<Values<typeof CATEGORY_NATURES>, Cat['nature']>>,
 ]
 
 /** Campos de cada record Java (nomes iguais aos do backend) ↔ chaves do tipo TS correspondente. */
@@ -108,7 +114,7 @@ export const RECORD_FIELDS = {
   ImportRecordPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   TransactionResponse: [
     'id', 'workspaceId', 'accountId', 'destinationAccountId', 'type', 'adjustmentDirection', 'amount', 'occurredOn',
-    'description', 'status', 'source', 'refundOfTransactionId', 'createdAt', 'updatedAt',
+    'description', 'status', 'source', 'refundOfTransactionId', 'categoryCode', 'createdAt', 'updatedAt',
   ],
   TransactionPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   CreateTransactionRequest: [
@@ -116,6 +122,9 @@ export const RECORD_FIELDS = {
     'refundOfTransactionId',
   ],
   UpdateTransactionRequest: ['description'],
+  CategorizeTransactionRequest: ['categoryCode'],
+  CategoryListResponse: ['items'],
+  CategoryResponse: ['code', 'name', 'nature', 'active'],
 } as const
 
 type F = typeof RECORD_FIELDS
@@ -144,4 +153,7 @@ export type FieldChecks = [
   Assert<Equals<Values<F['TransactionPageResponse']>, keyof S['TransactionPageResponse']>>,
   Assert<Equals<Values<F['CreateTransactionRequest']>, keyof CreateTxn>>,
   Assert<Equals<Values<F['UpdateTransactionRequest']>, keyof S['UpdateTransactionRequest']>>,
+  Assert<Equals<Values<F['CategorizeTransactionRequest']>, keyof S['CategorizeTransactionRequest']>>,
+  Assert<Equals<Values<F['CategoryListResponse']>, keyof S['CategoryListResponse']>>,
+  Assert<Equals<Values<F['CategoryResponse']>, keyof Cat>>,
 ]

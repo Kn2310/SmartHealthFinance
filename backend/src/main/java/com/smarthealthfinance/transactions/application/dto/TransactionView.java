@@ -13,12 +13,15 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
 
-/** @param amount já na escala de exibição da moeda (86.40, nunca 86.4000) */
+/**
+ * @param amount       já na escala de exibição da moeda (86.40, nunca 86.4000)
+ * @param categoryCode {@code null} = "Sem categoria" (ADR-0012 §4)
+ */
 public record TransactionView(
         UUID id, UUID workspaceId, UUID accountId, UUID destinationAccountId, TransactionType type,
         AdjustmentDirection adjustmentDirection, BigDecimal amount, String currency, LocalDate occurredOn,
         String description, TransactionStatus status, TransactionSource source, UUID refundOfTransactionId,
-        Instant createdAt, Instant updatedAt
+        String categoryCode, Instant createdAt, Instant updatedAt
 ) {
     public static TransactionView from(Transaction transaction) {
         return new TransactionView(
@@ -28,6 +31,7 @@ public record TransactionView(
                 transaction.amount().currency().getCurrencyCode(), transaction.occurredOn(),
                 transaction.description().value(), transaction.status(), transaction.source(),
                 transaction.refundOfTransactionId().map(TransactionId::value).orElse(null),
+                transaction.category().map(category -> category.code().value()).orElse(null),
                 transaction.createdAt(), transaction.updatedAt()
         );
     }

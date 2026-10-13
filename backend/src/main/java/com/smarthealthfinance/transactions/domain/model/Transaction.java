@@ -5,12 +5,14 @@ import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.enums.BalanceEffect;
 import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.exception.InvalidTransactionStatusTransitionException;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
+import com.smarthealthfinance.transactions.domain.valueobject.TransactionCategory;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 
 import java.time.Instant;
@@ -24,7 +26,7 @@ import java.util.Optional;
  * <p>
  * Valor sempre positivo + tipo. Os campos financeiros (tipo, contas, valor, data) são imutáveis depois da
  * criação: correções são feitas por cancelamento/estorno e um novo lançamento, preservando a trilha.
- * Apenas a descrição é editável.
+ * Apenas a descrição e a categoria (atributo não financeiro, ADR-0012) são editáveis.
  */
 public class Transaction {
 
@@ -40,6 +42,7 @@ public class Transaction {
     private TransactionStatus status;
     private final TransactionSource source;
     private final TransactionId refundOfTransactionId;
+    private TransactionCategory category;
     private final Instant createdAt;
     private Instant updatedAt;
     private final long version;
@@ -57,6 +60,7 @@ public class Transaction {
             TransactionStatus status,
             TransactionSource source,
             TransactionId refundOfTransactionId,
+            TransactionCategory category,
             Instant createdAt,
             Instant updatedAt,
             long version
@@ -73,6 +77,7 @@ public class Transaction {
         this.status = Objects.requireNonNull(status, "status");
         this.source = Objects.requireNonNull(source, "source");
         this.refundOfTransactionId = refundOfTransactionId;
+        this.category = category;
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
         this.version = version;
@@ -162,7 +167,7 @@ public class Transaction {
         requireTypeSpecificFields(type, accountId, destinationAccountId, adjustmentDirection, refundOfTransactionId);
 
         return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, initialStatus, source, refundOfTransactionId, now, now, 0);
+                occurredOn, description, initialStatus, source, refundOfTransactionId, null, now, now, 0);
     }
 
     public static Transaction restore(
@@ -178,12 +183,13 @@ public class Transaction {
             TransactionStatus status,
             TransactionSource source,
             TransactionId refundOfTransactionId,
+            TransactionCategory category,
             Instant createdAt,
             Instant updatedAt,
             long version
     ) {
         return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, status, source, refundOfTransactionId, createdAt, updatedAt, version);
+                occurredOn, description, status, source, refundOfTransactionId, category, createdAt, updatedAt, version);
     }
 
     private static void requireTypeSpecificFields(
@@ -266,6 +272,45 @@ public class Transaction {
         updatedAt = now;
     }
 
+    /**
+     * Atribui uma categoria do catálogo (ADR-0012 §2/§7). Idempotente. Vale em qualquer status: a categoria não muda
+     * saldo nem fluxo de caixa.
+     *
+     * @throws InvalidValueException {@code NOT_ALLOWED} em transferência e ajuste, {@code INCOMPATIBLE_WITH_TYPE}
+     *                               se a natureza não combina com o tipo e {@code INACTIVE} se a categoria saiu do
+     *                               catálogo
+     */
+    public void categorize(Category newCategory, Instant now) {
+        Objects.requireNonNull(newCategory, "category");
+
+        CategoryNature accepted = CategoryNature.acceptedBy(type)
+                .orElseThrow(() -> new InvalidValueException("categoryCode", "NOT_ALLOWED"));
+        if (newCategory.nature() != accepted) {
+            throw new InvalidValueException("categoryCode", "INCOMPATIBLE_WITH_TYPE");
+        }
+
+        TransactionCategory assigned = newCategory.asTransactionCategory();
+        if (assigned.equals(category)) {
+            return;
+        }
+        if (!newCategory.active()) {
+            throw new InvalidValueException("categoryCode", "INACTIVE");
+        }
+
+        category = assigned;
+        updatedAt = now;
+    }
+
+    /** Volta a "Sem categoria" (ADR-0012 §4). Idempotente. */
+    public void clearCategory(Instant now) {
+        if (category == null) {
+            return;
+        }
+
+        category = null;
+        updatedAt = now;
+    }
+
     public boolean isVoided() {
         return status.isVoided();
     }
@@ -316,6 +361,7 @@ public class Transaction {
     public TransactionStatus status() { return status; }
     public TransactionSource source() { return source; }
     public Optional<TransactionId> refundOfTransactionId() { return Optional.ofNullable(refundOfTransactionId); }
+    public Optional<TransactionCategory> category() { return Optional.ofNullable(category); }
     public Instant createdAt() { return createdAt; }
     public Instant updatedAt() { return updatedAt; }
     public long version() { return version; }

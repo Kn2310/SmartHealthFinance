@@ -42,6 +42,16 @@ const FIELD_ERROR: Record<FormField, Partial<Record<string, string>> & { fallbac
 export const fieldErrorMessage = (field: FormField, code: string) =>
   lookup(FIELD_ERROR[field], code, FIELD_ERROR[field].fallback)
 
+const CATEGORY_ERROR: Partial<Record<string, string>> = {
+  INVALID: 'Esta categoria não existe. Escolha outra da lista.',
+  INACTIVE: 'Esta categoria não está mais disponível. Escolha outra.',
+  NOT_ALLOWED: 'Transferências e ajustes não têm categoria.',
+  INCOMPATIBLE_WITH_TYPE: 'Esta categoria não combina com o tipo da transação. Escolha outra da lista.',
+}
+
+/** Erros do campo de categoria (ADR-0012 §7). */
+export const categoryErrorMessage = (code: string) => lookup(CATEGORY_ERROR, code, 'Escolha uma categoria da lista.')
+
 const REQUEST_FAILURE: Partial<Record<string, string>> = {
   TRANSACTION_NOT_FOUND: 'Esta transação não existe ou não está disponível para você.',
   TRANSACTION_STATUS_CONFLICT: 'O status desta transação mudou. Recarregue para ver as ações disponíveis.',

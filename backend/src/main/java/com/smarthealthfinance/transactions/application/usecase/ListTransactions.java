@@ -11,6 +11,7 @@ import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.repository.TransactionCriteria;
 import com.smarthealthfinance.transactions.domain.repository.TransactionPage;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
+import com.smarthealthfinance.transactions.domain.valueobject.CategoryCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,9 +34,21 @@ public class ListTransactions {
         this.transactions = transactions;
     }
 
-    /** Filtros nulos/em branco não filtram; {@code page} e {@code pageSize} nulos assumem os padrões. */
+    /**
+     * Filtros nulos/em branco não filtram; {@code page} e {@code pageSize} nulos assumem os padrões.
+     *
+     * @param categoryCode  só transações desta categoria (só o formato é validado, ADR-0012 §9)
+     * @param uncategorized {@code true} = só "Sem categoria"; exclusivo com {@code categoryCode}
+     */
     public record Query(LocalDate from, LocalDate to, String type, String status, UUID accountId, String text,
-                        Integer page, Integer pageSize) {}
+                        String categoryCode, Boolean uncategorized, Integer page, Integer pageSize) {
+
+        /** Sem filtro de categoria. */
+        public Query(LocalDate from, LocalDate to, String type, String status, UUID accountId, String text,
+                     Integer page, Integer pageSize) {
+            this(from, to, type, status, accountId, text, null, null, page, pageSize);
+        }
+    }
 
     @Transactional(readOnly = true)
     public TransactionPageView execute(UUID workspaceId, Query query) {
@@ -66,13 +79,21 @@ public class ListTransactions {
             throw new InvalidValueException("q", "TOO_LONG");
         }
 
+        CategoryCode category = isBlank(query.categoryCode()) ? null : new CategoryCode(query.categoryCode().strip());
+        boolean uncategorized = Boolean.TRUE.equals(query.uncategorized());
+        if (category != null && uncategorized) {
+            throw new InvalidValueException("uncategorized", "CONFLICTS_WITH_CATEGORY");
+        }
+
         return new TransactionCriteria(
                 query.from(),
                 query.to(),
                 isBlank(query.type()) ? null : TransactionType.parse(query.type()),
                 isBlank(query.status()) ? null : TransactionStatus.parse(query.status()),
                 query.accountId() == null ? null : new AccountId(query.accountId()),
-                text);
+                text,
+                category,
+                uncategorized);
     }
 
     private static boolean isBlank(String value) {

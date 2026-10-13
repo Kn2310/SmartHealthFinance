@@ -2,6 +2,7 @@ import 'server-only'
 import type { NextRequest, NextResponse } from 'next/server'
 import {
   ADJUSTMENT_DIRECTIONS,
+  CATEGORY_CODE_MAX_LENGTH,
   TRANSACTION_DESCRIPTION_MAX_LENGTH,
   TRANSACTION_SEARCH_MAX_LENGTH,
   TRANSACTION_STATUSES,
@@ -42,6 +43,8 @@ const MAX_BODY_BYTES = 4 * 1024
 const PLAIN_DECIMAL = /^\d{1,15}(\.\d{1,4})?$/
 /** Mesma regra do domínio (TransactionDescription): sem caracteres de controle. */
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/
+/** Mesmo formato do `CategoryCode` do backend (ADR-0012). */
+const CATEGORY_CODE = new RegExp(`^[A-Z][A-Z0-9_]{0,${CATEGORY_CODE_MAX_LENGTH - 1}}$`)
 
 const includes = <T extends string>(list: readonly T[], value: unknown): value is T =>
   (list as readonly unknown[]).includes(value)
@@ -58,6 +61,10 @@ export interface ListQuery {
   status?: TransactionStatus
   accountId?: string
   q?: string
+  /** Uma categoria do catálogo (ADR-0012 §9). */
+  categoryCode?: string
+  /** Só "Sem categoria"; nunca junto com `categoryCode`. */
+  uncategorized?: boolean
   page: number
   pageSize: number
 }
@@ -69,6 +76,8 @@ export function parseListQuery(search: URLSearchParams): ListQuery {
   const status = search.get('status')
   const accountId = search.get('accountId')
   const q = search.get('q')?.trim().slice(0, TRANSACTION_SEARCH_MAX_LENGTH)
+  const categoryCode = search.get('categoryCode')
+  const category = categoryCode !== null && CATEGORY_CODE.test(categoryCode) ? categoryCode : undefined
   const pageParam = Number(search.get('page') ?? '0')
   return {
     from: isIsoDate(from) ? from : undefined,
@@ -77,6 +86,8 @@ export function parseListQuery(search: URLSearchParams): ListQuery {
     status: includes(TRANSACTION_STATUSES, status) ? status : undefined,
     accountId: isUuid(accountId) ? accountId : undefined,
     q: q && !CONTROL.test(q) ? q : undefined,
+    categoryCode: category,
+    uncategorized: !category && search.get('uncategorized') === 'true' ? true : undefined,
     page: Number.isInteger(pageParam) && pageParam >= 0 && pageParam < MAX_PAGE ? pageParam : 0,
     pageSize: PAGE_SIZE,
   }
@@ -193,6 +204,20 @@ export async function readDescriptionBody(
   return { body: { description: text! } }
 }
 
+/** Corpo do `PUT ./category`: um código do catálogo ou `null` ("Sem categoria" — ADR-0012 §7). */
+export async function readCategoryBody(
+  request: NextRequest,
+): Promise<{ body: Schemas['CategorizeTransactionRequest'] } | { response: NextResponse }> {
+  const input = await readJsonObject(request)
+  if (!input || !('categoryCode' in input)) return { response: invalidRequest() }
+  const code = input.categoryCode
+  if (code === null) return { body: { categoryCode: null } }
+  if (typeof code !== 'string' || !CATEGORY_CODE.test(code)) {
+    return { response: validationFailed([{ field: 'categoryCode', code: 'INVALID' }]) }
+  }
+  return { body: { categoryCode: code } }
+}
+
 /** Saldo inicial de uma conta nova (ADR-0004 §4): valor positivo + direção, como num ADJUSTMENT. */
 export interface OpeningBalance {
   amount: string
@@ -300,7 +325,7 @@ export async function transitionTransaction(
 /** Campos que a UI conhece; `Idempotency-Key` recusada vira `INVALID_REQUEST` (problema do cliente, não do campo). */
 const FIELDS = new Set([
   'type', 'accountId', 'adjustmentDirection', 'amount', 'currency', 'occurredOn', 'description', 'status', 'from', 'to',
-  'q', 'page', 'pageSize',
+  'q', 'page', 'pageSize', 'categoryCode', 'uncategorized',
 ])
 /** Códigos da Bean Validation viram os do domínio; os do domínio passam se forem códigos estáveis. */
 const BEAN_CODES: Partial<Record<string, string>> = { NotBlank: 'REQUIRED', NotNull: 'REQUIRED', Size: 'TOO_LONG' }
