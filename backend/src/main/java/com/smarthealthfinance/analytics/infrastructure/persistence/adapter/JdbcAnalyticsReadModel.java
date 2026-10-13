@@ -5,6 +5,8 @@ import com.smarthealthfinance.analytics.application.usecase.RebuildAnalyticsProj
 import com.smarthealthfinance.analytics.application.usecase.RefreshAnalyticsProjection;
 import com.smarthealthfinance.analytics.domain.model.CategoryFlow;
 import com.smarthealthfinance.analytics.domain.model.DailyFlow;
+import com.smarthealthfinance.analytics.domain.model.ExpenseItem;
+import com.smarthealthfinance.analytics.domain.model.FlowEntry;
 import com.smarthealthfinance.analytics.domain.model.FlowTotals;
 import com.smarthealthfinance.analytics.domain.model.MerchantFlow;
 import com.smarthealthfinance.analytics.domain.model.MonthlyFlow;
@@ -25,6 +27,8 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Currency;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Leitura da projeção de Analytics (ADR-0014 §5), sempre com {@code workspace_id} no predicado e somas em NUMERIC.
@@ -117,6 +121,52 @@ public class JdbcAnalyticsReadModel implements AnalyticsReadModel {
                 (rs, row) -> new DailyFlow(rs.getObject("day", LocalDate.class), role(rs),
                         money(rs, "amount", currency), rs.getInt("transaction_count")),
                 workspaceId.value(), Date.valueOf(period.from()), Date.valueOf(period.to()));
+    }
+
+    @Override
+    public List<FlowEntry> entries(WorkspaceId workspaceId, AnalyticsPeriod period, Currency currency) {
+        return jdbc.query("""
+                        select f.day, f.flow, f.category_code, f.merchant_key, min(f.merchant_name) as merchant_name,
+                               sum(f.amount) as amount, sum(f.transaction_count) as transaction_count
+                        %s
+                          and %s
+                        group by f.day, f.flow, f.category_code, f.merchant_key
+                        order by f.day, f.flow, f.category_code nulls last, f.merchant_key nulls last
+                        """.formatted(FROM, IN_CASH_FLOW),
+                (rs, row) -> new FlowEntry(rs.getObject("day", LocalDate.class), role(rs),
+                        rs.getString("category_code"), rs.getString("merchant_key"), rs.getString("merchant_name"),
+                        money(rs, "amount", currency), rs.getInt("transaction_count")),
+                workspaceId.value(), Date.valueOf(period.from()), Date.valueOf(period.to()));
+    }
+
+    @Override
+    public Optional<LocalDate> firstActivity(WorkspaceId workspaceId) {
+        return Optional.ofNullable(jdbc.queryForObject("""
+                        select min(f.day)
+                        from analytics_daily_flows f
+                        join accounts a on a.id = f.account_id and a.workspace_id = f.workspace_id
+                        where f.workspace_id = ? and %s
+                        """.formatted(IN_CASH_FLOW),
+                LocalDate.class, workspaceId.value()));
+    }
+
+    @Override
+    public List<ExpenseItem> largestExpenses(WorkspaceId workspaceId, AnalyticsPeriod period, int limit,
+                                             Currency currency) {
+        return jdbc.query("""
+                        select t.id, t.occurred_on, t.description, t.merchant_name, t.category_code, t.amount
+                        from transactions t
+                        join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        where t.workspace_id = ? and t.status = 'POSTED' and t.type = 'EXPENSE'
+                          and t.occurred_on between ? and ?
+                          and a.status = 'ACTIVE' and a.included_in_total
+                        order by t.amount desc, t.occurred_on desc, t.id
+                        limit ?
+                        """,
+                (rs, row) -> new ExpenseItem(rs.getObject("id", UUID.class), rs.getObject("occurred_on", LocalDate.class),
+                        rs.getString("description"), rs.getString("merchant_name"), rs.getString("category_code"),
+                        money(rs, "amount", currency)),
+                workspaceId.value(), Date.valueOf(period.from()), Date.valueOf(period.to()), limit);
     }
 
     /**

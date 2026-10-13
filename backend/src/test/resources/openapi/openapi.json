@@ -1168,6 +1168,454 @@
         "tags" : [ "Accounts" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/analytics/categories" : {
+      "get" : {
+        "operationId" : "categories",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês analisado (YYYY-MM); padrão o mês corrente, parcial até hoje",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "PREVIOUS (padrão: mesmos dias do mês anterior) ou AVERAGE (média)",
+          "in" : "query",
+          "name" : "compareWith",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Meses da média, 1 a 12 (padrão 5), no mesmo recorte de dias",
+          "in" : "query",
+          "name" : "averageMonths",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE, compareWith INVALID, averageMonths OUT_OF_RANGE e os do próprio endpoint)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Categorias de despesa do mês com participação, reembolsos e variações",
+        "tags" : [ "Analytics" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/analytics/categories/{categoryCode}" : {
+      "get" : {
+        "operationId" : "category",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "categoryCode",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês analisado (YYYY-MM); padrão o mês corrente, parcial até hoje",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "PREVIOUS (padrão: mesmos dias do mês anterior) ou AVERAGE (média)",
+          "in" : "query",
+          "name" : "compareWith",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Meses da média, 1 a 12 (padrão 5), no mesmo recorte de dias",
+          "in" : "query",
+          "name" : "averageMonths",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE, compareWith INVALID, averageMonths OUT_OF_RANGE e os do próprio endpoint); categoryCode INVALID (fora do catálogo)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Detalhe de uma categoria: valor, compras, ticket médio, 6 meses e maiores comerciantes",
+        "tags" : [ "Analytics" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/analytics/evolution" : {
+      "get" : {
+        "operationId" : "evolution",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês analisado (YYYY-MM); padrão o mês corrente, parcial até hoje",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Quantos meses, 1 a 12 (padrão 6)",
+          "in" : "query",
+          "name" : "months",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE, compareWith INVALID, averageMonths OUT_OF_RANGE e os do próprio endpoint); months OUT_OF_RANGE"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Evolução mês a mês (receitas, despesas, reembolsos, resultado) até o mês analisado",
+        "tags" : [ "Analytics" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/analytics/income" : {
+      "get" : {
+        "operationId" : "income",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês analisado (YYYY-MM); padrão o mês corrente, parcial até hoje",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "PREVIOUS (padrão: mesmos dias do mês anterior) ou AVERAGE (média)",
+          "in" : "query",
+          "name" : "compareWith",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Meses da média, 1 a 12 (padrão 5), no mesmo recorte de dias",
+          "in" : "query",
+          "name" : "averageMonths",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE, compareWith INVALID, averageMonths OUT_OF_RANGE e os do próprio endpoint)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Receitas: total, média, fontes (recorrente ou pontual) e 6 meses",
+        "tags" : [ "Analytics" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/analytics/merchants" : {
+      "get" : {
+        "operationId" : "merchants",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês analisado (YYYY-MM); padrão o mês corrente, parcial até hoje",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "PREVIOUS (padrão: mesmos dias do mês anterior) ou AVERAGE (média)",
+          "in" : "query",
+          "name" : "compareWith",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Meses da média, 1 a 12 (padrão 5), no mesmo recorte de dias",
+          "in" : "query",
+          "name" : "averageMonths",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "AMOUNT (padrão) ou COUNT",
+          "in" : "query",
+          "name" : "sort",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE, compareWith INVALID, averageMonths OUT_OF_RANGE e os do próprio endpoint); sort INVALID"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Comerciantes do mês: ranking por valor ou frequência, categoria principal e variações",
+        "tags" : [ "Analytics" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/analytics/overview" : {
+      "get" : {
+        "operationId" : "overview",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês analisado (YYYY-MM); padrão o mês corrente, parcial até hoje",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "PREVIOUS (padrão: mesmos dias do mês anterior) ou AVERAGE (média)",
+          "in" : "query",
+          "name" : "compareWith",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Meses da média, 1 a 12 (padrão 5), no mesmo recorte de dias",
+          "in" : "query",
+          "name" : "averageMonths",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE, compareWith INVALID, averageMonths OUT_OF_RANGE e os do próprio endpoint)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Visão geral: receitas, despesas, resultado, 6 meses, composição e variações do resultado",
+        "tags" : [ "Analytics" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/analytics/spending" : {
+      "get" : {
+        "operationId" : "spending",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês analisado (YYYY-MM); padrão o mês corrente, parcial até hoje",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "PREVIOUS (padrão: mesmos dias do mês anterior) ou AVERAGE (média)",
+          "in" : "query",
+          "name" : "compareWith",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Meses da média, 1 a 12 (padrão 5), no mesmo recorte de dias",
+          "in" : "query",
+          "name" : "averageMonths",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE, compareWith INVALID, averageMonths OUT_OF_RANGE e os do próprio endpoint)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Gastos: total, média por dia, acumulado do mês × anterior, maiores gastos e categorias",
+        "tags" : [ "Analytics" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/analytics/status" : {
       "get" : {
         "operationId" : "status",

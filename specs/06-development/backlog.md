@@ -83,8 +83,11 @@
 
 ## M5 Analytics
 
-- [ ] spending analysis
-- [ ] income analysis
+- [x] analytics API (`GET .../analytics/{overview,spending,income,categories,categories/{code},merchants,evolution}`;
+  mês + bases "mês anterior" e "média" no mesmo recorte de dias; Estável < 5%; composição e decomposição da
+  variação que fecham exatamente; fontes de receita recorrentes — ADR-0015)
+- [ ] spending analysis — API pronta (ADR-0015); falta a UI (parte E)
+- [ ] income analysis — API pronta (ADR-0015); falta a UI (parte E)
 - [x] categories (catálogo do sistema 22 + 6, sem hierarquia; categoria em INCOME/EXPENSE/REFUND, nulo = "Sem
   categoria"; `GET /workspaces/{id}/categories`, `PUT .../transactions/{id}/category`, filtro `categoryCode` /
   `uncategorized`; FK composta tipo × natureza no banco; UI: categoria na lista, filtro e "Alterar categoria" no
@@ -95,7 +98,7 @@
   da importação — ADR-0013)
 - [x] merchants (comerciante derivado da descrição por `MerchantNormalizer` v1, atributo da transação, sem entidade —
   ADR-0013; renomear/mesclar comerciantes e botão de "categorizar pendentes" na UI ficam para depois)
-- [ ] evolution
+- [ ] evolution — API pronta (ADR-0015); falta a UI (parte E); score na evolução fica para o M6
 - [x] read models (projeção materializada `analytics_daily_flows` por eventos, consumidor idempotente com inbox,
   retry e DLQ, rebuild na inicialização + runbook, freshness em `GET .../analytics/status`, paridade com a
   referência do domínio — ADR-0014)

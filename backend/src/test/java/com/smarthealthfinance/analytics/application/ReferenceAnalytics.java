@@ -5,6 +5,8 @@ import com.smarthealthfinance.accounts.domain.model.Account;
 import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.analytics.domain.model.CategoryFlow;
 import com.smarthealthfinance.analytics.domain.model.DailyFlow;
+import com.smarthealthfinance.analytics.domain.model.ExpenseItem;
+import com.smarthealthfinance.analytics.domain.model.FlowEntry;
 import com.smarthealthfinance.analytics.domain.model.FlowTotals;
 import com.smarthealthfinance.analytics.domain.model.MerchantFlow;
 import com.smarthealthfinance.analytics.domain.model.MonthlyFlow;
@@ -14,7 +16,10 @@ import com.smarthealthfinance.transactions.domain.enums.CashFlowRole;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.valueobject.Merchant;
 
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Comparator;
+import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.EnumSet;
@@ -93,6 +98,39 @@ public final class ReferenceAnalytics {
                 .entrySet().stream()
                 .map(e -> new DailyFlow(e.getKey().day(), e.getKey().role(), total(e.getValue()),
                         e.getValue().size()))
+                .toList();
+    }
+
+    public List<FlowEntry> entries(AnalyticsPeriod period) {
+        record Key(LocalDate day, CashFlowRole role, String category, String merchant) {
+        }
+        return inCashFlow(period).stream()
+                .collect(Collectors.groupingBy(t -> new Key(t.occurredOn(), t.cashFlowRole(), category(t),
+                        t.merchant().map(Merchant::key).orElse(null))))
+                .entrySet().stream()
+                .map(e -> new FlowEntry(e.getKey().day(), e.getKey().role(), e.getKey().category(),
+                        e.getKey().merchant(), e.getValue().getFirst().merchant().map(Merchant::name).orElse(null),
+                        total(e.getValue()), e.getValue().size()))
+                .toList();
+    }
+
+    public Optional<LocalDate> firstActivity() {
+        return transactions.stream()
+                .filter(t -> CASH_FLOW.contains(t.cashFlowRole()))
+                .filter(t -> countsInTotal(accounts.get(t.accountId())))
+                .map(Transaction::occurredOn)
+                .min(Comparator.naturalOrder());
+    }
+
+    /** Maiores despesas: valor desc, data desc (os dados do teste não empatam nos dois). */
+    public List<ExpenseItem> largestExpenses(AnalyticsPeriod period, int limit) {
+        return inCashFlow(period).stream()
+                .filter(t -> t.cashFlowRole() == CashFlowRole.EXPENSE)
+                .sorted(Comparator.comparing((Transaction t) -> t.amount().amount()).reversed()
+                        .thenComparing(Transaction::occurredOn, Comparator.reverseOrder()))
+                .limit(limit)
+                .map(t -> new ExpenseItem(t.id().value(), t.occurredOn(), t.description().value(),
+                        t.merchant().map(Merchant::name).orElse(null), category(t), t.amount()))
                 .toList();
     }
 
