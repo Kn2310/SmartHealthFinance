@@ -61,6 +61,7 @@ export function TransactionsView() {
           filters={filters}
           onFiltersChange={change}
           defaultPeriod={DEFAULT_PERIOD}
+          summary
           firstTimeEmpty={
             <section className={accountStyles.empty} aria-labelledby="first-time-title">
               <span className={accountStyles.stateIcon} aria-hidden="true">

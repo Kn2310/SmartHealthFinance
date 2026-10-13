@@ -1,5 +1,6 @@
 /**
- * CONTRATO MANUAL E TEMPORÁRIO do backend usado pelo frontend (Identity, Overview, Accounts, Transactions e Imports) — ADR-0007 §6.
+ * CONTRATO MANUAL E TEMPORÁRIO do backend usado pelo frontend (Identity, Overview, Accounts, Transactions, Imports e
+ * Analytics) — ADR-0007 §6.
  *
  * Escrito no formato do openapi-typescript a partir dos DTOs reais (OverviewResponse, ProvisionedUserResponse,
  * ApiError). É a fonte de verdade do frontend enquanto o OpenAPI do backend não declarar:
@@ -154,6 +155,168 @@ export interface components {
     }
     CategoryListResponse: { items: components['schemas']['CategoryResponse'][] }
     /** Importação de extrato (ADR-0009). `lines.total = valid + invalid + duplicate`. */
+    /** Métricas do período filtrado da lista (ADR-0016): só POSTED; net = income + refunds − expense. */
+    TransactionSummaryResponse: {
+      income: components['schemas']['MoneyDto']
+      expense: components['schemas']['MoneyDto']
+      refunds: components['schemas']['MoneyDto']
+      net: components['schemas']['MoneyDto']
+      transfers: { count: number; volume: components['schemas']['MoneyDto'] }
+      postedCount: number
+      pendingCount: number
+    }
+    /** Freshness da projeção de Analytics (ADR-0014 §6). */
+    AnalyticsStatusResponse: {
+      state: AnalysisFreshnessState
+      refreshedAt: string | null
+      pendingEvents: number
+    }
+    /** Análise (ADR-0015): `state = NO_DATA` → blocos de dados nulos; variações nulas = base indisponível. */
+    AnalysisOverviewResponse: {
+      workspaceId: string
+      state: AnalysisDataState
+      period: AnalysisPeriodInfo
+      comparison: AnalysisComparison
+      freshness: AnalysisFreshness
+      income: AnalysisMetric | null
+      expense: AnalysisMetric | null
+      refunds: AnalysisMetric | null
+      net: AnalysisMetric | null
+      /** % da receita não gasta, 1 casa; nula sem receitas. */
+      savedShare: string | null
+      months: AnalysisMonth[] | null
+      averageExpense: components['schemas']['MoneyDto'] | null
+      composition: {
+        income: components['schemas']['MoneyDto']
+        refunds: components['schemas']['MoneyDto']
+        inflows: components['schemas']['MoneyDto']
+        outflows: {
+          group: 'CATEGORY' | 'UNCATEGORIZED' | 'OTHERS'
+          categoryCode: string | null
+          amount: components['schemas']['MoneyDto']
+          categories: number
+        }[]
+        net: components['schemas']['MoneyDto']
+      } | null
+      changes: {
+        currentNet: components['schemas']['MoneyDto']
+        baseNet: components['schemas']['MoneyDto']
+        netDelta: components['schemas']['MoneyDto']
+        items: {
+          kind: 'INCOME' | 'REFUNDS' | 'EXPENSE_CATEGORY'
+          categoryCode: string | null
+          current: components['schemas']['MoneyDto']
+          base: components['schemas']['MoneyDto']
+          delta: components['schemas']['MoneyDto']
+          impact: components['schemas']['MoneyDto']
+          merchants: {
+            merchantKey: string | null
+            current: components['schemas']['MoneyDto']
+            base: components['schemas']['MoneyDto']
+            delta: components['schemas']['MoneyDto']
+          }[]
+        }[]
+      } | null
+      topCategories: AnalysisCategory[] | null
+    }
+    AnalysisSpendingResponse: {
+      workspaceId: string
+      state: AnalysisDataState
+      period: AnalysisPeriodInfo
+      comparison: AnalysisComparison
+      freshness: AnalysisFreshness
+      total: AnalysisMetric | null
+      refunds: components['schemas']['MoneyDto'] | null
+      dailyAverage: components['schemas']['MoneyDto'] | null
+      previousDailyAverage: components['schemas']['MoneyDto'] | null
+      cumulative: AnalysisDay[]
+      previousCumulative: AnalysisDay[]
+      largestExpenses: {
+        transactionId: string
+        occurredOn: string
+        description: string
+        merchantName: string | null
+        categoryCode: string | null
+        amount: components['schemas']['MoneyDto']
+      }[]
+      categories: AnalysisCategory[]
+    }
+    AnalysisIncomeResponse: {
+      workspaceId: string
+      state: AnalysisDataState
+      period: AnalysisPeriodInfo
+      comparison: AnalysisComparison
+      freshness: AnalysisFreshness
+      total: AnalysisMetric | null
+      monthlyAverage: components['schemas']['MoneyDto'] | null
+      sources: {
+        merchantKey: string | null
+        merchantName: string | null
+        categoryCode: string | null
+        amount: components['schemas']['MoneyDto']
+        share: string | null
+        transactionCount: number
+        recurrence: 'RECURRING' | 'OCCASIONAL'
+        typicalDay: number | null
+        lastReceivedOn: string
+      }[]
+      months: AnalysisMonth[]
+    }
+    AnalysisCategoriesResponse: {
+      workspaceId: string
+      state: AnalysisDataState
+      period: AnalysisPeriodInfo
+      comparison: AnalysisComparison
+      freshness: AnalysisFreshness
+      totalExpense: components['schemas']['MoneyDto'] | null
+      categories: AnalysisCategory[]
+    }
+    AnalysisCategoryDetailResponse: {
+      workspaceId: string
+      state: AnalysisDataState
+      period: AnalysisPeriodInfo
+      comparison: AnalysisComparison
+      freshness: AnalysisFreshness
+      categoryCode: string
+      nature: 'EXPENSE' | 'INCOME'
+      amount: AnalysisMetric | null
+      transactionCount: number
+      averageTicket: components['schemas']['MoneyDto'] | null
+      history: { month: string; partial: boolean; amount: components['schemas']['MoneyDto']; transactionCount: number }[]
+      merchants: {
+        merchantKey: string | null
+        merchantName: string | null
+        amount: components['schemas']['MoneyDto']
+        transactionCount: number
+      }[]
+    }
+    AnalysisMerchantsResponse: {
+      workspaceId: string
+      state: AnalysisDataState
+      period: AnalysisPeriodInfo
+      comparison: AnalysisComparison
+      freshness: AnalysisFreshness
+      sort: 'AMOUNT' | 'COUNT'
+      merchants: {
+        merchantKey: string
+        merchantName: string
+        categoryCode: string | null
+        transactionCount: number
+        amount: components['schemas']['MoneyDto']
+        vsPrevious: AnalysisVariation | null
+        vsAverage: AnalysisVariation | null
+        lastPurchaseOn: string | null
+      }[]
+      unidentified: components['schemas']['MoneyDto'] | null
+    }
+    AnalysisEvolutionResponse: {
+      workspaceId: string
+      state: AnalysisDataState
+      period: AnalysisPeriodInfo
+      comparison: AnalysisComparison
+      freshness: AnalysisFreshness
+      months: AnalysisMonth[]
+    }
     ImportResponse: {
       id: string
       workspaceId: string
@@ -195,6 +358,80 @@ export interface components {
       totalItems: number
     }
   }
+}
+
+type MoneyDto = components['schemas']['MoneyDto']
+export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
+export type AnalysisTrend = 'UP' | 'DOWN' | 'STABLE' | 'NEW' | 'GONE'
+/** Variação contra uma base (ADR-0015 §3): percent com 1 casa; nulo com base zero. */
+export interface AnalysisVariation {
+  base: MoneyDto
+  difference: MoneyDto
+  percent: string | null
+  trend: AnalysisTrend
+}
+export interface AnalysisMetric {
+  amount: MoneyDto
+  vsPrevious: AnalysisVariation | null
+  vsAverage: AnalysisVariation | null
+}
+export interface AnalysisMonth {
+  month: string
+  partial: boolean
+  income: MoneyDto
+  expense: MoneyDto
+  refunds: MoneyDto
+  net: MoneyDto
+}
+export interface AnalysisDay {
+  day: number
+  amount: MoneyDto
+}
+export interface AnalysisCategory {
+  categoryCode: string | null
+  amount: MoneyDto
+  share: string | null
+  transactionCount: number
+  refunds: MoneyDto
+  vsPrevious: AnalysisVariation | null
+  vsAverage: AnalysisVariation | null
+}
+export type AnalysisDataState = 'NO_DATA' | 'NO_ACTIVITY_IN_PERIOD' | 'READY'
+export interface AnalysisPeriodInfo {
+  month: string
+  from: string
+  to: string
+  partial: boolean
+  daysElapsed: number
+  daysInMonth: number
+}
+export interface AnalysisFreshness {
+  state: AnalysisFreshnessState
+  refreshedAt: string | null
+  pendingEvents: number
+}
+export interface AnalysisComparison {
+  selected: 'PREVIOUS' | 'AVERAGE'
+  previous: { from: string; to: string } | null
+  average: {
+    requestedMonths: number
+    monthsUsed: number
+    months: string[]
+    state: 'AVAILABLE' | 'LIMITED' | 'INSUFFICIENT_DATA'
+  }
+}
+/** Campos comuns a toda resposta da Análise (ADR-0015 §4). */
+export interface AnalysisMeta {
+  workspaceId: string
+  state: AnalysisDataState
+  period: AnalysisPeriodInfo
+  comparison: AnalysisComparison
+  freshness: AnalysisFreshness
+}
+type AnalysisErrors = {
+  400: { content: { 'application/json': components['schemas']['ApiError'] } }
+  401: { content: { 'application/json': components['schemas']['ApiError'] } }
+  404: { content: { 'application/json': components['schemas']['ApiError'] } }
 }
 
 type ImportErrors = {
@@ -313,6 +550,73 @@ export interface paths {
         201: { content: { 'application/json': components['schemas']['TransactionResponse'] } }
         422: { content: { 'application/json': components['schemas']['ApiError'] } }
       } & TransactionErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/transactions/summary': {
+    get: {
+      parameters: {
+        query?: {
+          from?: string
+          to?: string
+          type?: components['schemas']['TransactionResponse']['type']
+          accountId?: string
+          q?: string
+          categoryCode?: string
+          uncategorized?: boolean
+        }
+        path: { workspaceId: string }
+      }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['TransactionSummaryResponse'] } }
+      } & TransactionErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/analytics/status': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['AnalyticsStatusResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/analytics/overview': {
+    get: {
+      parameters: { query?: { month?: string; compareWith?: 'PREVIOUS' | 'AVERAGE'; averageMonths?: number }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['AnalysisOverviewResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/analytics/spending': {
+    get: {
+      parameters: { query?: { month?: string; compareWith?: 'PREVIOUS' | 'AVERAGE'; averageMonths?: number }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['AnalysisSpendingResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/analytics/income': {
+    get: {
+      parameters: { query?: { month?: string; compareWith?: 'PREVIOUS' | 'AVERAGE'; averageMonths?: number }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['AnalysisIncomeResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/analytics/categories': {
+    get: {
+      parameters: { query?: { month?: string; compareWith?: 'PREVIOUS' | 'AVERAGE'; averageMonths?: number }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['AnalysisCategoriesResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/analytics/categories/{categoryCode}': {
+    get: {
+      parameters: { query?: { month?: string; compareWith?: 'PREVIOUS' | 'AVERAGE'; averageMonths?: number }; path: { workspaceId: string; categoryCode: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['AnalysisCategoryDetailResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/analytics/merchants': {
+    get: {
+      parameters: { query?: { month?: string; compareWith?: 'PREVIOUS' | 'AVERAGE'; averageMonths?: number; sort?: 'AMOUNT' | 'COUNT' }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['AnalysisMerchantsResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/analytics/evolution': {
+    get: {
+      parameters: { query?: { month?: string; months?: number }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['AnalysisEvolutionResponse'] } } } & AnalysisErrors
     }
   }
   '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}': {

@@ -1,0 +1,71 @@
+/* Gráficos do DS (design/specs/02-components, "Gráficos"): sem pizza nem gauge; mês parcial tracejado. */
+
+.figure {
+  margin: 0;
+  min-width: 0;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.axis { stroke: var(--color-neutral-border); stroke-width: 1; }
+.tick { fill: var(--color-neutral-muted); font: var(--type-caption); }
+
+.income { fill: var(--color-brand-intelligent-teal); }
+.expense { fill: var(--color-brand-deep-navy); }
+.refund { fill: var(--color-brand-soft-blue); }
+.net { fill: var(--color-semantic-success); }
+.partial { fill-opacity: 0.35; stroke-dasharray: 4 3; stroke-width: 1.5; }
+.partial.income { stroke: var(--color-brand-intelligent-teal); }
+.partial.expense { stroke: var(--color-brand-deep-navy); }
+
+.lineCurrent { fill: none; stroke: var(--color-brand-deep-navy); stroke-width: 2.5; }
+.linePrevious { fill: none; stroke: var(--color-neutral-muted); stroke-width: 2; stroke-dasharray: 6 4; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  margin-top: var(--space-12);
+  color: var(--color-neutral-text-secondary);
+  font: var(--type-caption);
+}
+
+.legendItem { display: inline-flex; align-items: center; gap: var(--space-4); }
+.swatch { width: 12px; height: 12px; border-radius: 2px; }
+.swatchIncome { background: var(--color-brand-intelligent-teal); }
+.swatchExpense { background: var(--color-brand-deep-navy); }
+.swatchPrevious { border-top: 2px dashed var(--color-neutral-muted); height: 0; width: 16px; border-radius: 0; }
+.swatchPartial { border: 1.5px dashed var(--color-brand-deep-navy); background: transparent; }
+
+.caption {
+  margin-top: var(--space-8);
+  color: var(--color-neutral-muted);
+  font: var(--type-caption);
+}
+
+/* Alternativa textual: os dados do gráfico em tabela (sempre no DOM, aberta sob demanda). */
+.data { margin-top: var(--space-12); font: var(--type-body-s); }
+.data summary { cursor: pointer; color: var(--color-semantic-text-info); width: fit-content; }
+.table { width: 100%; margin-top: var(--space-8); border-collapse: collapse; }
+.table th, .table td { padding: var(--space-4) var(--space-8); text-align: right; border-bottom: 1px solid var(--color-neutral-border); }
+.table th:first-child, .table td:first-child { text-align: left; }
+.table thead th { color: var(--color-neutral-muted); font: var(--type-caption); }
+
+/* Barras horizontais e waterfall: lista textual com uma barra SVG por linha. */
+.rows { display: grid; gap: var(--space-12); }
+.row { display: grid; gap: var(--space-4); }
+.rowHead { display: flex; justify-content: space-between; gap: var(--space-12); align-items: baseline; }
+.rowLabel { min-width: 0; overflow-wrap: anywhere; }
+.rowValue { white-space: nowrap; font-weight: 600; }
+.rowNote { color: var(--color-neutral-muted); font: var(--type-caption); }
+.bar { display: block; width: 100%; height: 8px; }
+.track { fill: var(--color-neutral-track); }
+.barExpense { fill: var(--color-brand-deep-navy); }
+.barIncome { fill: var(--color-brand-intelligent-teal); }
+.barNet { fill: var(--color-semantic-success); }
+.barNegative { fill: var(--color-semantic-danger); }

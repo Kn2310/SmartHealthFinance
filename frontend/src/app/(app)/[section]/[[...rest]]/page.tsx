@@ -3,7 +3,6 @@ import { ComingSoon } from '@/components/ComingSoon'
 
 const SECTIONS: Record<string, string> = {
   cards: 'Cartões',
-  analysis: 'Análise',
   goals: 'Objetivos',
   insights: 'Insights',
   copilot: 'Copilot',
