@@ -57,6 +57,8 @@ definem:
    - Correção = cancelar/estornar + novo lançamento, o que preserva a trilha.
    - Só a `description` é editável (`PUT .../{id}`).
    - Os campos financeiros também são `updatable = false` no mapeamento JPA.
+   - **Adendo (2026-10-13, ADR-0012):** a categoria também é editável (`PUT .../{id}/category`). Ela é um atributo
+     não financeiro: não muda saldo nem fluxo de caixa.
    - Não existe exclusão física (`DELETE` → 405).
 9. **Contas.**
    - A conta (e o destino) precisa existir no Workspace autorizado (`404 ACCOUNT_NOT_FOUND`) e estar ativa
@@ -82,6 +84,7 @@ definem:
     - Estimativas e simulações nunca são transações (05.13 §5).
 13. **Categorias adiadas para o M5** (backlog: Analytics → categories). Não há campo de categoria nem
     "Alterar categoria" no M2.
+    - **Substituído (2026-10-13)** pelo ADR-0012: catálogo do sistema e categoria em `INCOME`/`EXPENSE`/`REFUND`.
 14. **Eventos `transaction.*` adiados** até existir o Transactional Outbox (mesma decisão dos ADR-0003/0004).
     - O fan-out da spec 05.7 (`transaction.posted` → Analytics/Health/Forecast/Insights) entra junto com a outbox.
 15. **Direção entre módulos:** Transactions → Accounts → Identity, garantida por ArchUnit.
