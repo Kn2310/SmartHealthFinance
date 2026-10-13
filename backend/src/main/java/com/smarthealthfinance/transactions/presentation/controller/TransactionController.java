@@ -9,6 +9,7 @@ import com.smarthealthfinance.transactions.application.usecase.GetTransaction;
 import com.smarthealthfinance.transactions.application.usecase.ListTransactions;
 import com.smarthealthfinance.transactions.application.usecase.PostTransaction;
 import com.smarthealthfinance.transactions.application.usecase.ReverseTransaction;
+import com.smarthealthfinance.transactions.application.usecase.SummarizeTransactions;
 import com.smarthealthfinance.transactions.application.usecase.UpdateTransaction;
 import com.smarthealthfinance.transactions.presentation.dto.request.CategorizeTransactionRequest;
 import com.smarthealthfinance.transactions.presentation.dto.request.CreateTransactionRequest;
@@ -16,6 +17,7 @@ import com.smarthealthfinance.transactions.presentation.dto.request.UpdateTransa
 import com.smarthealthfinance.transactions.presentation.dto.response.CategorizePendingResponse;
 import com.smarthealthfinance.transactions.presentation.dto.response.TransactionPageResponse;
 import com.smarthealthfinance.transactions.presentation.dto.response.TransactionResponse;
+import com.smarthealthfinance.transactions.presentation.dto.response.TransactionSummaryResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -47,12 +49,14 @@ public class TransactionController {
     private final ReverseTransaction reverseTransaction;
     private final CategorizeTransaction categorizeTransaction;
     private final AutoCategorizePending autoCategorizePending;
+    private final SummarizeTransactions summarizeTransactions;
 
     public TransactionController(ListTransactions listTransactions, GetTransaction getTransaction,
                                  CreateTransaction createTransaction, UpdateTransaction updateTransaction,
                                  PostTransaction postTransaction, CancelTransaction cancelTransaction,
                                  ReverseTransaction reverseTransaction, CategorizeTransaction categorizeTransaction,
-                                 AutoCategorizePending autoCategorizePending) {
+                                 AutoCategorizePending autoCategorizePending,
+                                 SummarizeTransactions summarizeTransactions) {
         this.listTransactions = listTransactions;
         this.getTransaction = getTransaction;
         this.createTransaction = createTransaction;
@@ -62,6 +66,7 @@ public class TransactionController {
         this.reverseTransaction = reverseTransaction;
         this.categorizeTransaction = categorizeTransaction;
         this.autoCategorizePending = autoCategorizePending;
+        this.summarizeTransactions = summarizeTransactions;
     }
 
     @GetMapping
@@ -92,6 +97,33 @@ public class TransactionController {
             @RequestParam(required = false) Integer pageSize) {
         return TransactionPageResponse.from(listTransactions.execute(workspaceId, new ListTransactions.Query(
                 from, to, type, status, accountId, q, categoryCode, uncategorized, page, pageSize)));
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "Métricas do período filtrado (mesmos filtros da lista): receitas, despesas, reembolsos, "
+            + "transferências e resultado, só de transações lançadas")
+    @ApiResponse(responseCode = "200", description = "Resumo")
+    @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED (filtro inválido)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public TransactionSummaryResponse summary(
+            @PathVariable UUID workspaceId,
+            @Parameter(description = "occurredOn mínimo, inclusivo (YYYY-MM-DD)")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @Parameter(description = "occurredOn máximo, inclusivo (YYYY-MM-DD)")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) String type,
+            @Parameter(description = "Conta de origem ou de destino; com conta, os valores são dessa conta")
+            @RequestParam(required = false) UUID accountId,
+            @Parameter(description = "Trecho da descrição")
+            @RequestParam(required = false) String q,
+            @Parameter(description = "Código da categoria (ADR-0012)")
+            @RequestParam(required = false) String categoryCode,
+            @Parameter(description = "true = só transações sem categoria; exclusivo com categoryCode")
+            @RequestParam(required = false) Boolean uncategorized) {
+        return TransactionSummaryResponse.from(summarizeTransactions.execute(workspaceId, new ListTransactions.Query(
+                from, to, type, null, accountId, q, categoryCode, uncategorized, null, null)));
     }
 
     @PostMapping

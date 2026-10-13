@@ -69,7 +69,8 @@ public class ListTransactions {
                 result.totalItems());
     }
 
-    private static TransactionCriteria toCriteria(Query query) {
+    /** Também usado pelo resumo (ADR-0016): mesmos filtros, mesmas validações. */
+    static TransactionCriteria toCriteria(Query query) {
         if (query.from() != null && query.to() != null && query.to().isBefore(query.from())) {
             throw new InvalidValueException("to", "BEFORE_FROM");
         }

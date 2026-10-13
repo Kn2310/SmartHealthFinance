@@ -91,6 +91,717 @@
         },
         "type" : "object"
       },
+      "AnalysisAverageDto" : {
+        "properties" : {
+          "months" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "monthsUsed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "requestedMonths" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisCategoriesResponse" : {
+        "properties" : {
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisCategoryDto"
+            },
+            "type" : "array"
+          },
+          "comparison" : {
+            "$ref" : "#/components/schemas/AnalysisComparisonDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/AnalysisFreshnessDto"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/AnalysisPeriodDto"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "totalExpense" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisCategoryDetailResponse" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/AnalysisMetricDto"
+          },
+          "averageTicket" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "comparison" : {
+            "$ref" : "#/components/schemas/AnalysisComparisonDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/AnalysisFreshnessDto"
+          },
+          "history" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisCategoryMonthDto"
+            },
+            "type" : "array"
+          },
+          "merchants" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisMerchantAmountDto"
+            },
+            "type" : "array"
+          },
+          "nature" : {
+            "type" : "string"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/AnalysisPeriodDto"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "transactionCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisCategoryDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "refunds" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "share" : {
+            "type" : "string"
+          },
+          "transactionCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "vsAverage" : {
+            "$ref" : "#/components/schemas/AnalysisVariationDto"
+          },
+          "vsPrevious" : {
+            "$ref" : "#/components/schemas/AnalysisVariationDto"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisCategoryMonthDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "transactionCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisChangeDto" : {
+        "properties" : {
+          "base" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "current" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "delta" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "impact" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "merchants" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisMerchantChangeDto"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisChangesDto" : {
+        "properties" : {
+          "baseNet" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "currentNet" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisChangeDto"
+            },
+            "type" : "array"
+          },
+          "netDelta" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisComparisonDto" : {
+        "properties" : {
+          "average" : {
+            "$ref" : "#/components/schemas/AnalysisAverageDto"
+          },
+          "previous" : {
+            "$ref" : "#/components/schemas/AnalysisRangeDto"
+          },
+          "selected" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisCompositionDto" : {
+        "properties" : {
+          "income" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "inflows" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "net" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "outflows" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisOutflowDto"
+            },
+            "type" : "array"
+          },
+          "refunds" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisDayDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "day" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisEvolutionResponse" : {
+        "properties" : {
+          "comparison" : {
+            "$ref" : "#/components/schemas/AnalysisComparisonDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/AnalysisFreshnessDto"
+          },
+          "months" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisMonthDto"
+            },
+            "type" : "array"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/AnalysisPeriodDto"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisExpenseDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "merchantName" : {
+            "type" : "string"
+          },
+          "occurredOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "transactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisFreshnessDto" : {
+        "properties" : {
+          "pendingEvents" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "refreshedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisIncomeResponse" : {
+        "properties" : {
+          "comparison" : {
+            "$ref" : "#/components/schemas/AnalysisComparisonDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/AnalysisFreshnessDto"
+          },
+          "monthlyAverage" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "months" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisMonthDto"
+            },
+            "type" : "array"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/AnalysisPeriodDto"
+          },
+          "sources" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisIncomeSourceDto"
+            },
+            "type" : "array"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "total" : {
+            "$ref" : "#/components/schemas/AnalysisMetricDto"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisIncomeSourceDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "lastReceivedOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "merchantKey" : {
+            "type" : "string"
+          },
+          "merchantName" : {
+            "type" : "string"
+          },
+          "recurrence" : {
+            "type" : "string"
+          },
+          "share" : {
+            "type" : "string"
+          },
+          "transactionCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "typicalDay" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisMerchantAmountDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "merchantKey" : {
+            "type" : "string"
+          },
+          "merchantName" : {
+            "type" : "string"
+          },
+          "transactionCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisMerchantChangeDto" : {
+        "properties" : {
+          "base" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "current" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "delta" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "merchantKey" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisMerchantDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "lastPurchaseOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "merchantKey" : {
+            "type" : "string"
+          },
+          "merchantName" : {
+            "type" : "string"
+          },
+          "transactionCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "vsAverage" : {
+            "$ref" : "#/components/schemas/AnalysisVariationDto"
+          },
+          "vsPrevious" : {
+            "$ref" : "#/components/schemas/AnalysisVariationDto"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisMerchantsResponse" : {
+        "properties" : {
+          "comparison" : {
+            "$ref" : "#/components/schemas/AnalysisComparisonDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/AnalysisFreshnessDto"
+          },
+          "merchants" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisMerchantDto"
+            },
+            "type" : "array"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/AnalysisPeriodDto"
+          },
+          "sort" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "unidentified" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisMetricDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "vsAverage" : {
+            "$ref" : "#/components/schemas/AnalysisVariationDto"
+          },
+          "vsPrevious" : {
+            "$ref" : "#/components/schemas/AnalysisVariationDto"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisMonthDto" : {
+        "properties" : {
+          "expense" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "income" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "net" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "refunds" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisOutflowDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categories" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "group" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisOverviewResponse" : {
+        "properties" : {
+          "averageExpense" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "changes" : {
+            "$ref" : "#/components/schemas/AnalysisChangesDto"
+          },
+          "comparison" : {
+            "$ref" : "#/components/schemas/AnalysisComparisonDto"
+          },
+          "composition" : {
+            "$ref" : "#/components/schemas/AnalysisCompositionDto"
+          },
+          "expense" : {
+            "$ref" : "#/components/schemas/AnalysisMetricDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/AnalysisFreshnessDto"
+          },
+          "income" : {
+            "$ref" : "#/components/schemas/AnalysisMetricDto"
+          },
+          "months" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisMonthDto"
+            },
+            "type" : "array"
+          },
+          "net" : {
+            "$ref" : "#/components/schemas/AnalysisMetricDto"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/AnalysisPeriodDto"
+          },
+          "refunds" : {
+            "$ref" : "#/components/schemas/AnalysisMetricDto"
+          },
+          "savedShare" : {
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "topCategories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisCategoryDto"
+            },
+            "type" : "array"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisPeriodDto" : {
+        "properties" : {
+          "daysElapsed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "daysInMonth" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisRangeDto" : {
+        "properties" : {
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisSpendingResponse" : {
+        "properties" : {
+          "categories" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisCategoryDto"
+            },
+            "type" : "array"
+          },
+          "comparison" : {
+            "$ref" : "#/components/schemas/AnalysisComparisonDto"
+          },
+          "cumulative" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisDayDto"
+            },
+            "type" : "array"
+          },
+          "dailyAverage" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/AnalysisFreshnessDto"
+          },
+          "largestExpenses" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisExpenseDto"
+            },
+            "type" : "array"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/AnalysisPeriodDto"
+          },
+          "previousCumulative" : {
+            "items" : {
+              "$ref" : "#/components/schemas/AnalysisDayDto"
+            },
+            "type" : "array"
+          },
+          "previousDailyAverage" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "refunds" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "total" : {
+            "$ref" : "#/components/schemas/AnalysisMetricDto"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "AnalysisVariationDto" : {
+        "properties" : {
+          "base" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "difference" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "percent" : {
+            "type" : "string"
+          },
+          "trend" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "AnalyticsStatusResponse" : {
         "properties" : {
           "pendingEvents" : {
@@ -602,6 +1313,46 @@
           "workspaceId" : {
             "format" : "uuid",
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "TransactionSummaryResponse" : {
+        "properties" : {
+          "expense" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "income" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "net" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "pendingCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "postedCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "refunds" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "transfers" : {
+            "$ref" : "#/components/schemas/TransactionSummaryTransfers"
+          }
+        },
+        "type" : "object"
+      },
+      "TransactionSummaryTransfers" : {
+        "properties" : {
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "volume" : {
+            "$ref" : "#/components/schemas/MoneyDto"
           }
         },
         "type" : "object"
@@ -1206,6 +1957,16 @@
           }
         } ],
         "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnalysisCategoriesResponse"
+                }
+              }
+            },
+            "description" : "Análise do mês (state, period, comparison e freshness em toda resposta)"
+          },
           "400" : {
             "content" : {
               "*/*" : {
@@ -1276,6 +2037,16 @@
           }
         } ],
         "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnalysisCategoryDetailResponse"
+                }
+              }
+            },
+            "description" : "Análise do mês (state, period, comparison e freshness em toda resposta)"
+          },
           "400" : {
             "content" : {
               "*/*" : {
@@ -1331,6 +2102,16 @@
           }
         } ],
         "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnalysisEvolutionResponse"
+                }
+              }
+            },
+            "description" : "Análise do mês (state, period, comparison e freshness em toda resposta)"
+          },
           "400" : {
             "content" : {
               "*/*" : {
@@ -1394,6 +2175,16 @@
           }
         } ],
         "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnalysisIncomeResponse"
+                }
+              }
+            },
+            "description" : "Análise do mês (state, period, comparison e freshness em toda resposta)"
+          },
           "400" : {
             "content" : {
               "*/*" : {
@@ -1465,6 +2256,16 @@
           }
         } ],
         "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnalysisMerchantsResponse"
+                }
+              }
+            },
+            "description" : "Análise do mês (state, period, comparison e freshness em toda resposta)"
+          },
           "400" : {
             "content" : {
               "*/*" : {
@@ -1528,6 +2329,16 @@
           }
         } ],
         "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnalysisOverviewResponse"
+                }
+              }
+            },
+            "description" : "Análise do mês (state, period, comparison e freshness em toda resposta)"
+          },
           "400" : {
             "content" : {
               "*/*" : {
@@ -1591,6 +2402,16 @@
           }
         } ],
         "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AnalysisSpendingResponse"
+                }
+              }
+            },
+            "description" : "Análise do mês (state, period, comparison e freshness em toda resposta)"
+          },
           "400" : {
             "content" : {
               "*/*" : {
@@ -2377,6 +3198,112 @@
           }
         },
         "summary" : "Identifica comerciantes e aplica as regras às transações ainda não tratadas; idempotente, nunca altera escolha do usuário",
+        "tags" : [ "Transactions" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/transactions/summary" : {
+      "get" : {
+        "operationId" : "summary",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "occurredOn mínimo, inclusivo (YYYY-MM-DD)",
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "description" : "occurredOn máximo, inclusivo (YYYY-MM-DD)",
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "type",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Conta de origem ou de destino; com conta, os valores são dessa conta",
+          "in" : "query",
+          "name" : "accountId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Trecho da descrição",
+          "in" : "query",
+          "name" : "q",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Código da categoria (ADR-0012)",
+          "in" : "query",
+          "name" : "categoryCode",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "true = só transações sem categoria; exclusivo com categoryCode",
+          "in" : "query",
+          "name" : "uncategorized",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransactionSummaryResponse"
+                }
+              }
+            },
+            "description" : "Resumo"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (filtro inválido)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Métricas do período filtrado (mesmos filtros da lista): receitas, despesas, reembolsos, transferências e resultado, só de transações lançadas",
         "tags" : [ "Transactions" ]
       }
     },

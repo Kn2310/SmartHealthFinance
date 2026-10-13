@@ -142,6 +142,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
                     (request, f) -> request.param("accountId", f.account())),
             op("transactions: criar", HttpMethod.POST, TRANSACTIONS, f -> new Object[0],
                     idempotent(json(f -> expense(f.account(), "1.00", "Invasora")))),
+            op("transactions: resumo", HttpMethod.GET, TRANSACTIONS + "/summary", f -> new Object[0],
+                    (request, f) -> request.param("accountId", f.account())),
             op("transactions: consultar", HttpMethod.GET, TRANSACTION, f -> ids(f.posted()), NONE),
             op("transactions: editar", HttpMethod.PUT, TRANSACTION, f -> ids(f.posted()), json(f -> """
                     {"description": "Invasora"}

@@ -60,6 +60,7 @@ public class AnalyticsController {
 
     @GetMapping("/overview")
     @Operation(summary = "Visão geral: receitas, despesas, resultado, 6 meses, composição e variações do resultado")
+    @ApiResponse(responseCode = "200", description = "Análise do mês (state, period, comparison e freshness em toda resposta)")
     @ApiResponse(responseCode = "400", description = ERRORS,
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
@@ -74,6 +75,7 @@ public class AnalyticsController {
 
     @GetMapping("/spending")
     @Operation(summary = "Gastos: total, média por dia, acumulado do mês × anterior, maiores gastos e categorias")
+    @ApiResponse(responseCode = "200", description = "Análise do mês (state, period, comparison e freshness em toda resposta)")
     @ApiResponse(responseCode = "400", description = ERRORS,
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
@@ -88,6 +90,7 @@ public class AnalyticsController {
 
     @GetMapping("/income")
     @Operation(summary = "Receitas: total, média, fontes (recorrente ou pontual) e 6 meses")
+    @ApiResponse(responseCode = "200", description = "Análise do mês (state, period, comparison e freshness em toda resposta)")
     @ApiResponse(responseCode = "400", description = ERRORS,
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
@@ -102,6 +105,7 @@ public class AnalyticsController {
 
     @GetMapping("/categories")
     @Operation(summary = "Categorias de despesa do mês com participação, reembolsos e variações")
+    @ApiResponse(responseCode = "200", description = "Análise do mês (state, period, comparison e freshness em toda resposta)")
     @ApiResponse(responseCode = "400", description = ERRORS,
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
@@ -116,6 +120,7 @@ public class AnalyticsController {
 
     @GetMapping("/categories/{categoryCode}")
     @Operation(summary = "Detalhe de uma categoria: valor, compras, ticket médio, 6 meses e maiores comerciantes")
+    @ApiResponse(responseCode = "200", description = "Análise do mês (state, period, comparison e freshness em toda resposta)")
     @ApiResponse(responseCode = "400", description = ERRORS + "; categoryCode INVALID (fora do catálogo)",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
@@ -130,6 +135,7 @@ public class AnalyticsController {
 
     @GetMapping("/merchants")
     @Operation(summary = "Comerciantes do mês: ranking por valor ou frequência, categoria principal e variações")
+    @ApiResponse(responseCode = "200", description = "Análise do mês (state, period, comparison e freshness em toda resposta)")
     @ApiResponse(responseCode = "400", description = ERRORS + "; sort INVALID",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
@@ -146,6 +152,7 @@ public class AnalyticsController {
 
     @GetMapping("/evolution")
     @Operation(summary = "Evolução mês a mês (receitas, despesas, reembolsos, resultado) até o mês analisado")
+    @ApiResponse(responseCode = "200", description = "Análise do mês (state, period, comparison e freshness em toda resposta)")
     @ApiResponse(responseCode = "400", description = ERRORS + "; months OUT_OF_RANGE",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND",
