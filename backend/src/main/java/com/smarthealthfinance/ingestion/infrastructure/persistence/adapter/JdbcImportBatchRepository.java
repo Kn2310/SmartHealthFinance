@@ -35,7 +35,7 @@ public class JdbcImportBatchRepository implements ImportBatchRepository {
     private static final String COLUMNS = """
             id, workspace_id, account_id, created_by, format, status, file_name, file_size, file_sha256,
             idempotency_key, request_hash, total_lines, valid_lines, invalid_lines, duplicate_lines, imported_lines,
-            first_date, last_date, failure_reason, created_at, updated_at, confirmed_at, completed_at, version
+            categorized_lines, first_date, last_date, failure_reason, created_at, updated_at, confirmed_at, completed_at, version
             """;
 
     private static final RowMapper<ImportBatch> MAPPER = JdbcImportBatchRepository::map;
@@ -67,13 +67,14 @@ public class JdbcImportBatchRepository implements ImportBatchRepository {
     @Override
     public boolean add(ImportBatch batch) {
         return jdbc.update("insert into import_batches (" + COLUMNS + """
-                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         on conflict (workspace_id, idempotency_key) do nothing
                         """,
                 batch.id().value(), batch.workspaceId().value(), batch.accountId().value(), batch.createdBy().value(),
                 batch.format().name(), batch.status().name(), batch.fileName(), batch.fileSize(), batch.fileSha256(),
                 batch.idempotencyKey().value(), batch.requestHash(), batch.totalLines(), batch.validLines(),
-                batch.invalidLines(), batch.duplicateLines(), batch.importedLines(), date(batch.firstDate()),
+                batch.invalidLines(), batch.duplicateLines(), batch.importedLines(), batch.categorizedLines(),
+                date(batch.firstDate()),
                 date(batch.lastDate()), batch.failureReason().orElse(null), Timestamp.from(batch.createdAt()),
                 Timestamp.from(batch.updatedAt()), timestamp(batch.confirmedAt()), timestamp(batch.completedAt()),
                 batch.version()) == 1;
@@ -83,12 +84,12 @@ public class JdbcImportBatchRepository implements ImportBatchRepository {
     public void save(ImportBatch batch) {
         int updated = jdbc.update("""
                         update import_batches
-                        set status = ?, valid_lines = ?, duplicate_lines = ?, imported_lines = ?, failure_reason = ?,
+                        set status = ?, valid_lines = ?, duplicate_lines = ?, imported_lines = ?, categorized_lines = ?, failure_reason = ?,
                             updated_at = ?, confirmed_at = ?, completed_at = ?, version = version + 1
                         where id = ? and workspace_id = ? and version = ?
                         """,
                 batch.status().name(), batch.validLines(), batch.duplicateLines(), batch.importedLines(),
-                batch.failureReason().orElse(null), Timestamp.from(batch.updatedAt()), timestamp(batch.confirmedAt()),
+                batch.categorizedLines(), batch.failureReason().orElse(null), Timestamp.from(batch.updatedAt()), timestamp(batch.confirmedAt()),
                 timestamp(batch.completedAt()), batch.id().value(), batch.workspaceId().value(), batch.version());
         if (updated != 1) {
             throw new OptimisticLockingFailureException("Import batch changed concurrently: " + batch.id());
@@ -148,6 +149,7 @@ public class JdbcImportBatchRepository implements ImportBatchRepository {
                 rs.getInt("invalid_lines"),
                 rs.getInt("duplicate_lines"),
                 rs.getInt("imported_lines"),
+                rs.getInt("categorized_lines"),
                 localDate(rs.getDate("first_date")),
                 localDate(rs.getDate("last_date")),
                 rs.getString("failure_reason"),

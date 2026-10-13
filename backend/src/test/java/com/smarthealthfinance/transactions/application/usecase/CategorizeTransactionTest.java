@@ -10,6 +10,7 @@ import com.smarthealthfinance.transactions.application.dto.TransactionView;
 import com.smarthealthfinance.transactions.application.exception.TransactionNotFoundException;
 import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
+import com.smarthealthfinance.transactions.domain.valueobject.CategoryOrigin;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -29,7 +30,7 @@ class CategorizeTransactionTest {
     private final TransactionsTestContext ctx = new TransactionsTestContext();
     private final InMemoryCategoryRepository categories = new InMemoryCategoryRepository();
     private final CategorizeTransaction categorize = new CategorizeTransaction(ctx.access, ctx.transactions,
-            categories, ctx.clock);
+            categories, ctx.rules, ctx.clock);
     private final ListCategories listCategories = new ListCategories(ctx.access, categories);
     private final ListTransactions list = new ListTransactions(ctx.access, ctx.transactions);
     private final WorkspaceId ws = ctx.anasWorkspace.id();
@@ -66,10 +67,13 @@ class CategorizeTransactionTest {
     }
 
     @Test
-    void clearingAnUncategorizedTransactionDoesNotSave() {
+    void clearingAnUntreatedTransactionRecordsTheChoiceOnceAndIsIdempotent() {
+        execute(lume, null);
         execute(lume, null);
 
-        assertThat(ctx.transactions.saveCount()).isZero();
+        // Escolher "Sem categoria" é uma escolha do usuário (ADR-0013 §3): grava uma vez, depois é idempotente.
+        assertThat(ctx.transactions.saveCount()).isEqualTo(1);
+        assertThat(ctx.stored(lume).categoryOrigin()).contains(CategoryOrigin.MANUAL);
     }
 
     @Test

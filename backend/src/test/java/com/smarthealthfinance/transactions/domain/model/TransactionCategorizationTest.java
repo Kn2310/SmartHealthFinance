@@ -6,6 +6,7 @@ import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
 import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
+import com.smarthealthfinance.transactions.domain.valueobject.CategoryOrigin;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionCategory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -133,7 +134,9 @@ class TransactionCategorizationTest {
     void clearsCategoryIdempotently() {
         Transaction lume = expense(workspace, aurora, "86.40", "Bistrô Lume");
         lume.clearCategory(LATER);
-        assertThat(lume.updatedAt()).isEqualTo(CREATED_AT);
+        assertThat(lume.category()).isEmpty();
+        assertThat(lume.categoryOrigin()).contains(CategoryOrigin.MANUAL);
+        assertThat(lume.updatedAt()).isEqualTo(LATER);
 
         lume.categorize(DINING_OUT, LATER);
         lume.clearCategory(MUCH_LATER);

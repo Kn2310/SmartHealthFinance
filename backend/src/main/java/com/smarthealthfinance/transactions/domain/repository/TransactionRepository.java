@@ -1,6 +1,7 @@
 package com.smarthealthfinance.transactions.domain.repository;
 
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 
@@ -19,6 +20,18 @@ public interface TransactionRepository {
 
     /** Mais recentes primeiro: occurredOn desc, createdAt desc, id desc. */
     TransactionPage search(WorkspaceId workspaceId, TransactionCriteria criteria, int page, int pageSize);
+
+    /**
+     * Transações que aceitam categoria e ainda esperam a categorização automática ou o comerciante (ADR-0013 §4),
+     * em ordem de id, a partir de {@code after} (exclusivo; nulo = do início).
+     */
+    List<Transaction> findAwaitingAutomation(WorkspaceId workspaceId, TransactionId after, int limit);
+
+    /**
+     * Transações do comerciante cuja categoria uma regra pode mudar (ADR-0013 §3): sem escolha do usuário.
+     * Só os tipos que aceitam a {@code nature}.
+     */
+    List<Transaction> findAutomatableByMerchant(WorkspaceId workspaceId, String merchantKey, CategoryNature nature);
 
     void add(Transaction transaction);
 

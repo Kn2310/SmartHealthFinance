@@ -1,6 +1,9 @@
 package com.smarthealthfinance.transactions.infrastructure.persistence.adapter;
 
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
+import com.smarthealthfinance.transactions.domain.enums.CategorySource;
+import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionCriteria;
 import com.smarthealthfinance.transactions.domain.repository.TransactionPage;
@@ -21,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public class JpaTransactionRepository implements TransactionRepository {
@@ -69,6 +73,29 @@ public class JpaTransactionRepository implements TransactionRepository {
 
         return new TransactionPage(result.map(TransactionJpaEntity::toDomain).getContent(),
                 result.getTotalElements());
+    }
+
+    /** Menor UUID possível: o filtro "id > after" cobre tudo no início da varredura. */
+    private static final UUID FIRST_ID = new UUID(0L, 0L);
+
+    private static final List<TransactionType> CATEGORIZABLE_TYPES = List.of(TransactionType.INCOME,
+            TransactionType.EXPENSE, TransactionType.REFUND);
+
+    @Override
+    public List<Transaction> findAwaitingAutomation(WorkspaceId workspaceId, TransactionId after, int limit) {
+        return jpa.findAwaitingAutomation(workspaceId.value(), CATEGORIZABLE_TYPES,
+                        after == null ? FIRST_ID : after.value(), PageRequest.ofSize(limit)).stream()
+                .map(TransactionJpaEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Transaction> findAutomatableByMerchant(WorkspaceId workspaceId, String merchantKey,
+                                                       CategoryNature nature) {
+        return jpa.findAutomatableByMerchant(workspaceId.value(), merchantKey, nature.acceptingTypes(),
+                        CategorySource.MANUAL).stream()
+                .map(TransactionJpaEntity::toDomain)
+                .toList();
     }
 
     @Override

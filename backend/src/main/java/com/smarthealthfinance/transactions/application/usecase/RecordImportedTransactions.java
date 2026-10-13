@@ -5,6 +5,7 @@ import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
+import com.smarthealthfinance.transactions.application.service.AutoCategorizer;
 import com.smarthealthfinance.transactions.application.service.TransactionAccess;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
@@ -36,11 +37,14 @@ public class RecordImportedTransactions {
 
     private final TransactionAccess access;
     private final TransactionRepository transactions;
+    private final AutoCategorizer categorizer;
     private final Clock clock;
 
-    public RecordImportedTransactions(TransactionAccess access, TransactionRepository transactions, Clock clock) {
+    public RecordImportedTransactions(TransactionAccess access, TransactionRepository transactions,
+                                      AutoCategorizer categorizer, Clock clock) {
         this.access = access;
         this.transactions = transactions;
+        this.categorizer = categorizer;
         this.clock = clock;
     }
 
@@ -53,14 +57,22 @@ public class RecordImportedTransactions {
     }
 
     /**
+     * @param recorded    transações gravadas
+     * @param categorized transações que as regras categorizaram (ADR-0013 §4)
+     */
+    public record Result(int recorded, int categorized) {
+    }
+
+    /**
      * @throws com.smarthealthfinance.accounts.application.exception.AccountNotFoundException conta fora do Workspace
      * @throws com.smarthealthfinance.accounts.domain.exception.AccountArchivedException conta arquivada
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void execute(WorkspaceId workspace, AccountId accountId, List<Line> lines) {
+    public Result execute(WorkspaceId workspace, AccountId accountId, List<Line> lines) {
         Account account = access.requireActiveAccount(workspace, accountId);
         Instant now = clock.instant();
 
+        AutoCategorizer.Session rules = categorizer.forWorkspace(workspace);
         List<Transaction> imported = lines.stream().map(line -> {
             if (!account.currency().equals(line.amount().currency())) {
                 throw new InvalidValueException("currency", "MISMATCH");
@@ -69,9 +81,13 @@ public class RecordImportedTransactions {
                     line.occurredOn(), new TransactionDescription(line.description()), now);
         }).toList();
 
+        long categorized = imported.stream().filter(transaction -> rules.apply(transaction, now)).count();
+
         transactions.addAll(imported);
 
-        log.info("Imported transactions recorded workspaceId={} accountId={} count={}", workspace, accountId,
-                imported.size());
+        log.info("Imported transactions recorded workspaceId={} accountId={} count={} categorized={}", workspace,
+                accountId, imported.size(), categorized);
+
+        return new Result(imported.size(), (int) categorized);
     }
 }

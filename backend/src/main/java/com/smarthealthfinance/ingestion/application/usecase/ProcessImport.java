@@ -147,16 +147,17 @@ public class ProcessImport {
             }
         }
 
-        recordTransactions.execute(workspace, batch.accountId(), lines);
+        RecordImportedTransactions.Result recorded = recordTransactions.execute(workspace, batch.accountId(), lines);
         records.saveResults(workspace, results);
 
-        batch.complete(lines.size(), lost.size(), now);
+        batch.complete(lines.size(), lost.size(), recorded.categorized(), now);
         batches.save(batch);
         outbox.append(new IntegrationEvent(COMPLETED_EVENT_TYPE, 1, workspace.value(), "ImportBatch",
                 importId.value(), eventId, Map.of(
                         "importId", importId.value().toString(),
                         "accountId", batch.accountId().value().toString(),
                         "importedLines", batch.importedLines(),
+                        "categorizedLines", batch.categorizedLines(),
                         "duplicateLines", batch.duplicateLines(),
                         "invalidLines", batch.invalidLines())));
 

@@ -152,6 +152,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
                             {"categoryCode": "OTHER_EXPENSE"}
                             """)),
 
+            op("transactions: categorizar pendentes", HttpMethod.POST, TRANSACTIONS + "/categorize-pending",
+                    f -> new Object[0], NONE),
             op("categories: listar", HttpMethod.GET, WORKSPACE_SCOPE + "/categories", f -> new Object[0], NONE),
 
             op("overview: consultar", HttpMethod.GET, WORKSPACE_SCOPE + "/overview", f -> new Object[0], NONE),

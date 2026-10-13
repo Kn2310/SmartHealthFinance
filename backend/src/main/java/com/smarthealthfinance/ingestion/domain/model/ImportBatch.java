@@ -46,6 +46,7 @@ public class ImportBatch {
     private final int invalidLines;
     private int duplicateLines;
     private int importedLines;
+    private int categorizedLines;
     private final LocalDate firstDate;
     private final LocalDate lastDate;
     private String failureReason;
@@ -58,8 +59,8 @@ public class ImportBatch {
     private ImportBatch(ImportBatchId id, WorkspaceId workspaceId, AccountId accountId, UserId createdBy,
                         ImportFormat format, ImportStatus status, String fileName, long fileSize, String fileSha256,
                         IdempotencyKey idempotencyKey, String requestHash, int totalLines, int validLines,
-                        int invalidLines, int duplicateLines, int importedLines, LocalDate firstDate,
-                        LocalDate lastDate, String failureReason, Instant createdAt, Instant updatedAt,
+                        int invalidLines, int duplicateLines, int importedLines, int categorizedLines,
+                        LocalDate firstDate, LocalDate lastDate, String failureReason, Instant createdAt, Instant updatedAt,
                         Instant confirmedAt, Instant completedAt, long version) {
         this.id = Objects.requireNonNull(id, "id");
         this.workspaceId = Objects.requireNonNull(workspaceId, "workspaceId");
@@ -77,6 +78,7 @@ public class ImportBatch {
         this.invalidLines = invalidLines;
         this.duplicateLines = duplicateLines;
         this.importedLines = importedLines;
+        this.categorizedLines = categorizedLines;
         this.firstDate = firstDate;
         this.lastDate = lastDate;
         this.failureReason = failureReason;
@@ -98,7 +100,7 @@ public class ImportBatch {
         return new ImportBatch(id, workspaceId, accountId, createdBy, format, ImportStatus.PREVIEW,
                 normalizeFileName(file.name()), file.size(), file.sha256(), idempotencyKey, requestHash,
                 preview.total(), preview.count(RecordStatus.VALID), preview.count(RecordStatus.INVALID),
-                preview.count(RecordStatus.DUPLICATE), 0, preview.firstDate(), preview.lastDate(), null, now, now,
+                preview.count(RecordStatus.DUPLICATE), 0, 0, preview.firstDate(), preview.lastDate(), null, now, now,
                 null, null, 0);
     }
 
@@ -106,12 +108,12 @@ public class ImportBatch {
                                       ImportFormat format, ImportStatus status, String fileName, long fileSize,
                                       String fileSha256, IdempotencyKey idempotencyKey, String requestHash,
                                       int totalLines, int validLines, int invalidLines, int duplicateLines,
-                                      int importedLines, LocalDate firstDate, LocalDate lastDate,
-                                      String failureReason, Instant createdAt, Instant updatedAt,
+                                      int importedLines, int categorizedLines, LocalDate firstDate,
+                                      LocalDate lastDate, String failureReason, Instant createdAt, Instant updatedAt,
                                       Instant confirmedAt, Instant completedAt, long version) {
         return new ImportBatch(id, workspaceId, accountId, createdBy, format, status, fileName, fileSize, fileSha256,
                 idempotencyKey, requestHash, totalLines, validLines, invalidLines, duplicateLines, importedLines,
-                firstDate, lastDate, failureReason, createdAt, updatedAt, confirmedAt, completedAt, version);
+                categorizedLines, firstDate, lastDate, failureReason, createdAt, updatedAt, confirmedAt, completedAt, version);
     }
 
     /**
@@ -172,16 +174,21 @@ public class ImportBatch {
      *
      * @param imported       linhas que viraram transação
      * @param lateDuplicates linhas VALID cuja chave foi reservada por outro batch depois do preview
+     * @param categorized    das importadas, as que as regras categorizaram (ADR-0013 §4)
      */
-    public void complete(int imported, int lateDuplicates, Instant now) {
+    public void complete(int imported, int lateDuplicates, int categorized, Instant now) {
         if (status != ImportStatus.PROCESSING) {
             throw new InvalidImportStatusTransitionException(id, status, "complete");
+        }
+        if (categorized < 0 || categorized > imported) {
+            throw new IllegalArgumentException("Categorizadas não podem passar das importadas");
         }
         if (imported < 0 || lateDuplicates < 0 || imported + lateDuplicates != validLines) {
             throw new IllegalArgumentException("Toda linha válida precisa virar importada ou duplicada");
         }
         validLines = imported;
         importedLines = imported;
+        categorizedLines = categorized;
         duplicateLines += lateDuplicates;
         status = ImportStatus.COMPLETED;
         completedAt = now;
@@ -239,6 +246,7 @@ public class ImportBatch {
     public int invalidLines() { return invalidLines; }
     public int duplicateLines() { return duplicateLines; }
     public int importedLines() { return importedLines; }
+    public int categorizedLines() { return categorizedLines; }
     public Optional<LocalDate> firstDate() { return Optional.ofNullable(firstDate); }
     public Optional<LocalDate> lastDate() { return Optional.ofNullable(lastDate); }
     public Optional<String> failureReason() { return Optional.ofNullable(failureReason); }

@@ -88,8 +88,12 @@
   categoria"; `GET /workspaces/{id}/categories`, `PUT .../transactions/{id}/category`, filtro `categoryCode` /
   `uncategorized`; FK composta tipo × natureza no banco; UI: categoria na lista, filtro e "Alterar categoria" no
   detalhe — ADR-0012)
-- [ ] categorização automática e origem da categoria (`manual`/`rule`/`import`), parte B
-- [ ] merchants
+- [x] categorização automática e origem da categoria (`MANUAL`/`RULE_LEARNED`/`RULE_SYSTEM` + versão da regra; regras
+  do sistema `system-v1`; regra aprendida por "aplicar a transações semelhantes"; categorização na importação, no
+  lançamento manual e sob demanda em `POST .../transactions/categorize-pending`; "Categorizamos X de Y" no resultado
+  da importação — ADR-0013)
+- [x] merchants (comerciante derivado da descrição por `MerchantNormalizer` v1, atributo da transação, sem entidade —
+  ADR-0013; renomear/mesclar comerciantes e botão de "categorizar pendentes" na UI ficam para depois)
 - [ ] evolution
 - [ ] read models
 

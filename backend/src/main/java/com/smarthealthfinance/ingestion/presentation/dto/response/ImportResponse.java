@@ -17,8 +17,11 @@ public record ImportResponse(UUID id, UUID workspaceId, UUID accountId, String f
                              String failureReason, Instant createdAt, Instant previewExpiresAt,
                              Instant confirmedAt, Instant completedAt) {
 
-    /** {@code total = valid + invalid + duplicate}; {@code imported} só é preenchido depois do processamento. */
-    public record Lines(int total, int valid, int invalid, int duplicate, int imported) {
+    /**
+     * {@code total = valid + invalid + duplicate}; {@code imported} e {@code categorized} (das importadas, as que
+     * as regras categorizaram) só são preenchidos depois do processamento.
+     */
+    public record Lines(int total, int valid, int invalid, int duplicate, int imported, int categorized) {
     }
 
     public record Period(LocalDate from, LocalDate to) {
@@ -28,7 +31,7 @@ public record ImportResponse(UUID id, UUID workspaceId, UUID accountId, String f
         return new ImportResponse(view.id(), view.workspaceId(), view.accountId(), view.format().name(),
                 view.status().name(), view.fileName(), view.fileSize(),
                 new Lines(view.totalLines(), view.validLines(), view.invalidLines(), view.duplicateLines(),
-                        view.importedLines()),
+                        view.importedLines(), view.categorizedLines()),
                 view.firstDate() == null ? null : new Period(view.firstDate(), view.lastDate()),
                 view.sameFileImportedBefore(), view.failureReason(), view.createdAt(), view.previewExpiresAt(),
                 view.confirmedAt(), view.completedAt());

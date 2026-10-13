@@ -89,7 +89,7 @@ class ImportBatchTest {
         batch.startProcessing(NOW);
         batch.startProcessing(NOW);
 
-        batch.complete(1, 1, NOW);
+        batch.complete(1, 1, 0, NOW);
 
         assertThat(batch.status()).isEqualTo(ImportStatus.COMPLETED);
         assertThat(batch.importedLines()).isEqualTo(1);
@@ -104,7 +104,7 @@ class ImportBatchTest {
         batch.confirm(NOW);
         batch.startProcessing(NOW);
 
-        assertThatThrownBy(() -> batch.complete(1, 0, NOW)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> batch.complete(1, 0, 0, NOW)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

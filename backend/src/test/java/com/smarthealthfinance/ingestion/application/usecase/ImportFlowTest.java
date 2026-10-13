@@ -173,6 +173,7 @@ class ImportFlowTest {
             assertThat(done.id()).isEqualTo(batch.id());
             assertThat(done.status()).isEqualTo(ImportStatus.COMPLETED);
             assertThat(done.importedLines()).isEqualTo(3);
+            assertThat(done.categorizedLines()).isEqualTo(3);
             assertThat(done.completedAt()).isNotNull();
 
             List<Transaction> transactions = allTransactions();
@@ -191,7 +192,42 @@ class ImportFlowTest {
 
             IntegrationEvent completed = ctx.events.getLast();
             assertThat(completed.eventType()).isEqualTo("import.completed");
-            assertThat(completed.payload()).containsEntry("importedLines", 3);
+            assertThat(completed.payload()).containsEntry("importedLines", 3).containsEntry("categorizedLines", 3);
+        }
+
+        @Test
+        void importedLinesAreCategorizedByRulesAndTheCountSaysHowMany() {
+            ImportBatchView done = confirmAndProcess("k-1", """
+                    data;descricao;valor;id
+                    01/09/2026;Mercado Bom Preço 0109;-120,00;c1
+                    02/09/2026;Pix enviado - Maria Exemplo;-50,00;c2
+                    03/09/2026;Loja Exemplo;-30,00;c3
+                    """);
+
+            assertThat(done.importedLines()).isEqualTo(3);
+            assertThat(done.categorizedLines()).isEqualTo(1);
+            assertThat(allTransactions()).allSatisfy(transaction -> assertThat(transaction.merchant()).isPresent());
+            assertThat(allTransactions()).filteredOn(transaction -> transaction.category().isPresent())
+                    .singleElement().satisfies(transaction -> {
+                        assertThat(transaction.category().orElseThrow().code().value()).isEqualTo("GROCERIES");
+                        assertThat(transaction.categoryOrigin().orElseThrow().source().name()).isEqualTo("RULE_SYSTEM");
+                    });
+        }
+
+        @Test
+        void importUsesTheLearnedRulesOfTheWorkspace() {
+            ctx.core.rules.upsert(ctx.core.anasWorkspace.id(), new com.smarthealthfinance.transactions.domain.repository
+                    .CategoryRuleRepository.LearnedRule("loja exemplo", com.smarthealthfinance.transactions.TransactionsFixtures
+                    .GROCERIES.asTransactionCategory()), ctx.clock.instant());
+
+            ImportBatchView done = confirmAndProcess("k-1", """
+                    data;descricao;valor;id
+                    03/09/2026;LOJA EXEMPLO 0309;-30,00;c3
+                    """);
+
+            assertThat(done.categorizedLines()).isEqualTo(1);
+            assertThat(allTransactions()).singleElement().satisfies(transaction ->
+                    assertThat(transaction.categoryOrigin().orElseThrow().source().name()).isEqualTo("RULE_LEARNED"));
         }
 
         @Test

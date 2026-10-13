@@ -3,7 +3,12 @@ package com.smarthealthfinance.transactions.presentation.dto.request;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryCode;
 import jakarta.validation.constraints.Size;
 
-/** @param categoryCode código do catálogo; {@code null} volta a "Sem categoria" (ADR-0012 §7) */
+/**
+ * @param categoryCode   código do catálogo; {@code null} volta a "Sem categoria" (ADR-0012 §7)
+ * @param applyToSimilar aprende a regra do comerciante e a aplica às transações semelhantes (ADR-0013 §2);
+ *                       omitido = falso
+ */
 public record CategorizeTransactionRequest(
-        @Size(max = CategoryCode.MAX_LENGTH) String categoryCode) {
+        @Size(max = CategoryCode.MAX_LENGTH) String categoryCode,
+        Boolean applyToSimilar) {
 }

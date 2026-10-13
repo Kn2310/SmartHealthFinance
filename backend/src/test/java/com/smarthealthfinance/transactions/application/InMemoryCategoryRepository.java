@@ -16,7 +16,15 @@ import static com.smarthealthfinance.transactions.TransactionsFixtures.SALARY;
 /** Recorte do catálogo, com uma categoria inativa, na ordem de exibição. */
 public final class InMemoryCategoryRepository implements CategoryRepository {
 
-    private final List<Category> categories = List.of(SALARY, RETIRED, DINING_OUT, GROCERIES);
+    private final List<Category> categories;
+
+    public InMemoryCategoryRepository() {
+        this(List.of(SALARY, RETIRED, DINING_OUT, GROCERIES));
+    }
+
+    public InMemoryCategoryRepository(List<Category> categories) {
+        this.categories = categories;
+    }
 
     @Override
     public List<Category> findAll() {

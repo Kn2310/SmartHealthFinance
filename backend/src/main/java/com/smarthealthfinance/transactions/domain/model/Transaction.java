@@ -6,11 +6,15 @@ import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
 import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
+import com.smarthealthfinance.transactions.domain.enums.CategorySource;
 import com.smarthealthfinance.transactions.domain.enums.BalanceEffect;
 import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.exception.InvalidTransactionStatusTransitionException;
+import com.smarthealthfinance.transactions.domain.service.MerchantNormalizer;
+import com.smarthealthfinance.transactions.domain.valueobject.CategoryOrigin;
+import com.smarthealthfinance.transactions.domain.valueobject.Merchant;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionCategory;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
@@ -43,6 +47,8 @@ public class Transaction {
     private final TransactionSource source;
     private final TransactionId refundOfTransactionId;
     private TransactionCategory category;
+    private CategoryOrigin categoryOrigin;
+    private Merchant merchant;
     private final Instant createdAt;
     private Instant updatedAt;
     private final long version;
@@ -61,6 +67,8 @@ public class Transaction {
             TransactionSource source,
             TransactionId refundOfTransactionId,
             TransactionCategory category,
+            CategoryOrigin categoryOrigin,
+            Merchant merchant,
             Instant createdAt,
             Instant updatedAt,
             long version
@@ -78,6 +86,11 @@ public class Transaction {
         this.source = Objects.requireNonNull(source, "source");
         this.refundOfTransactionId = refundOfTransactionId;
         this.category = category;
+        this.categoryOrigin = categoryOrigin;
+        this.merchant = merchant;
+        if (category != null && categoryOrigin == null) {
+            throw new IllegalArgumentException("Categoria sem origem");
+        }
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
         this.version = version;
@@ -166,10 +179,43 @@ public class Transaction {
 
         requireTypeSpecificFields(type, accountId, destinationAccountId, adjustmentDirection, refundOfTransactionId);
 
+        // Comerciante só onde há categoria (ADR-0013 §1): transferência e ajuste não têm comerciante.
+        Merchant merchant = CategoryNature.acceptedBy(type).isPresent()
+                ? MerchantNormalizer.normalize(description.value()).orElse(null)
+                : null;
+
         return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, initialStatus, source, refundOfTransactionId, null, now, now, 0);
+                occurredOn, description, initialStatus, source, refundOfTransactionId, null, null, merchant, now, now,
+                0);
     }
 
+    /** Restauração completa, com a origem da categoria e o comerciante (ADR-0013). */
+    public static Transaction restore(
+            TransactionId id,
+            WorkspaceId workspaceId,
+            TransactionType type,
+            AccountId accountId,
+            AccountId destinationAccountId,
+            AdjustmentDirection adjustmentDirection,
+            Money amount,
+            LocalDate occurredOn,
+            TransactionDescription description,
+            TransactionStatus status,
+            TransactionSource source,
+            TransactionId refundOfTransactionId,
+            TransactionCategory category,
+            CategoryOrigin categoryOrigin,
+            Merchant merchant,
+            Instant createdAt,
+            Instant updatedAt,
+            long version
+    ) {
+        return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
+                occurredOn, description, status, source, refundOfTransactionId, category, categoryOrigin, merchant,
+                createdAt, updatedAt, version);
+    }
+
+    /** Sem comerciante; categoria, se houver, é tratada como manual (dados anteriores ao ADR-0013). */
     public static Transaction restore(
             TransactionId id,
             WorkspaceId workspaceId,
@@ -188,8 +234,9 @@ public class Transaction {
             Instant updatedAt,
             long version
     ) {
-        return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, status, source, refundOfTransactionId, category, createdAt, updatedAt, version);
+        return restore(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount, occurredOn,
+                description, status, source, refundOfTransactionId, category,
+                category == null ? null : CategoryOrigin.MANUAL, null, createdAt, updatedAt, version);
     }
 
     private static void requireTypeSpecificFields(
@@ -273,8 +320,9 @@ public class Transaction {
     }
 
     /**
-     * Atribui uma categoria do catálogo (ADR-0012 §2/§7). Idempotente. Vale em qualquer status: a categoria não muda
-     * saldo nem fluxo de caixa.
+     * Atribui uma categoria do catálogo por escolha do usuário (ADR-0012 §2/§7, ADR-0013 §3). Idempotente. Vale em
+     * qualquer status: a categoria não muda saldo nem fluxo de caixa. A escolha vira origem {@code MANUAL}, que
+     * nenhuma regra automática sobrescreve.
      *
      * @throws InvalidValueException {@code NOT_ALLOWED} em transferência e ajuste, {@code INCOMPATIBLE_WITH_TYPE}
      *                               se a natureza não combina com o tipo e {@code INACTIVE} se a categoria saiu do
@@ -290,25 +338,76 @@ public class Transaction {
         }
 
         TransactionCategory assigned = newCategory.asTransactionCategory();
-        if (assigned.equals(category)) {
+        if (assigned.equals(category) && CategoryOrigin.MANUAL.equals(categoryOrigin)) {
             return;
         }
-        if (!newCategory.active()) {
+        if (!newCategory.active() && !assigned.equals(category)) {
             throw new InvalidValueException("categoryCode", "INACTIVE");
         }
 
         category = assigned;
+        categoryOrigin = CategoryOrigin.MANUAL;
         updatedAt = now;
     }
 
-    /** Volta a "Sem categoria" (ADR-0012 §4). Idempotente. */
+    /**
+     * Volta a "Sem categoria" (ADR-0012 §4). Idempotente. Fica registrado como escolha do usuário: a transação não
+     * volta a ser categorizada por regra. Transferência e ajuste não têm categoria nem escolha a registrar.
+     */
     public void clearCategory(Instant now) {
-        if (category == null) {
+        if (CategoryNature.acceptedBy(type).isEmpty()
+                || (category == null && CategoryOrigin.MANUAL.equals(categoryOrigin))) {
             return;
         }
 
         category = null;
+        categoryOrigin = CategoryOrigin.MANUAL;
         updatedAt = now;
+    }
+
+    /**
+     * Categorização por regra (ADR-0013 §2/§3). Nunca sobrescreve a escolha do usuário e só vale em tipos que aceitam
+     * a natureza da categoria. Idempotente.
+     *
+     * @return true se a transação mudou
+     */
+    public boolean categorizeByRule(Category suggested, CategoryOrigin origin, Instant now) {
+        Objects.requireNonNull(suggested, "category");
+        Objects.requireNonNull(origin, "origin");
+        if (origin.source() == CategorySource.MANUAL) {
+            throw new IllegalArgumentException("Regra não produz origem MANUAL");
+        }
+        if (categoryOrigin != null && !categoryOrigin.source().allowsAutomation()) {
+            return false;
+        }
+        if (!suggested.active() || CategoryNature.acceptedBy(type).filter(n -> n == suggested.nature()).isEmpty()) {
+            return false;
+        }
+
+        TransactionCategory assigned = suggested.asTransactionCategory();
+        if (assigned.equals(category) && origin.equals(categoryOrigin)) {
+            return false;
+        }
+
+        category = assigned;
+        categoryOrigin = origin;
+        updatedAt = now;
+        return true;
+    }
+
+    /** Ainda não tratada por regra nem pelo usuário, em um tipo que aceita categoria: elegível à regra. */
+    public boolean awaitsAutomation() {
+        return categoryOrigin == null && CategoryNature.acceptedBy(type).isPresent();
+    }
+
+    /** Preenche o comerciante de uma transação anterior ao ADR-0013 (nunca troca um já identificado). */
+    public boolean identifyMerchant(Merchant identified, Instant now) {
+        if (merchant != null || identified == null || CategoryNature.acceptedBy(type).isEmpty()) {
+            return false;
+        }
+        merchant = identified;
+        updatedAt = now;
+        return true;
     }
 
     public boolean isVoided() {
@@ -362,6 +461,9 @@ public class Transaction {
     public TransactionSource source() { return source; }
     public Optional<TransactionId> refundOfTransactionId() { return Optional.ofNullable(refundOfTransactionId); }
     public Optional<TransactionCategory> category() { return Optional.ofNullable(category); }
+    /** Vazio enquanto ninguém (regra ou usuário) tratou a categoria. */
+    public Optional<CategoryOrigin> categoryOrigin() { return Optional.ofNullable(categoryOrigin); }
+    public Optional<Merchant> merchant() { return Optional.ofNullable(merchant); }
     public Instant createdAt() { return createdAt; }
     public Instant updatedAt() { return updatedAt; }
     public long version() { return version; }

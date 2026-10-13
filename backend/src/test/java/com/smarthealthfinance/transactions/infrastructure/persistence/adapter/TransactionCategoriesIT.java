@@ -190,8 +190,8 @@ class TransactionCategoriesIT extends IntegrationTest {
     }
 
     private void setCategory(UUID transactionId, String code, String nature) {
-        jdbc.update("update transactions set category_code = ?, category_nature = ? where id = ?", code, nature,
-                transactionId);
+        jdbc.update("update transactions set category_code = ?, category_nature = ?, category_source = ? where id = ?",
+                code, nature, code == null ? null : "MANUAL", transactionId);
     }
 
     private void categorizeAndSave(Transaction transaction, String code) {
