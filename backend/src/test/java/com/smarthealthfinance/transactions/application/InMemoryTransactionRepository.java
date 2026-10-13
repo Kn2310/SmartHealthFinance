@@ -107,13 +107,16 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
                 && (criteria.status() == null || transaction.status() == criteria.status())
                 && (criteria.accountId() == null || transaction.involves(criteria.accountId()))
                 && (criteria.text() == null || transaction.description().value().toLowerCase(Locale.ROOT)
-                .contains(criteria.text().toLowerCase(Locale.ROOT)));
+                .contains(criteria.text().toLowerCase(Locale.ROOT)))
+                && (criteria.categoryCode() == null || transaction.category()
+                .filter(category -> category.code().equals(criteria.categoryCode())).isPresent())
+                && (!criteria.uncategorized() || transaction.category().isEmpty());
     }
 
     private static Transaction copy(Transaction t, long version) {
         return Transaction.restore(t.id(), t.workspaceId(), t.type(), t.accountId(),
                 t.destinationAccountId().orElse(null), t.adjustmentDirection().orElse(null), t.amount(),
                 t.occurredOn(), t.description(), t.status(), t.source(), t.refundOfTransactionId().orElse(null),
-                t.createdAt(), t.updatedAt(), version);
+                t.category().orElse(null), t.createdAt(), t.updatedAt(), version);
     }
 }

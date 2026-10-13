@@ -4,10 +4,13 @@ import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
+import com.smarthealthfinance.transactions.domain.valueobject.CategoryCode;
+import com.smarthealthfinance.transactions.domain.valueobject.TransactionCategory;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 import jakarta.persistence.*;
@@ -20,7 +23,7 @@ import java.util.UUID;
 
 /**
  * Campos financeiros com {@code updatable = false}: além do domínio, o mapeamento também impede que um save
- * altere tipo, contas, valor ou data de um fato já gravado. Só descrição e status mudam.
+ * altere tipo, contas, valor ou data de um fato já gravado. Só descrição, status e categoria mudam.
  */
 @Entity
 @Table(name = "transactions")
@@ -69,6 +72,13 @@ public class TransactionJpaEntity {
     @Column(name = "refund_of_transaction_id", updatable = false)
     private UUID refundOfTransactionId;
 
+    @Column(name = "category_code")
+    private String categoryCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category_nature")
+    private CategoryNature categoryNature;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -97,6 +107,8 @@ public class TransactionJpaEntity {
         entity.status = transaction.status();
         entity.source = transaction.source();
         entity.refundOfTransactionId = transaction.refundOfTransactionId().map(TransactionId::value).orElse(null);
+        entity.categoryCode = transaction.category().map(category -> category.code().value()).orElse(null);
+        entity.categoryNature = transaction.category().map(TransactionCategory::nature).orElse(null);
         entity.createdAt = transaction.createdAt();
         entity.updatedAt = transaction.updatedAt();
         entity.version = transaction.version();
@@ -109,6 +121,7 @@ public class TransactionJpaEntity {
                 destinationAccountId == null ? null : new AccountId(destinationAccountId), adjustmentDirection,
                 new Money(amount, Currency.getInstance(currency)), occurredOn, new TransactionDescription(description),
                 status, source, refundOfTransactionId == null ? null : new TransactionId(refundOfTransactionId),
+                categoryCode == null ? null : new TransactionCategory(new CategoryCode(categoryCode), categoryNature),
                 createdAt, updatedAt, version);
     }
 }

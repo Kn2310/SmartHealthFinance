@@ -131,6 +131,44 @@
         },
         "type" : "object"
       },
+      "CategorizeTransactionRequest" : {
+        "properties" : {
+          "categoryCode" : {
+            "maxLength" : 40,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CategoryListResponse" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CategoryResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "CategoryResponse" : {
+        "properties" : {
+          "active" : {
+            "type" : "boolean"
+          },
+          "code" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "nature" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CreateAccountRequest" : {
         "properties" : {
           "includedInTotal" : {
@@ -475,6 +513,9 @@
           },
           "amount" : {
             "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
           },
           "createdAt" : {
             "format" : "date-time",
@@ -1081,6 +1122,44 @@
         "tags" : [ "Accounts" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/categories" : {
+      "get" : {
+        "operationId" : "list_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CategoryListResponse"
+                }
+              }
+            },
+            "description" : "Catálogo"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Catálogo de categorias (do sistema), inclusive as inativas, na ordem de exibição",
+        "tags" : [ "Categories" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/imports" : {
       "get" : {
         "operationId" : "list_1",
@@ -1568,6 +1647,22 @@
             "type" : "string"
           }
         }, {
+          "description" : "Código da categoria (ADR-0012)",
+          "in" : "query",
+          "name" : "categoryCode",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "true = só transações sem categoria; exclusivo com categoryCode",
+          "in" : "query",
+          "name" : "uncategorized",
+          "required" : false,
+          "schema" : {
+            "type" : "boolean"
+          }
+        }, {
           "in" : "query",
           "name" : "page",
           "required" : false,
@@ -1848,6 +1943,82 @@
           }
         },
         "summary" : "Cancela uma transação pendente (PENDING → CANCELLED; idempotente)",
+        "tags" : [ "Transactions" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/category" : {
+      "put" : {
+        "operationId" : "categorize",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "transactionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CategorizeTransactionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransactionResponse"
+                }
+              }
+            },
+            "description" : "Transação atualizada"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (categoryCode INVALID, INACTIVE, NOT_ALLOWED ou INCOMPATIBLE_WITH_TYPE)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou TRANSACTION_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "CONFLICT (edição concorrente)"
+          }
+        },
+        "summary" : "Atribui ou remove (categoryCode null) a categoria; idempotente, em qualquer status",
         "tags" : [ "Transactions" ]
       }
     },

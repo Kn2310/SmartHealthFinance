@@ -147,6 +147,12 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("transactions: efetivar", HttpMethod.POST, TRANSACTION + "/post", f -> ids(f.pending()), NONE),
             op("transactions: cancelar", HttpMethod.POST, TRANSACTION + "/cancel", f -> ids(f.pending()), NONE),
             op("transactions: estornar", HttpMethod.POST, TRANSACTION + "/reverse", f -> ids(f.posted()), NONE),
+            op("transactions: categorizar", HttpMethod.PUT, TRANSACTION + "/category", f -> ids(f.posted()),
+                    json(f -> """
+                            {"categoryCode": "OTHER_EXPENSE"}
+                            """)),
+
+            op("categories: listar", HttpMethod.GET, WORKSPACE_SCOPE + "/categories", f -> new Object[0], NONE),
 
             op("overview: consultar", HttpMethod.GET, WORKSPACE_SCOPE + "/overview", f -> new Object[0], NONE),
 
@@ -255,6 +261,12 @@ class WorkspaceIsolationIT extends IntegrationTest {
                     Fixture::pending, (mvc, own, id) -> mvc.post().uri(TRANSACTION + "/cancel", own.workspace(), id)),
             cross("transactions: estornar transação alheia", HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND",
                     Fixture::posted, (mvc, own, id) -> mvc.post().uri(TRANSACTION + "/reverse", own.workspace(), id)),
+            // ADR-0012 §7: categorizar transação alheia = inexistente.
+            cross("transactions: categorizar transação alheia", HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND",
+                    Fixture::posted, (mvc, own, id) -> mvc.put().uri(TRANSACTION + "/category", own.workspace(), id)
+                            .contentType(MediaType.APPLICATION_JSON).content("""
+                                    {"categoryCode": "OTHER_EXPENSE"}
+                                    """)),
             // ADR-0005 §1 (adendo): filtro por conta alheia = conta inexistente → lista vazia.
             cross("transactions: filtrar por conta alheia", HttpStatus.OK, null, Fixture::account,
                     (mvc, own, id) -> mvc.get().uri(TRANSACTIONS, own.workspace()).param("accountId", id)),

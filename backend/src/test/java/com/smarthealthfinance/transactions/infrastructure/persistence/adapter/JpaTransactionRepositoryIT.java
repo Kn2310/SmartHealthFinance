@@ -241,7 +241,7 @@ class JpaTransactionRepositoryIT extends IntegrationTest {
         transactions.add(expense);
         Transaction tampered = Transaction.restore(expense.id(), anas, TransactionType.INCOME, norte, null, null,
                 brl("1"), SEP_22.plusDays(1),
-                expense.description(), expense.status(), expense.source(), null, expense.createdAt(), LATER, 0);
+                expense.description(), expense.status(), expense.source(), null, null, expense.createdAt(), LATER, 0);
 
         transactions.save(tampered);
 
