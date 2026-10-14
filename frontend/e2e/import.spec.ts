@@ -51,7 +51,7 @@ test('extrato CSV fictício é importado e aparece na Home com o selo "Importado
 
   // "Marcar como reembolso": o estorno do extrato sai das receitas e vai para reembolsos; saldo e resultado não mudam.
   const statementRefund = september.find((line) => line.description.startsWith('Estorno'))!
-  await page.goto(`/transactions?q=${encodeURIComponent(statementRefund.description)}`)
+  await page.goto('/transactions?period=CUSTOM&from=2026-09-01&to=2026-09-30&type=INCOME')
   await page.getByRole('link', { name: new RegExp(statementRefund.description) }).click()
   await page.getByRole('button', { name: 'Marcar como reembolso' }).click()
   await page.getByRole('button', { name: 'Confirmar: marcar como reembolso' }).click()
