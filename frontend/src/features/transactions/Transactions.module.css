@@ -224,3 +224,11 @@
   .selects { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .selects.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* Marcar como reembolso: escolha da despesa original */
+.choiceList { display: flex; flex-direction: column; gap: var(--space-12); margin-top: var(--space-8); }
+.searchRow { display: flex; flex-direction: column; gap: var(--space-8); }
+@media (min-width: 640px) {
+  .searchRow { flex-direction: row; align-items: flex-end; }
+  .searchRow > :first-child { flex: 1; }
+}

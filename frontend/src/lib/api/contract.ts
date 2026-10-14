@@ -115,7 +115,7 @@ export const RECORD_FIELDS = {
   TransactionResponse: [
     'id', 'workspaceId', 'accountId', 'destinationAccountId', 'type', 'adjustmentDirection', 'amount', 'occurredOn',
     'description', 'status', 'source', 'refundOfTransactionId', 'categoryCode', 'categorySource', 'merchantName',
-    'createdAt', 'updatedAt',
+    'reclassifiedFromTransactionId', 'reclassifiedAsTransactionId', 'createdAt', 'updatedAt',
   ],
   TransactionPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   CreateTransactionRequest: [
@@ -124,6 +124,7 @@ export const RECORD_FIELDS = {
   ],
   UpdateTransactionRequest: ['description'],
   CategorizeTransactionRequest: ['categoryCode', 'applyToSimilar'],
+  MarkAsRefundRequest: ['refundOfTransactionId'],
   CategoryListResponse: ['items'],
   CategoryResponse: ['code', 'name', 'nature', 'active'],
 } as const
@@ -155,6 +156,7 @@ export type FieldChecks = [
   Assert<Equals<Values<F['CreateTransactionRequest']>, keyof CreateTxn>>,
   Assert<Equals<Values<F['UpdateTransactionRequest']>, keyof S['UpdateTransactionRequest']>>,
   Assert<Equals<Values<F['CategorizeTransactionRequest']>, keyof S['CategorizeTransactionRequest']>>,
+  Assert<Equals<Values<F['MarkAsRefundRequest']>, keyof S['MarkAsRefundRequest']>>,
   Assert<Equals<Values<F['CategoryListResponse']>, keyof S['CategoryListResponse']>>,
   Assert<Equals<Values<F['CategoryResponse']>, keyof Cat>>,
 ]

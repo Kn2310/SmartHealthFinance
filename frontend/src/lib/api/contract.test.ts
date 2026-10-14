@@ -133,6 +133,7 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
       ['transactions/presentation/dto/request/CreateTransactionRequest.java', ['CreateTransactionRequest']],
       ['transactions/presentation/dto/request/UpdateTransactionRequest.java', ['UpdateTransactionRequest']],
       ['transactions/presentation/dto/request/CategorizeTransactionRequest.java', ['CategorizeTransactionRequest']],
+      ['transactions/presentation/dto/request/MarkAsRefundRequest.java', ['MarkAsRefundRequest']],
       ['transactions/presentation/dto/response/CategoryListResponse.java', ['CategoryListResponse', 'CategoryResponse']],
     ]
     for (const [path, names] of files) {

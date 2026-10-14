@@ -73,3 +73,16 @@ export const requestFailureMessage = (code: string) =>
 
 export const plural = (n: number, one: string, many: string) =>
   `${n.toLocaleString('pt-BR')} ${n === 1 ? one : many}`
+
+const REFUND_MARK_ERROR: Partial<Record<string, string>> = {
+  NOT_RECLASSIFIABLE: 'Só receitas importadas de extrato podem ser marcadas como reembolso.',
+  NOT_FOUND: 'A compra escolhida não está mais disponível. Escolha outra ou siga sem vínculo.',
+  NOT_REFUNDABLE: 'Só despesas já lançadas podem receber reembolso. Escolha outra compra ou siga sem vínculo.',
+  EXCEEDS_REFUNDABLE: 'Esta compra já foi reembolsada e o valor passaria do total dela. Escolha outra ou siga sem vínculo.',
+  ALREADY_RECLASSIFIED: 'Esta receita já foi marcada como reembolso com outro vínculo. Recarregue para ver o reembolso.',
+  INVALID: 'Escolha uma compra da lista ou siga sem vínculo.',
+}
+
+/** Erros do "marcar como reembolso" (campos `transactionId` e `refundOfTransactionId`, ou `amount` do vínculo). */
+export const refundMarkErrorMessage = (code: string) =>
+  lookup(REFUND_MARK_ERROR, code, 'Não foi possível marcar como reembolso. Confira a compra escolhida.')

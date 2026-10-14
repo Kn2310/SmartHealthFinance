@@ -2,6 +2,7 @@
 
 import { Ban, CheckCircle2, ChevronLeft, CircleAlert, Download, SearchX, Undo2 } from 'lucide-react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Money } from '@/components/ui/Money'
@@ -25,6 +26,7 @@ import {
 import { accountNames, categoryNames, useAccounts, useCategories, useTransaction } from './hooks'
 import { acceptedNature, CATEGORY_SOURCE_LABEL, NO_CATEGORY_LABEL, SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
 import { categoryErrorMessage, fieldErrorMessage, requestFailureMessage } from './messages'
+import { canMarkAsRefund, RefundMarkSection } from './RefundMarkSection'
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
 
@@ -38,7 +40,7 @@ const BACK = (
 /**
  * D-TxnDetail como página (`/transactions/{id}`): valor, tipo, status e origem, conta, datas; alterar a categoria
  * (ADR-0012) e a descrição (os únicos campos editáveis — ADR-0005 §8) e efetivar, cancelar ou estornar conforme o
- * status permitir.
+ * status permitir. Receita importada pode ser marcada como reembolso (estornada e substituída por um REFUND).
  * `id` que não é UUID nem chega ao BFF: é o mesmo "não encontrada" de outro Workspace.
  */
 export function TransactionDetailView({ id }: { id: string | null }) {
@@ -135,6 +137,7 @@ function Loaded({
   onChange: (transaction: Transaction) => void
   onReload: () => void
 }) {
+  const router = useRouter()
   const accounts = useAccounts()
   const names = accountNames(accounts)
   const categories = useCategories()
@@ -201,7 +204,11 @@ function Loaded({
             </span>
           </div>
         </div>
-        <p className={accountStyles.muted}>{statusEffect(transaction.status)}</p>
+        <p className={accountStyles.muted}>
+          {transaction.reclassifiedAsTransactionId
+            ? 'Marcada como reembolso: foi substituída por um reembolso de mesmo valor, e o saldo não mudou. O registro fica guardado no histórico.'
+            : statusEffect(transaction.status)}
+        </p>
       </section>
 
       <div className={accountStyles.live} role="status">
@@ -280,6 +287,26 @@ function Loaded({
             <dt>Origem</dt>
             <dd>{SOURCE_LABEL[transaction.source] ?? 'Origem desconhecida'}</dd>
           </div>
+          {transaction.reclassifiedAsTransactionId ? (
+            <div className={styles.fact}>
+              <dt>Marcada como reembolso</dt>
+              <dd>
+                <Link href={`/transactions/${transaction.reclassifiedAsTransactionId}`} className={styles.link}>
+                  Ver reembolso
+                </Link>
+              </dd>
+            </div>
+          ) : null}
+          {transaction.reclassifiedFromTransactionId ? (
+            <div className={styles.fact}>
+              <dt>Substitui a receita importada</dt>
+              <dd>
+                <Link href={`/transactions/${transaction.reclassifiedFromTransactionId}`} className={styles.link}>
+                  Ver receita original
+                </Link>
+              </dd>
+            </div>
+          ) : null}
           {transaction.refundOfTransactionId ? (
             <div className={styles.fact}>
               <dt>Reembolso de</dt>
@@ -339,6 +366,14 @@ function Loaded({
             </div>
           )}
         </section>
+      ) : null}
+
+      {canMarkAsRefund(transaction) ? (
+        <RefundMarkSection
+          transaction={transaction}
+          onMarked={(refund) => router.push(`/transactions/${refund.id}`)}
+          onConflict={onReload}
+        />
       ) : null}
 
       {nature ? (

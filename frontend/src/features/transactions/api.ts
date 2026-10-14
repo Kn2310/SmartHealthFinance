@@ -89,3 +89,14 @@ export const fetchCategories = () => bffCall<Schemas['CategoryListResponse']>('/
 
 /** Chave nova por intenção de lançamento (formato aceito pelo backend: não reservados de URI + ':'). */
 export const newIdempotencyKey = () => `web:${crypto.randomUUID()}`
+
+/**
+ * "Marcar como reembolso": a receita importada é estornada e substituída por um REFUND igual. Responde o reembolso
+ * (201 na primeira vez, 200 no replay). `refundOfTransactionId` opcional: a despesa original.
+ */
+export const markAsRefund = (id: string, refundOfTransactionId: string | null) =>
+  bffCall<Transaction>(`${path(id)}/mark-as-refund`, {
+    method: 'POST',
+    headers: JSON_BODY,
+    body: JSON.stringify(refundOfTransactionId ? { refundOfTransactionId } : {}),
+  })

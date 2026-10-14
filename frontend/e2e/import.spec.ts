@@ -48,5 +48,19 @@ test('extrato CSV fictício é importado e aparece na Home com o selo "Importado
   await expect(recent.getByRole('listitem').first()).toContainText(latest.description)
   await expect(recent.getByRole('listitem').first()).toContainText('Importado')
   await expect(recent.getByText('Importado', { exact: true })).toHaveCount(await recent.getByRole('listitem').count())
+
+  // "Marcar como reembolso": o estorno do extrato sai das receitas e vai para reembolsos; saldo e resultado não mudam.
+  const statementRefund = september.find((line) => line.description.startsWith('Estorno'))!
+  await page.goto(`/transactions?q=${encodeURIComponent(statementRefund.description)}`)
+  await page.getByRole('link', { name: new RegExp(statementRefund.description) }).click()
+  await page.getByRole('button', { name: 'Marcar como reembolso' }).click()
+  await page.getByRole('button', { name: 'Confirmar: marcar como reembolso' }).click()
+  await expect(page.getByRole('link', { name: 'Ver receita original' })).toBeVisible()
+
+  await page.goto('/home?period=CUSTOM&from=2026-09-01&to=2026-09-30')
+  const income = sum(september.filter((l) => l.cents > 0n).map((l) => l.cents))
+  await expect(page.getByRole('region', { name: 'Saldo total' })).toContainText(brl(sum(lines.map((l) => l.cents))))
+  await expect(definition(flow, 'Receitas')).toContainText(brl(income - statementRefund.cents))
+  await expect(definition(flow, 'Reembolsos')).toContainText(brl(statementRefund.cents))
 })
 
