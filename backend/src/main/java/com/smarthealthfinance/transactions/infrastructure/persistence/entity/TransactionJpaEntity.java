@@ -26,7 +26,8 @@ import java.util.UUID;
 
 /**
  * Campos financeiros com {@code updatable = false}: além do domínio, o mapeamento também impede que um save
- * altere tipo, contas, valor ou data de um fato já gravado. Só descrição, status e categoria mudam.
+ * altere tipo, contas, valor ou data de um fato já gravado. Só descrição, status, categoria e o vínculo
+ * {@code reclassified_as} (receita estornada por "marcar como reembolso") mudam.
  */
 @Entity
 @Table(name = "transactions")
@@ -98,6 +99,12 @@ public class TransactionJpaEntity {
     @Column(name = "merchant_normalizer_version")
     private String merchantNormalizerVersion;
 
+    @Column(name = "reclassified_from_transaction_id", updatable = false)
+    private UUID reclassifiedFromTransactionId;
+
+    @Column(name = "reclassified_as_transaction_id")
+    private UUID reclassifiedAsTransactionId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -133,6 +140,10 @@ public class TransactionJpaEntity {
         entity.merchantKey = transaction.merchant().map(Merchant::key).orElse(null);
         entity.merchantName = transaction.merchant().map(Merchant::name).orElse(null);
         entity.merchantNormalizerVersion = transaction.merchant().map(Merchant::normalizerVersion).orElse(null);
+        entity.reclassifiedFromTransactionId = transaction.reclassifiedFromTransactionId().map(TransactionId::value)
+                .orElse(null);
+        entity.reclassifiedAsTransactionId = transaction.reclassifiedAsTransactionId().map(TransactionId::value)
+                .orElse(null);
         entity.createdAt = transaction.createdAt();
         entity.updatedAt = transaction.updatedAt();
         entity.version = transaction.version();
@@ -148,6 +159,8 @@ public class TransactionJpaEntity {
                 categoryCode == null ? null : new TransactionCategory(new CategoryCode(categoryCode), categoryNature),
                 categorySource == null ? null : new CategoryOrigin(categorySource, categoryRuleVersion),
                 merchantKey == null ? null : new Merchant(merchantKey, merchantName, merchantNormalizerVersion),
+                reclassifiedFromTransactionId == null ? null : new TransactionId(reclassifiedFromTransactionId),
+                reclassifiedAsTransactionId == null ? null : new TransactionId(reclassifiedAsTransactionId),
                 createdAt, updatedAt, version);
     }
 }

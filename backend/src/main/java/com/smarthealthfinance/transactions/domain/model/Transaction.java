@@ -50,6 +50,10 @@ public class Transaction {
     private TransactionCategory category;
     private CategoryOrigin categoryOrigin;
     private Merchant merchant;
+    /** Receita importada que este reembolso substitui ("marcar como reembolso"). Imutável. */
+    private final TransactionId reclassifiedFromTransactionId;
+    /** Reembolso que substituiu esta receita estornada ("marcar como reembolso"). */
+    private TransactionId reclassifiedAsTransactionId;
     private final Instant createdAt;
     private Instant updatedAt;
     private final long version;
@@ -70,6 +74,8 @@ public class Transaction {
             TransactionCategory category,
             CategoryOrigin categoryOrigin,
             Merchant merchant,
+            TransactionId reclassifiedFromTransactionId,
+            TransactionId reclassifiedAsTransactionId,
             Instant createdAt,
             Instant updatedAt,
             long version
@@ -92,6 +98,15 @@ public class Transaction {
         if (category != null && categoryOrigin == null) {
             throw new IllegalArgumentException("Categoria sem origem");
         }
+        if (reclassifiedFromTransactionId != null && type != TransactionType.REFUND) {
+            throw new IllegalArgumentException("Só um reembolso substitui uma receita reclassificada");
+        }
+        if (reclassifiedAsTransactionId != null
+                && (type != TransactionType.INCOME || status != TransactionStatus.REVERSED)) {
+            throw new IllegalArgumentException("Só uma receita estornada é substituída por reembolso");
+        }
+        this.reclassifiedFromTransactionId = reclassifiedFromTransactionId;
+        this.reclassifiedAsTransactionId = reclassifiedAsTransactionId;
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
         this.version = version;
@@ -121,7 +136,7 @@ public class Transaction {
             Instant now
     ) {
         return newFact(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, initialStatus, TransactionSource.MANUAL, refundOfTransactionId, now);
+                occurredOn, description, initialStatus, TransactionSource.MANUAL, refundOfTransactionId, null, now);
     }
 
     /**
@@ -142,7 +157,25 @@ public class Transaction {
             Instant now
     ) {
         return newFact(id, workspaceId, inflow ? TransactionType.INCOME : TransactionType.EXPENSE, accountId, null,
-                null, amount, occurredOn, description, TransactionStatus.POSTED, TransactionSource.IMPORT, null, now);
+                null, amount, occurredOn, description, TransactionStatus.POSTED, TransactionSource.IMPORT, null, null,
+                now);
+    }
+
+    /**
+     * Reembolso que substitui uma receita importada estornada ("marcar como reembolso", adendo de 2026-10-14 aos
+     * ADR-0005 §6/§8 e ADR-0009 §9). Copia conta, valor, data, descrição e origem do fato do extrato; nasce POSTED. A
+     * receita original é estornada por {@link #reclassifyAsRefund} na mesma transação de banco.
+     *
+     * @param refundOfTransactionId despesa original, opcional; a elegibilidade é verificada por
+     *                              {@link #ensureRefundable} antes da criação
+     */
+    public static Transaction refundReplacing(TransactionId id, Transaction original,
+                                              TransactionId refundOfTransactionId, Instant now) {
+        Objects.requireNonNull(original, "original");
+        original.ensureReclassifiable();
+        return newFact(id, original.workspaceId, TransactionType.REFUND, original.accountId, null, null,
+                original.amount, original.occurredOn, original.description, TransactionStatus.POSTED, original.source,
+                refundOfTransactionId, original.id, now);
     }
 
     private static Transaction newFact(
@@ -158,6 +191,7 @@ public class Transaction {
             TransactionStatus initialStatus,
             TransactionSource source,
             TransactionId refundOfTransactionId,
+            TransactionId reclassifiedFromTransactionId,
             Instant now
     ) {
         Objects.requireNonNull(type, "type");
@@ -186,11 +220,39 @@ public class Transaction {
                 : null;
 
         return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, initialStatus, source, refundOfTransactionId, null, null, merchant, now, now,
-                0);
+                occurredOn, description, initialStatus, source, refundOfTransactionId, null, null, merchant,
+                reclassifiedFromTransactionId, null, now, now, 0);
     }
 
-    /** Restauração completa, com a origem da categoria e o comerciante (ADR-0013). */
+    /** Restauração completa, com o vínculo de reclassificação ("marcar como reembolso"). */
+    public static Transaction restore(
+            TransactionId id,
+            WorkspaceId workspaceId,
+            TransactionType type,
+            AccountId accountId,
+            AccountId destinationAccountId,
+            AdjustmentDirection adjustmentDirection,
+            Money amount,
+            LocalDate occurredOn,
+            TransactionDescription description,
+            TransactionStatus status,
+            TransactionSource source,
+            TransactionId refundOfTransactionId,
+            TransactionCategory category,
+            CategoryOrigin categoryOrigin,
+            Merchant merchant,
+            TransactionId reclassifiedFromTransactionId,
+            TransactionId reclassifiedAsTransactionId,
+            Instant createdAt,
+            Instant updatedAt,
+            long version
+    ) {
+        return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
+                occurredOn, description, status, source, refundOfTransactionId, category, categoryOrigin, merchant,
+                reclassifiedFromTransactionId, reclassifiedAsTransactionId, createdAt, updatedAt, version);
+    }
+
+    /** Com a origem da categoria e o comerciante (ADR-0013), sem reclassificação. */
     public static Transaction restore(
             TransactionId id,
             WorkspaceId workspaceId,
@@ -211,9 +273,9 @@ public class Transaction {
             Instant updatedAt,
             long version
     ) {
-        return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
+        return restore(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
                 occurredOn, description, status, source, refundOfTransactionId, category, categoryOrigin, merchant,
-                createdAt, updatedAt, version);
+                null, null, createdAt, updatedAt, version);
     }
 
     /** Sem comerciante; categoria, se houver, é tratada como manual (dados anteriores ao ADR-0013). */
@@ -291,6 +353,34 @@ public class Transaction {
 
         if (alreadyRefunded.plus(refundAmount).isGreaterThan(amount)) {
             throw new InvalidValueException("amount", "EXCEEDS_REFUNDABLE");
+        }
+    }
+
+    /**
+     * Estorna esta receita importada porque ela era um reembolso, apontando para o {@code refund} que a substitui
+     * (criado por {@link #refundReplacing}). POSTED → REVERSED: o saldo não muda (os dois creditam a mesma conta), e
+     * o fato do extrato permanece para auditoria e para a deduplicação de reimportações.
+     */
+    public void reclassifyAsRefund(Transaction refund, Instant now) {
+        Objects.requireNonNull(refund, "refund");
+        ensureReclassifiable();
+        if (!id.equals(refund.reclassifiedFromTransactionId)) {
+            throw new IllegalArgumentException("O reembolso não substitui esta receita");
+        }
+        transition(TransactionStatus.POSTED, TransactionStatus.REVERSED, now);
+        reclassifiedAsTransactionId = refund.id;
+    }
+
+    /**
+     * Só receita importada e lançada pode virar reembolso: o problema é o estorno do extrato entrar como receita
+     * (ADR-0009 §9). Lançamentos manuais já escolhem o tipo REFUND na criação.
+     */
+    private void ensureReclassifiable() {
+        if (type != TransactionType.INCOME || source != TransactionSource.IMPORT) {
+            throw new InvalidValueException("transactionId", "NOT_RECLASSIFIABLE");
+        }
+        if (status != TransactionStatus.POSTED) {
+            throw new InvalidTransactionStatusTransitionException(id, status, TransactionStatus.REVERSED);
         }
     }
 
@@ -472,6 +562,12 @@ public class Transaction {
     /** Vazio enquanto ninguém (regra ou usuário) tratou a categoria. */
     public Optional<CategoryOrigin> categoryOrigin() { return Optional.ofNullable(categoryOrigin); }
     public Optional<Merchant> merchant() { return Optional.ofNullable(merchant); }
+    public Optional<TransactionId> reclassifiedFromTransactionId() {
+        return Optional.ofNullable(reclassifiedFromTransactionId);
+    }
+    public Optional<TransactionId> reclassifiedAsTransactionId() {
+        return Optional.ofNullable(reclassifiedAsTransactionId);
+    }
     public Instant createdAt() { return createdAt; }
     public Instant updatedAt() { return updatedAt; }
     public long version() { return version; }

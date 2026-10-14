@@ -109,6 +109,30 @@ class AnalyticsWorkerIT extends IntegrationTest {
                 .doesNotContain("4321.98").doesNotContain("Sigilosa").doesNotContain("SHOPPING");
     }
 
+    /** "Marcar como reembolso": os eventos reversed + created levam a entrada de receita para reembolso. */
+    @Test
+    void markingAsRefundMovesTheInflowToRefundsInTheProjection() throws Exception {
+        MvcTestResult created = mvc.post().uri(TRANSACTIONS, workspace).with(ana())
+                .header("Idempotency-Key", "k-" + ++keys).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"type": "INCOME", "accountId": "%s", "amount": {"amount": "129.90", "currency": "BRL"},
+                         "occurredOn": "2026-09-22", "description": "Estorno Loja Azul"}
+                        """.formatted(account)).exchange();
+        String income = read(created, "$.id").toString();
+        jdbc.update("update transactions set source = 'IMPORT' where id = ?::uuid", income);
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> assertThat(
+                rows("select flow || ' ' || amount::text from analytics_daily_flows where workspace_id = ?::uuid"))
+                .containsExactly("INCOME 129.9000"));
+
+        assertThat(mvc.post().uri(TRANSACTIONS + "/{id}/mark-as-refund", workspace, income).with(ana()).exchange())
+                .hasStatus(HttpStatus.CREATED);
+
+        await().atMost(Duration.ofSeconds(20)).untilAsserted(() -> {
+            assertThat(rows("select flow || ' ' || amount::text from analytics_daily_flows where workspace_id = ?::uuid"))
+                    .containsExactly("REFUND 129.9000");
+            assertThat(read(status(), "$.state")).isEqualTo("UP_TO_DATE");
+        });
+    }
+
     @Test
     void statusRequiresMembership() {
         mvc.post().uri(ME).with(bob()).exchange();

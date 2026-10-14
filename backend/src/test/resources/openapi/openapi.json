@@ -1080,6 +1080,15 @@
         },
         "type" : "object"
       },
+      "MarkAsRefundRequest" : {
+        "properties" : {
+          "refundOfTransactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "MoneyDto" : {
         "properties" : {
           "amount" : {
@@ -1291,6 +1300,14 @@
           },
           "occurredOn" : {
             "format" : "date",
+            "type" : "string"
+          },
+          "reclassifiedAsTransactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "reclassifiedFromTransactionId" : {
+            "format" : "uuid",
             "type" : "string"
           },
           "refundOfTransactionId" : {
@@ -3516,6 +3533,91 @@
           }
         },
         "summary" : "Atribui ou remove (categoryCode null) a categoria; idempotente, em qualquer status. A escolha é sempre MANUAL; com applyToSimilar, vira regra do comerciante para as transações semelhantes",
+        "tags" : [ "Transactions" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/mark-as-refund" : {
+      "post" : {
+        "operationId" : "markAsRefund",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "transactionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/MarkAsRefundRequest"
+              }
+            }
+          }
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransactionResponse"
+                }
+              }
+            },
+            "description" : "Replay: a receita já tinha sido marcada com o mesmo vínculo"
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransactionResponse"
+                }
+              }
+            },
+            "description" : "Reembolso criado e receita estornada"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (transactionId NOT_RECLASSIFIABLE; refundOfTransactionId NOT_FOUND, NOT_REFUNDABLE ou ALREADY_RECLASSIFIED; amount EXCEEDS_REFUNDABLE)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou TRANSACTION_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "TRANSACTION_STATUS_CONFLICT (receita não lançada) ou ACCOUNT_ARCHIVED"
+          }
+        },
+        "summary" : "Marca uma receita importada como reembolso: estorna a receita e cria um REFUND igual, opcionalmente vinculado à despesa original (idempotente; responde o reembolso)",
         "tags" : [ "Transactions" ]
       }
     },

@@ -141,7 +141,8 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
         return Transaction.restore(t.id(), t.workspaceId(), t.type(), t.accountId(),
                 t.destinationAccountId().orElse(null), t.adjustmentDirection().orElse(null), t.amount(),
                 t.occurredOn(), t.description(), t.status(), t.source(), t.refundOfTransactionId().orElse(null),
-                t.category().orElse(null), t.categoryOrigin().orElse(null), t.merchant().orElse(null), t.createdAt(),
+                t.category().orElse(null), t.categoryOrigin().orElse(null), t.merchant().orElse(null),
+                t.reclassifiedFromTransactionId().orElse(null), t.reclassifiedAsTransactionId().orElse(null), t.createdAt(),
                 t.updatedAt(), version);
     }
 }
