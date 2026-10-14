@@ -29,7 +29,8 @@ const AXIS = 22
 
 /**
  * "Comparar meses": barras agrupadas por mês; o mês parcial fica translúcido e tracejado (Trust UX). O SVG é
- * decorativo para leitores de tela: os mesmos valores estão na tabela "Ver dados" logo abaixo.
+ * decorativo para leitores de tela: os mesmos valores estão na tabela "Ver dados" logo abaixo. Ao passar o mouse (ou
+ * tocar) em um mês, um tooltip mostra o valor e a legenda de cada coluna; é só CSS (:hover), sem estilo inline (CSP).
  */
 export function MonthBars({ title, series, data, caption }: Props) {
   const id = useId()
@@ -44,35 +45,56 @@ export function MonthBars({ title, series, data, caption }: Props) {
       <figcaption id={`${id}-title`} className="sr-only">
         {title}
       </figcaption>
-      <svg className={styles.svg} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true" focusable="false">
-        <line className={styles.axis} x1={0} x2={WIDTH} y1={chartHeight} y2={chartHeight} />
-        {data.map((datum, i) => {
-          const groupX = i * slot + (slot - groupWidth) / 2
-          return (
-            <g key={datum.month}>
-              {datum.values.map((value, s) => {
-                const height = scale(magnitude(value), max, chartHeight - 8)
-                const tone = series[s]?.tone ?? 'expense'
-                return (
-                  <rect
-                    key={s}
-                    className={[styles[tone], datum.partial ? styles.partial : ''].join(' ')}
-                    x={px(groupX + s * barWidth + 1)}
-                    y={px(chartHeight - height)}
-                    width={px(Math.max(barWidth - 2, 1))}
-                    height={px(height)}
-                    rx={2}
-                  />
-                )
-              })}
-              <text className={styles.tick} x={px(i * slot + slot / 2)} y={HEIGHT - 6} textAnchor="middle">
-                {monthLabel(datum.month)}
-                {datum.partial ? '*' : ''}
-              </text>
-            </g>
-          )
-        })}
-      </svg>
+      <div className={styles.plot}>
+        <svg className={styles.svg} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} aria-hidden="true" focusable="false">
+          <line className={styles.axis} x1={0} x2={WIDTH} y1={chartHeight} y2={chartHeight} />
+          {data.map((datum, i) => {
+            const groupX = i * slot + (slot - groupWidth) / 2
+            return (
+              <g key={datum.month}>
+                {datum.values.map((value, s) => {
+                  const height = scale(magnitude(value), max, chartHeight - 8)
+                  const tone = series[s]?.tone ?? 'expense'
+                  return (
+                    <rect
+                      key={s}
+                      className={[styles[tone], datum.partial ? styles.partial : ''].join(' ')}
+                      x={px(groupX + s * barWidth + 1)}
+                      y={px(chartHeight - height)}
+                      width={px(Math.max(barWidth - 2, 1))}
+                      height={px(height)}
+                      rx={2}
+                    />
+                  )
+                })}
+                <text className={styles.tick} x={px(i * slot + slot / 2)} y={HEIGHT - 6} textAnchor="middle">
+                  {monthLabel(datum.month)}
+                  {datum.partial ? '*' : ''}
+                </text>
+              </g>
+            )
+          })}
+        </svg>
+        <div className={styles.hits} aria-hidden="true">
+          {data.map((datum) => (
+            <div key={datum.month} className={styles.hit}>
+              <div className={styles.tip}>
+                <span className={styles.tipTitle}>
+                  {monthLabel(datum.month, true)}
+                  {datum.partial ? ' (parcial)' : ''}
+                </span>
+                {datum.values.map((value, s) => (
+                  <span key={s} className={styles.tipRow}>
+                    <span className={`${styles.swatch} ${series[s]?.tone === 'income' ? styles.swatchIncome : styles.swatchExpense}`} />
+                    <span className={styles.tipLabel}>{series[s]?.label}</span>
+                    <Money value={value} className={styles.tipValue} />
+                  </span>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
       <div className={styles.legend} aria-hidden="true">
         {series.map((s) => (
           <span key={s.label} className={styles.legendItem}>

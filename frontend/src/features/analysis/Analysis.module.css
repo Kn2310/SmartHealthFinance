@@ -82,13 +82,20 @@
 .itemMeta { color: var(--color-neutral-muted); font: var(--type-caption); }
 .itemValue { text-align: right; white-space: nowrap; font-weight: 600; }
 .itemButton {
-  display: contents;
+  justify-self: start;
+  padding: 0;
   border: 0;
   background: none;
+  font: inherit;
   text-align: left;
   cursor: pointer;
 }
-.itemSelected { background: var(--color-semantic-bg-blue); border-radius: var(--radius-sm); }
+.itemSelected {
+  margin-inline: calc(-1 * var(--space-12));
+  padding-inline: var(--space-12);
+  background: var(--color-semantic-bg-blue);
+  border-radius: var(--radius-sm);
+}
 
 .table { width: 100%; border-collapse: collapse; font: var(--type-body-s); }
 .table th, .table td { padding: var(--space-8) var(--space-8); border-bottom: 1px solid var(--color-neutral-border); text-align: right; }
