@@ -69,3 +69,41 @@
 .barIncome { fill: var(--color-brand-intelligent-teal); }
 .barNet { fill: var(--color-semantic-success); }
 .barNegative { fill: var(--color-semantic-danger); }
+
+/* Tooltip das colunas (MonthBars): uma faixa por mês sobre o SVG, em grid com colunas iguais às do gráfico.
+   Só CSS (:hover), sem estilo inline (CSP); aria-hidden porque a tabela "Ver dados" já é a alternativa textual. */
+.plot { position: relative; }
+.hits {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+.hit { position: relative; border-radius: var(--radius-sm); }
+.hit:hover { background: rgba(11, 18, 32, 0.05); }
+.tip {
+  position: absolute;
+  z-index: 1;
+  bottom: calc(100% + var(--space-4));
+  left: 50%;
+  display: none;
+  gap: var(--space-4);
+  min-width: max-content;
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--color-neutral-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-surface);
+  box-shadow: var(--shadow-2);
+  color: var(--color-neutral-text);
+  font: var(--type-caption);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.hit:first-child .tip { left: 0; transform: none; }
+.hit:last-child .tip { left: auto; right: 0; transform: none; }
+.hit:hover .tip { display: grid; }
+.tipTitle { font-weight: 600; }
+.tipRow { display: flex; align-items: center; gap: var(--space-8); }
+.tipLabel { flex: 1; color: var(--color-neutral-text-secondary); }
+.tipValue { font-weight: 600; white-space: nowrap; }

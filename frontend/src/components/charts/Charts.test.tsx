@@ -35,6 +35,13 @@ describe('gráficos do DS (SVG próprio)', () => {
     const table = screen.getByRole('table', { name: 'Receitas e despesas' })
     expect(within(table).getByText('set/26 (parcial)')).toBeInTheDocument()
     expect(within(table).getByText('R$ 3.846,20')).toBeInTheDocument()
+    // Tooltip de hover: um por mês, com a legenda e o valor de cada coluna; oculto para leitores de tela.
+    const hits = container.querySelector('div[aria-hidden="true"]')!
+    expect(hits.children).toHaveLength(2)
+    expect(hits.children[1]).toHaveTextContent('set/26 (parcial)')
+    expect(hits.children[1]).toHaveTextContent('Receitas')
+    expect(hits.children[1]).toHaveTextContent('R$ 6.800,00')
+    expect(hits.children[1]).toHaveTextContent('Despesas')
     expect(await axeViolations(container)).toEqual([])
   })
 
