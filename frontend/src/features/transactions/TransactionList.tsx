@@ -20,6 +20,7 @@ import {
 import { accountNames, categoryNames, useAccounts, useCategories, useTransactionPages } from './hooks'
 import { NO_CATEGORY_LABEL, STATUS_OPTIONS, TYPE_OPTIONS } from './labels'
 import { plural, requestFailureMessage } from './messages'
+import { PeriodSummary } from './PeriodSummary'
 import { TransactionRow } from './TransactionRow'
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
@@ -32,6 +33,8 @@ interface Props {
   fixedAccountId?: string
   /** Conteúdo do estado vazio "primeira vez" (nenhuma transação, nenhum filtro). */
   firstTimeEmpty: ReactNode
+  /** D-Transactions: métricas do período filtrado e "Por que meu dinheiro mudou?" (ADR-0016). */
+  summary?: boolean
 }
 
 /** Agrupa por dia mantendo a ordem do backend (mais recentes primeiro). */
@@ -46,10 +49,21 @@ function byDay(items: Transaction[]): [string, Transaction[]][] {
 }
 
 /**
+ * Mês inteiro sem outros filtros (ADR-0016 / parte E): só então o "Por que meu dinheiro mudou?" do mês faz sentido.
+ */
+function wholeMonth(filters: Filters, q: string, today: string): string | null {
+  if (filters.accountId || filters.type || filters.status || filters.category || q.trim()) return null
+  if (filters.period === 'CURRENT_MONTH' || filters.period === 'PREVIOUS_MONTH') {
+    return periodRange(filters, today).from?.slice(0, 7) ?? null
+  }
+  return null
+}
+
+/**
  * Lista de transações com filtros (período, tipo, status, conta e busca) — D-Transactions e a seção
  * "Movimentações" de D-AccountDetail. Loading, vazio (primeira vez × filtros sem resultado) e erro (D-TxnError).
  */
-export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixedAccountId, firstTimeEmpty }: Props) {
+export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixedAccountId, firstTimeEmpty, summary }: Props) {
   const id = useId()
   const [today] = useState(businessToday)
   const [draftQuery, setDraftQuery] = useState('')
@@ -293,6 +307,11 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
         <p className={accountStyles.partial}>
           Não conseguimos carregar os nomes das categorias agora. As transações continuam corretas.
         </p>
+      ) : null}
+
+      {summary ? (
+        <PeriodSummary params={toListParams(effective, query, today)} names={categoriesByCode}
+          wholeMonth={wholeMonth(effective, query, today)} />
       ) : null}
 
       <p className={styles.count} role="status">

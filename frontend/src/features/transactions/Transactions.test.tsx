@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NewAccountView } from '@/features/accounts/NewAccountView'
 import { AccountDetailView } from '@/features/accounts/AccountDetailView'
 import { readyOverview } from '@/features/home/fixtures'
+import { overview as analysisOverview } from '@/features/analysis/fixtures'
 import { axeViolations } from '@/test/a11y'
 import { json, stubBff } from '@/test/bff-stub'
 import type { Account, Transaction } from './api'
@@ -61,6 +62,22 @@ const txn = (overrides: Partial<Transaction> = {}): Transaction => ({
   ...overrides,
 })
 
+/** Métricas do período (ADR-0016): toda tela de lista as pede; os testes da lista não dependem dos valores. */
+const periodSummary = {
+  income: { amount: '6500.00', currency: 'BRL' },
+  expense: { amount: '86.40', currency: 'BRL' },
+  refunds: { amount: '0.00', currency: 'BRL' },
+  net: { amount: '6413.60', currency: 'BRL' },
+  transfers: { count: 0, volume: { amount: '0.00', currency: 'BRL' } },
+  postedCount: 2,
+  pendingCount: 0,
+}
+const stub = (routes: Parameters<typeof stubBff>[0]) =>
+  stubBff({ 'GET /api/bff/transactions/summary': () => json(periodSummary), ...routes })
+
+/** Chamada da lista (não do resumo do período). */
+const isListCall = (url: string) => url.startsWith('/api/bff/transactions') && !url.startsWith('/api/bff/transactions/summary')
+
 const page = (items: Transaction[], totalItems = items.length, pageNumber = 0) => ({ items, page: pageNumber, pageSize: 50, totalItems })
 const accountsList = (items: Account[] = [account(), account({ id: NORTE, name: 'Reserva', type: 'SAVINGS' })]) => ({ items })
 const catalog = {
@@ -87,9 +104,47 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
+describe('/transactions — resumo do período (ADR-0016)', () => {
+  it('métricas do período filtrado e "Por que meu dinheiro mudou?" do mês; acessível', async () => {
+    const calls = stub({
+      'GET /api/bff/transactions': () => json(page([txn()])),
+      'GET /api/bff/accounts': () => json(accountsList()),
+      'GET /api/bff/analytics/overview': () => json(analysisOverview()),
+    })
+    const user = userEvent.setup()
+    const { container } = render(<TransactionsView />)
+
+    const summary = await screen.findByRole('region', { name: 'Resumo do período filtrado' })
+    expect(await within(summary).findByText('mais R$ 6.500,00')).toBeInTheDocument()
+    expect(within(summary).getByText('menos R$ 86,40')).toBeInTheDocument()
+    expect(within(summary).getByText('mais R$ 6.413,60')).toBeInTheDocument()
+    expect(calls.find((c) => c.url.startsWith('/api/bff/transactions/summary'))!.url)
+      .toBe('/api/bff/transactions/summary?from=2026-10-01&to=2026-10-31')
+    expect(calls.some((c) => c.url === '/api/bff/analytics/overview?month=2026-10')).toBe(true)
+
+    await user.click(await within(summary).findByText('Por que meu dinheiro mudou?'))
+    expect(within(summary).getByRole('list', { name: 'Composição do resultado do mês' })).toBeInTheDocument()
+    expect(await axeViolations(container)).toEqual([])
+  })
+
+  it('com outros filtros, o resumo segue os filtros e só oferece o link para a análise', async () => {
+    search = new URLSearchParams('type=EXPENSE')
+    const calls = stub({
+      'GET /api/bff/transactions': () => json(page([txn()])),
+      'GET /api/bff/accounts': () => json(accountsList()),
+    })
+    render(<TransactionsView />)
+
+    expect(await screen.findByRole('link', { name: 'Ver a análise do mês' })).toHaveAttribute('href', '/analysis')
+    expect(calls.find((c) => c.url.startsWith('/api/bff/transactions/summary'))!.url)
+      .toBe('/api/bff/transactions/summary?from=2026-10-01&to=2026-10-31&type=EXPENSE')
+    expect(calls.some((c) => c.url.startsWith('/api/bff/analytics'))).toBe(false)
+  })
+})
+
 describe('/transactions — lista', () => {
   it('lista o mês corrente agrupada por dia, com sinal, status e origem; acessível', async () => {
-    const calls = stubBff({
+    const calls = stub({
       'GET /api/bff/transactions': () =>
         json(
           page([
@@ -106,7 +161,7 @@ describe('/transactions — lista', () => {
     expect(screen.getByText('Carregando transações…')).toBeInTheDocument()
     expect(await screen.findByText('Salário')).toBeInTheDocument()
 
-    const list = calls.find((c) => c.url.startsWith('/api/bff/transactions'))!
+    const list = calls.find((c) => isListCall(c.url))!
     expect(list.url).toBe('/api/bff/transactions?from=2026-10-01&to=2026-10-31')
     expect(screen.getByText('1 a 31 de outubro · 3 transações')).toBeInTheDocument()
     expect(screen.getByRole('heading', { level: 3, name: '9 out · sexta' })).toBeInTheDocument()
@@ -128,7 +183,7 @@ describe('/transactions — lista', () => {
   })
 
   it('filtros vão para a URL (sem a busca por texto) e voltam para a lista', async () => {
-    stubBff({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
+    stub({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
     const user = userEvent.setup()
     render(<TransactionsView />)
     await screen.findByText('Bistrô Lume')
@@ -142,7 +197,7 @@ describe('/transactions — lista', () => {
   })
 
   it('categoria: nome no lugar do tipo, filtro na URL e "Sem categoria" vai ao BFF como uncategorized', async () => {
-    const calls = stubBff({
+    const calls = stub({
       'GET /api/bff/transactions': () =>
         json(page([txn({ categoryCode: 'DINING_OUT' }), txn({ id: 'x', description: 'Feira', categoryCode: null })])),
       'GET /api/bff/accounts': () => json(accountsList()),
@@ -161,14 +216,14 @@ describe('/transactions — lista', () => {
 
     search = new URLSearchParams('category=none')
     render(<TransactionsView />)
-    const lastList = () => calls.filter((c) => c.url.startsWith('/api/bff/transactions')).at(-1)!.url
+    const lastList = () => calls.filter((c) => isListCall(c.url)).at(-1)!.url
     await waitFor(() => expect(lastList()).toContain('uncategorized=true'))
     expect(lastList()).not.toContain('categoryCode')
     expect(screen.getByRole('button', { name: 'Limpar filtros' })).toBeInTheDocument()
   })
 
   it('catálogo indisponível: a lista continua, com o tipo no lugar da categoria (parcial)', async () => {
-    stubBff({
+    stub({
       'GET /api/bff/transactions': () => json(page([txn({ categoryCode: 'DINING_OUT' })])),
       'GET /api/bff/accounts': () => json(accountsList()),
     })
@@ -180,11 +235,11 @@ describe('/transactions — lista', () => {
 
   it('lê os filtros da URL e envia ao BFF com o período convertido; a busca vai só na chamada', async () => {
     search = new URLSearchParams(`period=PREVIOUS_MONTH&type=INCOME&status=POSTED&accountId=${NORTE}&workspaceId=x`)
-    const calls = stubBff({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
+    const calls = stub({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
     const user = userEvent.setup()
     render(<TransactionsView />)
     await screen.findByText('Bistrô Lume')
-    expect(calls.find((c) => c.url.startsWith('/api/bff/transactions'))!.url).toBe(
+    expect(calls.find((c) => isListCall(c.url))!.url).toBe(
       `/api/bff/transactions?from=2026-09-01&to=2026-09-30&accountId=${NORTE}&type=INCOME&status=POSTED`,
     )
     expect(screen.getByRole('link', { name: 'Nova transação' })).toHaveAttribute('href', `/transactions/new?accountId=${NORTE}`)
@@ -197,7 +252,7 @@ describe('/transactions — lista', () => {
 
   it('período personalizado: datas inválidas não são aplicadas', async () => {
     search = new URLSearchParams('period=CUSTOM&from=2026-10-01&to=2026-10-05')
-    stubBff({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
+    stub({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
     const user = userEvent.setup()
     render(<TransactionsView />)
     await screen.findByText('Bistrô Lume')
@@ -210,7 +265,7 @@ describe('/transactions — lista', () => {
   })
 
   it('primeira vez (sem transações e sem filtros): convida a registrar ou importar', async () => {
-    stubBff({ 'GET /api/bff/transactions': () => json(page([])), 'GET /api/bff/accounts': () => json(accountsList()) })
+    stub({ 'GET /api/bff/transactions': () => json(page([])), 'GET /api/bff/accounts': () => json(accountsList()) })
     const { container } = render(<TransactionsView />)
     expect(await screen.findByRole('heading', { name: 'Nenhuma transação neste mês' })).toBeInTheDocument()
     expect(screen.getAllByRole('link', { name: 'Nova transação' })).toHaveLength(2)
@@ -219,7 +274,7 @@ describe('/transactions — lista', () => {
 
   it('filtros sem resultado: "nenhuma encontrada" e limpar filtros volta ao padrão', async () => {
     search = new URLSearchParams('type=REFUND')
-    stubBff({ 'GET /api/bff/transactions': () => json(page([])), 'GET /api/bff/accounts': () => json(accountsList()) })
+    stub({ 'GET /api/bff/transactions': () => json(page([])), 'GET /api/bff/accounts': () => json(accountsList()) })
     const user = userEvent.setup()
     render(<TransactionsView />)
     expect(await screen.findByRole('heading', { name: 'Nenhuma transação encontrada' })).toBeInTheDocument()
@@ -229,7 +284,7 @@ describe('/transactions — lista', () => {
 
   it('erro: mensagem neutra e tentar novamente refaz a chamada', async () => {
     let fail = true
-    const calls = stubBff({
+    const calls = stub({
       'GET /api/bff/transactions': () => (fail ? json({ code: 'UNAVAILABLE' }, 502) : json(page([txn()]))),
       'GET /api/bff/accounts': () => json(accountsList()),
     })
@@ -240,12 +295,12 @@ describe('/transactions — lista', () => {
     fail = false
     await user.click(screen.getByRole('button', { name: 'Tentar novamente' }))
     expect(await screen.findByText('Bistrô Lume')).toBeInTheDocument()
-    expect(calls.filter((c) => c.url.startsWith('/api/bff/transactions'))).toHaveLength(2)
+    expect(calls.filter((c) => isListCall(c.url))).toHaveLength(2)
   })
 
   it('carregar mais pede a próxima página e acrescenta sem repetir', async () => {
     const first = Array.from({ length: 50 }, (_, i) => txn({ id: `t${i}`, description: `Compra ${i}` }))
-    const calls = stubBff({
+    const calls = stub({
       'GET /api/bff/transactions': (_init, url) =>
         url.includes('page=1') ? json(page([first[49]!, txn({ id: 'last', description: 'Última' })], 51, 1)) : json(page(first, 51)),
       'GET /api/bff/accounts': () => json(accountsList()),
@@ -262,7 +317,7 @@ describe('/transactions — lista', () => {
 
   it('aviso depois de registrar (?registered=posted)', async () => {
     search = new URLSearchParams('registered=posted')
-    stubBff({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
+    stub({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
     render(<TransactionsView />)
     expect(screen.getByText(/Transação registrada\. O saldo da conta e da Home/)).toBeInTheDocument()
   })
@@ -282,7 +337,7 @@ describe('/transactions/new — lançamento manual', () => {
   }
 
   it('registra despesa com valor em string decimal, data de hoje e POSTED, e volta para a lista', async () => {
-    const calls = stubBff(routes(() => json(txn(), 201)))
+    const calls = stub(routes(() => json(txn(), 201)))
     const user = userEvent.setup()
     const { container } = render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} />)
 
@@ -314,7 +369,7 @@ describe('/transactions/new — lançamento manual', () => {
     // O primeiro envio fica pendurado até o teste decidir: o segundo clique acontece com ele em andamento.
     let failFirst: (response: Response) => void = () => {}
     const firstResponse = new Promise<Response>((resolve) => (failFirst = resolve))
-    const calls = stubBff({
+    const calls = stub({
       ...routes(() => json(txn(), 200)),
       'POST /api/bff/transactions': () => (++attempt === 1 ? firstResponse : json(txn(), 200)),
     })
@@ -337,7 +392,7 @@ describe('/transactions/new — lançamento manual', () => {
 
   it('IDEMPOTENCY_KEY_REUSED: avisa e o próximo envio é uma nova intenção (outra chave)', async () => {
     let attempt = 0
-    const calls = stubBff(routes(() => (++attempt === 1 ? json({ code: 'IDEMPOTENCY_KEY_REUSED' }, 422) : json(txn(), 201))))
+    const calls = stub(routes(() => (++attempt === 1 ? json({ code: 'IDEMPOTENCY_KEY_REUSED' }, 422) : json(txn(), 201))))
     const user = userEvent.setup()
     render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} />)
     await fill(user)
@@ -351,7 +406,7 @@ describe('/transactions/new — lançamento manual', () => {
   })
 
   it('validação local: valor inválido e ajuste sem direção, com foco no primeiro erro, sem chamar o BFF', async () => {
-    const calls = stubBff(routes(() => json(txn(), 201)))
+    const calls = stub(routes(() => json(txn(), 201)))
     const user = userEvent.setup()
     const { container } = render(<NewTransactionView initialAccountId={AURORA} returnTo={{ kind: 'transactions' }} />)
     await user.click(await screen.findByRole('radio', { name: 'Ajuste' }))
@@ -367,7 +422,7 @@ describe('/transactions/new — lançamento manual', () => {
   })
 
   it('ajuste com direção e pendente; conta arquivada no servidor vira erro no campo Conta', async () => {
-    const calls = stubBff(routes(() => json({ code: 'ACCOUNT_ARCHIVED' }, 409)))
+    const calls = stub(routes(() => json({ code: 'ACCOUNT_ARCHIVED' }, 409)))
     const user = userEvent.setup()
     render(<NewTransactionView initialAccountId={AURORA} returnTo={{ kind: 'transactions' }} />)
     await fill(user, { type: 'Ajuste', amount: '200' })
@@ -386,7 +441,7 @@ describe('/transactions/new — lançamento manual', () => {
   })
 
   it('sem conta ativa: pede para criar uma conta antes', async () => {
-    stubBff({ 'GET /api/bff/accounts': () => json(accountsList([account({ status: 'ARCHIVED' })])) })
+    stub({ 'GET /api/bff/accounts': () => json(accountsList([account({ status: 'ARCHIVED' })])) })
     render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} />)
     expect(await screen.findByRole('heading', { name: 'Crie uma conta primeiro' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Adicionar conta' })).toHaveAttribute('href', '/accounts/new')
@@ -397,7 +452,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   const accounts = { 'GET /api/bff/accounts': () => json(accountsList()) , 'GET /api/bff/categories': () => json(catalog) }
 
   it('pendente: mostra dados e efetiva (POSTED) com aviso de saldo', async () => {
-    const calls = stubBff({
+    const calls = stub({
       ...accounts,
       'GET /api/bff/transactions/': () => json(txn({ status: 'PENDING' })),
       'POST /api/bff/transactions/': () => json(txn({ status: 'POSTED' })),
@@ -419,7 +474,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('lançada: estornar pede confirmação; voltar não chama o BFF', async () => {
-    const calls = stubBff({
+    const calls = stub({
       ...accounts,
       'GET /api/bff/transactions/': () => json(txn()),
       'POST /api/bff/transactions/': () => json(txn({ status: 'REVERSED' })),
@@ -442,7 +497,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('pendente: cancelar com confirmação; conflito de status explica e oferece recarregar', async () => {
-    stubBff({
+    stub({
       ...accounts,
       'GET /api/bff/transactions/': () => json(txn({ status: 'PENDING' })),
       'POST /api/bff/transactions/': () => json({ code: 'TRANSACTION_STATUS_CONFLICT' }, 409),
@@ -456,7 +511,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('edita só a descrição', async () => {
-    const calls = stubBff({
+    const calls = stub({
       ...accounts,
       'GET /api/bff/transactions/': () => json(txn()),
       'PUT /api/bff/transactions/': (init) => json(txn({ description: String(body(init).description) })),
@@ -473,7 +528,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('mostra o comerciante e a origem da categoria; "aplicar a semelhantes" só aparece com comerciante e categoria', async () => {
-    const calls = stubBff({
+    const calls = stub({
       ...accounts,
       'GET /api/bff/transactions/': () =>
         json(txn({ categoryCode: 'DINING_OUT', categorySource: 'RULE_SYSTEM', merchantName: 'Bistrô Lume' })),
@@ -500,7 +555,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('sem comerciante ou escolhendo "Sem categoria", não oferece aplicar a semelhantes', async () => {
-    stubBff({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ categoryCode: 'DINING_OUT', categorySource: 'MANUAL' })) })
+    stub({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ categoryCode: 'DINING_OUT', categorySource: 'MANUAL' })) })
     render(<TransactionDetailView id={TXN} />)
     await screen.findByRole('combobox', { name: 'Categoria' })
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
@@ -508,7 +563,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('altera a categoria: só as ativas da natureza do tipo; salvar e voltar a "Sem categoria"', async () => {
-    const calls = stubBff({
+    const calls = stub({
       ...accounts,
       'GET /api/bff/transactions/': () => json(txn()),
       'PUT /api/bff/transactions/': (init) => json(txn({ categoryCode: body(init).categoryCode as string | null })),
@@ -535,7 +590,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('receita oferece categorias de receita; recusa do backend vira erro no campo', async () => {
-    stubBff({
+    stub({
       ...accounts,
       'GET /api/bff/transactions/': () => json(txn({ type: 'INCOME', description: 'Salário' })),
       'PUT /api/bff/transactions/': () =>
@@ -553,7 +608,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('transferência não tem categoria', async () => {
-    stubBff({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ type: 'TRANSFER', destinationAccountId: NORTE })) })
+    stub({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ type: 'TRANSFER', destinationAccountId: NORTE })) })
     render(<TransactionDetailView id={TXN} />)
     expect(await screen.findByRole('heading', { level: 1, name: 'Bistrô Lume' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Alterar categoria' })).not.toBeInTheDocument()
@@ -561,7 +616,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('cancelada/estornada: sem ações e valor sem sinal', async () => {
-    stubBff({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ status: 'CANCELLED' })) })
+    stub({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ status: 'CANCELLED' })) })
     render(<TransactionDetailView id={TXN} />)
     expect(await screen.findByText(/Não afeta o saldo/)).toBeInTheDocument()
     expect(screen.getByText('R$ 86,40')).toBeInTheDocument()
@@ -569,11 +624,11 @@ describe('/transactions/{id} — detalhe e ações', () => {
   })
 
   it('de outro Workspace ou inexistente: "não encontrada"; id inválido nem chega ao BFF', async () => {
-    stubBff({ 'GET /api/bff/transactions/': () => json({ code: 'TRANSACTION_NOT_FOUND' }, 404) })
+    stub({ 'GET /api/bff/transactions/': () => json({ code: 'TRANSACTION_NOT_FOUND' }, 404) })
     const { unmount } = render(<TransactionDetailView id={TXN} />)
     expect(await screen.findByRole('heading', { name: 'Transação não encontrada' })).toBeInTheDocument()
     unmount()
-    const calls = stubBff({})
+    const calls = stub({})
     render(<TransactionDetailView id={null} />)
     expect(screen.getByRole('heading', { name: 'Transação não encontrada' })).toBeInTheDocument()
     expect(calls).toHaveLength(0)
@@ -582,7 +637,7 @@ describe('/transactions/{id} — detalhe e ações', () => {
 
 describe('/accounts/{id} — movimentações da conta', () => {
   it('lista só a conta (todo o período), transferência recebida com sinal de entrada, sem "Em breve"', async () => {
-    const calls = stubBff({
+    const calls = stub({
       'GET /api/bff/accounts/': () => json(account({ id: NORTE, name: 'Reserva' })),
       'GET /api/bff/accounts': () => json(accountsList()),
       'GET /api/bff/overview': () => json(readyOverview()),
@@ -594,7 +649,7 @@ describe('/accounts/{id} — movimentações da conta', () => {
     const section = await screen.findByRole('region', { name: /Movimentações/ })
     const row = await within(section).findByRole('link', { name: /Para a reserva/ })
     expect(within(row).getByText('mais R$ 500,00')).toBeInTheDocument()
-    expect(calls.find((c) => c.url.startsWith('/api/bff/transactions'))!.url).toBe(`/api/bff/transactions?accountId=${NORTE}`)
+    expect(calls.find((c) => isListCall(c.url))!.url).toBe(`/api/bff/transactions?accountId=${NORTE}`)
     expect(within(section).queryByLabelText('Conta')).not.toBeInTheDocument()
     expect(within(section).getByRole('link', { name: 'Nova transação' })).toHaveAttribute(
       'href',
@@ -615,7 +670,7 @@ describe('/accounts/new — saldo inicial', () => {
   }
 
   it('envia o saldo inicial (string decimal + direção) junto com a criação', async () => {
-    const calls = stubBff({ 'POST /api/bff/accounts': () => json({ ...account(), openingBalance: 'RECORDED' }, 201) })
+    const calls = stub({ 'POST /api/bff/accounts': () => json({ ...account(), openingBalance: 'RECORDED' }, 201) })
     const user = userEvent.setup()
     const { container } = render(<NewAccountView returnTo={null} />)
     expect(await axeViolations(container)).toEqual([])
@@ -631,7 +686,7 @@ describe('/accounts/new — saldo inicial', () => {
   })
 
   it('sem saldo inicial: o corpo não leva openingBalance', async () => {
-    const calls = stubBff({ 'POST /api/bff/accounts': () => json(account(), 201) })
+    const calls = stub({ 'POST /api/bff/accounts': () => json(account(), 201) })
     const user = userEvent.setup()
     render(<NewAccountView returnTo={null} />)
     await user.type(screen.getByLabelText('Nome da conta'), 'Conta Aurora')
@@ -641,7 +696,7 @@ describe('/accounts/new — saldo inicial', () => {
   })
 
   it('saldo inválido: erro no campo, sem criar a conta', async () => {
-    const calls = stubBff({})
+    const calls = stub({})
     const user = userEvent.setup()
     render(<NewAccountView returnTo={null} />)
     await createWithOpening(user, '12abc')
@@ -652,7 +707,7 @@ describe('/accounts/new — saldo inicial', () => {
 
   it('ajuste falhou: conta criada, oferece tentar de novo (mesmo valor) ou seguir sem saldo', async () => {
     let retries = 0
-    const calls = stubBff({
+    const calls = stub({
       'POST /api/bff/accounts/': () => (++retries === 1 ? json({ code: 'UNAVAILABLE' }, 502) : json({ openingBalance: 'RECORDED' })),
       'POST /api/bff/accounts': () => json({ ...account(), openingBalance: 'FAILED' }, 201),
     })
@@ -675,7 +730,7 @@ describe('/accounts/new — saldo inicial', () => {
   })
 
   it('saldo inicial já existia: avisa e só deixa continuar', async () => {
-    stubBff({
+    stub({
       'POST /api/bff/accounts/': () => json({ code: 'OPENING_BALANCE_EXISTS' }, 409),
       'POST /api/bff/accounts': () => json({ ...account(), openingBalance: 'FAILED' }, 201),
     })
