@@ -287,7 +287,7 @@ export function CategoriesTab({ data, context }: { data: AnalysisCategories; con
               return (
                 <li key={line.categoryCode ?? 'none'} className={`${styles.item} ${current ? styles.itemSelected : ''}`}>
                   {line.categoryCode ? (
-                    <button type="button" className={`${styles.itemTitle} ${styles.link}`} aria-pressed={current}
+                    <button type="button" className={`${styles.itemTitle} ${styles.itemButton} ${styles.link}`} aria-pressed={current}
                       onClick={() => setExtra({ category: line.categoryCode ?? undefined })}>
                       {label}
                     </button>
