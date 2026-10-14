@@ -81,7 +81,15 @@
   grid-auto-columns: minmax(0, 1fr);
 }
 .hit { position: relative; border-radius: var(--radius-sm); }
-.hit:hover { background: rgba(11, 18, 32, 0.05); }
+/* A faixa fica sobre as barras: "multiply" com o token mantém as barras visíveis sem cor literal. */
+.hit:hover::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--color-neutral-subtle);
+  mix-blend-mode: multiply;
+}
 .tip {
   position: absolute;
   z-index: 1;
