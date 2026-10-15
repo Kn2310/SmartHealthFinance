@@ -116,6 +116,9 @@
 
 ## M6 Health
 
+- [x] modelo `health-v1` (ADR-0017): 6 dimensões com fórmula, curvas e templates; Credit/Debt `NOT_APPLICABLE` até o
+  M8 com renormalização e cobertura; pesos 25/20/15/15/15/10; reserva = contas `SAVINGS` ativas; estimado com < 3
+  meses; confiança por meses e % sem categoria; evidências; fatores e próximos passos determinísticos (sem ✦)
 - [ ] dimensions
 - [ ] calculator
 - [ ] algorithm version
