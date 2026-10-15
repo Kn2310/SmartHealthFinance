@@ -166,6 +166,13 @@ class GetFinancialOverviewTest {
         }
 
         @Override
+        public java.util.Set<com.smarthealthfinance.overview.domain.enums.DataSource> dataSources(
+                WorkspaceId workspaceId, OverviewPeriod period) {
+            calls.add("dataSources");
+            return delegate.dataSources(workspaceId, period);
+        }
+
+        @Override
         public CashFlow cashFlow(WorkspaceId workspaceId, OverviewPeriod period, Currency currency) {
             calls.add("cashFlow");
             return delegate.cashFlow(workspaceId, period, currency);

@@ -81,6 +81,20 @@ public final class ReferenceOverviewReadModel implements OverviewReadModel {
                 sum(inScope, TransactionType.REFUND, currency));
     }
 
+    /** Só MANUAL: a referência não conhece os lotes de importação (o formato fica no teste JDBC). */
+    @Override
+    public java.util.Set<com.smarthealthfinance.overview.domain.enums.DataSource> dataSources(WorkspaceId workspaceId,
+                                                                                         OverviewPeriod period) {
+        java.util.Set<com.smarthealthfinance.overview.domain.enums.DataSource> sources =
+                java.util.EnumSet.noneOf(com.smarthealthfinance.overview.domain.enums.DataSource.class);
+        all(workspaceId).stream()
+                .filter(t -> t.status() == TransactionStatus.POSTED && inPeriod(t, period)
+                        && t.source() == com.smarthealthfinance.transactions.domain.enums.TransactionSource.MANUAL)
+                .findAny()
+                .ifPresent(t -> sources.add(com.smarthealthfinance.overview.domain.enums.DataSource.MANUAL));
+        return sources;
+    }
+
     @Override
     public Activity activity(WorkspaceId workspaceId, OverviewPeriod period, Currency currency) {
         List<Transaction> everything = all(workspaceId);

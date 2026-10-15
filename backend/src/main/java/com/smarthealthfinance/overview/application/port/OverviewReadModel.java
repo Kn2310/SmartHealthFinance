@@ -2,6 +2,7 @@ package com.smarthealthfinance.overview.application.port;
 
 import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.overview.domain.enums.DataSource;
 import com.smarthealthfinance.overview.domain.model.CashFlow;
 import com.smarthealthfinance.overview.domain.valueobject.OverviewPeriod;
 import com.smarthealthfinance.shared.domain.Money;
@@ -16,6 +17,7 @@ import java.util.Currency;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Consultas de leitura que alimentam o Overview (ADR-0006). Não é um repositório de agregado: devolve projeções.
@@ -38,6 +40,12 @@ public interface OverviewReadModel {
 
     /** POSTED e PENDING do período, mais recentes primeiro, de qualquer conta do Workspace. */
     List<RecentMovement> recentMovements(WorkspaceId workspaceId, OverviewPeriod period, int limit, Currency currency);
+
+    /**
+     * Origens dos lançamentos POSTED de contas ativas no período (ADR-0019): {@code MANUAL} ou o formato do extrato
+     * ({@code CSV}, {@code OFX}). Usado nas "Fontes" do Health.
+     */
+    Set<DataSource> dataSources(WorkspaceId workspaceId, OverviewPeriod period);
 
     record AccountFigures(Money balance, int movementCount) {}
 

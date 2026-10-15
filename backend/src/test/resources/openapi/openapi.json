@@ -993,6 +993,422 @@
         },
         "type" : "object"
       },
+      "HealthConfidenceRuleDto" : {
+        "properties" : {
+          "level" : {
+            "type" : "string"
+          },
+          "rule" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthContextDto" : {
+        "properties" : {
+          "activeAccounts" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "sources" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "uncategorizedShare" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthCoverageDto" : {
+        "properties" : {
+          "available" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "total" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "weightPercent" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthCurveDto" : {
+        "properties" : {
+          "input" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "points" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthCurvePointDto"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthCurvePointDto" : {
+        "properties" : {
+          "score" : {
+            "type" : "string"
+          },
+          "x" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthDimensionDto" : {
+        "properties" : {
+          "attention" : {
+            "type" : "boolean"
+          },
+          "dimension" : {
+            "type" : "string"
+          },
+          "evidence" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthEvidenceDto"
+            },
+            "type" : "array"
+          },
+          "explanation" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "reason" : {
+            "type" : "string"
+          },
+          "score" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "weight" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthEvidenceDto" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthEvolutionResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/HealthFreshnessDto"
+          },
+          "months" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthMonthDto"
+            },
+            "type" : "array"
+          },
+          "to" : {
+            "type" : "string"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthFactorDto" : {
+        "properties" : {
+          "dimension" : {
+            "type" : "string"
+          },
+          "direction" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthFreshnessDto" : {
+        "properties" : {
+          "analyticsRefreshedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "computedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthMethodDimensionDto" : {
+        "properties" : {
+          "applicable" : {
+            "type" : "boolean"
+          },
+          "curves" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthCurveDto"
+            },
+            "type" : "array"
+          },
+          "dimension" : {
+            "type" : "string"
+          },
+          "formula" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "minimum" : {
+            "type" : "string"
+          },
+          "observes" : {
+            "type" : "string"
+          },
+          "weight" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthMethodResponse" : {
+        "properties" : {
+          "about" : {
+            "type" : "string"
+          },
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "confidence" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthConfidenceRuleDto"
+            },
+            "type" : "array"
+          },
+          "dimensions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthMethodDimensionDto"
+            },
+            "type" : "array"
+          },
+          "estimated" : {
+            "type" : "string"
+          },
+          "exclusions" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "overall" : {
+            "type" : "string"
+          },
+          "partialMonth" : {
+            "type" : "string"
+          },
+          "rounding" : {
+            "type" : "string"
+          },
+          "sources" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "window" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthMonthDto" : {
+        "properties" : {
+          "estimated" : {
+            "type" : "boolean"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "score" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "variation" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthNextStepDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "evidence" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthPeriodDto" : {
+        "properties" : {
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "monthsUsed" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "windowFrom" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "windowTo" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "HealthResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "confidence" : {
+            "type" : "string"
+          },
+          "context" : {
+            "$ref" : "#/components/schemas/HealthContextDto"
+          },
+          "coverage" : {
+            "$ref" : "#/components/schemas/HealthCoverageDto"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "dimensions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthDimensionDto"
+            },
+            "type" : "array"
+          },
+          "estimated" : {
+            "type" : "boolean"
+          },
+          "factors" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthFactorDto"
+            },
+            "type" : "array"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/HealthFreshnessDto"
+          },
+          "nextSteps" : {
+            "items" : {
+              "$ref" : "#/components/schemas/HealthNextStepDto"
+            },
+            "type" : "array"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/HealthPeriodDto"
+          },
+          "score" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "summary" : {
+            "type" : "string"
+          },
+          "variation" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "HealthStatusResponse" : {
         "properties" : {
           "analyticsRefreshedAt" : {
@@ -2107,7 +2523,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/analytics/evolution" : {
       "get" : {
-        "operationId" : "evolution",
+        "operationId" : "evolution_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "workspaceId",
@@ -2544,6 +2960,165 @@
         },
         "summary" : "Catálogo de categorias (do sistema), inclusive as inativas, na ordem de exibição",
         "tags" : [ "Categories" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/health" : {
+      "get" : {
+        "operationId" : "summary_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês de referência (YYYY-MM); padrão o mês corrente, parcial até hoje",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description" : "Health do mês, com freshness"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Resumo, dimensões, fatores e próximos passos do mês (READY, INSUFFICIENT_DATA ou NO_DATA)",
+        "tags" : [ "Health" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/health/evolution" : {
+      "get" : {
+        "operationId" : "evolution",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Último mês da série (YYYY-MM); padrão o mês corrente",
+          "in" : "query",
+          "name" : "month",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Meses, 1 a 12 (padrão 6)",
+          "in" : "query",
+          "name" : "months",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HealthEvolutionResponse"
+                }
+              }
+            },
+            "description" : "Série mensal com freshness"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (month INVALID/FUTURE, months OUT_OF_RANGE)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Score mês a mês até o mês de referência; meses sem snapshot vêm em NO_DATA",
+        "tags" : [ "Health" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/health/method" : {
+      "get" : {
+        "operationId" : "method",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HealthMethodResponse"
+                }
+              }
+            },
+            "description" : "Método da versão atual do algoritmo"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Como calculamos: dimensões, pesos, curvas, mínimos, janela, fontes, precisão e exclusões",
+        "tags" : [ "Health" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/health/status" : {
