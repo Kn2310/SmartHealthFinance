@@ -19,8 +19,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AccountArchivingTest {
 
     private final AccountsTestContext ctx = new AccountsTestContext();
-    private final ArchiveAccount archive = new ArchiveAccount(ctx.access, ctx.accounts, ctx.clock);
-    private final ReactivateAccount reactivate = new ReactivateAccount(ctx.access, ctx.accounts, ctx.clock);
+    private final ArchiveAccount archive = new ArchiveAccount(ctx.access, ctx.accounts, ctx.clock, ctx.events);
+    private final ReactivateAccount reactivate = new ReactivateAccount(ctx.access, ctx.accounts, ctx.clock, ctx.events);
 
     @Test
     void archivesAccount() {

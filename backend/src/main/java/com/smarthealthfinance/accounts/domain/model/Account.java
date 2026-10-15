@@ -85,8 +85,12 @@ public class Account {
                 createdAt, updatedAt, version);
     }
 
-    /** Modal "Editar conta": substitui todos os campos editáveis. Conta arquivada não é editável. */
-    public void updateDetails(
+    /**
+     * Modal "Editar conta": substitui todos os campos editáveis. Conta arquivada não é editável.
+     *
+     * @return true se algum campo mudou
+     */
+    public boolean updateDetails(
             AccountName newName,
             AccountType newType,
             InstitutionName newInstitutionName,
@@ -99,7 +103,7 @@ public class Account {
 
         if (name.equals(newName) && type == newType && Objects.equals(institutionName, newInstitutionName)
                 && includedInTotal == newIncludedInTotal) {
-            return;
+            return false;
         }
 
         name = newName;
@@ -107,22 +111,27 @@ public class Account {
         institutionName = newInstitutionName;
         includedInTotal = newIncludedInTotal;
         updatedAt = now;
+        return true;
     }
 
-    public void archive(Instant now) {
+    /** @return true se a conta estava ativa */
+    public boolean archive(Instant now) {
         if (status == AccountStatus.ARCHIVED) {
-            return;
+            return false;
         }
         status = AccountStatus.ARCHIVED;
         updatedAt = now;
+        return true;
     }
 
-    public void reactivate(Instant now) {
+    /** @return true se a conta estava arquivada */
+    public boolean reactivate(Instant now) {
         if (status == AccountStatus.ACTIVE) {
-            return;
+            return false;
         }
         status = AccountStatus.ACTIVE;
         updatedAt = now;
+        return true;
     }
 
     public void ensureActive() {

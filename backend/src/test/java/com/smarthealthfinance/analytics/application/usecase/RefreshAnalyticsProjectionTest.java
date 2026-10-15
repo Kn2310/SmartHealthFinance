@@ -1,7 +1,9 @@
 package com.smarthealthfinance.analytics.application.usecase;
 
 import com.smarthealthfinance.analytics.application.port.AnalyticsProjectionStore;
+import com.smarthealthfinance.analytics.application.service.AnalyticsProjectionEvents;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.shared.application.event.IntegrationEvent;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 
@@ -32,9 +34,13 @@ class RefreshAnalyticsProjectionTest {
     private final FakeStore store = new FakeStore();
     private final Set<String> inbox = new HashSet<>();
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    private final List<IntegrationEvent> outbox = new ArrayList<>();
     private final RefreshAnalyticsProjection refresh = new RefreshAnalyticsProjection(
             (consumer, eventId) -> inbox.add(consumer + "/" + eventId), store, Clock.fixed(NOW, ZoneOffset.UTC),
-            Duration.ofSeconds(2), meters);
+            Duration.ofSeconds(2), meters, new AnalyticsProjectionEvents(event -> {
+                outbox.add(event);
+                return UUID.randomUUID();
+            }));
     private final WorkspaceId workspace = new WorkspaceId(UUID.randomUUID());
 
     @Test
@@ -43,6 +49,11 @@ class RefreshAnalyticsProjectionTest {
 
         assertThat(outcome).isEqualTo(RefreshAnalyticsProjection.Outcome.REBUILT);
         assertThat(store.calls).containsExactly("lock", "rebuild v" + RebuildAnalyticsProjection.VERSION);
+        // Rebuild: o Health relê todos os meses (ADR-0018 §2).
+        assertThat(outbox).singleElement().satisfies(event -> {
+            assertThat(event.eventType()).isEqualTo(AnalyticsProjectionEvents.PROJECTION_UPDATED);
+            assertThat(event.payload()).isEqualTo(Map.of("months", List.of()));
+        });
     }
 
     @Test
@@ -62,6 +73,8 @@ class RefreshAnalyticsProjectionTest {
         assertThat(outcome).isEqualTo(RefreshAnalyticsProjection.Outcome.REFRESHED);
         assertThat(store.calls).containsExactly("lock", "recompute 2026-08", "recompute 2026-09");
         assertThat(store.refreshed).containsEntry(SEP, NOW).containsEntry(AUG, NOW);
+        assertThat(outbox).singleElement().extracting(IntegrationEvent::payload)
+                .isEqualTo(Map.of("months", List.of("2026-08", "2026-09")));
     }
 
     @Test
@@ -78,6 +91,8 @@ class RefreshAnalyticsProjectionTest {
         assertThat(store.calls).containsExactly("lock", "recompute 2026-08");
         assertThat(meters.counter("shf.analytics.projection.months", "result", "coalesced").count()).isEqualTo(1);
         assertThat(meters.counter("shf.analytics.projection.months", "result", "recomputed").count()).isEqualTo(1);
+        assertThat(outbox).singleElement().extracting(IntegrationEvent::payload)
+                .isEqualTo(Map.of("months", List.of("2026-08")));
     }
 
     @Test
@@ -90,6 +105,7 @@ class RefreshAnalyticsProjectionTest {
         assertThat(refresh.execute(eventId, NOW, workspace, Set.of(SEP)))
                 .isEqualTo(RefreshAnalyticsProjection.Outcome.DUPLICATE);
         assertThat(store.calls).isEmpty();
+        assertThat(outbox).hasSize(1);
     }
 
     @Test
@@ -100,6 +116,8 @@ class RefreshAnalyticsProjectionTest {
 
         assertThat(store.calls).containsExactly("lock");
         assertThat(inbox).hasSize(1);
+        // Nada mudou na projeção: nada a avisar.
+        assertThat(outbox).isEmpty();
     }
 
     @Test

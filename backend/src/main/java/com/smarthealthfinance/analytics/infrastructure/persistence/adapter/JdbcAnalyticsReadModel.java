@@ -16,6 +16,7 @@ import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.CashFlowRole;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Date;
@@ -26,7 +27,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Currency;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -137,6 +140,14 @@ public class JdbcAnalyticsReadModel implements AnalyticsReadModel {
                         rs.getString("category_code"), rs.getString("merchant_key"), rs.getString("merchant_name"),
                         money(rs, "amount", currency), rs.getInt("transaction_count")),
                 workspaceId.value(), Date.valueOf(period.from()), Date.valueOf(period.to()));
+    }
+
+    @Override
+    public Map<String, String> categoryNames() {
+        Map<String, String> names = new LinkedHashMap<>();
+        jdbc.query("select code, name from categories order by display_order",
+                (RowCallbackHandler) rs -> names.put(rs.getString("code"), rs.getString("name")));
+        return names;
     }
 
     @Override

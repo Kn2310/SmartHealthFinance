@@ -1,6 +1,6 @@
 /**
- * CONTRATO MANUAL E TEMPORÁRIO do backend usado pelo frontend (Identity, Overview, Accounts, Transactions, Imports e
- * Analytics) — ADR-0007 §6.
+ * CONTRATO MANUAL E TEMPORÁRIO do backend usado pelo frontend (Identity, Overview, Accounts, Transactions, Imports,
+ * Analytics e Health) — ADR-0007 §6.
  *
  * Escrito no formato do openapi-typescript a partir dos DTOs reais (OverviewResponse, ProvisionedUserResponse,
  * ApiError). É a fonte de verdade do frontend enquanto o OpenAPI do backend não declarar:
@@ -176,6 +176,12 @@ export interface components {
       state: AnalysisFreshnessState
       refreshedAt: string | null
       pendingEvents: number
+    }
+    /** Freshness do snapshot do Health (ADR-0018 §7). */
+    HealthStatusResponse: {
+      state: HealthFreshnessState
+      computedAt: string | null
+      analyticsRefreshedAt: string | null
     }
     /** Análise (ADR-0015): `state = NO_DATA` → blocos de dados nulos; variações nulas = base indisponível. */
     AnalysisOverviewResponse: {
@@ -368,6 +374,7 @@ export interface components {
 
 type MoneyDto = components['schemas']['MoneyDto']
 export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
+export type HealthFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
 export type AnalysisTrend = 'UP' | 'DOWN' | 'STABLE' | 'NEW' | 'GONE'
 /** Variação contra uma base (ADR-0015 §3): percent com 1 casa; nulo com base zero. */
 export interface AnalysisVariation {
@@ -581,6 +588,12 @@ export interface paths {
     get: {
       parameters: { path: { workspaceId: string } }
       responses: { 200: { content: { 'application/json': components['schemas']['AnalyticsStatusResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/health/status': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['HealthStatusResponse'] } } } & AnalysisErrors
     }
   }
   '/api/v1/workspaces/{workspaceId}/analytics/overview': {

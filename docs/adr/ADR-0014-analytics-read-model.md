@@ -67,6 +67,10 @@ Workspace, nenhum dado financeiro em logs e o Overview sem depender de Analytics
    no padrão do Import Worker (ADR-0009 §15): inbox `processed_events` na mesma transação do efeito; retry com
    backoff exponencial + jitter só para falhas transitórias; DLQ `shf.analytics.projection.dlq` para o resto e para
    mensagens ilegíveis ou de versão desconhecida. `import.completed` sem datas só é marcado como processado.
+   - **Adendo (2026-10-15, ADR-0018 §2):** depois de recalcular ao menos um mês ou reconstruir o Workspace, o
+     consumidor e o rebuild gravam **`analytics.projection-updated` v1** na outbox, na mesma transação. Payload: só
+     `months` (`YYYY-MM` recalculados; vazio no rebuild). Duplicados e eventos totalmente coalescidos não publicam
+     nada. O consumidor é o Health; a freshness deste ADR (§6) não conta esse evento.
 
 ### Leitura
 

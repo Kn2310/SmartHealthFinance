@@ -205,6 +205,39 @@ class ArchitectureTest {
 		.allowEmptyShould(true)
 		.because("o Analytics não executa comandos: lê a fonte da verdade e reage a eventos pelo nome (ADR-0014)");
 
+	// Health (ADR-0017/0018) é read model downstream do Analytics e do Overview: lê só portas e modelos de domínio.
+
+	@ArchTest
+	static final ArchRule nothingDependsOnHealth = noClasses().that()
+		.resideInAnyPackage("com.smarthealthfinance.identity..", "com.smarthealthfinance.accounts..",
+				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.overview..",
+				"com.smarthealthfinance.ingestion..", "com.smarthealthfinance.analytics..",
+				"com.smarthealthfinance.shared..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.health..")
+		.allowEmptyShould(true)
+		.because("o Health é derivado; nenhum módulo depende dele sem decisão registrada (ADR-0018)");
+
+	@ArchTest
+	static final ArchRule healthOnlyReadsPortsAndDomainModels = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.health..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.analytics.application.usecase..",
+				"com.smarthealthfinance.analytics.application.service..",
+				"com.smarthealthfinance.analytics.infrastructure..", "com.smarthealthfinance.analytics.presentation..",
+				"com.smarthealthfinance.overview.application.usecase..",
+				"com.smarthealthfinance.overview.infrastructure..", "com.smarthealthfinance.overview.presentation..",
+				"com.smarthealthfinance.accounts.application..", "com.smarthealthfinance.accounts.infrastructure..",
+				"com.smarthealthfinance.accounts.presentation..", "com.smarthealthfinance.transactions.application..",
+				"com.smarthealthfinance.transactions.infrastructure..",
+				"com.smarthealthfinance.transactions.presentation..", "com.smarthealthfinance.identity.application.usecase..",
+				"com.smarthealthfinance.identity.infrastructure..", "com.smarthealthfinance.ingestion..")
+		.allowEmptyShould(true)
+		.because("o Health lê portas e modelos de domínio de Analytics, Overview e Accounts; nunca casos de uso ou "
+				+ "adapters de outros módulos, e conhece os eventos só pelo nome (ADR-0018 §1)");
+
 	@ArchTest
 	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()
 		.resideInAPackage("com.smarthealthfinance.identity..")

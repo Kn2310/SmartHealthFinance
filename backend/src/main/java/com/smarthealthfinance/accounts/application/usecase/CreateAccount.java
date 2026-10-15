@@ -2,6 +2,7 @@ package com.smarthealthfinance.accounts.application.usecase;
 
 import com.smarthealthfinance.accounts.application.dto.AccountView;
 import com.smarthealthfinance.accounts.application.service.AccountAccess;
+import com.smarthealthfinance.accounts.application.service.AccountEvents;
 import com.smarthealthfinance.accounts.domain.enums.AccountType;
 import com.smarthealthfinance.accounts.domain.model.Account;
 import com.smarthealthfinance.accounts.domain.repository.AccountRepository;
@@ -27,11 +28,13 @@ public class CreateAccount {
     private final AccountAccess access;
     private final AccountRepository accounts;
     private final Clock clock;
+    private final AccountEvents events;
 
-    public CreateAccount(AccountAccess access, AccountRepository accounts, Clock clock) {
+    public CreateAccount(AccountAccess access, AccountRepository accounts, Clock clock, AccountEvents events) {
         this.access = access;
         this.accounts = accounts;
         this.clock = clock;
+        this.events = events;
     }
 
     /** {@code includedInTotal} nulo assume true (padrão do design). */
@@ -48,6 +51,7 @@ public class CreateAccount {
                 Workspace.DEFAULT_BASE_CURRENCY, command.includedInTotal() == null || command.includedInTotal(), now);
 
         accounts.add(account);
+        events.changed(account);
 
         log.info("Account created accountId={} workspaceId={}", account.id(), workspace);
 

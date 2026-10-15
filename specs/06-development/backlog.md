@@ -119,11 +119,16 @@
 - [x] modelo `health-v1` (ADR-0017): 6 dimensões com fórmula, curvas e templates; Credit/Debt `NOT_APPLICABLE` até o
   M8 com renormalização e cobertura; pesos 25/20/15/15/15/10; reserva = contas `SAVINGS` ativas; estimado com < 3
   meses; confiança por meses e % sem categoria; evidências; fatores e próximos passos determinísticos (sem ✦)
-- [ ] dimensions
-- [ ] calculator
-- [ ] algorithm version
-- [ ] evidence
-- [ ] freshness
+- [x] dimensions, calculator, algorithm version, evidence (`health-v1` puro no domínio, testes de tabela com o
+  fixture de 09-dados-de-exemplo — ADR-0017)
+- [x] snapshot por eventos (ADR-0018): `analytics.projection-updated` (adendo ao ADR-0014) e `account.changed`
+  pela outbox; consumidor `health.snapshot` idempotente com inbox, retry e DLQ; debounce 10 s / teto 60 s; mês
+  corrente + 12 fechados por versão; job diário; rebuild na inicialização + runbook `health-rebuild.md`; paridade
+  com o cálculo direto sobre as portas
+- [x] freshness: `GET .../health/status` (`UP_TO_DATE`, `RECALCULATING`, `NOT_BUILT`), métrica
+  `shf.health.snapshot.freshness`; endpoint na suíte de isolamento
+- [ ] Health API (resumo, dimensões, fatores, próximos passos, evolução, método — parte D)
+- [ ] Health UI ("Como estou?" na Home, `/home/health`, "Como calculamos?", score na Evolução — parte E)
 
 ## M7 Insights
 

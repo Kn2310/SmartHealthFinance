@@ -13,6 +13,7 @@ import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import java.time.LocalDate;
 import java.util.Currency;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -38,6 +39,9 @@ public interface AnalyticsReadModel {
      * categoria e comerciante: o insumo dos cálculos da Análise (ADR-0015 §1).
      */
     List<FlowEntry> entries(WorkspaceId workspaceId, AnalyticsPeriod period, Currency currency);
+
+    /** Nome de exibição de cada categoria do catálogo (ADR-0012 §3), por código; usado nos textos do Health. */
+    Map<String, String> categoryNames();
 
     /** Primeiro dia com movimento no fluxo de caixa do Workspace; vazio se nenhum. */
     Optional<LocalDate> firstActivity(WorkspaceId workspaceId);

@@ -1,6 +1,7 @@
 package com.smarthealthfinance.analytics.application.usecase;
 
 import com.smarthealthfinance.analytics.application.port.AnalyticsProjectionStore;
+import com.smarthealthfinance.analytics.application.service.AnalyticsProjectionEvents;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.application.port.ProcessedEvents;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -31,7 +32,8 @@ import java.util.UUID;
  *     <li>Senão, recalcula cada mês afetado a partir de {@code transactions}, exceto o mês já recalculado depois da
  *     publicação do evento (coalescência: o recálculo leu um estado que já incluía o fato).</li>
  * </ol>
- * Tudo numa transação: o efeito e a marca da inbox commitam juntos.
+ * Tudo numa transação: o efeito, a marca da inbox e o {@code analytics.projection-updated} (só se algum mês foi
+ * recalculado) commitam juntos.
  */
 @Service
 public class RefreshAnalyticsProjection {
@@ -45,15 +47,17 @@ public class RefreshAnalyticsProjection {
     private final Clock clock;
     private final Duration coalesceMargin;
     private final MeterRegistry meters;
+    private final AnalyticsProjectionEvents events;
 
     public RefreshAnalyticsProjection(ProcessedEvents processedEvents, AnalyticsProjectionStore store, Clock clock,
                                       @Value("${shf.analytics.coalesce-margin:2s}") Duration coalesceMargin,
-                                      MeterRegistry meters) {
+                                      MeterRegistry meters, AnalyticsProjectionEvents events) {
         this.processedEvents = processedEvents;
         this.store = store;
         this.clock = clock;
         this.coalesceMargin = coalesceMargin;
         this.meters = meters;
+        this.events = events;
     }
 
     public enum Outcome { DUPLICATE, REBUILT, REFRESHED }
@@ -86,11 +90,12 @@ public class RefreshAnalyticsProjection {
 
         if (version.isEmpty() || version.getAsInt() != RebuildAnalyticsProjection.VERSION) {
             store.rebuild(workspaceId, RebuildAnalyticsProjection.VERSION, now);
+            events.rebuilt(workspaceId);
             log.info("Analytics projection rebuilt workspaceId={} eventId={}", workspaceId, eventId);
             return Outcome.REBUILT;
         }
 
-        int recomputed = 0;
+        Set<YearMonth> recomputed = new TreeSet<>();
         int coalesced = 0;
         for (YearMonth month : new TreeSet<>(months)) {
             boolean alreadyReflected = store.monthRefreshedAt(workspaceId, month)
@@ -101,14 +106,17 @@ public class RefreshAnalyticsProjection {
             }
             else {
                 store.recomputeMonth(workspaceId, month, now);
-                recomputed++;
+                recomputed.add(month);
             }
         }
 
-        meters.counter("shf.analytics.projection.months", "result", "recomputed").increment(recomputed);
+        if (!recomputed.isEmpty()) {
+            events.monthsUpdated(workspaceId, recomputed);
+        }
+        meters.counter("shf.analytics.projection.months", "result", "recomputed").increment(recomputed.size());
         meters.counter("shf.analytics.projection.months", "result", "coalesced").increment(coalesced);
         log.info("Analytics projection refreshed workspaceId={} eventId={} recomputed={} coalesced={}", workspaceId,
-                eventId, recomputed, coalesced);
+                eventId, recomputed.size(), coalesced);
         return Outcome.REFRESHED;
     }
 }
