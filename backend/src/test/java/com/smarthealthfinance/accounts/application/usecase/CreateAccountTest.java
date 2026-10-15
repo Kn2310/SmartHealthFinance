@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class CreateAccountTest {
 
     private final AccountsTestContext ctx = new AccountsTestContext();
-    private final CreateAccount create = new CreateAccount(ctx.access, ctx.accounts, ctx.clock);
+    private final CreateAccount create = new CreateAccount(ctx.access, ctx.accounts, ctx.clock, ctx.events);
 
     @Test
     void createsActiveAccountInTheWorkspace() {

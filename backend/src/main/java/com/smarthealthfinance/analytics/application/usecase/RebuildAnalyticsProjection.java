@@ -1,6 +1,7 @@
 package com.smarthealthfinance.analytics.application.usecase;
 
 import com.smarthealthfinance.analytics.application.port.AnalyticsProjectionStore;
+import com.smarthealthfinance.analytics.application.service.AnalyticsProjectionEvents;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,11 +29,14 @@ public class RebuildAnalyticsProjection {
     private final AnalyticsProjectionStore store;
     private final TransactionTemplate transactions;
     private final Clock clock;
+    private final AnalyticsProjectionEvents events;
 
-    public RebuildAnalyticsProjection(AnalyticsProjectionStore store, TransactionTemplate transactions, Clock clock) {
+    public RebuildAnalyticsProjection(AnalyticsProjectionStore store, TransactionTemplate transactions, Clock clock,
+                                      AnalyticsProjectionEvents events) {
         this.store = store;
         this.transactions = transactions;
         this.clock = clock;
+        this.events = events;
     }
 
     public enum Scope {
@@ -60,6 +64,7 @@ public class RebuildAnalyticsProjection {
         transactions.executeWithoutResult(status -> {
             store.lockWorkspace(workspaceId);
             store.rebuild(workspaceId, VERSION, clock.instant());
+            events.rebuilt(workspaceId);
         });
         log.info("Analytics projection rebuilt workspaceId={}", workspaceId);
     }

@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class UpdateAccountTest {
 
     private final AccountsTestContext ctx = new AccountsTestContext();
-    private final UpdateAccount update = new UpdateAccount(ctx.access, ctx.accounts, ctx.clock);
+    private final UpdateAccount update = new UpdateAccount(ctx.access, ctx.accounts, ctx.clock, ctx.events);
     private final Account aurora = ctx.store(account(ctx.anasWorkspace.id(), "Banco Aurora"));
 
     @Test

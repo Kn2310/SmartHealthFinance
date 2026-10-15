@@ -1,6 +1,7 @@
 package com.smarthealthfinance.accounts.application;
 
 import com.smarthealthfinance.accounts.application.service.AccountAccess;
+import com.smarthealthfinance.accounts.application.service.AccountEvents;
 import com.smarthealthfinance.accounts.domain.model.Account;
 import com.smarthealthfinance.identity.application.InMemoryUserRepository;
 import com.smarthealthfinance.identity.application.InMemoryWorkspaceRepository;
@@ -9,10 +10,13 @@ import com.smarthealthfinance.identity.application.service.CurrentUserService;
 import com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard;
 import com.smarthealthfinance.identity.domain.model.User;
 import com.smarthealthfinance.identity.domain.model.Workspace;
+import com.smarthealthfinance.shared.application.event.IntegrationEvent;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static com.smarthealthfinance.identity.IdentityFixtures.activeUser;
@@ -27,6 +31,12 @@ public final class AccountsTestContext {
     public final InMemoryWorkspaceRepository workspaces = new InMemoryWorkspaceRepository();
     public final InMemoryAccountRepository accounts = new InMemoryAccountRepository();
     public final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+    /** Eventos gravados na outbox (ADR-0018 §2). */
+    public final List<IntegrationEvent> outbox = new ArrayList<>();
+    public final AccountEvents events = new AccountEvents(event -> {
+        outbox.add(event);
+        return UUID.randomUUID();
+    });
 
     public final User ana = activeUser("sub-ana");
     public final User bob = activeUser("sub-bob");
