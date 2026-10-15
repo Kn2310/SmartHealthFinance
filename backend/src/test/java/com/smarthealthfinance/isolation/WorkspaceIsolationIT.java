@@ -174,6 +174,9 @@ class WorkspaceIsolationIT extends IntegrationTest {
 
             op("overview: consultar", HttpMethod.GET, WORKSPACE_SCOPE + "/overview", f -> new Object[0], NONE),
 
+            op("health: resumo", HttpMethod.GET, WORKSPACE_SCOPE + "/health", f -> new Object[0], NONE),
+            op("health: evolução", HttpMethod.GET, WORKSPACE_SCOPE + "/health/evolution", f -> new Object[0], NONE),
+            op("health: método", HttpMethod.GET, WORKSPACE_SCOPE + "/health/method", f -> new Object[0], NONE),
             op("health: status", HttpMethod.GET, WORKSPACE_SCOPE + "/health/status", f -> new Object[0], NONE),
 
             op("imports: upload", HttpMethod.POST, IMPORTS, f -> new Object[0],

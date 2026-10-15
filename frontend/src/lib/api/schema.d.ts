@@ -183,6 +183,106 @@ export interface components {
       computedAt: string | null
       analyticsRefreshedAt: string | null
     }
+    /** Health (ADR-0019): `state = NO_DATA` → score, confiança, cobertura e contexto nulos; listas vazias. */
+    HealthResponse: {
+      workspaceId: string
+      state: HealthState
+      algorithmVersion: string
+      currency: string
+      period: components['schemas']['HealthPeriodDto']
+      score: number | null
+      variation: number | null
+      estimated: boolean
+      confidence: 'HIGH' | 'MEDIUM' | 'LOW' | null
+      coverage: components['schemas']['HealthCoverageDto'] | null
+      summary: string | null
+      context: components['schemas']['HealthContextDto'] | null
+      freshness: components['schemas']['HealthFreshnessDto']
+      dimensions: components['schemas']['HealthDimensionDto'][]
+      factors: components['schemas']['HealthFactorDto'][]
+      nextSteps: components['schemas']['HealthNextStepDto'][]
+    }
+    HealthPeriodDto: {
+      month: string
+      asOf: string | null
+      partial: boolean
+      windowFrom: string | null
+      windowTo: string | null
+      monthsUsed: number
+    }
+    HealthCoverageDto: { available: number; total: number; weightPercent: number }
+    HealthContextDto: { activeAccounts: number; uncategorizedShare: string; sources: ('CSV' | 'MANUAL' | 'OFX')[] }
+    HealthFreshnessDto: { state: HealthFreshnessState; computedAt: string | null; analyticsRefreshedAt: string | null }
+    HealthDimensionDto: {
+      dimension: HealthDimensionCode
+      label: string
+      weight: number
+      status: 'OK' | 'INSUFFICIENT_DATA' | 'NOT_APPLICABLE'
+      score: number | null
+      reason: string | null
+      explanation: string
+      attention: boolean
+      evidence: components['schemas']['HealthEvidenceDto'][]
+    }
+    HealthEvidenceDto: {
+      code: string
+      label: string
+      kind: 'MONEY' | 'PERCENT' | 'MONTHS' | 'COUNT'
+      value: string
+      from: string
+      to: string
+      source: string
+    }
+    HealthFactorDto: { dimension: HealthDimensionCode; direction: 'SUSTAINING' | 'WEIGHING'; text: string }
+    HealthNextStepDto: {
+      kind: 'BUILD_RESERVE' | 'ADD_RESERVE_ACCOUNT' | 'REVIEW_CATEGORY' | 'CATEGORIZE_TRANSACTIONS' | 'REVIEW_MONTH'
+      text: string
+      evidence: string
+      categoryCode: string | null
+      month: string | null
+      amount: components['schemas']['MoneyDto'] | null
+    }
+    HealthEvolutionResponse: {
+      workspaceId: string
+      algorithmVersion: string
+      to: string
+      freshness: components['schemas']['HealthFreshnessDto']
+      months: components['schemas']['HealthMonthDto'][]
+    }
+    HealthMonthDto: {
+      month: string
+      state: HealthState
+      score: number | null
+      variation: number | null
+      estimated: boolean
+      partial: boolean
+    }
+    HealthMethodResponse: {
+      algorithmVersion: string
+      about: string
+      dimensions: components['schemas']['HealthMethodDimensionDto'][]
+      overall: string
+      window: string
+      sources: string[]
+      estimated: string
+      confidence: components['schemas']['HealthConfidenceRuleDto'][]
+      partialMonth: string
+      rounding: string
+      exclusions: string[]
+    }
+    HealthMethodDimensionDto: {
+      dimension: HealthDimensionCode
+      label: string
+      weight: number
+      applicable: boolean
+      observes: string
+      formula: string
+      minimum: string
+      curves: components['schemas']['HealthCurveDto'][]
+    }
+    HealthCurveDto: { name: string; input: string; points: components['schemas']['HealthCurvePointDto'][] }
+    HealthCurvePointDto: { x: string; score: string }
+    HealthConfidenceRuleDto: { level: 'HIGH' | 'MEDIUM' | 'LOW'; rule: string }
     /** Análise (ADR-0015): `state = NO_DATA` → blocos de dados nulos; variações nulas = base indisponível. */
     AnalysisOverviewResponse: {
       workspaceId: string
@@ -375,6 +475,8 @@ export interface components {
 type MoneyDto = components['schemas']['MoneyDto']
 export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type HealthFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
+export type HealthState = 'READY' | 'INSUFFICIENT_DATA' | 'NO_DATA'
+export type HealthDimensionCode = 'CASH_FLOW' | 'SPENDING' | 'CREDIT' | 'DEBT' | 'RESERVE' | 'CONSISTENCY'
 export type AnalysisTrend = 'UP' | 'DOWN' | 'STABLE' | 'NEW' | 'GONE'
 /** Variação contra uma base (ADR-0015 §3): percent com 1 casa; nulo com base zero. */
 export interface AnalysisVariation {
@@ -588,6 +690,24 @@ export interface paths {
     get: {
       parameters: { path: { workspaceId: string } }
       responses: { 200: { content: { 'application/json': components['schemas']['AnalyticsStatusResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/health': {
+    get: {
+      parameters: { query?: { month?: string }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['HealthResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/health/evolution': {
+    get: {
+      parameters: { query?: { month?: string; months?: number }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['HealthEvolutionResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/health/method': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['HealthMethodResponse'] } } } & AnalysisErrors
     }
   }
   '/api/v1/workspaces/{workspaceId}/health/status': {

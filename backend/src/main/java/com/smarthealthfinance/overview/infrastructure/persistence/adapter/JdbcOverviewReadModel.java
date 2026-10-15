@@ -3,6 +3,7 @@ package com.smarthealthfinance.overview.infrastructure.persistence.adapter;
 import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.overview.application.port.OverviewReadModel;
+import com.smarthealthfinance.overview.domain.enums.DataSource;
 import com.smarthealthfinance.overview.domain.model.CashFlow;
 import com.smarthealthfinance.overview.domain.valueobject.OverviewPeriod;
 import com.smarthealthfinance.shared.domain.Money;
@@ -18,10 +19,13 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.Currency;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -96,6 +100,23 @@ public class JdbcOverviewReadModel implements OverviewReadModel {
                 (rs, row) -> new CashFlow(money(rs, "income", currency), money(rs, "expense", currency),
                         money(rs, "refunds", currency)),
                 workspaceId.value(), period.from(), period.to());
+    }
+
+    @Override
+    public Set<DataSource> dataSources(WorkspaceId workspaceId, OverviewPeriod period) {
+        List<String> sources = jdbc.queryForList("""
+                        select distinct case when t.source = 'MANUAL' then 'MANUAL' else b.format end as source
+                        from transactions t
+                        join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        left join import_records r on r.transaction_id = t.id and r.workspace_id = t.workspace_id
+                        left join import_batches b on b.id = r.batch_id and b.workspace_id = r.workspace_id
+                        where t.workspace_id = ? and t.status = 'POSTED' and t.occurred_on between ? and ?
+                          and a.status = 'ACTIVE'
+                        """,
+                String.class, workspaceId.value(), period.from(), period.to());
+        Set<DataSource> result = EnumSet.noneOf(DataSource.class);
+        sources.stream().filter(Objects::nonNull).map(DataSource::valueOf).forEach(result::add);
+        return result;
     }
 
     @Override

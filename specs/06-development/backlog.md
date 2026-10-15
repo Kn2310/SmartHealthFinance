@@ -127,7 +127,9 @@
   com o cálculo direto sobre as portas
 - [x] freshness: `GET .../health/status` (`UP_TO_DATE`, `RECALCULATING`, `NOT_BUILT`), métrica
   `shf.health.snapshot.freshness`; endpoint na suíte de isolamento
-- [ ] Health API (resumo, dimensões, fatores, próximos passos, evolução, método — parte D)
+- [x] Health API (ADR-0019): `GET .../health?month` (resumo, dimensões, fatores e próximos passos do snapshot,
+  com fontes, estados `READY`/`INSUFFICIENT_DATA`/`NO_DATA` e freshness), `.../health/evolution?month&months`
+  (1–12) e `.../health/method`; testes de API, contrato OpenAPI e suíte de isolamento
 - [ ] Health UI ("Como estou?" na Home, `/home/health`, "Como calculamos?", score na Evolução — parte E)
 
 ## M7 Insights
