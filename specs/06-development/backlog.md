@@ -110,7 +110,9 @@
   igual, com vínculo opcional à despesa original (`POST .../transactions/{id}/mark-as-refund`; ação no detalhe da
   transação; saldo inalterado, entrada vai de receitas para reembolsos — adendo de 2026-10-14 ao ADR-0009 §9). Desfazer
   a marcação fica para depois
-- [ ] normalizador de comerciante v2: rótulo genérico seguido de preposição ("Compra do Bob" vira "do Bob")
+- [x] normalizador de comerciante v2: tira a preposição depois do rótulo genérico ("Compra do Bob" → "Bob");
+  renormalização das transações v1 na inicialização, regras aprendidas acompanham a chave, categorias intactas,
+  projeção de Analytics v2 (adendo de 2026-10-14 ao ADR-0013 §1, runbook `merchant-renormalization.md`)
 
 ## M6 Health
 
