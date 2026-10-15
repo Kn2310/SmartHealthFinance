@@ -24,6 +24,14 @@ shf:
     cors-allowed-origins: http://localhost:3000
     # Spec servido só para o snapshot do contrato (OpenApiContractIT, ADR-0010).
     public-api-docs: true
+  # Debounce curto para os testes de integração do Health (ADR-0018 §3).
+  health:
+    debounce:
+      quiet: 200ms
+      max-wait: 1s
+    job:
+      interval-ms: 200
+      failure-backoff: 1s
 
 # Gerado só para o snapshot do contrato (OpenApiContractIT, ADR-0010).
 springdoc:

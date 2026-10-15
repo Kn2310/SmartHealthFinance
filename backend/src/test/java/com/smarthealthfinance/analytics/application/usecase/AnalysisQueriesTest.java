@@ -31,6 +31,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -246,6 +247,11 @@ class AnalysisQueriesTest {
         @Override
         public List<FlowEntry> entries(WorkspaceId workspaceId, AnalyticsPeriod period, Currency currency) {
             return entries.stream().filter(e -> period.contains(e.day())).toList();
+        }
+
+        @Override
+        public Map<String, String> categoryNames() {
+            return Map.of();
         }
 
         @Override

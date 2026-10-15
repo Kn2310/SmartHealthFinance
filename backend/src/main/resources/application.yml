@@ -85,6 +85,26 @@ shf:
       delay: 1s
       max-delay: 30s
       jitter: 500ms
+  # Snapshot do Financial Health (ADR-0018).
+  health:
+    # Na inicialização, depois do rebuild do Analytics: missing (backfill do deploy e de nova versão), all ou off.
+    rebuild: ${HEALTH_REBUILD:missing}
+    # Debounce: cada evento adia o recálculo em quiet, nunca além de max-wait desde o primeiro evento pendente.
+    debounce:
+      quiet: 10s
+      max-wait: 60s
+    job:
+      interval-ms: 5000
+      batch-size: 50
+      failure-backoff: 60s
+    # O calendário muda o resultado sem evento: marca todos os Workspaces com snapshot (fuso de shf.overview.zone).
+    daily:
+      cron: "0 5 0 * * *"
+    retry:
+      max-retries: 4
+      delay: 1s
+      max-delay: 30s
+      jitter: 500ms
   ingestion:
     import:
       # Retry de falhas transitórias do Import Worker: backoff exponencial (x2) + jitter; depois, DLQ.

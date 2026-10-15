@@ -993,6 +993,22 @@
         },
         "type" : "object"
       },
+      "HealthStatusResponse" : {
+        "properties" : {
+          "analyticsRefreshedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "computedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "ImportResponse" : {
         "properties" : {
           "accountId" : {
@@ -2456,7 +2472,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/analytics/status" : {
       "get" : {
-        "operationId" : "status",
+        "operationId" : "status_1",
         "parameters" : [ {
           "in" : "path",
           "name" : "workspaceId",
@@ -2528,6 +2544,44 @@
         },
         "summary" : "Catálogo de categorias (do sistema), inclusive as inativas, na ordem de exibição",
         "tags" : [ "Categories" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/health/status" : {
+      "get" : {
+        "operationId" : "status",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/HealthStatusResponse"
+                }
+              }
+            },
+            "description" : "Estado do snapshot"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Freshness do snapshot do Health: UP_TO_DATE, RECALCULATING ou NOT_BUILT",
+        "tags" : [ "Health" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/imports" : {

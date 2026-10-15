@@ -6,6 +6,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.Locale;
@@ -18,9 +20,11 @@ import java.util.Locale;
  *   <li>{@code all}: todos os Workspaces com transações.</li>
  *   <li>{@code off}: não faz nada.</li>
  * </ul>
- * Uma falha não derruba a API: a projeção também se reconstrói no primeiro evento do Workspace.
+ * Uma falha não derruba a API: a projeção também se reconstrói no primeiro evento do Workspace. Roda antes do rebuild
+ * do Health, que lê a projeção (ADR-0018 §6).
  */
 @Component
+@Order(Ordered.LOWEST_PRECEDENCE - 100)
 public class AnalyticsRebuildRunner implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(AnalyticsRebuildRunner.class);
