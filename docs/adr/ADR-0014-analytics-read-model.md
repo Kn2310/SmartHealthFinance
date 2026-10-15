@@ -89,6 +89,8 @@ Workspace, nenhum dado financeiro em logs e o Overview sem depender de Analytics
    `shf.analytics.rebuild` = `missing` (padrão: Workspaces com transações sem projeção na versão atual — backfill do
    deploy e de nova versão), `all` (runbook) ou `off`. Nada exposto na API pública. Runbook:
    `docs/runbooks/analytics-rebuild.md`. Mudou o que a projeção grava → `RebuildAnalyticsProjection.VERSION + 1`.
+   - **Adendo (2026-10-14):** versão 2, pelas chaves de comerciante do normalizador v2 (adendo ao ADR-0013 §1). A
+     renormalização roda antes deste runner.
 
 ### Persistência
 

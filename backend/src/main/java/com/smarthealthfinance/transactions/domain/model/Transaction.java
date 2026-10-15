@@ -501,6 +501,22 @@ public class Transaction {
         return true;
     }
 
+    /**
+     * Recalcula o comerciante com a versão atual do {@link MerchantNormalizer} (adendo de 2026-10-14 ao ADR-0013 §1).
+     * Só para transações que já têm comerciante de uma versão anterior; a categoria não muda (nem a escolhida pelo
+     * usuário, nem a de regra). A chave vem da descrição atual. Idempotente.
+     *
+     * @return true se a transação mudou (chave, nome ou versão)
+     */
+    public boolean renormalizeMerchant(Instant now) {
+        if (merchant == null || MerchantNormalizer.VERSION.equals(merchant.normalizerVersion())) {
+            return false;
+        }
+        merchant = MerchantNormalizer.normalize(description.value()).orElse(null);
+        updatedAt = now;
+        return true;
+    }
+
     public boolean isVoided() {
         return status.isVoided();
     }

@@ -70,6 +70,10 @@ shf:
       confirm-timeout: 5s
     published-retention: 7d
     processed-retention: 30d
+  # Comerciantes (ADR-0013).
+  transactions:
+    # Na inicialização: outdated (comerciantes de versão anterior do normalizador) ou off.
+    merchant-renormalize: ${MERCHANT_RENORMALIZE:outdated}
   # Projeção de Analytics (ADR-0014).
   analytics:
     # Na inicialização: missing (backfill do deploy e de nova versão), all (runbook) ou off.

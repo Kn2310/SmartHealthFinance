@@ -32,6 +32,22 @@ comerciante, nem como convivem a regra automática e a correção do usuário. O
      Descrições todas em maiúsculas ou minúsculas viram "Title Case"; as demais mantêm o texto original.
    - Se nada com letra sobra, não há comerciante (`null`).
    - Qualquer mudança nas regras exige nova versão: a auditoria sabe qual algoritmo produziu cada chave.
+   - **Adendo (2026-10-14, aprovado): v2.** Depois de um rótulo genérico, tira também a preposição que o liga ao
+     comerciante (`de`, `do`, `da`, `dos`, `das`, `no`, `na`, `nos`, `nas`, `em`, `ao`, `aos`, `para`, `pra`):
+     "Compra do Bob" → "Bob", "Pix enviado para Maria Exemplo" → "Maria Exemplo". Só logo após um rótulo e só como
+     palavra inteira ("Casa do Pão" e "Do Bob Burgers" não mudam); o artigo "a" fica de fora por ser ambíguo; se a
+     preposição for tudo o que sobrou, ela fica.
+     - **Renormalização retroativa** (decisão aprovada: recalcular tudo), pelo `MerchantRenormalizationRunner` na
+       inicialização (`shf.transactions.merchant-renormalize` = `outdated` | `off`), antes do rebuild do Analytics:
+       toda transação com comerciante de versão anterior recebe o comerciante v2 calculado da **descrição atual**
+       (exceção ao §3: se o usuário editou a descrição, a chave nova reflete o texto editado).
+     - **A categoria não muda** (nem `MANUAL`, nem de regra): a renormalização não reavalia regras.
+     - **Regras aprendidas** acompanham a chave: a regra da chave antiga é copiada para a nova (se as duas têm
+       regra, vence a de `updated_at` mais recente) e a antiga é apagada quando nenhuma transação do Workspace a usa
+       mais (ex.: "Do Bob" sem rótulo continua na chave `do bob` e mantém a regra).
+     - Cada transação alterada grava `transaction.categorized` (ADR-0014 §2); a projeção também sobe para a versão 2
+       e é reconstruída no deploy (modo `missing`). Idempotente; cada Workspace numa transação de banco.
+       Runbook: `docs/runbooks/merchant-renormalization.md`.
 2. **Só há comerciante onde há categoria** (`INCOME`, `EXPENSE`, `REFUND`). Transferência e ajuste não têm.
 3. O comerciante é calculado **na criação** e não muda quando a descrição é editada (a chave que as análises e as
    regras usam fica estável). Transações anteriores ao ADR recebem o comerciante pelo comando retroativo (§9).

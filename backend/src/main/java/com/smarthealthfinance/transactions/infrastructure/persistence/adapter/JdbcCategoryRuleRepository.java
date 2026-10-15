@@ -43,4 +43,25 @@ public class JdbcCategoryRuleRepository implements CategoryRuleRepository {
                 workspaceId.value(), rule.merchantKey(), rule.category().code().value(),
                 rule.category().nature().name(), Timestamp.from(now), Timestamp.from(now));
     }
+
+    @Override
+    public void copy(WorkspaceId workspaceId, String fromKey, String toKey, CategoryNature nature) {
+        jdbc.update("""
+                        insert into category_rules (workspace_id, merchant_key, category_code, category_nature,
+                                                    created_at, updated_at)
+                        select workspace_id, ?, category_code, category_nature, created_at, updated_at
+                        from category_rules
+                        where workspace_id = ? and merchant_key = ? and category_nature = ?
+                        on conflict (workspace_id, merchant_key, category_nature)
+                        do update set category_code = excluded.category_code, updated_at = excluded.updated_at
+                        where category_rules.updated_at < excluded.updated_at
+                        """,
+                toKey, workspaceId.value(), fromKey, nature.name());
+    }
+
+    @Override
+    public void delete(WorkspaceId workspaceId, String merchantKey, CategoryNature nature) {
+        jdbc.update("delete from category_rules where workspace_id = ? and merchant_key = ? and category_nature = ?",
+                workspaceId.value(), merchantKey, nature.name());
+    }
 }

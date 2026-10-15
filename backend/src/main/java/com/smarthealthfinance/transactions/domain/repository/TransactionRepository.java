@@ -33,6 +33,19 @@ public interface TransactionRepository {
      */
     List<Transaction> findAutomatableByMerchant(WorkspaceId workspaceId, String merchantKey, CategoryNature nature);
 
+    /** Workspaces com transações cujo comerciante veio de outra versão do normalizador (adendo ADR-0013 §1). */
+    List<WorkspaceId> workspacesWithOutdatedMerchants(String currentVersion);
+
+    /**
+     * Transações com comerciante de outra versão do normalizador, em ordem de id, a partir de {@code after}
+     * (exclusivo; nulo = do início).
+     */
+    List<Transaction> findWithOutdatedMerchant(WorkspaceId workspaceId, String currentVersion, TransactionId after,
+                                               int limit);
+
+    /** Alguma transação do Workspace, de um tipo que aceita a {@code nature}, ainda usa esta chave de comerciante. */
+    boolean merchantKeyInUse(WorkspaceId workspaceId, String merchantKey, CategoryNature nature);
+
     void add(Transaction transaction);
 
     /** Inserção em lote de transações novas (importação, ADR-0009): sem leitura prévia por linha. */

@@ -44,7 +44,7 @@ class TransactionAutomationTest {
         assertThat(lume.merchant()).hasValueSatisfying(merchant -> {
             assertThat(merchant.key()).isEqualTo("bistro lume");
             assertThat(merchant.name()).isEqualTo("Bistrô Lume");
-            assertThat(merchant.normalizerVersion()).isEqualTo("v1");
+            assertThat(merchant.normalizerVersion()).isEqualTo(MerchantNormalizer.VERSION);
         });
         assertThat(lume.categoryOrigin()).isEmpty();
         assertThat(lume.awaitsAutomation()).isTrue();
