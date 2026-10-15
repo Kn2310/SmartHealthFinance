@@ -21,12 +21,15 @@ import java.util.UUID;
  * @param categoryCode   {@code null} = "Sem categoria" (ADR-0012 §4)
  * @param categorySource origem da categoria; nulo enquanto ninguém (regra ou usuário) a tratou (ADR-0013 §3)
  * @param merchantName   comerciante identificado na descrição; nulo se não identificado (ADR-0013 §1)
+ * @param reclassifiedFromTransactionId receita importada que este reembolso substitui ("marcar como reembolso")
+ * @param reclassifiedAsTransactionId   reembolso que substituiu esta receita estornada
  */
 public record TransactionView(
         UUID id, UUID workspaceId, UUID accountId, UUID destinationAccountId, TransactionType type,
         AdjustmentDirection adjustmentDirection, BigDecimal amount, String currency, LocalDate occurredOn,
         String description, TransactionStatus status, TransactionSource source, UUID refundOfTransactionId,
-        String categoryCode, CategorySource categorySource, String merchantName, Instant createdAt, Instant updatedAt
+        String categoryCode, CategorySource categorySource, String merchantName, UUID reclassifiedFromTransactionId,
+        UUID reclassifiedAsTransactionId, Instant createdAt, Instant updatedAt
 ) {
     public static TransactionView from(Transaction transaction) {
         return new TransactionView(
@@ -39,6 +42,8 @@ public record TransactionView(
                 transaction.category().map(category -> category.code().value()).orElse(null),
                 transaction.categoryOrigin().map(CategoryOrigin::source).orElse(null),
                 transaction.merchant().map(Merchant::name).orElse(null),
+                transaction.reclassifiedFromTransactionId().map(TransactionId::value).orElse(null),
+                transaction.reclassifiedAsTransactionId().map(TransactionId::value).orElse(null),
                 transaction.createdAt(), transaction.updatedAt()
         );
     }

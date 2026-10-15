@@ -49,6 +49,8 @@ definem:
    - A soma dos reembolsos não anulados (PENDING/POSTED) nunca ultrapassa o valor original.
    - Reembolsos concorrentes do mesmo original são serializados por `SELECT ... FOR UPDATE` no original.
    - O reembolso pode cair em outra conta do Workspace.
+   - **Adendo (2026-10-14, ADR-0009 §9):** "marcar como reembolso" cria um `REFUND` a partir de uma receita importada
+     estornada (vínculo `reclassified_from`/`reclassified_as`), com as mesmas regras de vínculo deste item.
 7. **Ciclo de vida:** `PENDING → POSTED | CANCELLED`, `POSTED → REVERSED`. `CANCELLED` e `REVERSED` são terminais.
    - Criação aceita apenas `PENDING` ou `POSTED` (padrão `POSTED`).
    - Repetir a mesma transição é idempotente (sem novo `save`). Transição inválida → `409 TRANSACTION_STATUS_CONFLICT`.
@@ -59,6 +61,9 @@ definem:
    - Os campos financeiros também são `updatable = false` no mapeamento JPA.
    - **Adendo (2026-10-13, ADR-0012):** a categoria também é editável (`PUT .../{id}/category`). Ela é um atributo
      não financeiro: não muda saldo nem fluxo de caixa.
+   - **Adendo (2026-10-14, ADR-0009 §9):** "marcar como reembolso" não muda o tipo da receita importada: ela é
+     estornada e substituída por um `REFUND` novo. O único campo novo mutável é o vínculo `reclassified_as`, gravado
+     junto com o estorno.
    - Não existe exclusão física (`DELETE` → 405).
 9. **Contas.**
    - A conta (e o destino) precisa existir no Workspace autorizado (`404 ACCOUNT_NOT_FOUND`) e estar ativa

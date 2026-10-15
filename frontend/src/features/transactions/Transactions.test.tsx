@@ -57,6 +57,8 @@ const txn = (overrides: Partial<Transaction> = {}): Transaction => ({
   categoryCode: null,
   categorySource: null,
   merchantName: null,
+  reclassifiedFromTransactionId: null,
+  reclassifiedAsTransactionId: null,
   createdAt: '2026-10-08T12:00:00Z',
   updatedAt: '2026-10-08T12:00:00Z',
   ...overrides,
@@ -621,6 +623,93 @@ describe('/transactions/{id} — detalhe e ações', () => {
     expect(await screen.findByText(/Não afeta o saldo/)).toBeInTheDocument()
     expect(screen.getByText('R$ 86,40')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Efetivar|Estornar|Cancelar transação/ })).not.toBeInTheDocument()
+  })
+
+  describe('marcar como reembolso', () => {
+    const REFUND = '01922f5e-0000-7000-8000-0000000000b9'
+    const PURCHASE = '01922f5e-0000-7000-8000-0000000000b8'
+    const statementRefund = txn({
+      type: 'INCOME',
+      source: 'IMPORT',
+      description: 'Estorno compra online - Loja Azul',
+      merchantName: 'Loja Azul',
+      amount: { amount: '129.90', currency: 'BRL' },
+    })
+    const purchase = txn({ id: PURCHASE, description: 'Loja Azul', amount: { amount: '129.90', currency: 'BRL' }, occurredOn: '2026-10-01' })
+
+    it('receita importada: escolhe a compra original, confirma e vai para o reembolso', async () => {
+      const calls = stub({
+        ...accounts,
+        'GET /api/bff/transactions/': () => json(statementRefund),
+        'GET /api/bff/transactions?': () => json(page([purchase])),
+        'POST /api/bff/transactions/': () =>
+          json(txn({ id: REFUND, type: 'REFUND', source: 'IMPORT', refundOfTransactionId: PURCHASE, reclassifiedFromTransactionId: TXN }), 201),
+      })
+      const user = userEvent.setup()
+      const { container } = render(<TransactionDetailView id={TXN} />)
+
+      await user.click(await screen.findByRole('button', { name: 'Marcar como reembolso' }))
+      expect(screen.getByRole('textbox', { name: 'Buscar a compra original (opcional)' })).toHaveValue('Loja Azul')
+      expect(screen.getByRole('radio', { name: 'Sem vínculo' })).toBeChecked()
+      await user.click(screen.getByRole('button', { name: 'Buscar' }))
+      const listUrl = calls.find((c) => isListCall(c.url) && c.url.includes('?'))!.url
+      expect(new URLSearchParams(listUrl.split('?')[1])).toEqual(
+        new URLSearchParams({ type: 'EXPENSE', status: 'POSTED', to: '2026-10-08', q: 'Loja Azul' }),
+      )
+      await user.click(await screen.findByRole('radio', { name: /Loja Azul/ }))
+      expect(await axeViolations(container)).toEqual([])
+
+      await user.click(screen.getByRole('button', { name: 'Confirmar: marcar como reembolso' }))
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/transactions/${REFUND}`))
+      const mark = calls.find((c) => c.method === 'POST')!
+      expect(mark.url).toBe(`/api/bff/transactions/${TXN}/mark-as-refund`)
+      expect(body(mark.init)).toEqual({ refundOfTransactionId: PURCHASE })
+    })
+
+    it('sem vínculo envia corpo vazio; regra do domínio vira mensagem clara', async () => {
+      const calls = stub({
+        ...accounts,
+        'GET /api/bff/transactions/': () => json(statementRefund),
+        'POST /api/bff/transactions/': () =>
+          json({ code: 'VALIDATION_FAILED', details: [{ field: 'refundOfTransactionId', code: 'ALREADY_RECLASSIFIED' }] }, 400),
+      })
+      const user = userEvent.setup()
+      render(<TransactionDetailView id={TXN} />)
+
+      await user.click(await screen.findByRole('button', { name: 'Marcar como reembolso' }))
+      await user.click(screen.getByRole('button', { name: 'Confirmar: marcar como reembolso' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('já foi marcada como reembolso')
+      expect(body(calls.find((c) => c.method === 'POST')!.init)).toEqual({})
+      expect(push).not.toHaveBeenCalled()
+    })
+
+    it('só receita importada e lançada oferece a ação', async () => {
+      stub({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ type: 'INCOME', description: 'Salário' })) })
+      render(<TransactionDetailView id={TXN} />)
+      expect(await screen.findByRole('heading', { level: 1, name: 'Salário' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Marcar como reembolso' })).not.toBeInTheDocument()
+    })
+
+    it('receita marcada aponta para o reembolso; o reembolso aponta para a receita original', async () => {
+      stub({
+        ...accounts,
+        'GET /api/bff/transactions/': () =>
+          json({ ...statementRefund, status: 'REVERSED', reclassifiedAsTransactionId: REFUND }),
+      })
+      const { unmount } = render(<TransactionDetailView id={TXN} />)
+      expect(await screen.findByRole('link', { name: 'Ver reembolso' })).toHaveAttribute('href', `/transactions/${REFUND}`)
+      expect(screen.getByText(/Marcada como reembolso: foi substituída/)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Marcar como reembolso' })).not.toBeInTheDocument()
+      unmount()
+
+      stub({
+        ...accounts,
+        'GET /api/bff/transactions/': () =>
+          json(txn({ id: REFUND, type: 'REFUND', source: 'IMPORT', reclassifiedFromTransactionId: TXN })),
+      })
+      render(<TransactionDetailView id={REFUND} />)
+      expect(await screen.findByRole('link', { name: 'Ver receita original' })).toHaveAttribute('href', `/transactions/${TXN}`)
+    })
   })
 
   it('de outro Workspace ou inexistente: "não encontrada"; id inválido nem chega ao BFF', async () => {

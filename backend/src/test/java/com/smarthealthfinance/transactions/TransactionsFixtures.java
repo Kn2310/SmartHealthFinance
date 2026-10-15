@@ -65,6 +65,13 @@ public final class TransactionsFixtures {
                 TransactionStatus.POSTED, null, CREATED_AT);
     }
 
+    /** Entrada de extrato (ADR-0009 §9): vira INCOME, mesmo quando é um estorno. */
+    public static Transaction importedIncome(WorkspaceId workspaceId, AccountId accountId, String amount,
+                                             String description) {
+        return Transaction.createImported(TransactionId.generate(CREATED_AT), workspaceId, accountId, true,
+                brl(amount), SEP_22, new TransactionDescription(description), CREATED_AT);
+    }
+
     public static Transaction transfer(WorkspaceId workspaceId, AccountId from, AccountId to, String amount) {
         return create(workspaceId, TransactionType.TRANSFER, from, to, null, amount, SEP_22, "Transferência para Reserva",
                 TransactionStatus.POSTED, null, CREATED_AT);

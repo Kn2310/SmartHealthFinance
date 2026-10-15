@@ -118,6 +118,10 @@ export interface components {
       categorySource: 'MANUAL' | 'RULE_LEARNED' | 'RULE_SYSTEM' | null
       /** Comerciante identificado na descrição (ADR-0013 §1); `null` se não identificado. */
       merchantName: string | null
+      /** Em um REFUND criado por "marcar como reembolso": a receita importada estornada que ele substitui. */
+      reclassifiedFromTransactionId: string | null
+      /** Em uma receita estornada por "marcar como reembolso": o REFUND que a substituiu. */
+      reclassifiedAsTransactionId: string | null
       createdAt: string
       updatedAt: string
     }
@@ -146,6 +150,8 @@ export interface components {
      * transações semelhantes que o usuário ainda não escolheu (ADR-0013 §2).
      */
     CategorizeTransactionRequest: { categoryCode: string | null; applyToSimilar?: boolean }
+    /** "Marcar como reembolso": vínculo opcional com a despesa original (EXPENSE lançada do Workspace). */
+    MarkAsRefundRequest: { refundOfTransactionId?: string | null }
     /** Categoria do catálogo do sistema (ADR-0012). `EXPENSE` serve a despesa e reembolso; `INCOME`, a receita. */
     CategoryResponse: {
       code: string
@@ -642,6 +648,16 @@ export interface paths {
   }
   '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/reverse': {
     post: { parameters: { path: TransactionPath }; responses: TransactionResult }
+  }
+  /** Receita importada → estornada + REFUND igual (201 criado; 200 replay). Responde o reembolso. */
+  '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/mark-as-refund': {
+    post: {
+      parameters: { path: TransactionPath }
+      requestBody?: { content: { 'application/json': components['schemas']['MarkAsRefundRequest'] } }
+      responses: {
+        201: { content: { 'application/json': components['schemas']['TransactionResponse'] } }
+      } & TransactionResult
+    }
   }
   '/api/v1/workspaces/{workspaceId}/categories': {
     get: {

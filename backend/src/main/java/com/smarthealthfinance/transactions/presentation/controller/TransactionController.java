@@ -7,12 +7,14 @@ import com.smarthealthfinance.transactions.application.usecase.CategorizeTransac
 import com.smarthealthfinance.transactions.application.usecase.CreateTransaction;
 import com.smarthealthfinance.transactions.application.usecase.GetTransaction;
 import com.smarthealthfinance.transactions.application.usecase.ListTransactions;
+import com.smarthealthfinance.transactions.application.usecase.MarkTransactionAsRefund;
 import com.smarthealthfinance.transactions.application.usecase.PostTransaction;
 import com.smarthealthfinance.transactions.application.usecase.ReverseTransaction;
 import com.smarthealthfinance.transactions.application.usecase.SummarizeTransactions;
 import com.smarthealthfinance.transactions.application.usecase.UpdateTransaction;
 import com.smarthealthfinance.transactions.presentation.dto.request.CategorizeTransactionRequest;
 import com.smarthealthfinance.transactions.presentation.dto.request.CreateTransactionRequest;
+import com.smarthealthfinance.transactions.presentation.dto.request.MarkAsRefundRequest;
 import com.smarthealthfinance.transactions.presentation.dto.request.UpdateTransactionRequest;
 import com.smarthealthfinance.transactions.presentation.dto.response.CategorizePendingResponse;
 import com.smarthealthfinance.transactions.presentation.dto.response.TransactionPageResponse;
@@ -50,13 +52,15 @@ public class TransactionController {
     private final CategorizeTransaction categorizeTransaction;
     private final AutoCategorizePending autoCategorizePending;
     private final SummarizeTransactions summarizeTransactions;
+    private final MarkTransactionAsRefund markTransactionAsRefund;
 
     public TransactionController(ListTransactions listTransactions, GetTransaction getTransaction,
                                  CreateTransaction createTransaction, UpdateTransaction updateTransaction,
                                  PostTransaction postTransaction, CancelTransaction cancelTransaction,
                                  ReverseTransaction reverseTransaction, CategorizeTransaction categorizeTransaction,
                                  AutoCategorizePending autoCategorizePending,
-                                 SummarizeTransactions summarizeTransactions) {
+                                 SummarizeTransactions summarizeTransactions,
+                                 MarkTransactionAsRefund markTransactionAsRefund) {
         this.listTransactions = listTransactions;
         this.getTransaction = getTransaction;
         this.createTransaction = createTransaction;
@@ -67,6 +71,7 @@ public class TransactionController {
         this.categorizeTransaction = categorizeTransaction;
         this.autoCategorizePending = autoCategorizePending;
         this.summarizeTransactions = summarizeTransactions;
+        this.markTransactionAsRefund = markTransactionAsRefund;
     }
 
     @GetMapping
@@ -224,5 +229,30 @@ public class TransactionController {
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     public TransactionResponse reverse(@PathVariable UUID workspaceId, @PathVariable UUID transactionId) {
         return TransactionResponse.from(reverseTransaction.execute(workspaceId, transactionId));
+    }
+
+    @PostMapping("/{transactionId}/mark-as-refund")
+    @Operation(summary = "Marca uma receita importada como reembolso: estorna a receita e cria um REFUND igual, opcionalmente vinculado à despesa original (idempotente; responde o reembolso)")
+    @ApiResponse(responseCode = "201", description = "Reembolso criado e receita estornada")
+    @ApiResponse(responseCode = "200", description = "Replay: a receita já tinha sido marcada com o mesmo vínculo")
+    @ApiResponse(responseCode = "400",
+            description = "VALIDATION_FAILED (transactionId NOT_RECLASSIFIABLE; refundOfTransactionId NOT_FOUND, NOT_REFUNDABLE ou ALREADY_RECLASSIFIED; amount EXCEEDS_REFUNDABLE)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND ou TRANSACTION_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "409", description = "TRANSACTION_STATUS_CONFLICT (receita não lançada) ou ACCOUNT_ARCHIVED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public ResponseEntity<TransactionResponse> markAsRefund(@PathVariable UUID workspaceId,
+                                                            @PathVariable UUID transactionId,
+                                                            @RequestBody(required = false) MarkAsRefundRequest request) {
+        MarkTransactionAsRefund.Result result = markTransactionAsRefund.execute(workspaceId, transactionId,
+                new MarkTransactionAsRefund.Command(request == null ? null : request.refundOfTransactionId()));
+
+        TransactionResponse body = TransactionResponse.from(result.refund());
+        if (result.replayed()) {
+            return ResponseEntity.ok(body);
+        }
+        return ResponseEntity.created(URI.create("/api/v1/workspaces/" + workspaceId + "/transactions/" + body.id()))
+                .body(body);
     }
 }

@@ -17,6 +17,7 @@ import { POST as postTxn } from './[transactionId]/post/route'
 import { POST as cancel } from './[transactionId]/cancel/route'
 import { POST as reverse } from './[transactionId]/reverse/route'
 import { PUT as categorize } from './[transactionId]/category/route'
+import { POST as markAsRefund } from './[transactionId]/mark-as-refund/route'
 import { GET as categories } from '../categories/route'
 
 const ORIGIN = 'http://app.test'
@@ -42,6 +43,8 @@ const transaction = {
   categoryCode: null,
   categorySource: null,
   merchantName: null,
+  reclassifiedFromTransactionId: null,
+  reclassifiedAsTransactionId: null,
   createdAt: '2026-10-09T12:00:00Z',
   updatedAt: '2026-10-09T12:00:00Z',
 }
@@ -340,6 +343,59 @@ describe('POST efetivar / cancelar / estornar', () => {
     expect((await cancel(post(`/api/bff/transactions/${TXN}/cancel`, null), params())).status).toBe(403)
     expect((await postTxn(post('/api/bff/transactions/x/post'), params('x'))).status).toBe(404)
     expect(POST_BACKEND).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('POST marcar como reembolso', () => {
+  const MARK = '/api/v1/workspaces/{workspaceId}/transactions/{transactionId}/mark-as-refund'
+  const PURCHASE = '01922f5e-0000-7000-8000-0000000000cc'
+  const refund = { ...transaction, id: PURCHASE, type: 'REFUND', reclassifiedFromTransactionId: TXN }
+
+  it('sem corpo: reembolso sem vínculo; o 201 do backend volta como 201', async () => {
+    POST_BACKEND.mockResolvedValue({ data: refund, response: { status: 201 } })
+    const response = await markAsRefund(post(`/api/bff/transactions/${TXN}/mark-as-refund`), params())
+    expect(response.status).toBe(201)
+    expect(await response.json()).toEqual(refund)
+    expect(POST_BACKEND.mock.calls[0]).toEqual([
+      MARK,
+      { params: { path: { workspaceId: 'ws-da-sessao', transactionId: TXN } }, body: {} },
+    ])
+  })
+
+  it('repassa só o vínculo com a despesa original; replay (200) volta como 200', async () => {
+    POST_BACKEND.mockResolvedValue({ data: refund, response: { status: 200 } })
+    const response = await markAsRefund(
+      jsonRequest(`/api/bff/transactions/${TXN}/mark-as-refund`, 'POST', { refundOfTransactionId: PURCHASE, extra: 1 }, { key: null }),
+      params(),
+    )
+    expect(response.status).toBe(200)
+    expect(POST_BACKEND.mock.calls[0]?.[1].body).toEqual({ refundOfTransactionId: PURCHASE })
+  })
+
+  it('recusa no BFF: vínculo fora do formato, corpo inválido, sem Origin e id inválido', async () => {
+    const path = `/api/bff/transactions/${TXN}/mark-as-refund`
+    const bad = await markAsRefund(jsonRequest(path, 'POST', { refundOfTransactionId: 'x' }, { key: null }), params())
+    expect(bad.status).toBe(400)
+    expect(await bad.json()).toEqual({ code: 'VALIDATION_FAILED', details: [{ field: 'refundOfTransactionId', code: 'INVALID' }] })
+    expect((await markAsRefund(jsonRequest(path, 'POST', '[1]', { key: null }), params())).status).toBe(400)
+    expect((await markAsRefund(post(path, null), params())).status).toBe(403)
+    expect((await markAsRefund(post('/api/bff/transactions/x/mark-as-refund'), params('x'))).status).toBe(404)
+    expect(POST_BACKEND).not.toHaveBeenCalled()
+  })
+
+  it('regras do domínio passam com o código estável; receita já estornada → 409', async () => {
+    POST_BACKEND.mockResolvedValueOnce({
+      error: apiError('VALIDATION_FAILED', [{ field: 'transactionId', code: 'NOT_RECLASSIFIABLE', message: 'x' }]),
+      response: { status: 400 },
+    })
+    const notImported = await markAsRefund(post(`/api/bff/transactions/${TXN}/mark-as-refund`), params())
+    expect(await notImported.json()).toEqual({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'transactionId', code: 'NOT_RECLASSIFIABLE' }],
+    })
+    POST_BACKEND.mockResolvedValueOnce({ error: apiError('TRANSACTION_STATUS_CONFLICT'), response: { status: 409 } })
+    const conflict = await markAsRefund(post(`/api/bff/transactions/${TXN}/mark-as-refund`), params())
+    expect(conflict.status).toBe(409)
   })
 })
 

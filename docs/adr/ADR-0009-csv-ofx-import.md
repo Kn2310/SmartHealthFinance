@@ -108,6 +108,32 @@ ainda não existe (ADR-0003/0004/0005 adiaram eventos por isso).
    - Não inferimos `TRANSFER` nem `REFUND` no M4. Uma transferência entre contas próprias importada dos dois
      extratos aparece como despesa + receita. Casar as pernas (ADR-0005, Alternatives) fica para depois do M5,
      com regra explícita e revisável pelo usuário.
+   - **Adendo (2026-10-14, aprovado): "marcar como reembolso".** Um estorno do extrato continua nascendo `INCOME`
+     (nenhuma inferência automática), mas o usuário pode corrigi-lo no detalhe da transação:
+     `POST /api/v1/workspaces/{id}/transactions/{transactionId}/mark-as-refund` com corpo opcional
+     `{refundOfTransactionId}`.
+     - Na mesma transação de banco, a receita é **estornada** (`POSTED → REVERSED`) e substituída por um **`REFUND`
+       `POSTED`** com a mesma conta, valor, data, descrição e origem (`IMPORT`). O tipo da receita não muda: a
+       imutabilidade do ADR-0005 §8 é preservada e o fato do extrato fica no histórico.
+     - Vínculo nos dois sentidos: `reclassified_from_transaction_id` no reembolso (imutável) e
+       `reclassified_as_transaction_id` na receita estornada. FKs compostas com `workspace_id`, `check` de tipo/status e
+       índices únicos parciais: no máximo um substituto por receita, mesmo com bug na aplicação (`V13`).
+     - Vínculo **opcional** com a despesa original, com as regras do ADR-0005 §6 (EXPENSE `POSTED`, soma ≤ original,
+       lock no original). Sem vínculo, continua sendo devolução, não renda (ADR-0006 §9). A categoria não é herdada
+       (questão em aberto do ADR-0013); o reembolso passa pelas regras automáticas como qualquer lançamento.
+     - Só **receita importada e `POSTED`** é elegível (`400 transactionId NOT_RECLASSIFIABLE`; receita já estornada
+       à mão → `409 TRANSACTION_STATUS_CONFLICT`). Lançamentos manuais escolhem `REFUND` na criação.
+     - Idempotente: repetir com o mesmo vínculo devolve o mesmo reembolso (`200`); outro vínculo →
+       `400 refundOfTransactionId ALREADY_RECLASSIFIED`. A receita fica bloqueada (`FOR UPDATE`) durante a operação.
+     - Exige a conta ativa (`409 ACCOUNT_ARCHIVED`), como todo lançamento novo.
+     - Efeitos: o saldo não muda (os dois creditam a mesma conta); no fluxo de caixa a entrada passa de `income` para
+       `refunds`, e o resultado não muda. Eventos `transaction.reversed` (receita) e `transaction.created`
+       (reembolso): a projeção de Analytics recalcula o mês sem nenhuma mudança (ADR-0014); o rebuild também, porque
+       relê o estado atual. A chave de deduplicação continua apontando para a receita estornada, então reimportar o
+       extrato não recria o estorno.
+     - Sem desfazer nesta versão: estornar o reembolso o tira do fluxo, mas não devolve a receita.
+     - Alternativas consideradas: reclassificar o tipo na mesma linha (exceção à imutabilidade), regra automática por
+       palavra-chave (falsos positivos como "Estorno de tarifa") e manter como estava (receitas e o Health inflados).
 10. **Importadas nascem `POSTED` com `source = IMPORT`** (extrato é movimento efetivado). A migration amplia o
     `check` de `transactions.source` (prevista no ADR-0005 §12). Correção segue o ADR-0005: estorno.
 11. **Deduplicação por conta**, em tabela própria `imported_transaction_keys`

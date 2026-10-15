@@ -102,6 +102,9 @@ Workspace, nenhum dado financeiro em logs e o Overview sem depender de Analytics
    transferência só informativa; ajuste fora; só POSTED; resultado = receitas + reembolsos − despesas.
    - **Estorno importado** continua INCOME (ADR-0009 §9) e infla as receitas até existir "marcar como reembolso"
      (decisão de produto futura, registrada no backlog).
+   - **Adendo (2026-10-14):** "marcar como reembolso" existe (ADR-0009 §9, adendo). Ele emite `transaction.reversed`
+     e `transaction.created`, que este consumidor já trata; a projeção e o rebuild não mudaram (teste no
+     `AnalyticsWorkerIT`).
 
 ## Alternatives
 

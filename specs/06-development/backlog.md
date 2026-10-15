@@ -106,8 +106,10 @@
 - [x] read models (projeção materializada `analytics_daily_flows` por eventos, consumidor idempotente com inbox,
   retry e DLQ, rebuild na inicialização + runbook, freshness em `GET .../analytics/status`, paridade com a
   referência do domínio — ADR-0014)
-- [ ] decisão de produto: "marcar como reembolso" para estornos importados (hoje INCOME pelo ADR-0009 §9; inflam
-  as receitas na Análise)
+- [x] "marcar como reembolso" para estornos importados: a receita importada é estornada e substituída por um REFUND
+  igual, com vínculo opcional à despesa original (`POST .../transactions/{id}/mark-as-refund`; ação no detalhe da
+  transação; saldo inalterado, entrada vai de receitas para reembolsos — adendo de 2026-10-14 ao ADR-0009 §9). Desfazer
+  a marcação fica para depois
 - [ ] normalizador de comerciante v2: rótulo genérico seguido de preposição ("Compra do Bob" vira "do Bob")
 
 ## M6 Health

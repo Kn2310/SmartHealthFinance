@@ -11,11 +11,13 @@ import java.util.UUID;
  * @param categoryCode   {@code null} = "Sem categoria"; o nome vem do catálogo ({@code GET .../categories})
  * @param categorySource {@code MANUAL}, {@code RULE_LEARNED} ou {@code RULE_SYSTEM}; nulo se ninguém tratou ainda
  * @param merchantName   comerciante identificado na descrição; nulo se não identificado
+ * @param reclassifiedFromTransactionId em um REFUND: a receita importada estornada que ele substitui
+ * @param reclassifiedAsTransactionId   em uma receita estornada: o reembolso que a substituiu
  */
 public record TransactionResponse(UUID id, UUID workspaceId, UUID accountId, UUID destinationAccountId, String type,
         String adjustmentDirection, MoneyDto amount, LocalDate occurredOn, String description, String status,
         String source, UUID refundOfTransactionId, String categoryCode, String categorySource, String merchantName,
-        Instant createdAt, Instant updatedAt) {
+        UUID reclassifiedFromTransactionId, UUID reclassifiedAsTransactionId, Instant createdAt, Instant updatedAt) {
 
     public static TransactionResponse from(TransactionView view) {
         return new TransactionResponse(view.id(), view.workspaceId(), view.accountId(), view.destinationAccountId(),
@@ -23,6 +25,6 @@ public record TransactionResponse(UUID id, UUID workspaceId, UUID accountId, UUI
                 MoneyDto.of(view.amount(), view.currency()), view.occurredOn(), view.description(),
                 view.status().name(), view.source().name(), view.refundOfTransactionId(), view.categoryCode(),
                 view.categorySource() == null ? null : view.categorySource().name(), view.merchantName(),
-                view.createdAt(), view.updatedAt());
+                view.reclassifiedFromTransactionId(), view.reclassifiedAsTransactionId(), view.createdAt(), view.updatedAt());
     }
 }

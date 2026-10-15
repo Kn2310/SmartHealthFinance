@@ -224,6 +224,29 @@ export async function readCategoryBody(
   return { body: { categoryCode: code, ...similar } }
 }
 
+/**
+ * Corpo opcional do "marcar como reembolso": só o vínculo com a despesa original (UUID ou ausente/`null`). Corpo vazio
+ * = sem vínculo.
+ */
+export async function readMarkAsRefundBody(
+  request: NextRequest,
+): Promise<{ body: Schemas['MarkAsRefundRequest'] } | { response: NextResponse }> {
+  const raw = await request.text().catch(() => null)
+  if (raw === null || raw.length > MAX_BODY_BYTES) return { response: invalidRequest() }
+  if (raw.trim() === '') return { body: {} }
+  let input: unknown
+  try {
+    input = JSON.parse(raw)
+  } catch {
+    return { response: invalidRequest() }
+  }
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) return { response: invalidRequest() }
+  const link = (input as Record<string, unknown>).refundOfTransactionId
+  if (link === undefined || link === null) return { body: {} }
+  if (!isUuid(link)) return { response: validationFailed([{ field: 'refundOfTransactionId', code: 'INVALID' }]) }
+  return { body: { refundOfTransactionId: link } }
+}
+
 /** Saldo inicial de uma conta nova (ADR-0004 §4): valor positivo + direção, como num ADJUSTMENT. */
 export interface OpeningBalance {
   amount: string
@@ -331,7 +354,7 @@ export async function transitionTransaction(
 /** Campos que a UI conhece; `Idempotency-Key` recusada vira `INVALID_REQUEST` (problema do cliente, não do campo). */
 const FIELDS = new Set([
   'type', 'accountId', 'adjustmentDirection', 'amount', 'currency', 'occurredOn', 'description', 'status', 'from', 'to',
-  'q', 'page', 'pageSize', 'categoryCode', 'uncategorized',
+  'q', 'page', 'pageSize', 'categoryCode', 'uncategorized', 'transactionId', 'refundOfTransactionId',
 ])
 /** Códigos da Bean Validation viram os do domínio; os do domínio passam se forem códigos estáveis. */
 const BEAN_CODES: Partial<Record<string, string>> = { NotBlank: 'REQUIRED', NotNull: 'REQUIRED', Size: 'TOO_LONG' }
