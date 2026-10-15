@@ -15,10 +15,14 @@ import java.util.regex.Pattern;
  * v1: tira rótulos genéricos do início ("Pix enviado - ", "Compra ", "Salário - "), parcelas, datas, códigos
  * numéricos e sufixos societários (Ltda, ME, S/A...) do fim, e junta espaços. A chave é o resultado sem acentos e
  * em minúsculas. Se nada sobrar, não há comerciante.
+ * <p>
+ * v2 (adendo de 2026-10-14 ao ADR-0013 §1): depois de um rótulo genérico, tira também a preposição que o liga ao
+ * comerciante ("Compra do Bob" → "Bob", "Pagamento ao Fornecedor X" → "Fornecedor X"). Só logo após um rótulo e
+ * só como palavra inteira: "Casa do Pão" e "Do Bob Burgers" não mudam. O artigo "a" fica de fora (ambíguo).
  */
 public final class MerchantNormalizer {
 
-    public static final String VERSION = "v1";
+    public static final String VERSION = "v2";
 
     /** Rótulos genéricos, já dobrados (sem acento, minúsculos), do mais longo para o mais curto. */
     private static final List<String> LEADING_LABELS = List.of(
@@ -26,6 +30,10 @@ public final class MerchantNormalizer {
             "debito automatico", "pix recebido", "pix enviado", "compra debito", "compra credito",
             "compra cartao", "pagamento", "estorno compra online", "estorno", "transferencia", "salario",
             "aluguel", "compra", "pix", "ted", "doc", "pgto");
+
+    /** Preposições que ligam o rótulo ao comerciante, já dobradas (v2). */
+    private static final List<String> LINKING_WORDS = List.of(
+            "de", "do", "da", "dos", "das", "no", "na", "nos", "nas", "em", "ao", "aos", "para", "pra");
 
     private static final Pattern SEPARATORS = Pattern.compile("^[\\s\\-:*–—/]+");
     private static final Pattern TRAILING_NOISE = Pattern.compile(
@@ -75,10 +83,20 @@ public final class MerchantNormalizer {
                 String rest = text.substring(Math.min(label.length(), text.length()));
                 String stripped = SEPARATORS.matcher(rest).replaceFirst("").strip();
                 // "Aluguel" ou "Compra" sozinhos são a própria descrição, não um rótulo antes do comerciante.
-                return stripped.isEmpty() ? text : stripped;
+                return stripped.isEmpty() ? text : stripLinkingWord(stripped);
             }
         }
         return text;
+    }
+
+    /** "do Bob" → "Bob" (v2). Se a preposição for tudo o que sobrou, ela fica. */
+    private static String stripLinkingWord(String text) {
+        int space = text.indexOf(' ');
+        if (space <= 0 || !LINKING_WORDS.contains(fold(text.substring(0, space)))) {
+            return text;
+        }
+        String rest = text.substring(space + 1).strip();
+        return rest.isEmpty() ? text : rest;
     }
 
     private static String stripTrailing(String text) {

@@ -17,8 +17,11 @@ import java.util.List;
 @Service
 public class RebuildAnalyticsProjection {
 
-    /** Versão do algoritmo da projeção. Mudou o que é gravado → nova versão → o runner reconstrói (modo missing). */
-    public static final int VERSION = 1;
+    /**
+     * Versão do algoritmo da projeção. Mudou o que é gravado → nova versão → o runner reconstrói (modo missing).
+     * v2: chaves de comerciante do {@code MerchantNormalizer} v2 (adendo de 2026-10-14 ao ADR-0013 §1).
+     */
+    public static final int VERSION = 2;
 
     private static final Logger log = LoggerFactory.getLogger(RebuildAnalyticsProjection.class);
 

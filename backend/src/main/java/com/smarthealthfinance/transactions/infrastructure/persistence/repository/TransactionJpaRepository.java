@@ -36,6 +36,28 @@ public interface TransactionJpaRepository extends JpaRepository<TransactionJpaEn
             @Param("types") List<TransactionType> types, @Param("after") UUID after, Pageable page);
 
     @Query("""
+            select distinct t.workspaceId from TransactionJpaEntity t
+            where t.merchantKey is not null and t.merchantNormalizerVersion <> :version
+            """)
+    List<UUID> findWorkspacesWithOutdatedMerchants(@Param("version") String version);
+
+    @Query("""
+            select t from TransactionJpaEntity t
+            where t.workspaceId = :workspaceId and t.merchantKey is not null
+              and t.merchantNormalizerVersion <> :version and t.id > :after
+            order by t.id
+            """)
+    List<TransactionJpaEntity> findWithOutdatedMerchant(@Param("workspaceId") UUID workspaceId,
+            @Param("version") String version, @Param("after") UUID after, Pageable page);
+
+    @Query("""
+            select count(t) > 0 from TransactionJpaEntity t
+            where t.workspaceId = :workspaceId and t.merchantKey = :merchantKey and t.type in :types
+            """)
+    boolean merchantKeyInUse(@Param("workspaceId") UUID workspaceId, @Param("merchantKey") String merchantKey,
+            @Param("types") List<TransactionType> types);
+
+    @Query("""
             select t from TransactionJpaEntity t
             where t.workspaceId = :workspaceId and t.merchantKey = :merchantKey and t.type in :types
               and (t.categorySource is null or t.categorySource <> :manual)

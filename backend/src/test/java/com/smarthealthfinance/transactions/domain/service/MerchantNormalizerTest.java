@@ -26,6 +26,13 @@ class MerchantNormalizerTest {
             "Padaria Pão Quente 0712|Padaria Pão Quente|padaria pao quente",
             "Supermercado Sol S/A|Supermercado Sol|supermercado sol",
             "Posto Central ME|Posto Central|posto central",
+            // v2: preposição depois do rótulo genérico.
+            "Compra do Bob|Bob|bob",
+            "Compra na Padaria Pão Quente 0712|Padaria Pão Quente|padaria pao quente",
+            "Pagamento ao Fornecedor Exemplo|Fornecedor Exemplo|fornecedor exemplo",
+            "Pix enviado para Maria Exemplo|Maria Exemplo|maria exemplo",
+            "Transferência recebida de João Teste|João Teste|joao teste",
+            "PAGAMENTO DE CONDOMINIO RESIDENCIAL|Condominio Residencial|condominio residencial",
     })
     void extractsTheMerchantFromTheRawDescription(String description, String name, String key) {
         assertThat(MerchantNormalizer.normalize(description))
@@ -53,6 +60,16 @@ class MerchantNormalizerTest {
         assertThat(MerchantNormalizer.normalize("Doces Mel")).map(Merchant::key).contains("doces mel");
     }
 
+    /** v2 só tira a preposição logo depois de um rótulo genérico, e nunca deixa a descrição vazia. */
+    @Test
+    void linkingWordIsOnlyStrippedAfterALabel() {
+        assertThat(MerchantNormalizer.normalize("Casa do Pão")).map(Merchant::key).contains("casa do pao");
+        assertThat(MerchantNormalizer.normalize("Do Bob Burgers")).map(Merchant::key).contains("do bob burgers");
+        assertThat(MerchantNormalizer.normalize("Compra do")).map(Merchant::key).contains("do");
+        assertThat(MerchantNormalizer.normalize("Compra Dona Benta")).map(Merchant::key).contains("dona benta");
+        assertThat(MerchantNormalizer.normalize("Compra a Vista Loja")).map(Merchant::key).contains("a vista loja");
+    }
+
     @Test
     void nothingMeaningfulMeansNoMerchant() {
         assertThat(MerchantNormalizer.normalize("123456")).isEmpty();
@@ -65,7 +82,7 @@ class MerchantNormalizerTest {
         Merchant first = MerchantNormalizer.normalize("Café Grão 22/09").orElseThrow();
 
         assertThat(MerchantNormalizer.normalize("Café Grão 22/09")).contains(first);
-        assertThat(first.normalizerVersion()).isEqualTo("v1");
+        assertThat(first.normalizerVersion()).isEqualTo("v2");
     }
 
     @Test

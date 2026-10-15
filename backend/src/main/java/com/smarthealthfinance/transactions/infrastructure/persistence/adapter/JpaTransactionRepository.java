@@ -99,6 +99,25 @@ public class JpaTransactionRepository implements TransactionRepository {
     }
 
     @Override
+    public List<WorkspaceId> workspacesWithOutdatedMerchants(String currentVersion) {
+        return jpa.findWorkspacesWithOutdatedMerchants(currentVersion).stream().map(WorkspaceId::new).toList();
+    }
+
+    @Override
+    public List<Transaction> findWithOutdatedMerchant(WorkspaceId workspaceId, String currentVersion,
+                                                      TransactionId after, int limit) {
+        return jpa.findWithOutdatedMerchant(workspaceId.value(), currentVersion,
+                        after == null ? FIRST_ID : after.value(), PageRequest.ofSize(limit)).stream()
+                .map(TransactionJpaEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public boolean merchantKeyInUse(WorkspaceId workspaceId, String merchantKey, CategoryNature nature) {
+        return jpa.merchantKeyInUse(workspaceId.value(), merchantKey, nature.acceptingTypes());
+    }
+
+    @Override
     public void add(Transaction transaction) {
         jpa.save(TransactionJpaEntity.from(transaction));
     }

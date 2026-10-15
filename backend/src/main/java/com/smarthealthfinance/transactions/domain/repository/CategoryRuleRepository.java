@@ -1,6 +1,7 @@
 package com.smarthealthfinance.transactions.domain.repository;
 
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionCategory;
 
 import java.time.Instant;
@@ -17,4 +18,12 @@ public interface CategoryRuleRepository {
 
     /** Cria a regra ou troca a categoria da existente (uma regra por comerciante e natureza). */
     void upsert(WorkspaceId workspaceId, LearnedRule rule, Instant now);
+
+    /**
+     * Copia a regra de {@code fromKey} para {@code toKey} (renormalização do comerciante). Se {@code toKey} já tem
+     * regra, vence a atualizada por último. Sem regra em {@code fromKey}, nada acontece.
+     */
+    void copy(WorkspaceId workspaceId, String fromKey, String toKey, CategoryNature nature);
+
+    void delete(WorkspaceId workspaceId, String merchantKey, CategoryNature nature);
 }

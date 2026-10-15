@@ -97,6 +97,37 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
     }
 
     @Override
+    public List<WorkspaceId> workspacesWithOutdatedMerchants(String currentVersion) {
+        return transactions.values().stream()
+                .filter(transaction -> outdated(transaction, currentVersion))
+                .map(Transaction::workspaceId)
+                .distinct()
+                .toList();
+    }
+
+    @Override
+    public List<Transaction> findWithOutdatedMerchant(WorkspaceId workspaceId, String currentVersion,
+                                                      TransactionId after, int limit) {
+        return inWorkspace(workspaceId)
+                .filter(transaction -> outdated(transaction, currentVersion))
+                .filter(transaction -> after == null || transaction.id().value().compareTo(after.value()) > 0)
+                .sorted(Comparator.comparing(transaction -> transaction.id().value()))
+                .limit(limit)
+                .toList();
+    }
+
+    @Override
+    public boolean merchantKeyInUse(WorkspaceId workspaceId, String merchantKey, CategoryNature nature) {
+        return inWorkspace(workspaceId)
+                .filter(transaction -> nature.acceptingTypes().contains(transaction.type()))
+                .anyMatch(transaction -> transaction.merchant().filter(m -> m.key().equals(merchantKey)).isPresent());
+    }
+
+    private static boolean outdated(Transaction transaction, String currentVersion) {
+        return transaction.merchant().filter(m -> !m.normalizerVersion().equals(currentVersion)).isPresent();
+    }
+
+    @Override
     public void add(Transaction transaction) {
         if (transactions.containsKey(transaction.id())) {
             throw new IllegalStateException("add() só insere transações novas");
