@@ -85,11 +85,12 @@ public final class IncomeSources {
 
     private static Map<String, List<FlowEntry>> bySource(List<FlowEntry> entries) {
         Map<String, List<FlowEntry>> grouped = new LinkedHashMap<>();
-        entries.forEach(e -> grouped.computeIfAbsent(key(e), k -> new java.util.ArrayList<>()).add(e));
+        entries.forEach(e -> grouped.computeIfAbsent(sourceKey(e), k -> new java.util.ArrayList<>()).add(e));
         return grouped;
     }
 
-    private static String key(FlowEntry entry) {
+    /** Chave da fonte de receita: o comerciante; sem comerciante, a categoria. Também usada pelo Health (ADR-0017). */
+    public static String sourceKey(FlowEntry entry) {
         return entry.merchantKey() != null ? "merchant:" + entry.merchantKey()
                 : "category:" + Objects.requireNonNullElse(entry.categoryCode(), "");
     }
