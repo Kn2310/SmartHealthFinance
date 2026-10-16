@@ -5,6 +5,8 @@
   background: var(--color-neutral-track);
 }
 
+.dark { background: var(--color-on-dark-surface); }
+
 .w-xs { width: 25%; }
 .w-sm { width: 40%; }
 .w-md { width: 60%; }

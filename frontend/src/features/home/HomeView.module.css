@@ -5,6 +5,8 @@
  * - desktop (1024–1439): saldo em largura total; fluxo | contas; movimentações em largura total (a lista é o
  *   bloco que mais precisa de largura: com a sidebar de 248 px, meia coluna deixa ~280 px úteis);
  * - large (≥ 1440): grid 5/7 do D-Home: saldo | fluxo, depois contas | movimentações.
+ * Com o card "Como estou?" (Health, 06-responsive): mobile e tablet em largura total, primeiro bloco; a partir de 1024,
+ * grid 5/7 do D-Home com o Health à esquerda e a Visão geral (saldo + fluxo) empilhada à direita.
  */
 .header {
   display: flex;
@@ -22,6 +24,8 @@
   grid-template-areas: 'hero' 'cash' 'accounts' 'recent';
   gap: var(--grid-gutter-mobile);
 }
+.grid.withHealth { grid-template-areas: 'health' 'hero' 'cash' 'accounts' 'recent'; }
+.health { grid-area: health; }
 .hero { grid-area: hero; }
 .cashflow { grid-area: cash; }
 .accounts { grid-area: accounts; }
@@ -56,6 +60,10 @@
   }
   .stack { gap: var(--grid-gutter-desktop); }
   .accounts { align-self: start; }
+  .grid.withHealth {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-areas: 'health hero' 'health cash' 'accounts accounts' 'recent recent';
+  }
 }
 
 @media (min-width: 1440px) {
@@ -64,6 +72,11 @@
     grid-template-areas: 'hero cash' 'accounts recent';
     grid-template-rows: auto auto;
   }
+  .grid.withHealth {
+    grid-template-areas: 'health hero' 'health cash' 'accounts recent';
+    grid-template-rows: auto auto auto;
+  }
+  .grid.withHealth .hero > *, .grid.withHealth .cashflow > * { height: auto; }
   /* Pares da mesma linha com a mesma altura. */
   .hero > *, .cashflow > * { height: 100%; }
 }

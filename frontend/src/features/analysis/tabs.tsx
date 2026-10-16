@@ -17,8 +17,10 @@ import { Money } from '@/components/ui/Money'
 import { CumulativeLine } from '@/components/charts/CumulativeLine'
 import { HorizontalBars } from '@/components/charts/HorizontalBars'
 import { MonthBars } from '@/components/charts/MonthBars'
+import { ScoreLine } from '@/components/charts/ScoreLine'
 import { Waterfall, type WaterfallStep } from '@/components/charts/Waterfall'
 import { longMonthLabel, monthLabel } from '@/components/charts/geometry'
+import { useHealthEvolution } from '@/features/health/api'
 import { formatShortDate } from '@/lib/format/date'
 import { useCategoryDetail } from './api'
 import type { TabContext } from './AnalysisView'
@@ -440,7 +442,17 @@ export function MerchantsTab({ data, context }: { data: AnalysisMerchants; conte
 export function EvolutionTab({ data, context }: { data: AnalysisEvolution; context: TabContext }) {
   const { params, setExtra } = context
   const three = params.get('months') === '3'
+  // Score do mesmo período pela API do Health (ADR-0019 §6): o contrato do Analytics não muda.
+  const health = useHealthEvolution(data.period.month, data.months.length)
+  const scores = new Map((health.status === 'success' && health.data ? health.data.months : []).map((m) => [m.month, m]))
+  const scoreCell = (month: string) => {
+    if (health.status === 'loading') return '…'
+    const item = scores.get(month)
+    if (!item || item.score === null) return '—'
+    return `${item.estimated ? '≈ ' : ''}${item.score}`
+  }
   return (
+    <>
     <Card id="analysis-evolution" title="Evolução mensal" subtitle="Receitas, despesas e resultado"
       action={
         <div role="group" aria-label="Meses" className={styles.segmented}>
@@ -461,6 +473,7 @@ export function EvolutionTab({ data, context }: { data: AnalysisEvolution; conte
               <th scope="col">Despesas</th>
               <th scope="col">Reembolsos</th>
               <th scope="col">Resultado</th>
+              <th scope="col">Score</th>
             </tr>
           </thead>
           <tbody>
@@ -471,11 +484,25 @@ export function EvolutionTab({ data, context }: { data: AnalysisEvolution; conte
                 <td><Money value={m.expense} /></td>
                 <td><Money value={m.refunds} /></td>
                 <td><Money value={m.net} sign="always" /></td>
+                <td>{scoreCell(m.month)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
     </Card>
+    <Card id="analysis-health" title="Saúde financeira no período"
+      action={<Link href="/home/health" className={styles.link}>Ver saúde</Link>}>
+      {health.status === 'error' ? (
+        <p className={styles.muted}>Não conseguimos carregar o score agora. Os números acima não mudam.</p>
+      ) : health.status === 'success' && health.data && health.data.months.some((m) => m.score !== null) ? (
+        <ScoreLine title="Score mês a mês"
+          data={health.data.months.map((m) => ({ month: m.month, score: m.score, estimated: m.estimated, partial: m.partial }))}
+          caption="Meses estimados ou em andamento aparecem tracejados." />
+      ) : health.status === 'success' ? (
+        <p className={styles.muted}>Ainda não há score para estes meses.</p>
+      ) : null}
+    </Card>
+    </>
   )
 }

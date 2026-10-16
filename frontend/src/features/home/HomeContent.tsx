@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import type { Overview } from '@/lib/api/types'
 import { AccountsSummary } from './AccountsSummary'
 import { BalanceHero } from './BalanceHero'
@@ -8,20 +9,28 @@ import styles from './HomeView.module.css'
 
 /**
  * Renderiza a Home a partir do `state` semântico do backend. Só apresenta: nenhum saldo ou fluxo é calculado aqui,
- * e `null` (sem dados) nunca é convertido em zero.
+ * e `null` (sem dados) nunca é convertido em zero. `health` é o card "Como estou?" (ADR-0019), sempre o primeiro
+ * bloco e independente do período da Visão geral.
  */
-export function HomeContent({ overview }: { overview: Overview }) {
+export function HomeContent({ overview, health = null }: { overview: Overview; health?: ReactNode }) {
+  const healthBlock = health ? <div className={styles.health}>{health}</div> : null
   const { state, summary, period, cashFlow, accounts, recentTransactions } = overview
 
   switch (state) {
     case 'NO_ACCOUNTS':
-      return <NoAccounts />
+      return (
+        <div className={styles.stack}>
+          {healthBlock}
+          <NoAccounts />
+        </div>
+      )
 
     case 'NO_TRANSACTIONS':
       // Ainda não há nada lançado (POSTED), mas o backend pode devolver movimentações PENDING do período.
       // Elas aparecem como pendentes, separadas do realizado: não há saldo nem fluxo para mostrar.
       return (
         <div className={styles.stack}>
+          {healthBlock}
           <NoTransactions accountCount={summary.accountCount} pendingTransactions={summary.pendingTransactions} />
           {recentTransactions.length > 0 ? (
             <RecentTransactions
@@ -37,7 +46,8 @@ export function HomeContent({ overview }: { overview: Overview }) {
 
     case 'NO_ACTIVITY_IN_PERIOD':
       return (
-        <div className={styles.grid}>
+        <div className={`${styles.grid} ${healthBlock ? styles.withHealth : ''}`}>
+          {healthBlock}
           <div className={styles.hero}>
             <BalanceHero summary={summary} />
           </div>
@@ -55,7 +65,8 @@ export function HomeContent({ overview }: { overview: Overview }) {
 
     case 'READY':
       return (
-        <div className={styles.grid}>
+        <div className={`${styles.grid} ${healthBlock ? styles.withHealth : ''}`}>
+          {healthBlock}
           <div className={styles.hero}>
             <BalanceHero summary={summary} />
           </div>

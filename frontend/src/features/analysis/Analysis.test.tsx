@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axeViolations } from '@/test/a11y'
 import { json, stubBff } from '@/test/bff-stub'
+import { evolution as healthEvolution } from '@/features/health/fixtures'
 import { AnalysisView } from './AnalysisView'
 import { categoriesView, categoryDetail, evolution, income, merchants, meta, overview, spending } from './fixtures'
 import { baseLabel, formatPercent, periodHeading, variationText } from './format'
@@ -176,6 +177,33 @@ describe('/analysis — abas', () => {
     expect(within(table).getAllByRole('row')).toHaveLength(7)
     await user.click(screen.getByRole('button', { name: '3 meses' }))
     expect(replace).toHaveBeenLastCalledWith('/analysis/evolution?months=3', { scroll: false })
+  })
+
+  it('evolução: coluna e linha do score vêm do Health no mesmo período (ADR-0019 §6)', async () => {
+    pathname = '/analysis/evolution'
+    const calls = stubBff({
+      'GET /api/bff/analytics/evolution': () => json(evolution()),
+      'GET /api/bff/health/evolution': () => json(healthEvolution()),
+      'GET /api/bff/categories': () => json(catalog),
+    })
+    render(<AnalysisView tab="evolution" />)
+
+    const table = await screen.findByRole('table', { name: 'Mês a mês' })
+    await waitFor(() => expect(within(table).getAllByRole('row')[1]).toHaveTextContent('≈ 91'))
+    expect(within(table).getAllByRole('row').at(-1)).toHaveTextContent('84')
+    expect(calls.some((c) => c.url === '/api/bff/health/evolution?month=2026-09&months=6')).toBe(true)
+    expect(screen.getByRole('link', { name: 'Ver saúde' })).toHaveAttribute('href', '/home/health')
+    expect(screen.getByRole('table', { name: 'Score mês a mês' })).toBeInTheDocument()
+  })
+
+  it('evolução: falha do Health não esconde os números da Análise', async () => {
+    pathname = '/analysis/evolution'
+    stubBff({ 'GET /api/bff/analytics/evolution': () => json(evolution()), 'GET /api/bff/categories': () => json(catalog) })
+    render(<AnalysisView tab="evolution" />)
+
+    const table = await screen.findByRole('table', { name: 'Mês a mês' })
+    expect(await screen.findByText(/Não conseguimos carregar o score agora/)).toBeInTheDocument()
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('—')
   })
 })
 

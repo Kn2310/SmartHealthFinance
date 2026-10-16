@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readyHealth } from '@/features/health/fixtures'
 import { noAccountsOverview, readyOverview } from './fixtures'
 import { HomeView } from './HomeView'
 
@@ -23,7 +24,9 @@ describe('HomeView', () => {
     search = ''
     replace.mockReset()
     fetchMock.mockReset()
-    vi.stubGlobal('fetch', fetchMock)
+    // O card "Como estou?" faz a própria chamada (ADR-0019); fetchMock conta só as da Visão geral.
+    vi.stubGlobal('fetch', (input: string, init?: RequestInit) =>
+      String(input).startsWith('/api/bff/health') ? json(readyHealth()) : fetchMock(input, init))
   })
 
   afterEach(() => vi.unstubAllGlobals())
@@ -36,7 +39,7 @@ describe('HomeView', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Olá, Ana' })).toBeInTheDocument()
 
     expect(await screen.findByText('R$ 7.627,52')).toBeInTheDocument()
-    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument())
     expect(screen.getByText('Resumo de 1 a 27 de setembro')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/bff/overview')

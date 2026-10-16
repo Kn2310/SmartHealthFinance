@@ -29,3 +29,16 @@ export type AnalysisMerchants = Schemas['AnalysisMerchantsResponse']
 export type AnalysisEvolution = Schemas['AnalysisEvolutionResponse']
 export type AnalyticsStatus = Schemas['AnalyticsStatusResponse']
 export type TransactionSummary = Schemas['TransactionSummaryResponse']
+
+// Financial Health (ADR-0019)
+export type { HealthDimensionCode, HealthFreshnessState, HealthState } from './schema'
+export type Health = Schemas['HealthResponse']
+export type HealthDimension = Schemas['HealthDimensionDto']
+export type HealthEvidence = Schemas['HealthEvidenceDto']
+export type HealthFactor = Schemas['HealthFactorDto']
+export type HealthNextStep = Schemas['HealthNextStepDto']
+export type HealthFreshness = Schemas['HealthFreshnessDto']
+export type HealthEvolution = Schemas['HealthEvolutionResponse']
+export type HealthMonth = Schemas['HealthMonthDto']
+export type HealthMethod = Schemas['HealthMethodResponse']
+export type HealthStatus = Schemas['HealthStatusResponse']
