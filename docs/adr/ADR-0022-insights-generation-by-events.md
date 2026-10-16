@@ -74,7 +74,8 @@ Restrições do código atual:
      **só se algo mudou** (gerar duas vezes o mesmo estado não muda nada); de Informativo para Importante limpa
      `seenAt`;
    - `ACTIVE` não detectado: período diferente de P → `EXPIRED` (`PERIOD_ENDED`); do mesmo P (ou D3/D9, sem
-     período) → `RESOLVED`; D3/D9 `ACTIVE` sem atualização há 90 dias → `EXPIRED` (`STALE`);
+     período) → `RESOLVED`. Como toda geração reavalia D3/D9, um `ACTIVE` deles sempre vale agora: a regra dos
+     "90 dias sem disparar" do ADR-0021 §5 não precisa de estado próprio (adendo ao ADR-0021);
    - `ACTIVE` de outra versão → `EXPIRED` (`VERSION_SUPERSEDED`);
    - `DISMISSED`, `EXPIRED` e linhas de outras versões nunca são reescritos.
 5. **Gravação**: upsert por (Workspace, fingerprint, versão); `insights_workspaces` guarda `generated_at`, `as_of`

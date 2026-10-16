@@ -217,7 +217,7 @@ class ArchitectureTest {
 		.dependOnClassesThat()
 		.resideInAPackage("com.smarthealthfinance.health..")
 		.allowEmptyShould(true)
-		.because("o Health é derivado; nenhum módulo depende dele sem decisão registrada (ADR-0018)");
+		.because("o Health é derivado; só os Insights leem o snapshot dele (ADR-0018 §1 e adendo, ADR-0022 §1)");
 
 	@ArchTest
 	static final ArchRule healthOnlyReadsPortsAndDomainModels = noClasses().that()
@@ -237,6 +237,42 @@ class ArchitectureTest {
 		.allowEmptyShould(true)
 		.because("o Health lê portas e modelos de domínio de Analytics, Overview e Accounts; nunca casos de uso ou "
 				+ "adapters de outros módulos, e conhece os eventos só pelo nome (ADR-0018 §1)");
+
+	// Insights (ADR-0021/0022) é o último derivado: lê portas e modelos de domínio de Analytics e Health.
+
+	@ArchTest
+	static final ArchRule nothingDependsOnInsights = noClasses().that()
+		.resideOutsideOfPackage("com.smarthealthfinance.insights..")
+		.and()
+		.resideInAPackage("com.smarthealthfinance..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.insights..")
+		.allowEmptyShould(true)
+		.because("os Insights são derivados; nenhum módulo depende deles (ADR-0022 §1)");
+
+	@ArchTest
+	static final ArchRule insightsOnlyReadPortsAndDomainModels = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.insights..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.analytics.application.usecase..",
+				"com.smarthealthfinance.analytics.application.service..",
+				"com.smarthealthfinance.analytics.infrastructure..", "com.smarthealthfinance.analytics.presentation..",
+				"com.smarthealthfinance.health.application.usecase..",
+				"com.smarthealthfinance.health.application.service..",
+				"com.smarthealthfinance.health.infrastructure..", "com.smarthealthfinance.health.presentation..",
+				"com.smarthealthfinance.overview..", "com.smarthealthfinance.accounts..",
+				"com.smarthealthfinance.transactions.application..",
+				"com.smarthealthfinance.transactions.infrastructure..",
+				"com.smarthealthfinance.transactions.presentation..", "com.smarthealthfinance.identity.application.usecase..",
+				"com.smarthealthfinance.identity.infrastructure..", "com.smarthealthfinance.ingestion..")
+		.orShould()
+		.dependOnClassesThat()
+		.haveFullyQualifiedName("com.smarthealthfinance.health.application.port.HealthSnapshotStore")
+		.allowEmptyShould(true)
+		.because("os Insights leem só portas de leitura e modelos de domínio de Analytics e Health (nunca a porta de "
+				+ "escrita do snapshot), nunca casos de uso ou adapters, e conhecem os eventos só pelo nome (ADR-0022 §1)");
 
 	@ArchTest
 	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()

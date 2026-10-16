@@ -1483,6 +1483,22 @@
         },
         "type" : "object"
       },
+      "InsightsStatusResponse" : {
+        "properties" : {
+          "generatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "healthComputedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Lines" : {
         "properties" : {
           "categorized" : {
@@ -3500,6 +3516,44 @@
         },
         "summary" : "Linhas do arquivo (preview ou resultado), em ordem de arquivo",
         "tags" : [ "Imports" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/insights/status" : {
+      "get" : {
+        "operationId" : "insightsStatus",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightsStatusResponse"
+                }
+              }
+            },
+            "description" : "Estado da geração"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Freshness dos insights: UP_TO_DATE, UPDATING ou NOT_BUILT",
+        "tags" : [ "Insights" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/overview" : {

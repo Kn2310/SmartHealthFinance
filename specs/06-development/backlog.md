@@ -140,12 +140,16 @@
   recorte de dias, comerciante recorrente novo, compra atípica, receita recorrente ausente/menor, nova fonte de
   receita, variação do score e de dimensão do Health, reserva baixa, gastos sem categoria); piso de impacto; Impact,
   Relevance, Confidence; Importante/Informativo; fingerprint, estados e versionamento; evidências; feedback
-- [ ] detector
-- [ ] impact
-- [ ] relevance
-- [ ] confidence
-- [ ] evidence
-- [ ] insight UI
+- [x] detector, impact, relevance, confidence, evidence (`insights-v1` puro no domínio, testes de tabela com o
+  fixture de 09-dados-de-exemplo e casos de borda — ADR-0021)
+- [x] geração encadeada no Health (ADR-0022): `health.snapshot-updated` pela outbox (adendo ao ADR-0018);
+  consumidor `insights.generation` idempotente com inbox, retry e DLQ; debounce 10 s / teto 60 s; reconciliação
+  (novo, atualizado, resolvido, expirado, dispensado nunca volta); retenção de 13 meses; rebuild que só marca +
+  runbook `insights-rebuild.md`; paridade com a geração direta sobre as portas
+- [x] freshness: `GET .../insights/status` (`UP_TO_DATE`, `UPDATING`, `NOT_BUILT`), métricas
+  `shf.insights.generation[.freshness]`; endpoint na suíte de isolamento
+- [ ] Insights API (parte C)
+- [ ] insight UI (parte D)
 
 ## M8 Cards
 
