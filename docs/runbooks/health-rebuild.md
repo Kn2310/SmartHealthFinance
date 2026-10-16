@@ -13,7 +13,8 @@ Overview. Apagar e reconstruir nunca perde fato financeiro.
 2. O consumidor `health.snapshot` (fila `shf.health.snapshot`) só marca o Workspace em `health_workspaces`
    (`dirty_since`, `due_at`): debounce de 10 s, teto de 60 s desde o primeiro evento pendente.
 3. O job (a cada 5 s) pega os vencidos com `FOR UPDATE SKIP LOCKED` e recalcula o mês corrente + os 12 fechados na
-   versão atual do algoritmo.
+   versão atual do algoritmo, e grava `health.snapshot-updated` na mesma transação: é o gatilho dos Insights
+   (`insights-rebuild.md`, ADR-0022).
 4. Às 00:05 (fuso de `shf.overview.zone`) o job diário marca todos os Workspaces com snapshot: o calendário muda o
    resultado sem nenhum evento. Uma leitura de status com snapshot de um dia anterior também marca.
 

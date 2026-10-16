@@ -59,7 +59,7 @@ class HealthSnapshotUseCasesTest {
         store.due.add(broken);
         store.due.add(other);
         List<WorkspaceId> recalculated = new ArrayList<>();
-        HealthSnapshotCalculator calculator = new HealthSnapshotCalculator(null, store, CLOCK, meters) {
+        HealthSnapshotCalculator calculator = new HealthSnapshotCalculator(null, store, CLOCK, meters, null) {
             @Override
             public List<HealthResult> recalculate(WorkspaceId workspaceId) {
                 if (workspaceId.equals(broken)) {
@@ -83,7 +83,7 @@ class HealthSnapshotUseCasesTest {
         for (int i = 0; i < 5; i++) {
             store.due.add(new WorkspaceId(UUID.randomUUID()));
         }
-        HealthSnapshotCalculator calculator = new HealthSnapshotCalculator(null, store, CLOCK, meters) {
+        HealthSnapshotCalculator calculator = new HealthSnapshotCalculator(null, store, CLOCK, meters, null) {
             @Override
             public List<HealthResult> recalculate(WorkspaceId workspaceId) {
                 return List.of();
