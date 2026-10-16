@@ -136,6 +136,10 @@
 
 ## M7 Insights
 
+- [x] modelo `insights-v1` (ADR-0021): 10 detectores determinísticos (categoria e gasto total acima do padrão no mesmo
+  recorte de dias, comerciante recorrente novo, compra atípica, receita recorrente ausente/menor, nova fonte de
+  receita, variação do score e de dimensão do Health, reserva baixa, gastos sem categoria); piso de impacto; Impact,
+  Relevance, Confidence; Importante/Informativo; fingerprint, estados e versionamento; evidências; feedback
 - [ ] detector
 - [ ] impact
 - [ ] relevance
