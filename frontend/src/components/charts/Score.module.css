@@ -1,0 +1,66 @@
+/* Ring e linha do Financial Health (design/specs/02-components): Teal sobre trilho; estimado tracejado (Trust UX). */
+
+.ring {
+  position: relative;
+  flex-shrink: 0;
+  aspect-ratio: 1;
+}
+.sm { width: 72px; }
+.md { width: 104px; }
+.lg { width: 132px; }
+@media (min-width: 1024px) {
+  .lg { width: 180px; }
+}
+
+.ringSvg { display: block; width: 100%; height: 100%; }
+.ringTrack { fill: none; stroke: var(--color-neutral-track); }
+.dark .ringTrack { stroke: var(--color-on-dark-track); }
+.ringValue { fill: none; stroke: var(--color-brand-intelligent-teal); stroke-linecap: round; }
+.ringEstimated { stroke: var(--color-brand-soft-blue); stroke-dasharray: 6 5; stroke-linecap: butt; }
+
+.ringCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+.ringNumber { font-family: var(--font-heading); font-weight: 800; letter-spacing: -0.02em; }
+.sm .ringNumber { font: var(--type-h3); font-weight: 800; }
+.md .ringNumber { font: var(--type-h2); font-weight: 800; }
+.lg .ringNumber { font: var(--type-h1); font-weight: 800; }
+@media (min-width: 1024px) {
+  .lg .ringNumber { font: var(--type-display); font-weight: 800; }
+}
+.ringScale { margin-top: var(--space-4); font: var(--type-caption); color: var(--color-neutral-muted); }
+.dark .ringNumber { color: var(--color-on-dark-text); }
+.dark .ringScale { color: var(--color-on-dark-muted); }
+
+/* Linha do score. */
+.figure { margin: 0; min-width: 0; }
+.lineSvg { display: block; width: 100%; height: auto; overflow: visible; }
+.grid { stroke: var(--color-neutral-border); stroke-width: 1; }
+.dark .grid { stroke: var(--color-on-dark-track); }
+.tick { fill: var(--color-neutral-muted); font: var(--type-caption); }
+.dark .tick { fill: var(--color-on-dark-muted); }
+.line { fill: none; stroke: var(--color-brand-deep-navy); stroke-width: 2.5; }
+.dark .line { stroke: var(--color-brand-intelligent-teal); }
+.lineDashed { stroke: var(--color-brand-soft-blue); stroke-dasharray: 6 4; }
+.point { fill: var(--color-brand-deep-navy); stroke: var(--color-neutral-surface); stroke-width: 2; }
+.dark .point { fill: var(--color-brand-intelligent-teal); stroke: var(--color-brand-deep-navy); }
+.pointOpen { fill: var(--color-neutral-surface); stroke: var(--color-brand-soft-blue); }
+.dark .pointOpen { fill: var(--color-brand-deep-navy); stroke: var(--color-brand-soft-blue); }
+
+.caption { margin-top: var(--space-8); color: var(--color-neutral-muted); font: var(--type-caption); }
+.dark .caption { color: var(--color-on-dark-muted); }
+
+/* Alternativa textual: os dados do gráfico em tabela (sempre no DOM, aberta sob demanda). */
+.data { margin-top: var(--space-12); font: var(--type-body-s); }
+.data summary { cursor: pointer; color: var(--color-semantic-text-info); width: fit-content; }
+.dark .data summary { color: var(--color-on-dark-link); }
+.table { width: 100%; margin-top: var(--space-8); border-collapse: collapse; }
+.table th, .table td { padding: var(--space-4) var(--space-8); text-align: right; border-bottom: 1px solid var(--color-neutral-border); }
+.table th:first-child { text-align: left; }
+.table thead th { color: var(--color-neutral-muted); font: var(--type-caption); }

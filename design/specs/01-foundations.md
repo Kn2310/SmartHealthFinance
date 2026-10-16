@@ -28,6 +28,19 @@ Filosofia: **≈ 85% neutros, 15% acentos.** Cor de destaque só com intenção:
 | Subtle · derivado | `#F1F3F6` | Item de navegação ativo, fundo de ícones |
 | Track · derivado | `#EDF0F4` | Trilho de barras e rings |
 
+### Sobre o Deep Navy · derivado
+
+Valores dos layouts D-Home / M-Home (card de Financial Health); tokens `--color-on-dark-*`.
+
+| Token | Valor | Uso |
+|---|---|---|
+| On-dark text | `#FFFFFF` | Número do score, títulos |
+| On-dark text secondary | `#CBD5E1` | Frase explicativa, nomes das dimensões |
+| On-dark muted | `#94A3B8` | Eyebrow, "de 100", base e atualização |
+| On-dark link | `#93C5FD` | "Como calculamos?" |
+| On-dark surface | branco 6% | Células do mini-grid de dimensões, skeleton |
+| On-dark track | branco 12% | Trilho do ring sobre Navy |
+
 ### Semânticas
 
 As cores oficiais são usadas em ícones, barras e fundos. **Para texto** usamos tons escurecidos (≥ 4,5:1):

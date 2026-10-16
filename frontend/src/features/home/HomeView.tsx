@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
+import { HealthCard } from '@/features/health/HealthCard'
 import { formatPeriodRange } from '@/lib/format/date'
 import { DEFAULT_QUERY, parseOverviewQuery, toSearchParams, type OverviewQuery } from '@/lib/overview-query'
 import { HomeContent } from './HomeContent'
@@ -64,7 +65,7 @@ export function HomeView({ firstName }: { firstName: string }) {
       <HomeHeader firstName={firstName} subtitle={subtitle} showImport={data.state !== 'NO_ACCOUNTS'}>
         {hasPeriodData ? selector : null}
       </HomeHeader>
-      <HomeContent overview={data} />
+      <HomeContent overview={data} health={<HealthCard />} />
     </>
   )
 }

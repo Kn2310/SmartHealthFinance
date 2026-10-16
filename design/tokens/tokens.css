@@ -27,6 +27,13 @@
   --color-semantic-bg-info: #EAF1FE;
   --color-semantic-bg-blue: #EDF2FF;
   --color-overlay: rgba(11, 18, 32, 0.40);
+  /* Sobre o Deep Navy (card de Financial Health, toasts, tooltips): valores dos layouts D-Home/M-Home. */
+  --color-on-dark-text: #FFFFFF;
+  --color-on-dark-text-secondary: #CBD5E1;
+  --color-on-dark-muted: #94A3B8;
+  --color-on-dark-link: #93C5FD;
+  --color-on-dark-surface: rgba(255, 255, 255, 0.06);
+  --color-on-dark-track: rgba(255, 255, 255, 0.12);
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
