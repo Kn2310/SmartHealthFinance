@@ -154,6 +154,8 @@ Status de cada dimensão: `OK`, `INSUFFICIENT_DATA` (com motivo, ex.: "precisa d
   4. uc > 10%: "Categorizar transações" → **Transações** filtradas por sem categoria;
   5. mês com resultado negativo em W: "Veja o que mudou em {mês}" → **Análise** daquele mês.
   - Objetivos (M7) e Insights (M10) são omitidos até existirem.
+  - **Adendo (2026-10-16, ADR-0021):** os marcos estavam trocados: Insights é o **M7** e Objetivos o **M10**
+    (`backlog.md`). A regra não muda: só telas que existem. Ligar próximos passos a insights é decisão da parte D do M7.
   - Os passos **não usam ✦**: ✦ é o rótulo de IA (design/specs/07 §5) e aqui não há IA. Diverge do layout `D-Health`.
 
 ### 8. O que não entra
