@@ -35,6 +35,8 @@ Dois fatos do código condicionam a decisão:
 - `health.infrastructure`: JDBC do snapshot, mensageria, jobs e runner.
 - **Fronteiras (ArchUnit):**
   - nenhum módulo depende de `health`;
+    **Adendo (2026-10-16, ADR-0022 §1):** exceto `insights`, que lê a nova porta só de leitura `HealthSnapshotReader`
+    e os modelos de `health.domain`.
   - `health` lê apenas portas e modelos de domínio: `analytics.application.port` e `analytics.domain`,
     `overview.application.port` e `overview.domain`, `accounts.domain` (o `AccountRepository`, como o Overview) e
     `identity` para Workspace e autorização;
@@ -51,6 +53,8 @@ Dois fatos do código condicionam a decisão:
 - **Fila `shf.health.snapshot`** (bindings `analytics.projection-updated` e `account.changed`), consumidor
   `health.snapshot` no padrão do ADR-0014 §4: inbox `processed_events` na mesma transação do efeito, retry com backoff
   exponencial + jitter só para falhas transitórias, DLQ `shf.health.snapshot.dlq` para o resto.
+- **Adendo (2026-10-16, ADR-0022 §2):** cada recálculo do snapshot (job e rebuild) grava **`health.snapshot-updated` v1**
+  na outbox, na mesma transação. Payload: só `algorithmVersion`. O consumidor é o módulo de Insights.
 
 ### 3. Debounce
 

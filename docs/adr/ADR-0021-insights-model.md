@@ -182,7 +182,7 @@ D3, D6, D8 e D10 são sempre Informativos.
   - **`EXPIRED`:** P deixou de ser avaliado (dia 7 do mês seguinte) ou a versão foi substituída (§6). D3 e D9 expiram
     quando a condição deixa de valer (viram `RESOLVED`) ou após 90 dias sem disparar.
   - Visíveis na lista: `ACTIVE`. `RESOLVED`, `EXPIRED` e `DISMISSED` ficam guardados para relevância e auditoria.
-- **Retenção:** insights não visíveis são apagados 13 meses depois de `updatedAt` (a confirmar com o 05.12 na parte B).
+- **Retenção:** insights não visíveis são apagados 13 meses depois de `updatedAt` (confirmado em 2026-10-16: expurgo diário, ADR-0022 §6).
 
 ### 6. Versionamento
 
