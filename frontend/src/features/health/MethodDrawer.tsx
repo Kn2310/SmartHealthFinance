@@ -1,7 +1,7 @@
 'use client'
 
 import { X } from 'lucide-react'
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import type { HealthMethod } from '@/lib/api/types'
 import { useHealthMethod } from './api'
 import { CONFIDENCE_LABEL, curvePoint } from './format'
@@ -16,36 +16,58 @@ const FOCUSABLE = 'a[href], button:not([disabled]), summary, [tabindex]:not([tab
  */
 export function MethodTrigger({ className, children = 'Como calculamos?' }: { className?: string; children?: ReactNode }) {
   const [open, setOpen] = useState(false)
+  // Montado na primeira abertura e mantido: abrir e fechar só chamam showModal()/close() no diálogo nativo, que
+  // devolve o foco a quem abriu (desmontar um modal aberto deixaria o foco no body).
+  const [mounted, setMounted] = useState(false)
   const trigger = useRef<HTMLButtonElement>(null)
-  const close = useCallback(() => {
-    setOpen(false)
-    trigger.current?.focus()
-  }, [])
+  const close = useCallback(() => setOpen(false), [])
   return (
     <>
-      <button ref={trigger} type="button" className={className} aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <button
+        ref={trigger}
+        type="button"
+        className={className}
+        aria-haspopup="dialog"
+        onClick={() => {
+          setMounted(true)
+          setOpen(true)
+        }}
+      >
         {children}
       </button>
-      {open ? <MethodDrawer onClose={close} /> : null}
+      {mounted ? <MethodDrawer open={open} onClose={close} trigger={trigger} /> : null}
     </>
   )
 }
 
-function MethodDrawer({ onClose }: { onClose: () => void }) {
+function MethodDrawer({ open, onClose, trigger }: { open: boolean; onClose: () => void; trigger: RefObject<HTMLButtonElement | null> }) {
   const id = useId()
   const dialog = useRef<HTMLDialogElement>(null)
-  const method = useHealthMethod(true)
+  const method = useHealthMethod(open)
 
+  const wasOpen = useRef(false)
   useEffect(() => {
     const element = dialog.current
     if (!element) return
-    if (typeof element.showModal === 'function') element.showModal()
-    else element.setAttribute('open', '')
-    element.querySelector<HTMLElement>('[data-autofocus]')?.focus()
-    return () => {
-      if (typeof element.close === 'function' && element.open) element.close()
+    if (open) {
+      wasOpen.current = true
+      if (!element.open) {
+        if (typeof element.showModal === 'function') element.showModal()
+        else element.setAttribute('open', '')
+      }
+      element.querySelector<HTMLElement>('[data-autofocus]')?.focus()
+      return
     }
-  }, [])
+    if (element.open) {
+      if (typeof element.close === 'function') element.close()
+      else element.removeAttribute('open')
+    }
+    // O Chrome pode fechar o modal sozinho no Esc (close watcher) antes deste efeito: o foco volta de qualquer jeito.
+    if (wasOpen.current) {
+      wasOpen.current = false
+      trigger.current?.focus()
+    }
+  }, [open, trigger])
 
   const onKeyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
     if (event.key === 'Escape') {
@@ -75,6 +97,8 @@ function MethodDrawer({ onClose }: { onClose: () => void }) {
       aria-labelledby={`${id}-title`}
       aria-modal="true"
       onKeyDown={onKeyDown}
+      // Fechado por outro caminho do navegador: o estado acompanha.
+      onClose={onClose}
       onCancel={(event) => {
         event.preventDefault()
         onClose()
@@ -94,7 +118,7 @@ function MethodDrawer({ onClose }: { onClose: () => void }) {
           </button>
         </header>
         <div className={styles.drawerBody}>
-          {method.status === 'loading' ? (
+          {!open ? null : method.status === 'loading' ? (
             <p role="status">Carregando o método…</p>
           ) : method.status === 'error' ? (
             <div role="alert" className={styles.inlineError}>

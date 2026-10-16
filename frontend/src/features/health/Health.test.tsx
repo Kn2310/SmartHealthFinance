@@ -158,7 +158,14 @@ describe('/home/health (D-Health / M-Health)', () => {
     expect(dialog.contains(document.activeElement)).toBe(true)
 
     await user.keyboard('{Escape}')
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    await waitFor(() => expect(dialog).not.toHaveAttribute('open'))
+    expect(trigger).toHaveFocus()
+
+    // Reabre o mesmo diálogo (fica montado; o navegador devolve o foco a quem abriu).
+    await user.click(trigger)
+    await waitFor(() => expect(dialog).toHaveAttribute('open'))
+    await user.click(within(dialog).getByRole('button', { name: 'Fechar' }))
+    await waitFor(() => expect(dialog).not.toHaveAttribute('open'))
     expect(trigger).toHaveFocus()
   })
 })

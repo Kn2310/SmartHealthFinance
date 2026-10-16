@@ -66,7 +66,9 @@ pnpm e2e                                # E2E_BASE_URL muda o alvo (padrão http
 - **Cenários:**
   - [First Financial Loop](e2e/first-financial-loop.spec.ts), com aritmética exata em centavos;
   - [importação do CSV fictício](e2e/import.spec.ts), usando o arquivo de `e2e/fixtures/`;
-  - [Home vazia](e2e/home-empty.spec.ts).
+  - [Home vazia](e2e/home-empty.spec.ts);
+  - [Financial Health](e2e/health.spec.ts): extrato gerado com datas relativas a hoje, valores exatos do `health-v1`
+    na Home, em `/home/health` e na Evolução, drawer "Como calculamos?" e 5 larguras.
 - **Primeira compilação:** o `globalSetup` visita cada rota antes dos testes, para o `next dev` do container
   compilar fora dos cenários.
 - **Artefatos de falha** (`test-results/`): screenshot, `error-context.md` e um trace que começa só **depois** do

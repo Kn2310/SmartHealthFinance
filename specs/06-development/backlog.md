@@ -62,7 +62,7 @@
 - [x] balance calculation (derivado de transações POSTED — ADR-0006)
 - [x] overview query (`GetFinancialOverview`, ADR-0006)
 - [x] Home API — bloco Overview em `GET /api/v1/workspaces/{id}/overview` (o composto `/api/v1/home` entra com Health/Insights)
-- [ ] Health placeholder/first implementation
+- [x] Health na Home: card "Como estou?" (M6, ADR-0020)
 - [x] Home UI — Overview: saldo, fluxo do período, contas, movimentações recentes, seletor de período (ADR-0007/0008; critérios da etapa validados em 2026-10-07; Health/Insights ficam para M6/M7)
 - [x] responsive states — READY, NO_ACCOUNTS, NO_TRANSACTIONS (com PENDING), NO_ACTIVITY_IN_PERIOD, loading, erro; 375/768/1024/1280/1440 sem overflow
 - [x] E2E (Playwright) do First Financial Loop (saldo inicial → receita → despesa → saldo e fluxo exatos na Home) e da
@@ -102,7 +102,7 @@
   da importação — ADR-0013)
 - [x] merchants (comerciante derivado da descrição por `MerchantNormalizer` v1, atributo da transação, sem entidade —
   ADR-0013; renomear/mesclar comerciantes e botão de "categorizar pendentes" na UI ficam para depois)
-- [x] evolution (API ADR-0015, UI ADR-0016; score na evolução fica para o M6)
+- [x] evolution (API ADR-0015, UI ADR-0016; score na evolução no M6, ADR-0020)
 - [x] read models (projeção materializada `analytics_daily_flows` por eventos, consumidor idempotente com inbox,
   retry e DLQ, rebuild na inicialização + runbook, freshness em `GET .../analytics/status`, paridade com a
   referência do domínio — ADR-0014)
@@ -130,7 +130,9 @@
 - [x] Health API (ADR-0019): `GET .../health?month` (resumo, dimensões, fatores e próximos passos do snapshot,
   com fontes, estados `READY`/`INSUFFICIENT_DATA`/`NO_DATA` e freshness), `.../health/evolution?month&months`
   (1–12) e `.../health/method`; testes de API, contrato OpenAPI e suíte de isolamento
-- [ ] Health UI ("Como estou?" na Home, `/home/health`, "Como calculamos?", score na Evolução — parte E)
+- [x] Health UI (ADR-0020): card "Como estou?" na Home (sempre visível, mês corrente), `/home/health` (resumo, fontes,
+  dimensões com evidências, fatores, próximos passos, evolução), drawer "Como calculamos?" acessível, score na Análise ›
+  Evolução; tokens `on-dark` no DS; E2E com valores exatos do `health-v1`
 
 ## M7 Insights
 
