@@ -9,6 +9,7 @@ import com.smarthealthfinance.health.domain.enums.Confidence;
 import com.smarthealthfinance.health.domain.model.HealthWindow;
 import com.smarthealthfinance.insights.domain.enums.ActionKind;
 import com.smarthealthfinance.insights.domain.enums.LimitationCode;
+import com.smarthealthfinance.insights.domain.model.ChangeLine;
 import com.smarthealthfinance.insights.domain.model.InsightAction;
 import com.smarthealthfinance.insights.domain.model.InsightInput;
 import com.smarthealthfinance.insights.domain.model.Limitation;
@@ -190,6 +191,18 @@ final class DetectionContext {
                     current && partial()));
         }
         return series;
+    }
+
+    /** "R$ 1.284,00 até 22 set" no período em andamento; "R$ 1.284,00 em setembro" no fechado. */
+    String amountInPeriod(Money amount) {
+        return InsightTexts.money(amount) + (partial() ? " até " + InsightTexts.dayMonth(period.to())
+                : " em " + InsightTexts.monthName(month()));
+    }
+
+    /** Linha do "O que mudou?" de uma alta contra a média: "+32% vs média de abr–ago". */
+    ChangeLine riseLine(String label, Money current, Money average, Money delta) {
+        return new ChangeLine(label, amountInPeriod(current), "+%s%% vs média de %s".formatted(
+                InsightTexts.percent(delta.amount(), average.amount()), averageRange()));
     }
 
     /** Placeholders "Em breve" de Objetivos (M10) e Copilot (M11), aprovados para D1/D2. */

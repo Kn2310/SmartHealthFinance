@@ -56,6 +56,10 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private static final String TRANSACTION = TRANSACTIONS + "/{transactionId}";
     private static final String IMPORTS = WORKSPACE_SCOPE + "/imports";
     private static final String IMPORT = IMPORTS + "/{importId}";
+    private static final String INSIGHTS = WORKSPACE_SCOPE + "/insights";
+    private static final String INSIGHT = INSIGHTS + "/{insightId}";
+    /** O Workspace é autorizado antes de procurar o insight: qualquer id serve para o caso "Workspace alheio". */
+    private static final String SOME_INSIGHT = "00000000-0000-7000-8000-00000000abcd";
 
     /** Dados da Ana que nunca podem aparecer numa resposta para o Bob. */
     private static final String ANAS_ACCOUNT_NAME = "Conta Sigilosa Ana";
@@ -180,6 +184,16 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("health: status", HttpMethod.GET, WORKSPACE_SCOPE + "/health/status", f -> new Object[0], NONE),
 
             op("insights: status", HttpMethod.GET, WORKSPACE_SCOPE + "/insights/status", f -> new Object[0], NONE),
+            op("insights: listar", HttpMethod.GET, INSIGHTS, f -> new Object[0], NONE),
+            op("insights: destaques", HttpMethod.GET, INSIGHTS + "/highlights", f -> new Object[0], NONE),
+            op("insights: relacionados", HttpMethod.GET, INSIGHTS + "/related", f -> new Object[0],
+                    (request, f) -> request.param("transactionId", f.posted())),
+            op("insights: detalhe", HttpMethod.GET, INSIGHT, f -> ids(SOME_INSIGHT), NONE),
+            op("insights: visto", HttpMethod.POST, INSIGHT + "/seen", f -> ids(SOME_INSIGHT), NONE),
+            op("insights: dispensar", HttpMethod.POST, INSIGHT + "/dismiss", f -> ids(SOME_INSIGHT), NONE),
+            op("insights: feedback", HttpMethod.PUT, INSIGHT + "/feedback", f -> ids(SOME_INSIGHT), json(f -> """
+                    {"value": "NOT_USEFUL"}
+                    """)),
 
             op("imports: upload", HttpMethod.POST, IMPORTS, f -> new Object[0],
                     (request, f) -> request.multipart().file(statement()).param("accountId", f.account())
@@ -310,7 +324,12 @@ class WorkspaceIsolationIT extends IntegrationTest {
             cross("imports: confirmar importação alheia", HttpStatus.NOT_FOUND, "IMPORT_NOT_FOUND", Fixture::importId,
                     (mvc, own, id) -> mvc.post().uri(IMPORT + "/confirm", own.workspace(), id)),
             cross("imports: cancelar importação alheia", HttpStatus.NOT_FOUND, "IMPORT_NOT_FOUND", Fixture::importId,
-                    (mvc, own, id) -> mvc.post().uri(IMPORT + "/cancel", own.workspace(), id)));
+                    (mvc, own, id) -> mvc.post().uri(IMPORT + "/cancel", own.workspace(), id)),
+
+            // ADR-0023 §1: insights relacionados a uma transação alheia = transação inexistente.
+            cross("insights: relacionados a transação alheia", HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND",
+                    Fixture::posted, (mvc, own, id) -> mvc.get().uri(INSIGHTS + "/related", own.workspace())
+                            .param("transactionId", id)));
 
     static Stream<CrossOp> foreignReferenceOperations() {
         return FOREIGN_REFERENCE.stream();

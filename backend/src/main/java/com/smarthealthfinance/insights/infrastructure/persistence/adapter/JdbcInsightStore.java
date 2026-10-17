@@ -8,6 +8,7 @@ import com.smarthealthfinance.insights.domain.enums.Importance;
 import com.smarthealthfinance.insights.domain.enums.InsightDetector;
 import com.smarthealthfinance.insights.domain.enums.InsightFeedback;
 import com.smarthealthfinance.insights.domain.enums.InsightStatus;
+import com.smarthealthfinance.insights.domain.enums.InsightType;
 import com.smarthealthfinance.insights.domain.enums.StatusReason;
 import com.smarthealthfinance.insights.domain.model.Insight;
 import com.smarthealthfinance.shared.domain.Money;
@@ -19,6 +20,7 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Currency;
 import java.util.List;
 import java.util.Optional;
@@ -190,6 +192,80 @@ public class JdbcInsightStore implements InsightStore {
                             rs.getInt("pending"));
                 },
                 algorithmVersion, workspace, workspace, CONSUMED_EVENT, MarkInsightsDirty.CONSUMER, workspace);
+    }
+
+    /** A ordem de {@code InsightScoring.ORDER} em SQL (ADR-0021 §3). */
+    private static final String ORDER = """
+             order by case i.importance when 'IMPORTANT' then 0 else 1 end, i.priority desc,
+                      case i.confidence when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end, i.updated_at desc,
+                      i.fingerprint
+            """;
+
+    @Override
+    public void lock(WorkspaceId workspaceId) {
+        jdbc.update("insert into insights_workspaces (workspace_id) values (?) on conflict do nothing",
+                workspaceId.value());
+        jdbc.queryForObject("select workspace_id from insights_workspaces where workspace_id = ? for update",
+                UUID.class, workspaceId.value());
+    }
+
+    @Override
+    public Optional<Insight> findById(WorkspaceId workspaceId, UUID id) {
+        return jdbc.query(SELECT + " where i.workspace_id = ? and i.id = ?", this::insight, workspaceId.value(), id)
+                .stream().findFirst();
+    }
+
+    @Override
+    public List<Insight> findPage(WorkspaceId workspaceId, String algorithmVersion, InsightStatus status,
+                                  Importance importance, InsightType type, int offset, int limit) {
+        Filter filter = filter(workspaceId, algorithmVersion, status, importance, type);
+        List<Object> args = new ArrayList<>(filter.args());
+        args.add(limit);
+        args.add(offset);
+        return jdbc.query(SELECT + filter.where() + ORDER + " limit ? offset ?", this::insight, args.toArray());
+    }
+
+    @Override
+    public long count(WorkspaceId workspaceId, String algorithmVersion, InsightStatus status, Importance importance,
+                      InsightType type) {
+        Filter filter = filter(workspaceId, algorithmVersion, status, importance, type);
+        Long count = jdbc.queryForObject("select count(*) from insights i" + filter.where(), Long.class,
+                filter.args().toArray());
+        return count == null ? 0 : count;
+    }
+
+    @Override
+    public ChipCounts activeCounts(WorkspaceId workspaceId, String algorithmVersion) {
+        return jdbc.queryForObject("""
+                        select count(*) as all_count,
+                               count(*) filter (where importance = 'IMPORTANT') as important,
+                               count(*) filter (where type = 'SPENDING') as spending,
+                               count(*) filter (where type = 'INCOME') as income,
+                               count(*) filter (where type = 'HEALTH') as health
+                        from insights
+                        where workspace_id = ? and algorithm_version = ? and status = 'ACTIVE'
+                        """,
+                (rs, row) -> new ChipCounts(rs.getLong("all_count"), rs.getLong("important"),
+                        rs.getLong("spending"), rs.getLong("income"), rs.getLong("health")),
+                workspaceId.value(), algorithmVersion);
+    }
+
+    private record Filter(String where, List<Object> args) {}
+
+    private static Filter filter(WorkspaceId workspaceId, String algorithmVersion, InsightStatus status,
+                                 Importance importance, InsightType type) {
+        StringBuilder where = new StringBuilder(
+                " where i.workspace_id = ? and i.algorithm_version = ? and i.status = ?");
+        List<Object> args = new ArrayList<>(List.of(workspaceId.value(), algorithmVersion, status.name()));
+        if (importance != null) {
+            where.append(" and i.importance = ?");
+            args.add(importance.name());
+        }
+        if (type != null) {
+            where.append(" and i.type = ?");
+            args.add(type.name());
+        }
+        return new Filter(where.toString(), args);
     }
 
     private Insight insight(ResultSet rs, int row) throws SQLException {

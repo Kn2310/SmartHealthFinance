@@ -41,6 +41,7 @@ final class SpendingDetectors {
 
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
     private static final int TOP_CONTRIBUTORS = 5;
+    private static final String TOTAL_LABEL = "Gastos do mês";
 
     private SpendingDetectors() {
     }
@@ -140,7 +141,8 @@ final class SpendingDetectors {
                 Map.of("month", ctx.key(), "category", category)));
         actions.addAll(DetectionContext.comingSoon());
 
-        InsightContent content = new InsightContent(title, support, recommendation, evidence, actions,
+        InsightContent content = new InsightContent(title, support, name,
+                ctx.riseLine(name, spent, average, delta), recommendation, evidence, actions,
                 new InsightRefs(category, top == null ? null : top.key(), null, null, HealthDimension.SPENDING));
         return new InsightCandidate(InsightDetector.CATEGORY_SPIKE, ctx.key(), category, delta, null, true,
                 ctx.confidence(), ctx.partial(), content);
@@ -194,7 +196,8 @@ final class SpendingDetectors {
         List<InsightAction> actions = new ArrayList<>();
         actions.add(InsightAction.primary(ActionKind.VIEW_ANALYSIS, "Ver na análise", Map.of("month", ctx.key())));
         actions.addAll(DetectionContext.comingSoon());
-        InsightContent content = new InsightContent(title, support, null, evidence, actions,
+        InsightContent content = new InsightContent(title, support, TOTAL_LABEL,
+                ctx.riseLine(TOTAL_LABEL, spent, average, delta), null, evidence, actions,
                 new InsightRefs(rises.isEmpty() ? null : rises.getFirst().categoryCode(), null, null, null,
                         HealthDimension.SPENDING));
         return List.of(new InsightCandidate(InsightDetector.SPENDING_ABOVE_PATTERN, ctx.key(), "TOTAL", delta, null,
@@ -241,7 +244,8 @@ final class SpendingDetectors {
                 merchantContributors(ctx, entries, uncategorized), comparison, ctx.limitations(false),
                 List.of(new SourceRef(InsightSource.ANALYTICS_CATEGORIES, current.from(), current.to())));
 
-        InsightContent content = new InsightContent(title, support, null, evidence,
+        InsightContent content = new InsightContent(title, support, DetectionContext.UNCATEGORIZED_NAME, null, null,
+                evidence,
                 List.of(InsightAction.primary(ActionKind.CATEGORIZE, "Categorizar transações",
                         Map.of("category", "none"))),
                 InsightRefs.none());

@@ -6,6 +6,7 @@ import com.smarthealthfinance.insights.domain.enums.ContributorKind;
 import com.smarthealthfinance.insights.domain.enums.FigureKind;
 import com.smarthealthfinance.insights.domain.enums.InsightSource;
 import com.smarthealthfinance.insights.domain.enums.LimitationCode;
+import com.smarthealthfinance.insights.domain.model.ChangeLine;
 import com.smarthealthfinance.insights.domain.model.Contributor;
 import com.smarthealthfinance.insights.domain.model.InsightAction;
 import com.smarthealthfinance.insights.domain.model.InsightContent;
@@ -28,8 +29,11 @@ import java.util.UUID;
  * razões) como <b>string</b>, nunca número JSON: a ida e a volta são exatas, e gerar duas vezes o mesmo insight não
  * cria revisão nova.
  */
-record InsightContentDocument(String title, String support, RecommendationDoc recommendation, EvidenceDoc evidence,
-                              List<ActionDoc> actions, RefsDoc refs) {
+record InsightContentDocument(String title, String support, String subjectLabel, ChangeLineDoc changeLine,
+                              RecommendationDoc recommendation, EvidenceDoc evidence, List<ActionDoc> actions,
+                              RefsDoc refs) {
+
+    record ChangeLineDoc(String label, String value, String detail) {}
 
     record RecommendationDoc(String title, String text) {}
 
@@ -55,7 +59,9 @@ record InsightContentDocument(String title, String support, RecommendationDoc re
     static InsightContentDocument from(InsightContent c) {
         InsightEvidence e = c.evidence();
         InsightRefs r = c.refs();
-        return new InsightContentDocument(c.title(), c.support(),
+        return new InsightContentDocument(c.title(), c.support(), c.subjectLabel(),
+                c.changeLine() == null ? null
+                        : new ChangeLineDoc(c.changeLine().label(), c.changeLine().value(), c.changeLine().detail()),
                 c.recommendation() == null ? null
                         : new RecommendationDoc(c.recommendation().title(), c.recommendation().text()),
                 new EvidenceDoc(
@@ -77,7 +83,8 @@ record InsightContentDocument(String title, String support, RecommendationDoc re
     }
 
     InsightContent toContent() {
-        return new InsightContent(title, support,
+        return new InsightContent(title, support, subjectLabel,
+                changeLine == null ? null : new ChangeLine(changeLine.label(), changeLine.value(), changeLine.detail()),
                 recommendation == null ? null : new Recommendation(recommendation.title(), recommendation.text()),
                 new InsightEvidence(
                         evidence.figures().stream().map(f -> new KeyFigure(f.code(), f.label(), f.kind(),

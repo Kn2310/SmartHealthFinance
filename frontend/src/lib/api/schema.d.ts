@@ -189,6 +189,119 @@ export interface components {
       generatedAt: string | null
       healthComputedAt: string | null
     }
+    InsightsFreshnessDto: { state: InsightsFreshnessState; generatedAt: string | null; healthComputedAt: string | null }
+    /** `month` nulo nos insights sem período (reserva). */
+    InsightPeriodDto: { month: string | null; partial: boolean }
+    /** `available = false` nos placeholders "Em breve" (objetivo, Copilot); a rota é montada pela UI (ADR-0021 §2). */
+    InsightActionDto: {
+      kind: InsightActionKind
+      label: string
+      primary: boolean
+      available: boolean
+      params: Record<string, string>
+    }
+    /** Insight na lista, nos destaques e nos relacionados (ADR-0023). "Novo" = ativo e `seen = false`. */
+    InsightItemDto: {
+      id: string
+      detector: InsightDetector
+      type: InsightType
+      typeLabel: string
+      importance: InsightImportance
+      status: InsightStatus
+      title: string
+      support: string
+      subjectLabel: string
+      period: components['schemas']['InsightPeriodDto']
+      createdAt: string
+      updatedAt: string
+      seen: boolean
+      confidence: InsightConfidence
+      feedback: InsightFeedback | null
+      primaryAction: components['schemas']['InsightActionDto']
+    }
+    CardsCountDto: { count: number; available: boolean }
+    /** Contagens dos chips, sempre sobre os ativos e sem filtro; Cartões indisponível até o M8. */
+    InsightCountsDto: {
+      all: number
+      important: number
+      spending: number
+      income: number
+      health: number
+      cards: components['schemas']['CardsCountDto']
+    }
+    InsightListResponse: {
+      workspaceId: string
+      algorithmVersion: string
+      state: InsightDataState
+      freshness: components['schemas']['InsightsFreshnessDto']
+      period: components['schemas']['InsightPeriodDto']
+      counts: components['schemas']['InsightCountsDto']
+      items: components['schemas']['InsightItemDto'][]
+      page: number
+      pageSize: number
+      totalItems: number
+    }
+    InsightRecommendationDto: { title: string; text: string }
+    /** `value` decimal na unidade de `kind`; dinheiro com as casas da moeda. */
+    InsightFigureDto: { code: string; label: string; kind: InsightFigureKind; value: string; from: string; to: string }
+    InsightPointDto: { month: string; value: string; partial: boolean }
+    InsightSeriesDto: { kind: InsightFigureKind; points: components['schemas']['InsightPointDto'][] }
+    InsightContributorDto: {
+      kind: 'MERCHANT' | 'CATEGORY' | 'TRANSACTION' | 'CHARGE'
+      key: string | null
+      name: string
+      amount: MoneyDto
+      count: number | null
+      share: string | null
+      day: string | null
+    }
+    InsightLimitationDto: { code: 'PARTIAL_MONTH' | 'SHORT_HISTORY' | 'UNCATEGORIZED' | 'ESTIMATED_SCORE' | 'IMPORT_LAG'; text: string }
+    InsightSourceDto: { source: string; from: string; to: string }
+    InsightDimensionDto: { code: HealthDimensionCode; label: string; score: number | null }
+    /** Detalhe (ADR-0023 §1), em qualquer estado. */
+    InsightDetailResponse: {
+      workspaceId: string
+      algorithmVersion: string
+      freshness: components['schemas']['InsightsFreshnessDto']
+      insight: components['schemas']['InsightItemDto']
+      recommendation: components['schemas']['InsightRecommendationDto'] | null
+      figures: components['schemas']['InsightFigureDto'][]
+      series: components['schemas']['InsightSeriesDto']
+      contributors: components['schemas']['InsightContributorDto'][]
+      comparison: string
+      limitations: components['schemas']['InsightLimitationDto'][]
+      sources: components['schemas']['InsightSourceDto'][]
+      dataSources: ('CSV' | 'MANUAL' | 'OFX')[]
+      actions: components['schemas']['InsightActionDto'][]
+      related: components['schemas']['InsightItemDto'][]
+      dimension: components['schemas']['InsightDimensionDto'] | null
+    }
+    /** Linha do "O que mudou?", formatada pelo backend. */
+    InsightChangeDto: {
+      insightId: string
+      detector: InsightDetector
+      type: InsightType
+      label: string
+      value: string
+      detail: string
+    }
+    InsightHighlightsResponse: {
+      workspaceId: string
+      algorithmVersion: string
+      state: InsightDataState
+      freshness: components['schemas']['InsightsFreshnessDto']
+      period: components['schemas']['InsightPeriodDto']
+      attention: components['schemas']['InsightItemDto'][]
+      changes: components['schemas']['InsightChangeDto'][]
+      importantCount: number
+    }
+    InsightRelatedResponse: {
+      workspaceId: string
+      algorithmVersion: string
+      freshness: components['schemas']['InsightsFreshnessDto']
+      items: components['schemas']['InsightItemDto'][]
+    }
+    InsightFeedbackRequest: { value: InsightFeedback | null }
     /** Health (ADR-0019): `state = NO_DATA` → score, confiança, cobertura e contexto nulos; listas vazias. */
     HealthResponse: {
       workspaceId: string
@@ -482,6 +595,38 @@ type MoneyDto = components['schemas']['MoneyDto']
 export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type HealthFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
 export type InsightsFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
+export type InsightDataState = 'NO_DATA' | 'INSUFFICIENT_HISTORY' | 'READY'
+export type InsightType = 'SPENDING' | 'INCOME' | 'HEALTH'
+export type InsightImportance = 'IMPORTANT' | 'INFORMATIVE'
+export type InsightStatus = 'ACTIVE' | 'RESOLVED' | 'EXPIRED' | 'DISMISSED'
+export type InsightConfidence = 'HIGH' | 'MEDIUM' | 'LOW'
+export type InsightFeedback = 'USEFUL' | 'NOT_USEFUL'
+export type InsightFigureKind = 'MONEY' | 'PERCENT' | 'COUNT' | 'MONTHS' | 'POINTS' | 'RATIO'
+export type InsightDetector =
+  | 'CATEGORY_SPIKE'
+  | 'SPENDING_ABOVE_PATTERN'
+  | 'NEW_RECURRING_MERCHANT'
+  | 'UNUSUAL_EXPENSE'
+  | 'RECURRING_INCOME_MISSING'
+  | 'RECURRING_INCOME_LOWER'
+  | 'NEW_INCOME_SOURCE'
+  | 'HEALTH_SCORE_CHANGE'
+  | 'HEALTH_DIMENSION_CHANGE'
+  | 'LOW_RESERVE'
+  | 'UNCATEGORIZED_SHARE'
+export type InsightActionKind =
+  | 'VIEW_TRANSACTIONS'
+  | 'VIEW_CATEGORY'
+  | 'VIEW_ANALYSIS'
+  | 'VIEW_MERCHANTS'
+  | 'VIEW_TRANSACTION'
+  | 'IMPORT_STATEMENT'
+  | 'VIEW_INCOME'
+  | 'VIEW_HEALTH'
+  | 'VIEW_ACCOUNTS'
+  | 'CATEGORIZE'
+  | 'CREATE_SAVINGS_GOAL'
+  | 'ASK_COPILOT'
 export type HealthState = 'READY' | 'INSUFFICIENT_DATA' | 'NO_DATA'
 export type HealthDimensionCode = 'CASH_FLOW' | 'SPENDING' | 'CREDIT' | 'DEBT' | 'RESERVE' | 'CONSISTENCY'
 export type AnalysisTrend = 'UP' | 'DOWN' | 'STABLE' | 'NEW' | 'GONE'
@@ -554,6 +699,17 @@ type AnalysisErrors = {
   400: { content: { 'application/json': components['schemas']['ApiError'] } }
   401: { content: { 'application/json': components['schemas']['ApiError'] } }
   404: { content: { 'application/json': components['schemas']['ApiError'] } }
+}
+
+type InsightPath = { workspaceId: string; insightId: string }
+
+/** Ações sobre um insight (ADR-0023 §3): 409 só em dispensar um insight que não está mais ativo. */
+type InsightResult = {
+  200: { content: { 'application/json': components['schemas']['InsightItemDto'] } }
+  400: { content: { 'application/json': components['schemas']['ApiError'] } }
+  401: { content: { 'application/json': components['schemas']['ApiError'] } }
+  404: { content: { 'application/json': components['schemas']['ApiError'] } }
+  409: { content: { 'application/json': components['schemas']['ApiError'] } }
 }
 
 type ImportErrors = {
@@ -727,6 +883,52 @@ export interface paths {
     get: {
       parameters: { path: { workspaceId: string } }
       responses: { 200: { content: { 'application/json': components['schemas']['InsightsStatusResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/insights': {
+    get: {
+      parameters: {
+        query?: {
+          importance?: InsightImportance
+          type?: InsightType | 'CARDS'
+          state?: 'ACTIVE' | 'DISMISSED'
+          page?: number
+          pageSize?: number
+        }
+        path: { workspaceId: string }
+      }
+      responses: { 200: { content: { 'application/json': components['schemas']['InsightListResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/insights/highlights': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['InsightHighlightsResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/insights/related': {
+    get: {
+      parameters: { query?: { transactionId?: string; dimension?: HealthDimensionCode }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['InsightRelatedResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/insights/{insightId}': {
+    get: {
+      parameters: { path: InsightPath }
+      responses: { 200: { content: { 'application/json': components['schemas']['InsightDetailResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/insights/{insightId}/seen': {
+    post: { parameters: { path: InsightPath }; responses: InsightResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/insights/{insightId}/dismiss': {
+    post: { parameters: { path: InsightPath }; responses: InsightResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/insights/{insightId}/feedback': {
+    put: {
+      parameters: { path: InsightPath }
+      requestBody: { content: { 'application/json': components['schemas']['InsightFeedbackRequest'] } }
+      responses: InsightResult
     }
   }
   '/api/v1/workspaces/{workspaceId}/analytics/overview': {

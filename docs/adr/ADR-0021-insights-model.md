@@ -217,6 +217,9 @@ Cada insight guarda, com dinheiro e razões como **strings decimais**:
   rastreável até a porta que o produziu, para o mesmo período da Análise ou do Health.
 - **Relacionados** (até 3): outros insights visíveis do mesmo P com a mesma categoria, comerciante ou fonte, D2 ↔ D1 da
   maior categoria, e a dimensão do Health afetada (Spending para D1/D2, Cash Flow para D5, Reserve para D9).
+- **Adendo (2026-10-17, ADR-0023 §5):** o conteúdo ganha `subjectLabel` (o assunto na meta do card) e, nos detectores
+  de mudança (D1, D2, D3, D5, D6), `changeLine {label, value, detail}` para o "O que mudou?" da Home, montados pelos
+  detectores com os mesmos números. Detecção, limiares, pontuação e frases não mudam: continua `insights-v1`.
 
 ### 8. Feedback do usuário
 

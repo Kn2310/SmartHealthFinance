@@ -262,7 +262,9 @@ class ArchitectureTest {
 				"com.smarthealthfinance.health.application.usecase..",
 				"com.smarthealthfinance.health.application.service..",
 				"com.smarthealthfinance.health.infrastructure..", "com.smarthealthfinance.health.presentation..",
-				"com.smarthealthfinance.overview..", "com.smarthealthfinance.accounts..",
+				"com.smarthealthfinance.overview.application.usecase..",
+				"com.smarthealthfinance.overview.infrastructure..", "com.smarthealthfinance.overview.presentation..",
+				"com.smarthealthfinance.accounts..",
 				"com.smarthealthfinance.transactions.application..",
 				"com.smarthealthfinance.transactions.infrastructure..",
 				"com.smarthealthfinance.transactions.presentation..", "com.smarthealthfinance.identity.application.usecase..",
@@ -271,8 +273,10 @@ class ArchitectureTest {
 		.dependOnClassesThat()
 		.haveFullyQualifiedName("com.smarthealthfinance.health.application.port.HealthSnapshotStore")
 		.allowEmptyShould(true)
-		.because("os Insights leem só portas de leitura e modelos de domínio de Analytics e Health (nunca a porta de "
-				+ "escrita do snapshot), nunca casos de uso ou adapters, e conhecem os eventos só pelo nome (ADR-0022 §1)");
+		.because("os Insights leem só portas de leitura e modelos de domínio de Analytics, Health, Overview e "
+				+ "Transactions (nunca a porta de "
+				+ "escrita do snapshot), nunca casos de uso ou adapters, e conhecem os eventos só pelo nome (ADR-0022 §1, "
+				+ "ADR-0023)");
 
 	@ArchTest
 	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()

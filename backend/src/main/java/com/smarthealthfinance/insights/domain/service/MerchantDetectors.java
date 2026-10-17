@@ -11,6 +11,7 @@ import com.smarthealthfinance.insights.domain.enums.FigureKind;
 import com.smarthealthfinance.insights.domain.enums.InsightDetector;
 import com.smarthealthfinance.insights.domain.enums.InsightSource;
 import com.smarthealthfinance.insights.domain.model.Contributor;
+import com.smarthealthfinance.insights.domain.model.ChangeLine;
 import com.smarthealthfinance.insights.domain.model.InsightAction;
 import com.smarthealthfinance.insights.domain.model.InsightCandidate;
 import com.smarthealthfinance.insights.domain.model.InsightContent;
@@ -141,7 +142,9 @@ final class MerchantDetectors {
                 ctx.series(w -> ledger.byMerchant(CashFlowRole.EXPENSE, w).getOrDefault(merchantKey, ledger.zero())),
                 charges, comparison, List.of(),
                 List.of(new SourceRef(InsightSource.ANALYTICS_MERCHANTS, absentFrom.atDay(1), series.to())));
-        InsightContent content = new InsightContent(title, support, null, evidence,
+        ChangeLine line = new ChangeLine("Nova cobrança mensal: " + name, InsightTexts.money(median) + "/mês",
+                "desde " + InsightTexts.monthName(start));
+        InsightContent content = new InsightContent(title, support, name, line, null, evidence,
                 List.of(InsightAction.primary(ActionKind.VIEW_MERCHANTS, "Ver comerciantes",
                         Map.of("month", ctx.key()))),
                 new InsightRefs(mainCategory(run), merchantKey, null, null, HealthDimension.SPENDING));
@@ -226,7 +229,7 @@ final class MerchantDetectors {
                 List.of(new SourceRef(InsightSource.TRANSACTIONS_LARGEST_EXPENSES, ctx.period().from(),
                                 ctx.period().to()),
                         new SourceRef(InsightSource.ANALYTICS_CATEGORIES, range.from(), range.to())));
-        InsightContent content = new InsightContent(title, support, null, evidence,
+        InsightContent content = new InsightContent(title, support, ctx.categoryName(category), null, null, evidence,
                 List.of(InsightAction.primary(ActionKind.VIEW_TRANSACTION, "Ver transação",
                                 Map.of("transactionId", item.transactionId().toString())),
                         InsightAction.secondary(ActionKind.VIEW_CATEGORY, "Ver categoria",

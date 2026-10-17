@@ -148,7 +148,10 @@
   runbook `insights-rebuild.md`; paridade com a geração direta sobre as portas
 - [x] freshness: `GET .../insights/status` (`UP_TO_DATE`, `UPDATING`, `NOT_BUILT`), métricas
   `shf.insights.generation[.freshness]`; endpoint na suíte de isolamento
-- [ ] Insights API (parte C)
+- [x] Insights API (ADR-0023): lista com filtros, contagens dos chips e paginação; detalhe com evidências, origens e
+  relacionados; ações visto, dispensar e feedback (idempotentes, com lock contra a geração); destaques da Home
+  ("Merece atenção", "O que mudou?" dos insights, badge); relacionados a transação ou dimensão; estados `NO_DATA`,
+  `INSUFFICIENT_HISTORY`, `READY`; testes de API, contrato OpenAPI e suíte de isolamento
 - [ ] insight UI (parte D)
 
 ## M8 Cards
