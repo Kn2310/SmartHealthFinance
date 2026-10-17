@@ -183,6 +183,12 @@ export interface components {
       computedAt: string | null
       analyticsRefreshedAt: string | null
     }
+    /** Freshness dos insights (ADR-0022 §8). */
+    InsightsStatusResponse: {
+      state: InsightsFreshnessState
+      generatedAt: string | null
+      healthComputedAt: string | null
+    }
     /** Health (ADR-0019): `state = NO_DATA` → score, confiança, cobertura e contexto nulos; listas vazias. */
     HealthResponse: {
       workspaceId: string
@@ -475,6 +481,7 @@ export interface components {
 type MoneyDto = components['schemas']['MoneyDto']
 export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type HealthFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
+export type InsightsFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type HealthState = 'READY' | 'INSUFFICIENT_DATA' | 'NO_DATA'
 export type HealthDimensionCode = 'CASH_FLOW' | 'SPENDING' | 'CREDIT' | 'DEBT' | 'RESERVE' | 'CONSISTENCY'
 export type AnalysisTrend = 'UP' | 'DOWN' | 'STABLE' | 'NEW' | 'GONE'
@@ -714,6 +721,12 @@ export interface paths {
     get: {
       parameters: { path: { workspaceId: string } }
       responses: { 200: { content: { 'application/json': components['schemas']['HealthStatusResponse'] } } } & AnalysisErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/insights/status': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['InsightsStatusResponse'] } } } & AnalysisErrors
     }
   }
   '/api/v1/workspaces/{workspaceId}/analytics/overview': {

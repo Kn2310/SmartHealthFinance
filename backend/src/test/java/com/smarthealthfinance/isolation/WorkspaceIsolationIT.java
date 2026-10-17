@@ -179,6 +179,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("health: método", HttpMethod.GET, WORKSPACE_SCOPE + "/health/method", f -> new Object[0], NONE),
             op("health: status", HttpMethod.GET, WORKSPACE_SCOPE + "/health/status", f -> new Object[0], NONE),
 
+            op("insights: status", HttpMethod.GET, WORKSPACE_SCOPE + "/insights/status", f -> new Object[0], NONE),
+
             op("imports: upload", HttpMethod.POST, IMPORTS, f -> new Object[0],
                     (request, f) -> request.multipart().file(statement()).param("accountId", f.account())
                             .header("Idempotency-Key", newKey())),
@@ -396,7 +398,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private String snapshot() {
         return Stream.of("users", "workspaces", "workspace_memberships", "accounts", "transactions",
                         "transaction_idempotency_keys", "import_batches", "import_records", "imported_transaction_keys",
-                        "outbox_events", "processed_events", "health_workspaces", "health_snapshots")
+                        "outbox_events", "processed_events", "health_workspaces", "health_snapshots",
+                        "insights_workspaces", "insights")
                 .map(table -> table + "=" + jdbc.queryForObject(
                         "select coalesce(string_agg(t::text, '|' order by t::text), '') from " + table + " t",
                         String.class))

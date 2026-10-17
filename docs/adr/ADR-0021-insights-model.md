@@ -99,6 +99,8 @@ Definições:
 | D10 | "{p}% dos seus gastos deste mês estão sem categoria." | "{n} transações, R$ {v}. Categorizar deixa as comparações e os insights mais precisos." |
 
 - Nomes de dimensão em PT, como no Health (Fluxo de caixa, Gastos, Reserva, Consistência).
+  **Adendo (2026-10-16, ADR-0022):** o título do D8 virou "A nota de {dimensão} passou de {a} para {b} em relação a
+  {mês anterior}." ("Gastos passou…" não concorda em número); mesmo conteúdo, só a concordância.
 - Nunca se usa a descrição original da transação nos textos (dado livre do usuário); só comerciante e categoria.
 - Linguagem neutra (02-components, Tom de voz): "subiu/caiu", "acima/abaixo", sem julgamento nem imperativo.
 
@@ -181,8 +183,10 @@ D3, D6, D8 e D10 são sempre Informativos.
   - **`DISMISSED`:** ação do usuário, definitiva; o mesmo fingerprint **nunca** é ressuscitado, em nenhuma versão.
   - **`EXPIRED`:** P deixou de ser avaliado (dia 7 do mês seguinte) ou a versão foi substituída (§6). D3 e D9 expiram
     quando a condição deixa de valer (viram `RESOLVED`) ou após 90 dias sem disparar.
+    **Adendo (2026-10-16, ADR-0022 §4):** toda geração reavalia D3/D9 e um `ACTIVE` não detectado vira `RESOLVED` na
+    hora; os "90 dias sem disparar" ficam cobertos por essa regra, sem estado `STALE`.
   - Visíveis na lista: `ACTIVE`. `RESOLVED`, `EXPIRED` e `DISMISSED` ficam guardados para relevância e auditoria.
-- **Retenção:** insights não visíveis são apagados 13 meses depois de `updatedAt` (a confirmar com o 05.12 na parte B).
+- **Retenção:** insights não visíveis são apagados 13 meses depois de `updatedAt` (confirmado em 2026-10-16: expurgo diário, ADR-0022 §6).
 
 ### 6. Versionamento
 

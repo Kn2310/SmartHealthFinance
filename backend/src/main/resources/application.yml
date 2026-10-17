@@ -105,6 +105,25 @@ shf:
       delay: 1s
       max-delay: 30s
       jitter: 500ms
+  # Insights (ADR-0021/0022): gerados depois de cada health.snapshot-updated, com debounce.
+  insights:
+    # Na inicialização: missing (backfill do deploy e de nova versão), all (runbook) ou off. Só marca para o job.
+    rebuild: ${INSIGHTS_REBUILD:missing}
+    debounce:
+      quiet: 10s
+      max-wait: 60s
+    job:
+      interval-ms: 5000
+      batch-size: 50
+      failure-backoff: 60s
+    # Retenção de 13 meses dos insights não visíveis (fuso de shf.overview.zone).
+    purge:
+      cron: "0 20 0 * * *"
+    retry:
+      max-retries: 4
+      delay: 1s
+      max-delay: 30s
+      jitter: 500ms
   ingestion:
     import:
       # Retry de falhas transitórias do Import Worker: backoff exponencial (x2) + jitter; depois, DLQ.

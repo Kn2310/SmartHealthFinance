@@ -4,16 +4,14 @@ import com.smarthealthfinance.health.domain.model.HealthResult;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
-import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Snapshot do Financial Health e marcação para recálculo (ADR-0018 §3/§4). Sempre por Workspace. Exige transação
- * ativa.
+ * ativa. A leitura fica em {@link HealthSnapshotReader}.
  */
-public interface HealthSnapshotStore {
+public interface HealthSnapshotStore extends HealthSnapshotReader {
 
     /**
      * Marca o Workspace como sujo: {@code due_at = min(now + quiet, dirty_since + maxWait)}. Cada nova marca adia o
@@ -50,22 +48,4 @@ public interface HealthSnapshotStore {
      *            transações
      */
     List<WorkspaceId> workspacesToRebuild(String algorithmVersion, boolean all);
-
-    Optional<HealthResult> find(WorkspaceId workspaceId, String algorithmVersion, YearMonth month);
-
-    /** Meses de {@code from} a {@code to} (inclusive) que existem, do mais antigo ao mais recente. */
-    List<HealthResult> findMonths(WorkspaceId workspaceId, String algorithmVersion, YearMonth from, YearMonth to);
-
-    SnapshotState state(WorkspaceId workspaceId, String algorithmVersion);
-
-    /**
-     * @param dirty            marcado para recálculo
-     * @param computedAt       último recálculo; nulo se nunca
-     * @param built            há snapshot na versão
-     * @param latestAsOf       maior data-base gravada na versão; nula sem snapshot
-     * @param hasTransactions  o Workspace tem transações
-     * @param pendingEvents    eventos do Health ainda não marcados pelo consumidor (inclui DLQ)
-     */
-    record SnapshotState(boolean dirty, Instant computedAt, boolean built, LocalDate latestAsOf,
-                         boolean hasTransactions, int pendingEvents) {}
 }

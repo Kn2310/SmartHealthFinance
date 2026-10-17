@@ -15,6 +15,8 @@ public final class IdentityTables {
 
 	public static void clean(JdbcTemplate jdbc) {
 		awaitQuiescence(jdbc);
+		jdbc.update("delete from insights");
+		jdbc.update("delete from insights_workspaces");
 		jdbc.update("delete from health_snapshots");
 		jdbc.update("delete from health_workspaces");
 		jdbc.update("delete from analytics_daily_flows");
@@ -34,10 +36,10 @@ public final class IdentityTables {
 
 
 	/**
-	 * Espera a outbox esvaziar, os consumidores do Analytics (ADR-0014) e do Health (ADR-0018) processarem os eventos
-	 * dos testes anteriores e o job do Health recalcular os Workspaces marcados, para que nenhum trabalho assíncrono
-	 * grave em tabelas que estão sendo limpas (FK) ou mude um snapshot. Evento que não vai ser processado (ex.: na
-	 * DLQ) não trava a suíte: depois do prazo a limpeza segue.
+	 * Espera a outbox esvaziar, os consumidores do Analytics (ADR-0014), do Health (ADR-0018) e dos Insights
+	 * (ADR-0022) processarem os eventos dos testes anteriores e os jobs do Health e dos Insights tratarem os Workspaces
+	 * marcados, para que nenhum trabalho assíncrono grave em tabelas que estão sendo limpas (FK) ou mude um snapshot.
+	 * Evento que não vai ser processado (ex.: na DLQ) não trava a suíte: depois do prazo a limpeza segue.
 	 */
 	public static void awaitQuiescence(JdbcTemplate jdbc) {
 		long deadline = System.nanoTime() + Duration.ofSeconds(15).toNanos();
@@ -50,8 +52,12 @@ public final class IdentityTables {
 					                               where p.consumer = 'analytics.projection' and p.event_id = o.id))
 					           or (o.event_type in ('analytics.projection-updated', 'account.changed')
 					               and not exists (select 1 from processed_events p
-					                               where p.consumer = 'health.snapshot' and p.event_id = o.id)))
+					                               where p.consumer = 'health.snapshot' and p.event_id = o.id))
+					           or (o.event_type = 'health.snapshot-updated'
+					               and not exists (select 1 from processed_events p
+					                               where p.consumer = 'insights.generation' and p.event_id = o.id)))
 					     + (select count(*) from health_workspaces where dirty_since is not null)
+					     + (select count(*) from insights_workspaces where dirty_since is not null)
 					""", Integer.class);
 			if (busy == null || busy == 0) {
 				return;

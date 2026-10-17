@@ -17,7 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * Recalcula o snapshot inteiro de um Workspace (ADR-0018 §4): calcula cada mês com o {@link HealthCalculator},
  * encadeia a variação contra o mês anterior e grava o mês corrente + os 12 fechados na versão atual. Chamado com o
- * Workspace já bloqueado (job ou rebuild), dentro da transação de quem chama.
+ * Workspace já bloqueado (job ou rebuild), dentro da transação de quem chama, que também grava o
+ * {@code health.snapshot-updated} (ADR-0022 §2).
  */
 @Service
 public class HealthSnapshotCalculator {
@@ -26,13 +27,15 @@ public class HealthSnapshotCalculator {
     private final HealthSnapshotStore store;
     private final Clock clock;
     private final MeterRegistry meters;
+    private final HealthSnapshotEvents events;
 
     public HealthSnapshotCalculator(HealthInputLoader loader, HealthSnapshotStore store, Clock clock,
-                                    MeterRegistry meters) {
+                                    MeterRegistry meters, HealthSnapshotEvents events) {
         this.loader = loader;
         this.store = store;
         this.clock = clock;
         this.meters = meters;
+        this.events = events;
     }
 
     /** @return os resultados gravados, do mais antigo ao corrente */
@@ -41,6 +44,7 @@ public class HealthSnapshotCalculator {
         Timer.Sample sample = Timer.start(meters);
         List<HealthResult> results = calculate(loader.load(workspaceId));
         store.replace(workspaceId, HealthCalculator.ALGORITHM_VERSION, results, clock.instant());
+        events.updated(workspaceId, HealthCalculator.ALGORITHM_VERSION);
         sample.stop(Timer.builder("shf.health.snapshot.compute").tag("result", results.isEmpty() ? "empty" : "ok")
                 .register(meters));
         return results;
