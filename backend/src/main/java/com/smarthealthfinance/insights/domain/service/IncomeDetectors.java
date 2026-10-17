@@ -12,6 +12,7 @@ import com.smarthealthfinance.insights.domain.enums.FigureKind;
 import com.smarthealthfinance.insights.domain.enums.InsightDetector;
 import com.smarthealthfinance.insights.domain.enums.InsightSource;
 import com.smarthealthfinance.insights.domain.enums.LimitationCode;
+import com.smarthealthfinance.insights.domain.model.ChangeLine;
 import com.smarthealthfinance.insights.domain.model.InsightAction;
 import com.smarthealthfinance.insights.domain.model.InsightCandidate;
 import com.smarthealthfinance.insights.domain.model.InsightContent;
@@ -144,8 +145,13 @@ final class IncomeDetectors {
                 ? List.of(InsightAction.primary(ActionKind.IMPORT_STATEMENT, "Importar extrato", Map.of()),
                         InsightAction.secondary(ActionKind.VIEW_INCOME, "Ver receitas", Map.of("month", ctx.key())))
                 : List.of(InsightAction.primary(ActionKind.VIEW_INCOME, "Ver receitas", Map.of("month", ctx.key())));
-        InsightContent content = new InsightContent(title, support, null, evidence, actions,
-                new InsightRefs(null, null, key, null, HealthDimension.CASH_FLOW));
+        ChangeLine line = missing
+                ? new ChangeLine("Receita não identificada: " + name, "média de " + InsightTexts.money(expected),
+                        "costuma entrar por volta do dia " + source.typicalDay())
+                : new ChangeLine(InsightTexts.capitalizeFirst(name) + " abaixo da média",
+                        ctx.amountInPeriod(now), "média de " + InsightTexts.money(expected));
+        InsightContent content = new InsightContent(title, support, InsightTexts.capitalizeFirst(name), line, null,
+                evidence, actions, new InsightRefs(null, null, key, null, HealthDimension.CASH_FLOW));
         return new InsightCandidate(detector, ctx.key(), key, impact, null, true, ctx.confidence(), ctx.partial(),
                 content);
     }
@@ -187,7 +193,10 @@ final class IncomeDetectors {
             InsightEvidence evidence = new InsightEvidence(figures, ctx.series(w -> amount(ledger, key, w)), List.of(),
                     comparison, ctx.partial() ? List.of(ctx.partialMonth()) : List.of(),
                     List.of(new SourceRef(InsightSource.ANALYTICS_INCOME_SOURCES, before.from(), current.to())));
-            InsightContent content = new InsightContent(title, support, null, evidence,
+            ChangeLine line = new ChangeLine("Nova receita: " + name, "+ " + InsightTexts.money(source.amount()),
+                    InsightTexts.dayMonth(firstDay));
+            InsightContent content = new InsightContent(title, support, InsightTexts.capitalizeFirst(name), line,
+                    null, evidence,
                     List.of(InsightAction.primary(ActionKind.VIEW_INCOME, "Ver receitas", Map.of("month", ctx.key()))),
                     new InsightRefs(null, null, key, null, HealthDimension.CASH_FLOW));
             candidates.add(new InsightCandidate(InsightDetector.NEW_INCOME_SOURCE, ctx.key(), key, source.amount(),

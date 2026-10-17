@@ -99,6 +99,14 @@ public final class InsightTexts {
         return Character.toLowerCase(name.charAt(0)) + name.substring(1);
     }
 
+    /** Início de rótulo: primeira letra maiúscula ({@code salário} → {@code Salário}). */
+    public static String capitalizeFirst(String name) {
+        if (name.isEmpty()) {
+            return name;
+        }
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
+    }
+
     /** {@code 1 transação}, {@code 25 transações}. */
     public static String count(int value, String singular, String plural) {
         return value + " " + (value == 1 ? singular : plural);

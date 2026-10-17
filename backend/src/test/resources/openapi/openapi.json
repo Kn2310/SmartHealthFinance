@@ -838,6 +838,18 @@
         },
         "type" : "object"
       },
+      "CardsCountDto" : {
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "count" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "CashFlow" : {
         "properties" : {
           "expense" : {
@@ -1478,6 +1490,478 @@
           },
           "workspaceId" : {
             "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightActionDto" : {
+        "properties" : {
+          "available" : {
+            "type" : "boolean"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "params" : {
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "type" : "object"
+          },
+          "primary" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightChangeDto" : {
+        "properties" : {
+          "detail" : {
+            "type" : "string"
+          },
+          "detector" : {
+            "type" : "string"
+          },
+          "insightId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightContributorDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "day" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "key" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "share" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightCountsDto" : {
+        "properties" : {
+          "all" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "cards" : {
+            "$ref" : "#/components/schemas/CardsCountDto"
+          },
+          "health" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "important" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "income" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "spending" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightDetailResponse" : {
+        "properties" : {
+          "actions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightActionDto"
+            },
+            "type" : "array"
+          },
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "comparison" : {
+            "type" : "string"
+          },
+          "contributors" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightContributorDto"
+            },
+            "type" : "array"
+          },
+          "dataSources" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "dimension" : {
+            "$ref" : "#/components/schemas/InsightDimensionDto"
+          },
+          "figures" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightFigureDto"
+            },
+            "type" : "array"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/InsightsFreshnessDto"
+          },
+          "insight" : {
+            "$ref" : "#/components/schemas/InsightItemDto"
+          },
+          "limitations" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightLimitationDto"
+            },
+            "type" : "array"
+          },
+          "recommendation" : {
+            "$ref" : "#/components/schemas/InsightRecommendationDto"
+          },
+          "related" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightItemDto"
+            },
+            "type" : "array"
+          },
+          "series" : {
+            "$ref" : "#/components/schemas/InsightSeriesDto"
+          },
+          "sources" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightSourceDto"
+            },
+            "type" : "array"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightDimensionDto" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "score" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightFeedbackRequest" : {
+        "properties" : {
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightFigureDto" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightHighlightsResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "attention" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightItemDto"
+            },
+            "type" : "array"
+          },
+          "changes" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightChangeDto"
+            },
+            "type" : "array"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/InsightsFreshnessDto"
+          },
+          "importantCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/InsightPeriodDto"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightItemDto" : {
+        "properties" : {
+          "confidence" : {
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "detector" : {
+            "type" : "string"
+          },
+          "feedback" : {
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "importance" : {
+            "type" : "string"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/InsightPeriodDto"
+          },
+          "primaryAction" : {
+            "$ref" : "#/components/schemas/InsightActionDto"
+          },
+          "seen" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "subjectLabel" : {
+            "type" : "string"
+          },
+          "support" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "type" : {
+            "type" : "string"
+          },
+          "typeLabel" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightLimitationDto" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightListResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "counts" : {
+            "$ref" : "#/components/schemas/InsightCountsDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/InsightsFreshnessDto"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightItemDto"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageSize" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "period" : {
+            "$ref" : "#/components/schemas/InsightPeriodDto"
+          },
+          "state" : {
+            "type" : "string"
+          },
+          "totalItems" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightPeriodDto" : {
+        "properties" : {
+          "month" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightPointDto" : {
+        "properties" : {
+          "month" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "value" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightRecommendationDto" : {
+        "properties" : {
+          "text" : {
+            "type" : "string"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightRelatedResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/InsightsFreshnessDto"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightItemDto"
+            },
+            "type" : "array"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightSeriesDto" : {
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "points" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InsightPointDto"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightSourceDto" : {
+        "properties" : {
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InsightsFreshnessDto" : {
+        "properties" : {
+          "generatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "healthComputedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
             "type" : "string"
           }
         },
@@ -3518,6 +4002,198 @@
         "tags" : [ "Imports" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/insights" : {
+      "get" : {
+        "operationId" : "listInsights",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "IMPORTANT ou INFORMATIVE; omitido = todas",
+          "in" : "query",
+          "name" : "importance",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "SPENDING, INCOME, HEALTH ou CARDS (vazio até o M8)",
+          "in" : "query",
+          "name" : "type",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "ACTIVE (padrão) ou DISMISSED",
+          "in" : "query",
+          "name" : "state",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Página, a partir de 0",
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Itens por página, 1 a 50 (padrão 20)",
+          "in" : "query",
+          "name" : "pageSize",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightListResponse"
+                }
+              }
+            },
+            "description" : "Página de insights, com estado e freshness"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (importance, type ou state INVALID; page ou pageSize OUT_OF_RANGE)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Insights na ordem do ADR-0021 §3, com as contagens dos chips (sempre sobre os ativos)",
+        "tags" : [ "Insights" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/insights/highlights" : {
+      "get" : {
+        "operationId" : "insightHighlights",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightHighlightsResponse"
+                }
+              }
+            },
+            "description" : "Destaques, com estado e freshness"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Home: \"Merece atenção\" (até 2 Importantes), \"O que mudou?\" (até 3 linhas) e Importantes ativos",
+        "tags" : [ "Insights" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/insights/related" : {
+      "get" : {
+        "operationId" : "relatedInsights",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Transação do Workspace",
+          "in" : "query",
+          "name" : "transactionId",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "CASH_FLOW, SPENDING, CREDIT, DEBT, RESERVE ou CONSISTENCY",
+          "in" : "query",
+          "name" : "dimension",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightRelatedResponse"
+                }
+              }
+            },
+            "description" : "Insights relacionados"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (transactionId ou dimension INVALID; informe exatamente um dos dois)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou TRANSACTION_NOT_FOUND"
+          }
+        },
+        "summary" : "Até 3 insights ativos ligados a uma transação ou a uma dimensão do Health",
+        "tags" : [ "Insights" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/insights/status" : {
       "get" : {
         "operationId" : "insightsStatus",
@@ -3553,6 +4229,220 @@
           }
         },
         "summary" : "Freshness dos insights: UP_TO_DATE, UPDATING ou NOT_BUILT",
+        "tags" : [ "Insights" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/insights/{insightId}" : {
+      "get" : {
+        "operationId" : "insightDetail",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "insightId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightDetailResponse"
+                }
+              }
+            },
+            "description" : "Detalhe do insight"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou INSIGHT_NOT_FOUND"
+          }
+        },
+        "summary" : "Detalhe em qualquer estado: resumo, evidências, explicação, limitações, fontes, ações e relacionados",
+        "tags" : [ "Insights" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/insights/{insightId}/dismiss" : {
+      "post" : {
+        "operationId" : "dismissInsight",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "insightId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightItemDto"
+                }
+              }
+            },
+            "description" : "Insight dispensado"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou INSIGHT_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "INSIGHT_NOT_ACTIVE (resolvido ou expirado)"
+          }
+        },
+        "summary" : "Dispensa um insight ativo (idempotente); dispensado nunca volta, em nenhuma versão",
+        "tags" : [ "Insights" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/insights/{insightId}/feedback" : {
+      "put" : {
+        "operationId" : "insightFeedback",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "insightId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/InsightFeedbackRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightItemDto"
+                }
+              }
+            },
+            "description" : "Insight atualizado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (value INVALID)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou INSIGHT_NOT_FOUND"
+          }
+        },
+        "summary" : "Define (USEFUL, NOT_USEFUL) ou remove (null) o feedback; vale o último",
+        "tags" : [ "Insights" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/insights/{insightId}/seen" : {
+      "post" : {
+        "operationId" : "markInsightSeen",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "insightId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InsightItemDto"
+                }
+              }
+            },
+            "description" : "Insight atualizado"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou INSIGHT_NOT_FOUND"
+          }
+        },
+        "summary" : "Marca como visto (idempotente)",
         "tags" : [ "Insights" ]
       }
     },

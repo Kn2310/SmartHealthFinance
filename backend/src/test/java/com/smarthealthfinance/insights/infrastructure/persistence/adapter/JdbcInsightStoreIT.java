@@ -15,6 +15,7 @@ import com.smarthealthfinance.insights.domain.enums.InsightSource;
 import com.smarthealthfinance.insights.domain.enums.InsightStatus;
 import com.smarthealthfinance.insights.domain.enums.LimitationCode;
 import com.smarthealthfinance.insights.domain.enums.StatusReason;
+import com.smarthealthfinance.insights.domain.model.ChangeLine;
 import com.smarthealthfinance.insights.domain.model.Contributor;
 import com.smarthealthfinance.insights.domain.model.Insight;
 import com.smarthealthfinance.insights.domain.model.InsightAction;
@@ -100,7 +101,9 @@ class JdbcInsightStoreIT extends IntegrationTest {
     private Insight insight(String period, String subject, InsightStatus status, Instant updatedAt) {
         UUID transaction = UUID.randomUUID();
         InsightContent content = new InsightContent("Seus gastos com alimentação fora aumentaram 32% neste mês.",
-                "R$ 1.284,00 até 22 de setembro.", new Recommendation("Revisar ENTREGA JA", "35% do valor."),
+                "R$ 1.284,00 até 22 de setembro.", "Alimentação fora",
+                new ChangeLine("Alimentação fora", "R$ 1.284,00 até 22 set", "+32% vs média de abr–ago"),
+                new Recommendation("Revisar ENTREGA JA", "35% do valor."),
                 new InsightEvidence(
                         List.of(new KeyFigure("current", "Setembro (1–22)", FigureKind.MONEY,
                                         new BigDecimal("1284.0000"), LocalDate.parse("2026-09-01"),

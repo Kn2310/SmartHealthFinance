@@ -6,6 +6,7 @@ import com.smarthealthfinance.insights.domain.enums.InsightDetector;
 import com.smarthealthfinance.insights.domain.enums.InsightFeedback;
 import com.smarthealthfinance.insights.domain.enums.InsightStatus;
 import com.smarthealthfinance.insights.domain.enums.InsightType;
+import com.smarthealthfinance.insights.domain.exception.InsightNotActiveException;
 import com.smarthealthfinance.insights.domain.enums.StatusReason;
 import com.smarthealthfinance.shared.domain.Money;
 import java.time.Instant;
@@ -86,6 +87,40 @@ public record Insight(UUID id, UUID workspaceId, String fingerprint, String algo
         return new Insight(id, workspaceId, fingerprint, algorithmVersion, detector, periodKey, subject, status,
                 statusReason, importance, impact, relevance, confidence, priority, impactAmount, impactPoints, partial,
                 content, value, dismissedAt, feedback, feedbackAt, revision, createdAt, updatedAt, statusChangedAt);
+    }
+
+    /** "Visto" (ADR-0023 §3): a primeira vez fica; repetir não muda nada. */
+    public Insight markSeen(Instant now) {
+        return seenAt != null ? this : withSeenAt(now);
+    }
+
+    /**
+     * Dispensa (ADR-0021 §8): só um insight {@code ACTIVE}; dispensar de novo não muda nada.
+     *
+     * @throws InsightNotActiveException se o insight foi resolvido ou expirou
+     */
+    public Insight dismiss(Instant now) {
+        if (status == InsightStatus.DISMISSED) {
+            return this;
+        }
+        if (status != InsightStatus.ACTIVE) {
+            throw new InsightNotActiveException();
+        }
+        return new Insight(id, workspaceId, fingerprint, algorithmVersion, detector, periodKey, subject,
+                InsightStatus.DISMISSED, null, importance, impact, relevance, confidence, priority, impactAmount,
+                impactPoints, partial, content, seenAt, now, feedback, feedbackAt, revision, createdAt, updatedAt,
+                now);
+    }
+
+    /** "Útil / Não útil" (ADR-0021 §8): vale o último; {@code null} remove. Repetir o mesmo valor não muda nada. */
+    public Insight withFeedback(InsightFeedback value, Instant now) {
+        if (value == feedback) {
+            return this;
+        }
+        return new Insight(id, workspaceId, fingerprint, algorithmVersion, detector, periodKey, subject, status,
+                statusReason, importance, impact, relevance, confidence, priority, impactAmount, impactPoints, partial,
+                content, seenAt, dismissedAt, value, value == null ? null : now, revision, createdAt, updatedAt,
+                statusChangedAt);
     }
 
     /** Marca uma nova revisão do conteúdo derivado. */

@@ -202,5 +202,36 @@ class InsightsUseCasesTest {
         public GenerationState state(WorkspaceId workspaceId, String algorithmVersion) {
             return new GenerationState(false, false, null, null, false, 0);
         }
+
+        @Override
+        public void lock(WorkspaceId workspaceId) {
+        }
+
+        @Override
+        public Optional<Insight> findById(WorkspaceId workspaceId, UUID id) {
+            return Optional.empty();
+        }
+
+        @Override
+        public List<Insight> findPage(WorkspaceId workspaceId, String algorithmVersion,
+                                      com.smarthealthfinance.insights.domain.enums.InsightStatus status,
+                                      com.smarthealthfinance.insights.domain.enums.Importance importance,
+                                      com.smarthealthfinance.insights.domain.enums.InsightType type, int offset,
+                                      int limit) {
+            return List.of();
+        }
+
+        @Override
+        public long count(WorkspaceId workspaceId, String algorithmVersion,
+                          com.smarthealthfinance.insights.domain.enums.InsightStatus status,
+                          com.smarthealthfinance.insights.domain.enums.Importance importance,
+                          com.smarthealthfinance.insights.domain.enums.InsightType type) {
+            return 0;
+        }
+
+        @Override
+        public ChipCounts activeCounts(WorkspaceId workspaceId, String algorithmVersion) {
+            return new ChipCounts(0, 0, 0, 0, 0);
+        }
     }
 }

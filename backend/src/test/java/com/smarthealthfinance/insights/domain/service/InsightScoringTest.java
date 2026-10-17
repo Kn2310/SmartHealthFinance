@@ -33,7 +33,7 @@ class InsightScoringTest {
     static final UUID WORKSPACE = UUID.fromString("00000000-0000-7000-8000-0000000000aa");
 
     static InsightContent content(String title) {
-        return new InsightContent(title, "apoio", null, new InsightEvidence(List.of(), List.of(), List.of(), "como",
+        return new InsightContent(title, "apoio", "Assunto", null, null, new InsightEvidence(List.of(), List.of(), List.of(), "como",
                 List.of(), List.of()), List.of(InsightAction.primary(ActionKind.VIEW_HEALTH, "Ver saúde", Map.of())),
                 InsightRefs.none());
     }

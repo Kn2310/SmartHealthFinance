@@ -1,12 +1,16 @@
 package com.smarthealthfinance.insights.application.port;
 
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.insights.domain.enums.Importance;
+import com.smarthealthfinance.insights.domain.enums.InsightStatus;
+import com.smarthealthfinance.insights.domain.enums.InsightType;
 import com.smarthealthfinance.insights.domain.model.Insight;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Insights guardados e marcação para geração com debounce (ADR-0022 §3/§5). Sempre por Workspace. Exige transação
@@ -50,6 +54,30 @@ public interface InsightStore {
     int purgeHiddenBefore(Instant before);
 
     GenerationState state(WorkspaceId workspaceId, String algorithmVersion);
+
+    /** Bloqueia a linha do Workspace até o fim da transação (transições do usuário x geração), criando-a se preciso. */
+    void lock(WorkspaceId workspaceId);
+
+    /** Qualquer versão e estado; vazio se não existe no Workspace. */
+    Optional<Insight> findById(WorkspaceId workspaceId, UUID id);
+
+    /**
+     * Página da lista na ordem do ADR-0021 §3 (importância, prioridade, confiança, atualização, fingerprint), só da
+     * versão.
+     *
+     * @param importance nulo = todas
+     * @param type       nulo = todos
+     */
+    List<Insight> findPage(WorkspaceId workspaceId, String algorithmVersion, InsightStatus status,
+                           Importance importance, InsightType type, int offset, int limit);
+
+    long count(WorkspaceId workspaceId, String algorithmVersion, InsightStatus status, Importance importance,
+               InsightType type);
+
+    /** Contagens dos chips, sobre os ativos da versão. */
+    ChipCounts activeCounts(WorkspaceId workspaceId, String algorithmVersion);
+
+    record ChipCounts(long all, long important, long spending, long income, long health) {}
 
     /**
      * @param dirty           marcado para geração

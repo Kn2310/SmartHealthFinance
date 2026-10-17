@@ -5,6 +5,7 @@ import com.smarthealthfinance.health.domain.enums.HealthDimension;
 import com.smarthealthfinance.insights.domain.enums.ActionKind;
 import com.smarthealthfinance.insights.domain.enums.InsightDetector;
 import com.smarthealthfinance.insights.domain.enums.LimitationCode;
+import com.smarthealthfinance.insights.domain.model.ChangeLine;
 import com.smarthealthfinance.insights.domain.model.Contributor;
 import com.smarthealthfinance.insights.domain.model.InsightAction;
 import com.smarthealthfinance.insights.domain.model.InsightCandidate;
@@ -111,6 +112,9 @@ class InsightEngineTest {
                     .containsExactly(ActionKind.CREATE_SAVINGS_GOAL, ActionKind.ASK_COPILOT);
             assertThat(spike.content().refs().categoryCode()).isEqualTo("DINING_OUT");
             assertThat(spike.content().refs().dimension()).isEqualTo(HealthDimension.SPENDING);
+            assertThat(spike.content().subjectLabel()).isEqualTo("Alimentação fora");
+            assertThat(spike.content().changeLine()).isEqualTo(new ChangeLine("Alimentação fora",
+                    "R$ 1.284,00 até 22 set", "+32% vs média de abr–ago"));
         }
 
         @Test
@@ -152,6 +156,7 @@ class InsightEngineTest {
                     "Seus gastos com alimentação fora aumentaram 32% em setembro, cerca de R$ 310 a mais.");
             assertThat(spike.content().support()).startsWith(
                     "R$ 1.284,00 em setembro, contra média de R$ 973,00 em abr–ago.");
+            assertThat(spike.content().changeLine().value()).isEqualTo("R$ 1.284,00 em setembro");
             assertThat(spike.content().evidence().limitations()).isEmpty();
         }
 
@@ -374,6 +379,9 @@ class InsightEngineTest {
             assertThat(missing.content().evidence().limitations()).extracting(Limitation::code)
                     .containsExactly(LimitationCode.PARTIAL_MONTH, LimitationCode.IMPORT_LAG);
             assertThat(primary(missing).kind()).isEqualTo(ActionKind.IMPORT_STATEMENT);
+            assertThat(missing.content().changeLine()).isEqualTo(new ChangeLine(
+                    "Receita não identificada: EMPRESA FICTICIA", "média de R$ 5.000,00",
+                    "costuma entrar por volta do dia 5"));
         }
 
         @Test
@@ -411,6 +419,9 @@ class InsightEngineTest {
             assertThat(source.content().title()).isEqualTo("Você recebeu R$ 1.200,00 de uma nova fonte: CLIENTE NOVO.");
             assertThat(source.content().support())
                     .isEqualTo("Entrada em 18 set. Nenhuma receita dessa fonte nos 6 meses anteriores.");
+            assertThat(source.content().subjectLabel()).isEqualTo("CLIENTE NOVO");
+            assertThat(source.content().changeLine()).isEqualTo(new ChangeLine("Nova receita: CLIENTE NOVO",
+                    "+ R$ 1.200,00", "18 set"));
         }
 
         @Test

@@ -37,6 +37,10 @@ public enum ErrorCode {
 	IMPORT_STATUS_CONFLICT(HttpStatus.CONFLICT, "A importação não permite esta ação no status atual."),
 	/** O arquivo inteiro foi recusado; o motivo vai em {@code details[0].code} (ADR-0009 §7). */
 	IMPORT_FILE_REJECTED(HttpStatus.UNPROCESSABLE_CONTENT, "O arquivo não pôde ser importado."),
+	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0023). */
+	INSIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "Insight não encontrado."),
+	/** Só um insight ativo pode ser dispensado (ADR-0023 §3). */
+	INSIGHT_NOT_ACTIVE(HttpStatus.CONFLICT, "O insight não está mais ativo."),
 	/** Mesma Idempotency-Key com conteúdo diferente (spec 05.6). */
 	IDEMPOTENCY_KEY_REUSED(HttpStatus.UNPROCESSABLE_CONTENT,
 			"A Idempotency-Key já foi usada em uma requisição com outro conteúdo.");

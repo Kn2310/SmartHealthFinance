@@ -66,8 +66,8 @@ final class HealthDetectors {
         InsightEvidence evidence = new InsightEvidence(figures, series(ctx, HealthResult::score), List.of(),
                 comparison, limitations(ctx, now), List.of(new SourceRef(InsightSource.HEALTH_SNAPSHOT, from,
                         now.asOf())));
-        InsightContent content = new InsightContent(title, support, null, evidence, List.of(viewHealth()),
-                InsightRefs.none());
+        InsightContent content = new InsightContent(title, support, "Saúde financeira", null, null, evidence,
+                List.of(viewHealth()), InsightRefs.none());
         return List.of(new InsightCandidate(InsightDetector.HEALTH_SCORE_CHANGE, ctx.key(), "SCORE", null, change,
                 change >= InsightRules.SCORE_IMPORTANT_CHANGE, now.confidence(), now.partial(), content));
     }
@@ -115,8 +115,8 @@ final class HealthDetectors {
                 series(ctx, r -> dimension(r, change.dimension()).map(DimensionResult::score).orElse(null)),
                 List.of(), comparison, limitations(ctx, now),
                 List.of(new SourceRef(InsightSource.HEALTH_SNAPSHOT, from, now.asOf())));
-        InsightContent content = new InsightContent(title, current.explanation(), null, evidence,
-                List.of(viewHealth()), new InsightRefs(null, null, null, null, change.dimension()));
+        InsightContent content = new InsightContent(title, current.explanation(), change.dimension().label(), null,
+                null, evidence, List.of(viewHealth()), new InsightRefs(null, null, null, null, change.dimension()));
         return List.of(new InsightCandidate(InsightDetector.HEALTH_DIMENSION_CHANGE, ctx.key(),
                 change.dimension().name(), null, change.size(), true, now.confidence(), now.partial(), content));
     }
@@ -165,8 +165,8 @@ final class HealthDetectors {
                 List.of(new SourceRef(InsightSource.HEALTH_SNAPSHOT, now.month().atDay(1), now.asOf()),
                         new SourceRef(InsightSource.OVERVIEW_ACCOUNT_BALANCES, balance.get().from(),
                                 balance.get().to())));
-        InsightContent content = new InsightContent(title, support, null, evidence,
-                List.of(viewHealth(), InsightAction.secondary(ActionKind.VIEW_ACCOUNTS, "Ver contas", Map.of())),
+        InsightContent content = new InsightContent(title, support, HealthDimension.RESERVE.label(), null, null,
+                evidence, List.of(viewHealth(), InsightAction.secondary(ActionKind.VIEW_ACCOUNTS, "Ver contas", Map.of())),
                 new InsightRefs(null, null, null, null, HealthDimension.RESERVE));
         return List.of(new InsightCandidate(InsightDetector.LOW_RESERVE, null, band, gap, null,
                 c.compareTo(InsightRules.RESERVE_IMPORTANT_COVERAGE) < 0, now.confidence(), now.partial(), content));
