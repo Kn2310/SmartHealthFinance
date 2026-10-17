@@ -37,6 +37,8 @@ Restrições do código atual:
     `transactions.domain` (os tipos que as portas expõem) e `identity` para Workspace e autorização;
   - `insights` não usa casos de uso nem adapters de outros módulos, nem nada de Ingestion;
   - a regra "nenhum módulo depende de `health`" (ADR-0018 §1) passa a ter **uma exceção: `insights`**.
+  - **Adendo (2026-10-17, ADR-0023 §6):** `insights` também lê `overview.application.port`/`overview.domain` (origens
+    dos dados no detalhe) e o `TransactionRepository` de `transactions.domain` (relacionados a uma transação).
 
 ### 2. Gatilho: `health.snapshot-updated` v1
 
