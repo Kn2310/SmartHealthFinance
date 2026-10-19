@@ -42,3 +42,26 @@ export type HealthEvolution = Schemas['HealthEvolutionResponse']
 export type HealthMonth = Schemas['HealthMonthDto']
 export type HealthMethod = Schemas['HealthMethodResponse']
 export type HealthStatus = Schemas['HealthStatusResponse']
+
+// Insights (ADR-0021/0022/0023)
+export type {
+  InsightActionKind,
+  InsightConfidence,
+  InsightDataState,
+  InsightDetector,
+  InsightFeedback,
+  InsightFigureKind,
+  InsightImportance,
+  InsightType,
+  InsightsFreshnessState,
+} from './schema'
+export type InsightList = Schemas['InsightListResponse']
+export type InsightItem = Schemas['InsightItemDto']
+export type InsightAction = Schemas['InsightActionDto']
+export type InsightCounts = Schemas['InsightCountsDto']
+export type InsightDetail = Schemas['InsightDetailResponse']
+export type InsightFigure = Schemas['InsightFigureDto']
+export type InsightHighlights = Schemas['InsightHighlightsResponse']
+export type InsightChange = Schemas['InsightChangeDto']
+export type InsightRelated = Schemas['InsightRelatedResponse']
+export type InsightsFreshness = Schemas['InsightsFreshnessDto']
