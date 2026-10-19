@@ -193,3 +193,16 @@
   .sidebar .link[aria-current='page'] { font-weight: 600; }
   .main { padding: var(--space-32) var(--space-40) var(--space-48); }
 }
+
+/* Contagem de insights Importantes ao lado de "Insights" (aprovado em 2026-10-19; ADR-0024). */
+.navBadge {
+  min-width: var(--space-20);
+  margin-left: auto;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-xl);
+  background: var(--color-semantic-bg-warning);
+  color: var(--color-semantic-text-warning);
+  font: var(--type-caption);
+  font-weight: 700;
+  text-align: center;
+}

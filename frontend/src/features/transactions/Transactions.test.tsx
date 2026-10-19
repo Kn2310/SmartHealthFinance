@@ -839,7 +839,10 @@ describe('Mais (M-More)', () => {
     const { container } = render(<MoreView />)
     expect(screen.getByRole('link', { name: 'Transações' })).toHaveAttribute('href', '/transactions')
     expect(screen.getByRole('link', { name: 'Contas' })).toHaveAttribute('href', '/accounts')
-    expect(screen.getByRole('link', { name: /Insights/ })).toHaveTextContent('Em breve')
+    // Insights existe (ADR-0023): sem "Em breve"; a contagem de Importantes some quando a chamada falha.
+    expect(screen.getByRole('link', { name: /Insights/ })).toHaveAttribute('href', '/insights')
+    expect(screen.getByRole('link', { name: /Insights/ })).not.toHaveTextContent('Em breve')
+    expect(screen.getByRole('link', { name: /Objetivos/ })).toHaveTextContent('Em breve')
     expect(await axeViolations(container)).toEqual([])
   })
 })

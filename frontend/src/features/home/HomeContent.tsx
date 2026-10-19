@@ -10,10 +10,23 @@ import styles from './HomeView.module.css'
 /**
  * Renderiza a Home a partir do `state` semântico do backend. Só apresenta: nenhum saldo ou fluxo é calculado aqui,
  * e `null` (sem dados) nunca é convertido em zero. `health` é o card "Como estou?" (ADR-0019), sempre o primeiro
- * bloco e independente do período da Visão geral.
+ * bloco e independente do período da Visão geral; `insights` são "Merece atenção" e "O que mudou?" (ADR-0023 §5),
+ * logo depois da Visão geral, só nos estados com saldo (os blocos têm os próprios estados e não seguem o período).
  */
-export function HomeContent({ overview, health = null }: { overview: Overview; health?: ReactNode }) {
+export function HomeContent({ overview, health = null, insights = null }: {
+  overview: Overview
+  health?: ReactNode
+  insights?: { changes: ReactNode; attention: ReactNode } | null
+}) {
   const healthBlock = health ? <div className={styles.health}>{health}</div> : null
+  const insightBlocks = insights ? (
+    <>
+      <div className={styles.attention}>{insights.attention}</div>
+      <div className={styles.changes}>{insights.changes}</div>
+    </>
+  ) : null
+  const gridClass = [styles.grid, healthBlock ? styles.withHealth : '', insightBlocks ? styles.withInsights : '']
+    .filter(Boolean).join(' ')
   const { state, summary, period, cashFlow, accounts, recentTransactions } = overview
 
   switch (state) {
@@ -46,7 +59,7 @@ export function HomeContent({ overview, health = null }: { overview: Overview; h
 
     case 'NO_ACTIVITY_IN_PERIOD':
       return (
-        <div className={`${styles.grid} ${healthBlock ? styles.withHealth : ''}`}>
+        <div className={gridClass}>
           {healthBlock}
           <div className={styles.hero}>
             <BalanceHero summary={summary} />
@@ -54,6 +67,7 @@ export function HomeContent({ overview, health = null }: { overview: Overview; h
           <div className={styles.cashflow}>
             <NoActivityInPeriod balanceAsOf={summary.balanceAsOf} />
           </div>
+          {insightBlocks}
           <div className={styles.accounts}>
             <AccountsSummary accounts={accounts} />
           </div>
@@ -65,7 +79,7 @@ export function HomeContent({ overview, health = null }: { overview: Overview; h
 
     case 'READY':
       return (
-        <div className={`${styles.grid} ${healthBlock ? styles.withHealth : ''}`}>
+        <div className={gridClass}>
           {healthBlock}
           <div className={styles.hero}>
             <BalanceHero summary={summary} />
@@ -73,6 +87,7 @@ export function HomeContent({ overview, health = null }: { overview: Overview; h
           <div className={styles.cashflow}>
             <CashFlowSummary cashFlow={cashFlow} period={period} />
           </div>
+          {insightBlocks}
           <div className={styles.accounts}>
             <AccountsSummary accounts={accounts} />
           </div>

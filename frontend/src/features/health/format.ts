@@ -1,4 +1,4 @@
-import type { Health, HealthDimensionCode, HealthEvidence, HealthNextStep } from '@/lib/api/types'
+import type { Health, HealthDimensionCode, HealthEvidence, HealthNextStep, InsightItem } from '@/lib/api/types'
 import { formatMoney } from '@/lib/format/money'
 import { formatPeriodRange, formatShortDate } from '@/lib/format/date'
 import { longMonthLabel, monthLabel } from '@/components/charts/geometry'
@@ -124,14 +124,22 @@ export function evidenceSource(source: string): string {
   return SOURCE_NAME[source] ?? source
 }
 
-/** Destino de cada próximo passo: só telas que existem (ADR-0017 §7, sem ✦). */
-export function nextStepLink(step: HealthNextStep): { href: string; label: string } {
+/**
+ * Destino de cada próximo passo: só telas que existem (ADR-0017 §7, sem ✦). O passo da categoria leva ao insight da
+ * alta dela no mesmo mês quando existe (adendo de 2026-10-19 ao ADR-0020); senão, à categoria na Análise.
+ *
+ * @param insights insights ativos ligados aos gastos (`/insights/related?dimension=SPENDING`)
+ */
+export function nextStepLink(step: HealthNextStep, insights: InsightItem[] = []): { href: string; label: string } {
   switch (step.kind) {
     case 'BUILD_RESERVE':
       return { href: '/accounts', label: 'Ver contas' }
     case 'ADD_RESERVE_ACCOUNT':
       return { href: '/accounts/new', label: 'Adicionar conta' }
     case 'REVIEW_CATEGORY': {
+      const spike = insights.find((i) => i.detector === 'CATEGORY_SPIKE' && step.categoryCode
+        && i.primaryAction.params.category === step.categoryCode && i.period.month === step.month)
+      if (spike) return { href: `/insights/${spike.id}`, label: 'Ver insight' }
       const search = new URLSearchParams()
       if (step.month) search.set('month', step.month)
       if (step.categoryCode) search.set('category', step.categoryCode)

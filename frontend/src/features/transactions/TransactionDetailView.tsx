@@ -26,6 +26,7 @@ import {
 import { accountNames, categoryNames, useAccounts, useCategories, useTransaction } from './hooks'
 import { acceptedNature, CATEGORY_SOURCE_LABEL, NO_CATEGORY_LABEL, SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
 import { categoryErrorMessage, fieldErrorMessage, requestFailureMessage } from './messages'
+import { RelatedInsight } from '@/features/insights/RelatedInsight'
 import { canMarkAsRefund, RefundMarkSection } from './RefundMarkSection'
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
@@ -319,6 +320,8 @@ function Loaded({
           ) : null}
         </dl>
       </section>
+
+      {transaction.status === 'POSTED' ? <RelatedInsight transactionId={transaction.id} /> : null}
 
       {transaction.status === 'PENDING' || transaction.status === 'POSTED' ? (
         <section className={accountStyles.panel} aria-labelledby="actions-title">

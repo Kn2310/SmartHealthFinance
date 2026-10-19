@@ -152,7 +152,10 @@
   relacionados; ações visto, dispensar e feedback (idempotentes, com lock contra a geração); destaques da Home
   ("Merece atenção", "O que mudou?" dos insights, badge); relacionados a transação ou dimensão; estados `NO_DATA`,
   `INSUFFICIENT_HISTORY`, `READY`; testes de API, contrato OpenAPI e suíte de isolamento
-- [ ] insight UI (parte D)
+- [x] insight UI (ADR-0024): `/insights` (chips com contagem, Cartões "Em breve", Importantes / Outros), `/insights/:id`
+  (resumo, evidências com gráfico do DS e tabela, explicação, limitações, fontes, ação recomendada, confiança, feedback,
+  dispensar com confirmação, relacionados), Home "O que mudou?" e "Merece atenção", "Ver insight relacionado" na
+  transação, próximo passo do Health → insight, contagem de Importantes na sidebar e no M-More; E2E com valores exatos
 
 ## M8 Cards
 

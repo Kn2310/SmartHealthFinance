@@ -80,3 +80,30 @@
   /* Pares da mesma linha com a mesma altura. */
   .hero > *, .cashflow > * { height: 100%; }
 }
+
+/*
+ * Insights na Home (ADR-0023 §5, D-Home / M-Home): logo depois da Visão geral. Mobile e tablet em uma coluna com
+ * "Merece atenção" antes de "O que mudou" (M-Home); a partir de 1024, "O que mudou | Merece atenção" lado a lado
+ * (D-Home), antes de contas e movimentações.
+ */
+.attention { grid-area: attention; }
+.changes { grid-area: changes; }
+.grid.withInsights { grid-template-areas: 'hero' 'cash' 'attention' 'changes' 'accounts' 'recent'; }
+.grid.withHealth.withInsights {
+  grid-template-areas: 'health' 'hero' 'cash' 'attention' 'changes' 'accounts' 'recent';
+}
+
+@media (min-width: 1024px) {
+  .grid.withInsights { grid-template-areas: 'hero hero' 'cash accounts' 'changes attention' 'recent recent'; }
+  .grid.withHealth.withInsights {
+    grid-template-areas: 'health hero' 'health cash' 'changes attention' 'accounts accounts' 'recent recent';
+  }
+}
+
+@media (min-width: 1440px) {
+  .grid.withInsights { grid-template-areas: 'hero cash' 'changes attention' 'accounts recent'; grid-template-rows: auto; }
+  .grid.withHealth.withInsights {
+    grid-template-areas: 'health hero' 'health cash' 'changes attention' 'accounts recent';
+    grid-template-rows: auto;
+  }
+}
