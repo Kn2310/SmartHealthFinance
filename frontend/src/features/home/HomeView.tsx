@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useCallback } from 'react'
 import { HealthCard } from '@/features/health/HealthCard'
+import { AttentionBlock, ChangesBlock, useHomeInsights } from '@/features/insights/HomeInsights'
 import { formatPeriodRange } from '@/lib/format/date'
 import { DEFAULT_QUERY, parseOverviewQuery, toSearchParams, type OverviewQuery } from '@/lib/overview-query'
 import { HomeContent } from './HomeContent'
@@ -19,6 +20,7 @@ export function HomeView({ firstName }: { firstName: string }) {
   const searchParams = useSearchParams()
   const query = parseOverviewQuery(searchParams)
   const result = useOverview(query)
+  const insights = useHomeInsights()
 
   const changeQuery = useCallback(
     (next: OverviewQuery) => {
@@ -65,7 +67,11 @@ export function HomeView({ firstName }: { firstName: string }) {
       <HomeHeader firstName={firstName} subtitle={subtitle} showImport={data.state !== 'NO_ACCOUNTS'}>
         {hasPeriodData ? selector : null}
       </HomeHeader>
-      <HomeContent overview={data} health={<HealthCard />} />
+      <HomeContent
+        overview={data}
+        health={<HealthCard />}
+        insights={{ attention: <AttentionBlock highlights={insights} />, changes: <ChangesBlock highlights={insights} /> }}
+      />
     </>
   )
 }

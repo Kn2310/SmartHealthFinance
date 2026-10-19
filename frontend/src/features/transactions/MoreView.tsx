@@ -1,18 +1,19 @@
 import { ArrowLeftRight, ChevronRight, Lightbulb, Target, User, Wallet, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
+import { InsightsBadge } from '@/features/insights/InsightsBadge'
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
 
 const ITEMS: { href: string; label: string; icon: LucideIcon; soon?: boolean }[] = [
-  { href: '/insights', label: 'Insights', icon: Lightbulb, soon: true },
+  { href: '/insights', label: 'Insights', icon: Lightbulb },
   { href: '/goals', label: 'Objetivos', icon: Target, soon: true },
   { href: '/accounts', label: 'Contas', icon: Wallet },
   { href: '/transactions', label: 'Transações', icon: ArrowLeftRight },
 ]
 
 /**
- * M-More mínimo (design/specs/04-navigation-flows: Mais → Insights, Objetivos, Contas, Transações, Perfil). Itens
+ * M-More (design/specs/04-navigation-flows: Mais → Insights com "N importantes", Objetivos, Contas, Transações, Perfil). Itens
  * ainda inexistentes levam ao estado "Em breve" e são sinalizados aqui. Sem área principal nova.
  */
 export function MoreView() {
@@ -28,6 +29,7 @@ export function MoreView() {
                   <Icon size={20} strokeWidth={1.75} />
                 </span>
                 <span className={styles.menuLabel}>{label}</span>
+                {href === '/insights' ? <InsightsBadge variant="text" className={accountStyles.soonBadge} /> : null}
                 {soon ? <span className={accountStyles.soonBadge}>Em breve</span> : null}
                 <ChevronRight size={18} className={styles.menuChevron} aria-hidden="true" />
               </Link>

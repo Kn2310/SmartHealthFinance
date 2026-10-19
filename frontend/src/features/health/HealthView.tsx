@@ -8,6 +8,7 @@ import { ScoreLine } from '@/components/charts/ScoreLine'
 import { ScoreRing } from '@/components/charts/ScoreRing'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { Health, HealthDimension, HealthEvolution } from '@/lib/api/types'
+import { useRelatedInsights } from '@/features/insights/api'
 import { useHealth, useHealthEvolution } from './api'
 import {
   CONFIDENCE_LABEL,
@@ -349,6 +350,10 @@ function FactorList({ title, icon, items }: { title: string; icon: 'plus' | 'min
 }
 
 function NextSteps({ health }: { health: Health }) {
+  // "Alimentação → insight" (D-Health, adendo ao ADR-0020): o passo da categoria leva à alta dela no mês, se houver.
+  const hasCategoryStep = health.nextSteps.some((step) => step.kind === 'REVIEW_CATEGORY')
+  const related = useRelatedInsights(hasCategoryStep ? { dimension: 'SPENDING' } : null)
+  const spikes = related.status === 'success' && related.data ? related.data.items : []
   return (
     <section className={styles.panel} aria-labelledby="health-steps-title">
       <h2 id="health-steps-title" className={styles.panelTitle}>
@@ -357,7 +362,7 @@ function NextSteps({ health }: { health: Health }) {
       <p className={styles.muted}>Sugestões com base nos seus dados — você decide</p>
       <ul className={styles.steps}>
         {health.nextSteps.map((step) => {
-          const link = nextStepLink(step)
+          const link = nextStepLink(step, spikes)
           return (
             <li key={step.kind} className={styles.step}>
               <p className={styles.stepTitle}>{step.text}</p>

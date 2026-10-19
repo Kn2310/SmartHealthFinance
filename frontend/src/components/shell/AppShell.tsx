@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
+import { InsightsBadge } from '@/features/insights/InsightsBadge'
 import { BOTTOM_ITEMS, SIDEBAR_ITEMS, type NavItem } from './nav-items'
 import styles from './AppShell.module.css'
 
@@ -10,7 +11,11 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`)
 }
 
-function NavLinks({ items, pathname }: { items: NavItem[]; pathname: string }) {
+function NavLinks({ items, pathname, badges = {} }: {
+  items: NavItem[]
+  pathname: string
+  badges?: Record<string, ReactNode>
+}) {
   return (
     <ul className={styles.list}>
       {items.map(({ href, label, icon: Icon }) => (
@@ -18,6 +23,7 @@ function NavLinks({ items, pathname }: { items: NavItem[]; pathname: string }) {
           <Link href={href} className={styles.link} aria-current={isActive(pathname, href) ? 'page' : undefined}>
             <Icon size={20} strokeWidth={1.75} aria-hidden="true" />
             <span>{label}</span>
+            {badges[href] ?? null}
           </Link>
         </li>
       ))}
@@ -50,7 +56,8 @@ export function AppShell({ displayName, children }: { displayName: string; child
           </span>
         </Link>
         <nav aria-label="Navegação principal">
-          <NavLinks items={SIDEBAR_ITEMS} pathname={pathname} />
+          <NavLinks items={SIDEBAR_ITEMS} pathname={pathname}
+            badges={{ '/insights': <InsightsBadge className={styles.navBadge} /> }} />
         </nav>
         <div className={styles.account}>
           <span className={styles.avatar} aria-hidden="true">

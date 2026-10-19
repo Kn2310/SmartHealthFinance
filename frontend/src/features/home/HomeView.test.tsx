@@ -2,6 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readyHealth } from '@/features/health/fixtures'
+import { readyHighlights } from '@/features/insights/fixtures'
 import { noAccountsOverview, readyOverview } from './fixtures'
 import { HomeView } from './HomeView'
 
@@ -24,9 +25,11 @@ describe('HomeView', () => {
     search = ''
     replace.mockReset()
     fetchMock.mockReset()
-    // O card "Como estou?" faz a própria chamada (ADR-0019); fetchMock conta só as da Visão geral.
+    // O card "Como estou?" (ADR-0019) e os blocos de Insights (ADR-0023) fazem as próprias chamadas; fetchMock conta
+    // só as da Visão geral.
     vi.stubGlobal('fetch', (input: string, init?: RequestInit) =>
-      String(input).startsWith('/api/bff/health') ? json(readyHealth()) : fetchMock(input, init))
+      String(input).startsWith('/api/bff/health') ? json(readyHealth())
+        : String(input).startsWith('/api/bff/insights') ? json(readyHighlights()) : fetchMock(input, init))
   })
 
   afterEach(() => vi.unstubAllGlobals())

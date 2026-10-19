@@ -4,7 +4,6 @@ import { ComingSoon } from '@/components/ComingSoon'
 const SECTIONS: Record<string, string> = {
   cards: 'Cartões',
   goals: 'Objetivos',
-  insights: 'Insights',
   copilot: 'Copilot',
   profile: 'Perfil',
 }
