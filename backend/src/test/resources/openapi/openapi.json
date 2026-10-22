@@ -838,6 +838,130 @@
         },
         "type" : "object"
       },
+      "CardListResponse" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CardResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "CardRequest" : {
+        "properties" : {
+          "brand" : {
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "closingDay" : {
+            "format" : "int32",
+            "maximum" : 31,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "defaultPaymentAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "dueDay" : {
+            "format" : "int32",
+            "maximum" : 31,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "institutionName" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "last4" : {
+            "description" : "Somente os 4 últimos dígitos do cartão",
+            "example" : "4821",
+            "minLength" : 1,
+            "type" : "string"
+          },
+          "limit" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "nickname" : {
+            "maxLength" : 100,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "brand", "closingDay", "dueDay", "last4", "limit", "nickname" ],
+        "type" : "object"
+      },
+      "CardResponse" : {
+        "properties" : {
+          "brand" : {
+            "type" : "string"
+          },
+          "closingDay" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "defaultPaymentAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "dueDay" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "institutionName" : {
+            "type" : "string"
+          },
+          "last4" : {
+            "type" : "string"
+          },
+          "limit" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "nickname" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "updatedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "workspaceId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CardSummaryResponse" : {
+        "properties" : {
+          "card" : {
+            "$ref" : "#/components/schemas/CardResponse"
+          },
+          "currentInvoice" : {
+            "$ref" : "#/components/schemas/InvoiceSummaryResponse"
+          },
+          "nextInvoiceCommitted" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "utilization" : {
+            "$ref" : "#/components/schemas/UtilizationResponse"
+          }
+        },
+        "type" : "object"
+      },
       "CardsCountDto" : {
         "properties" : {
           "available" : {
@@ -846,6 +970,37 @@
           "count" : {
             "format" : "int64",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "CardsSummaryResponse" : {
+        "properties" : {
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "calculationVersion" : {
+            "type" : "string"
+          },
+          "cards" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CardSummaryResponse"
+            },
+            "type" : "array"
+          },
+          "nextDueDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "openInvoices" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "totalLimit" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "utilized" : {
+            "$ref" : "#/components/schemas/MoneyDto"
           }
         },
         "type" : "object"
@@ -1001,6 +1156,67 @@
           },
           "message" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "FutureInstallmentResponse" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "transactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "FutureInvoiceMonthResponse" : {
+        "properties" : {
+          "committed" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "dueMonth" : {
+            "type" : "string"
+          },
+          "installments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FutureInstallmentResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "FutureInvoicesResponse" : {
+        "properties" : {
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "calculationVersion" : {
+            "type" : "string"
+          },
+          "months" : {
+            "items" : {
+              "$ref" : "#/components/schemas/FutureInvoiceMonthResponse"
+            },
+            "type" : "array"
+          },
+          "totalCommitted" : {
+            "$ref" : "#/components/schemas/MoneyDto"
           }
         },
         "type" : "object"
@@ -1983,6 +2199,160 @@
         },
         "type" : "object"
       },
+      "InstallmentRef" : {
+        "properties" : {
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "InvoiceItemPageResponse" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InvoiceItemResponse"
+            },
+            "type" : "array"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageSize" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalItems" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "InvoiceItemResponse" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "cancelledAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "installment" : {
+            "$ref" : "#/components/schemas/InstallmentRef"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "merchantName" : {
+            "type" : "string"
+          },
+          "occurredOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          },
+          "transactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InvoiceListResponse" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InvoiceSummaryResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "InvoiceResponse" : {
+        "properties" : {
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "calculationVersion" : {
+            "type" : "string"
+          },
+          "invoice" : {
+            "$ref" : "#/components/schemas/InvoiceSummaryResponse"
+          },
+          "itemCount" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "InvoiceSummaryResponse" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "charges" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "closingDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "credits" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "datesSource" : {
+            "type" : "string"
+          },
+          "dueDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "dueMonth" : {
+            "type" : "string"
+          },
+          "effectiveDueDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "minimumPayment" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "paid" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "periodStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "remaining" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "Lines" : {
         "properties" : {
           "categorized" : {
@@ -2381,6 +2751,55 @@
           },
           "status" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "UtilizationCompositionResponse" : {
+        "properties" : {
+          "currentInvoice" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "futureInstallments" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "previousOutstanding" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "UtilizationResponse" : {
+        "properties" : {
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "available" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "calculationVersion" : {
+            "type" : "string"
+          },
+          "composition" : {
+            "$ref" : "#/components/schemas/UtilizationCompositionResponse"
+          },
+          "credit" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "limit" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "utilizationPercent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "utilizationWithoutFuturePercent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "utilized" : {
+            "$ref" : "#/components/schemas/MoneyDto"
           }
         },
         "type" : "object"
@@ -3422,6 +3841,722 @@
         },
         "summary" : "Freshness da projeção de Analytics: UP_TO_DATE, UPDATING (eventos pendentes) ou NOT_BUILT",
         "tags" : [ "Analytics" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards" : {
+      "get" : {
+        "operationId" : "listCards",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "includeArchived",
+          "required" : false,
+          "schema" : {
+            "default" : false,
+            "type" : "boolean"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardListResponse"
+                }
+              }
+            },
+            "description" : "Cartões em ordem de criação"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Lista os cartões do Workspace (arquivados somente com includeArchived=true)",
+        "tags" : [ "Cards" ]
+      },
+      "post" : {
+        "operationId" : "createCard",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CardRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardResponse"
+                }
+              }
+            },
+            "description" : "Cartão criado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "MALFORMED_REQUEST (campo desconhecido) ou VALIDATION_FAILED"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou ACCOUNT_NOT_FOUND (conta padrão)"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "ACCOUNT_ARCHIVED (conta padrão)"
+          }
+        },
+        "summary" : "Cadastra um cartão (somente os 4 últimos dígitos; campos desconhecidos são recusados)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/summary" : {
+      "get" : {
+        "operationId" : "cardsSummary",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardsSummaryResponse"
+                }
+              }
+            },
+            "description" : "Resumo calculado"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Resumo dos cartões ativos: totais, fatura atual, utilização e próxima fatura",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}" : {
+      "get" : {
+        "operationId" : "getCard",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardResponse"
+                }
+              }
+            },
+            "description" : "Cartão encontrado"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND (inexistente ou de outro Workspace)"
+          }
+        },
+        "summary" : "Consulta um cartão do Workspace",
+        "tags" : [ "Cards" ]
+      },
+      "put" : {
+        "operationId" : "updateCard",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CardRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardResponse"
+                }
+              }
+            },
+            "description" : "Cartão atualizado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "MALFORMED_REQUEST ou VALIDATION_FAILED (inclusive dueDay DUE_MONTH_CONFLICT)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou ACCOUNT_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "CARD_ARCHIVED, ACCOUNT_ARCHIVED ou CONFLICT"
+          }
+        },
+        "summary" : "Edita o cartão (substituição completa; mudar o ciclo recalcula as faturas não fechadas)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/archive" : {
+      "post" : {
+        "operationId" : "archiveCard",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardResponse"
+                }
+              }
+            },
+            "description" : "Cartão arquivado"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          }
+        },
+        "summary" : "Arquiva o cartão (histórico mantido; idempotente)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices" : {
+      "get" : {
+        "operationId" : "listCardInvoices",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês de vencimento da fatura (YYYY-MM)",
+          "in" : "query",
+          "name" : "from",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês de vencimento da fatura (YYYY-MM)",
+          "in" : "query",
+          "name" : "to",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvoiceListResponse"
+                }
+              }
+            },
+            "description" : "Faturas da mais recente para a mais antiga"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (from/to)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          }
+        },
+        "summary" : "Faturas com lançamentos no intervalo, mais a atual (padrão: 6 meses; máximo 24)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices/current" : {
+      "get" : {
+        "operationId" : "getCurrentCardInvoice",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvoiceResponse"
+                }
+              }
+            },
+            "description" : "Fatura atual"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          }
+        },
+        "summary" : "Fatura atual (período contém hoje): parcial, pode mudar até o fechamento",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices/future" : {
+      "get" : {
+        "operationId" : "getFutureCardInvoices",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/FutureInvoicesResponse"
+                }
+              }
+            },
+            "description" : "Faturas futuras comprometidas"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          }
+        },
+        "summary" : "Faturas futuras com o valor já comprometido em parcelas (sem estimativas)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices/{dueMonth}" : {
+      "get" : {
+        "operationId" : "getCardInvoice",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês de vencimento da fatura (YYYY-MM)",
+          "in" : "path",
+          "name" : "dueMonth",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvoiceResponse"
+                }
+              }
+            },
+            "description" : "Fatura encontrada"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (dueMonth)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou INVOICE_NOT_FOUND (fatura passada sem lançamentos)"
+          }
+        },
+        "summary" : "Fatura pelo mês de vencimento",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices/{dueMonth}/items" : {
+      "get" : {
+        "operationId" : "listCardInvoiceItems",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Mês de vencimento da fatura (YYYY-MM)",
+          "in" : "path",
+          "name" : "dueMonth",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        }, {
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "in" : "query",
+          "name" : "pageSize",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InvoiceItemPageResponse"
+                }
+              }
+            },
+            "description" : "Página de lançamentos"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (dueMonth, page, pageSize)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou INVOICE_NOT_FOUND"
+          }
+        },
+        "summary" : "Lançamentos da fatura, paginados (pageSize ≤ 100, padrão 50)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/reactivate" : {
+      "post" : {
+        "operationId" : "reactivateCard",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardResponse"
+                }
+              }
+            },
+            "description" : "Cartão ativo"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          }
+        },
+        "summary" : "Reativa um cartão arquivado (idempotente)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/utilization" : {
+      "get" : {
+        "operationId" : "getCardUtilization",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UtilizationResponse"
+                }
+              }
+            },
+            "description" : "Utilização calculada"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          }
+        },
+        "summary" : "Utilização do limite: fatura atual, faturas anteriores em aberto e parcelas futuras",
+        "tags" : [ "Cards" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/categories" : {
