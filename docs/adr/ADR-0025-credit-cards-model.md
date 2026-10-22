@@ -215,6 +215,10 @@ Nenhum documento define:
   - A trilha continua no histórico. Se a fatura estava paga, o excesso vira crédito (§7).
 - `reverse` do estorno recalcula as parcelas da compra vinculada.
 
+- **Adendo (2026-10-22, aprovado; ADR-0026 §10):** o consumo das parcelas pelos estornos é **calculado na leitura**,
+  sobre os `REFUND` `POSTED` vinculados, e nunca persistido. Assim, estornar o próprio estorno reflete na hora, e a
+  coluna `cancelled_amount` sai na `V17`.
+
 ### 9. Utilização
 
 - **Utilizado** = max(0, Σ valor de todas as faturas, inclusive futuras − Σ pagamentos).

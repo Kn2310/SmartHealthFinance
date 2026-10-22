@@ -164,8 +164,70 @@ Uma chamada só, sem N+1.
 - **Contador:** `shf.cards.invoice.closed`.
 - **Isolamento:** todas as rotas entram no `WorkspaceIsolationIT`.
 
+### 10. Adendo (2026-10-22, aprovado): lançamentos de cartão (Sessão 6.1 parte C)
+
+> Decisões aprovadas:
+> - efeito dos estornos nas parcelas **calculado na leitura**;
+> - lançamentos por **rotas em `/cards`**;
+> - **formulário mínimo** de cadastro do cartão;
+> - **Analytics com cartões já na parte C**.
+
+**Rotas** (sob `/cards/{cardId}`). Todo `POST` exige `Idempotency-Key`: `201` na primeira vez, `200` no replay com o
+mesmo conteúdo e `422 IDEMPOTENCY_KEY_REUSED` com outro conteúdo.
+
+| Método e rota | Corpo | Resposta |
+|---|---|---|
+| `POST …/purchases` | `{amount, occurredOn, description, installmentCount}` (1–48, padrão 1) | `{transaction, installments: [{number, amount, dueMonth}], calculationVersion}` |
+| `POST …/payments` | `{accountId, amount, occurredOn, description?}` (padrão "Pagamento de fatura") | `{transaction}`, uma `TRANSFER` conta → cartão |
+| `POST …/credits` | `{amount, occurredOn, description, refundOfTransactionId?}` | `{transaction}`, um `REFUND` no cartão |
+| `GET …/installments?status=ACTIVE\|FINISHED\|ALL` | | parcelamentos: compra, total, parcelas, pagas, atual, restante, última fatura, status |
+| `GET …/installments/{transactionId}` | | o parcelamento e cada parcela (`dueMonth`, valor, cancelado, `PAID\|CURRENT\|FUTURE\|CANCELLED`) |
+
+- **Erros:**
+  - `CARD_NOT_FOUND` e `CARD_ARCHIVED`;
+  - `ACCOUNT_NOT_FOUND` e `ACCOUNT_ARCHIVED`, na origem do pagamento;
+  - `VALIDATION_FAILED`:
+    - `installmentCount`: `OUT_OF_RANGE` ou `TOO_MANY_FOR_AMOUNT`;
+    - `refundOfTransactionId`: `NOT_FOUND`, `NOT_SAME_CARD` ou as regras do ADR-0005 §6.
+  - Parcelamento inexistente, alheio ou que não é compra deste cartão → `404 TRANSACTION_NOT_FOUND`.
+- **Correção de lançamento errado:** `POST /transactions/{id}/reverse`, que já existe.
+- **Mudanças aditivas em Transactions:**
+  - `TransactionResponse` ganha `cardId` e `destinationCardId`;
+  - `accountId` passa a aceitar nulo em compras e estornos de cartão;
+  - `GET /transactions` e `/transactions/summary` aceitam `cardId`;
+  - `POST /transactions` continua sem campos de cartão.
+  - O hash da `Idempotency-Key` ganha um componente opcional do chamador, preenchido só pelo Cards com o número de
+    parcelas. Sem ele o formato `v1` não muda.
+- **Overview:**
+  - `recentTransactions[].account` passa a aceitar nulo e ganha `card {id, nickname, last4}`;
+  - compras e estornos de cartões ativos entram em `cashFlow.expense` e em `refunds`;
+  - pagamento só em `transfers`.
+- **Analytics:**
+  - `analytics_daily_flows` ganha `card_id` (exatamente um entre conta e cartão);
+  - a leitura conta conta ativa no total **ou** cartão ativo;
+  - `RebuildAnalyticsProjection.VERSION` = 3.
+- **Estornos calculados na leitura** (ADR-0025 §8, adendo):
+  - o `CreditAllocator` do domínio aplica os `REFUND` `POSTED` às parcelas a cada leitura, de forma determinística;
+  - estornar o próprio estorno por `/transactions/{id}/reverse` reflete na hora;
+  - a coluna `card_installments.cancelled_amount` sai na `V17`;
+  - o leitor SQL passa a devolver os fatos `POSTED` (parcelas, créditos e soma de pagamentos), e as somas por fatura
+    ficam no domínio, com paridade testada.
+- **Mudança de ciclo:** reatribui as parcelas das faturas não fechadas, na mesma transação. Se o mês de destino já
+  estiver fechado, a parcela vai para a primeira fatura não fechada.
+- **Frontend (mínimo):**
+  - BFF: transferência e reembolso (fecha a pendência do M2), `GET|POST /api/bff/cards` e
+    `POST /api/bff/cards/{id}/purchases|payments|credits`;
+  - `/transactions/new` com "Compra no cartão" e "Pagamento de fatura";
+  - página mínima "Adicionar cartão": apelido, bandeira, 4 últimos dígitos, limite, fechamento, vencimento e conta
+    padrão;
+  - nunca pede número completo nem CVV.
+
 ## Alternatives
 
+- **Estornos persistidos por um consumidor de `transaction.*` (parte C):** rejeitado. A consistência seria eventual e
+  exigiria fila, DLQ e um caminho a mais para divergir.
+- **Estender `POST /transactions` com campos de cartão (parte C):** rejeitado. Transactions passaria a depender de
+  Cards e um contrato existente mudaria.
 - **Fatura por id (`/invoices/{invoiceId}`):** rejeitada. A fatura atual e as futuras sem linha não teriam id, e o
   mês é o que o usuário reconhece ("Fatura de outubro").
 - **Utilização dentro do `Card`:** rejeitada. Todo GET do cartão faria o cálculo de fatura; o resumo (§3) cobre a
