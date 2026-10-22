@@ -838,6 +838,28 @@
         },
         "type" : "object"
       },
+      "CardCreditRequest" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "description" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "occurredOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "refundOfTransactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "description", "occurredOn" ],
+        "type" : "object"
+      },
       "CardListResponse" : {
         "properties" : {
           "items" : {
@@ -845,6 +867,84 @@
               "$ref" : "#/components/schemas/CardResponse"
             },
             "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "CardPaymentRequest" : {
+        "properties" : {
+          "accountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "description" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "occurredOn" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "accountId", "amount", "occurredOn" ],
+        "type" : "object"
+      },
+      "CardPurchaseRequest" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "description" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "installmentCount" : {
+            "format" : "int32",
+            "maximum" : 48,
+            "minimum" : 1,
+            "type" : "integer"
+          },
+          "occurredOn" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "description", "occurredOn" ],
+        "type" : "object"
+      },
+      "CardPurchaseResponse" : {
+        "properties" : {
+          "calculationVersion" : {
+            "type" : "string"
+          },
+          "installments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/PurchaseInstallmentResponse"
+            },
+            "type" : "array"
+          },
+          "transaction" : {
+            "$ref" : "#/components/schemas/TransactionResponse"
+          }
+        },
+        "type" : "object"
+      },
+      "CardRef" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "last4" : {
+            "type" : "string"
+          },
+          "nickname" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -958,6 +1058,14 @@
           },
           "utilization" : {
             "$ref" : "#/components/schemas/UtilizationResponse"
+          }
+        },
+        "type" : "object"
+      },
+      "CardTransactionResponse" : {
+        "properties" : {
+          "transaction" : {
+            "$ref" : "#/components/schemas/TransactionResponse"
           }
         },
         "type" : "object"
@@ -2199,6 +2307,96 @@
         },
         "type" : "object"
       },
+      "InstallmentItemResponse" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "cancelledAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "dueMonth" : {
+            "type" : "string"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "status" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InstallmentPlanListResponse" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InstallmentPlanResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "InstallmentPlanResponse" : {
+        "properties" : {
+          "count" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "currentNumber" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "description" : {
+            "type" : "string"
+          },
+          "installmentAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "installments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/InstallmentItemResponse"
+            },
+            "type" : "array"
+          },
+          "lastDueMonth" : {
+            "type" : "string"
+          },
+          "paidAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "paidCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "purchasedOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "remainingAfterCurrent" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "reservedLimit" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ReservedLimitResponse"
+            },
+            "type" : "array"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "total" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "transactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "InstallmentRef" : {
         "properties" : {
           "count" : {
@@ -2477,6 +2675,21 @@
         },
         "type" : "object"
       },
+      "PurchaseInstallmentResponse" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "dueMonth" : {
+            "type" : "string"
+          },
+          "number" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "RecentTransaction" : {
         "properties" : {
           "account" : {
@@ -2487,6 +2700,9 @@
           },
           "amount" : {
             "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "card" : {
+            "$ref" : "#/components/schemas/CardRef"
           },
           "description" : {
             "type" : "string"
@@ -2516,6 +2732,17 @@
             "type" : "string"
           },
           "type" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ReservedLimitResponse" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "dueMonth" : {
             "type" : "string"
           }
         },
@@ -2576,6 +2803,10 @@
           "amount" : {
             "$ref" : "#/components/schemas/MoneyDto"
           },
+          "cardId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
           "categoryCode" : {
             "type" : "string"
           },
@@ -2590,6 +2821,10 @@
             "type" : "string"
           },
           "destinationAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "destinationCardId" : {
             "format" : "uuid",
             "type" : "string"
           },
@@ -4159,6 +4394,228 @@
         "tags" : [ "Cards" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/credits" : {
+      "post" : {
+        "operationId" : "recordCredit",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Chave única por intenção",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CardCreditRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardTransactionResponse"
+                }
+              }
+            },
+            "description" : "Replay: a mesma chave e conteúdo já foram processados"
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardTransactionResponse"
+                }
+              }
+            },
+            "description" : "Estorno registrado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (refundOfTransactionId NOT_FOUND/NOT_SAME_CARD/NOT_REFUNDABLE, amount EXCEEDS_REFUNDABLE)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "CARD_ARCHIVED"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "IDEMPOTENCY_KEY_REUSED"
+          }
+        },
+        "summary" : "Estorno ou crédito no cartão, opcionalmente vinculado a uma compra dele (idempotente)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/installments" : {
+      "get" : {
+        "operationId" : "listInstallmentPlans",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "ACTIVE (padrão), FINISHED ou ALL",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InstallmentPlanListResponse"
+                }
+              }
+            },
+            "description" : "Parcelamentos, da compra mais recente para a mais antiga"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (status)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          }
+        },
+        "summary" : "Parcelamentos do cartão (compras em mais de uma parcela)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/installments/{transactionId}" : {
+      "get" : {
+        "operationId" : "getInstallmentPlan",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "transactionId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/InstallmentPlanResponse"
+                }
+              }
+            },
+            "description" : "Parcelamento"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou TRANSACTION_NOT_FOUND (não é compra deste cartão)"
+          }
+        },
+        "summary" : "Parcelamento de uma compra do cartão, com cada parcela e o limite reservado",
+        "tags" : [ "Cards" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices" : {
       "get" : {
         "operationId" : "listCardInvoices",
@@ -4464,6 +4921,214 @@
           }
         },
         "summary" : "Lançamentos da fatura, paginados (pageSize ≤ 100, padrão 50)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/payments" : {
+      "post" : {
+        "operationId" : "recordPayment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Chave única por intenção",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CardPaymentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardTransactionResponse"
+                }
+              }
+            },
+            "description" : "Replay: a mesma chave e conteúdo já foram processados"
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardTransactionResponse"
+                }
+              }
+            },
+            "description" : "Pagamento registrado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou ACCOUNT_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "CARD_ARCHIVED ou ACCOUNT_ARCHIVED"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "IDEMPOTENCY_KEY_REUSED"
+          }
+        },
+        "summary" : "Pagamento de fatura, total ou parcial: transferência da conta para o cartão (idempotente)",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/purchases" : {
+      "post" : {
+        "operationId" : "recordPurchase",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Chave única por intenção",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CardPurchaseRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardPurchaseResponse"
+                }
+              }
+            },
+            "description" : "Replay: a mesma chave e conteúdo já foram processados"
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardPurchaseResponse"
+                }
+              }
+            },
+            "description" : "Compra registrada com as parcelas"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (installmentCount OUT_OF_RANGE/TOO_MANY_FOR_AMOUNT, Idempotency-Key)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "CARD_ARCHIVED"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "IDEMPOTENCY_KEY_REUSED"
+          }
+        },
+        "summary" : "Compra no cartão, à vista ou parcelada (idempotente por Idempotency-Key)",
         "tags" : [ "Cards" ]
       }
     },
@@ -5757,6 +6422,15 @@
             "format" : "int32",
             "type" : "integer"
           }
+        }, {
+          "description" : "Cartão: compras e estornos nele e pagamentos da fatura dele (ADR-0026 §10)",
+          "in" : "query",
+          "name" : "cardId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
         } ],
         "responses" : {
           "200" : {
@@ -5994,6 +6668,15 @@
           "required" : false,
           "schema" : {
             "type" : "boolean"
+          }
+        }, {
+          "description" : "Cartão; com cartão, os valores são desse cartão",
+          "in" : "query",
+          "name" : "cardId",
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
           }
         } ],
         "responses" : {
