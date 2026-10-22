@@ -124,6 +124,15 @@ e o ADR-0005: **POSTED é o único status com efeito financeiro**.
     existir (ADR-0003/0004/0005), os read models de Analytics (M5) poderão ser alimentados por eventos
     `transaction.*`; o Overview só migra para read model persistido se a medição exigir.
 
+17. **Cartões (adendo de 2026-10-22, aprovado no ADR-0025 §3/§4):**
+    - **Saldo total:** continua sendo só das contas. A compra no cartão não o altera. A transferência conta → cartão
+      debita a origem como uma transferência para fora do total: muda o saldo e não vira despesa.
+    - **Fluxo de caixa:** passa a considerar também os **cartões ativos**. A compra entra em `expense` e o estorno em
+      `refunds`, na data da compra ou do estorno. O pagamento entra só em `transfers`. Sem dupla contagem.
+    - **Na Sessão 6.1 parte C** entra só essa adaptação do SQL, com o teste de paridade.
+    - **Na Sessão 6.2** entra o bloco "Faturas a pagar" (total em aberto dos cartões ativos e próximo vencimento),
+      separado do saldo e sem "saldo líquido".
+
 ## Alternatives
 
 - **Somar em memória (carregar todas as transações):** rejeitado — O(n) em memória por request na tela mais

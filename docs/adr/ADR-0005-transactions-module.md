@@ -120,6 +120,17 @@ definem:
     - O sinal exibido (+/−) é apresentação do tipo/direção já decididos pelo backend (mesma tabela de
       `originEffect`); transferência só tem sinal na página de uma das contas. Nenhum valor é somado no frontend.
 
+17. **Cartões (adendo de 2026-10-22, aprovado no ADR-0025 §2; implementação na Sessão 6.1 parte C):**
+    - a transação ganha `card_id`, e `account_id` passa a aceitar nulo, com exatamente um dos dois preenchido;
+    - com `card_id` só existem `EXPENSE` (compra) e `REFUND` (estorno), nascidos `POSTED`;
+    - o pagamento de fatura é `TRANSFER` com `account_id` de origem e o novo `destination_card_id`, mutuamente
+      exclusivo com `destination_account_id`;
+    - FKs compostas com `workspace_id` nos dois campos;
+    - compras e estornos no cartão não movem o saldo de nenhuma conta; a transferência para cartão só debita a
+      origem;
+    - os lançamentos de cartão são criados pelos casos de uso chamados por `cards`; Transactions não depende de
+      Cards (§15).
+
 ## Alternatives
 
 - **Transferência como duas transações (débito + crédito):** rejeitada. Duplica o fato, exige vínculo e
