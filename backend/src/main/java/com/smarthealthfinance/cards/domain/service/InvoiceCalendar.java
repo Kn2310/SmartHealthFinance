@@ -134,6 +134,16 @@ public final class InvoiceCalendar {
                 throw new InvalidValueException("dueDay", "DUE_MONTH_CONFLICT");
             }
         }
+        // A fatura seguinte à última fechada (com ou sem linha) segue a regra nova e não pode vencer junto com ela.
+        current.values().stream()
+                .filter(dates -> dates.isClosedOn(today))
+                .reduce((first, second) -> second)
+                .ifPresent(lastClosed -> {
+                    YearMonth next = lastClosed.closingMonth().plusMonths(1);
+                    if (!current.containsKey(next) && !newCycle.dueMonth(next).isAfter(lastClosed.dueMonth())) {
+                        throw new InvalidValueException("dueDay", "DUE_MONTH_CONFLICT");
+                    }
+                });
         return changed;
     }
 

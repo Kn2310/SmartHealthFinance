@@ -31,14 +31,19 @@ public class JdbcTransactionSummaryReader implements TransactionSummaryReader {
     public TransactionSummary summarize(WorkspaceId workspaceId, TransactionCriteria criteria, Currency currency) {
         List<Object> args = new ArrayList<>();
 
-        // Quem conta no fluxo: a conta filtrada, ou as contas ativas incluídas no total (como o Overview).
+        // Quem conta no fluxo: a conta ou o cartão filtrado, ou as contas ativas incluídas no total e os cartões ativos
+        // (como o Overview, ADR-0006 §17). O cartão é lido só pelo status, para a regra de arquivado.
         String inFlow;
         if (criteria.accountId() != null) {
             inFlow = "t.account_id = ?";
             args.add(criteria.accountId().value());
         }
+        else if (criteria.cardId() != null) {
+            inFlow = "t.card_id = ?";
+            args.add(criteria.cardId().value());
+        }
         else {
-            inFlow = "a.status = 'ACTIVE' and a.included_in_total";
+            inFlow = "((a.status = 'ACTIVE' and a.included_in_total) or c.status = 'ACTIVE')";
         }
         String posted = "t.status = 'POSTED'";
 
@@ -51,7 +56,8 @@ public class JdbcTransactionSummaryReader implements TransactionSummaryReader {
                        count(*) filter (where %1$s) as posted,
                        count(*) filter (where t.status = 'PENDING') as pending
                 from transactions t
-                join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                left join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                left join credit_cards c on c.id = t.card_id and c.workspace_id = t.workspace_id
                 where t.workspace_id = ?
                 """.formatted(posted, inFlow));
         // O %2$s aparece três vezes: os parâmetros dele também.
@@ -77,6 +83,11 @@ public class JdbcTransactionSummaryReader implements TransactionSummaryReader {
             sql.append(" and (t.account_id = ? or t.destination_account_id = ?)");
             params.add(criteria.accountId().value());
             params.add(criteria.accountId().value());
+        }
+        if (criteria.cardId() != null) {
+            sql.append(" and (t.card_id = ? or t.destination_card_id = ?)");
+            params.add(criteria.cardId().value());
+            params.add(criteria.cardId().value());
         }
         if (criteria.categoryCode() != null) {
             sql.append(" and t.category_code = ?");

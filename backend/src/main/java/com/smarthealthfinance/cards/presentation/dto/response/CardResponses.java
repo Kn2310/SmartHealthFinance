@@ -7,8 +7,10 @@ import com.smarthealthfinance.cards.application.dto.InvoiceItemPageView;
 import com.smarthealthfinance.cards.application.dto.InvoiceSummaryView;
 import com.smarthealthfinance.cards.application.dto.InvoiceView;
 import com.smarthealthfinance.cards.application.dto.UtilizationView;
-import com.smarthealthfinance.cards.application.port.CardLedgerReader.CommittedInstallment;
-import com.smarthealthfinance.cards.application.port.CardLedgerReader.InvoiceItem;
+import com.smarthealthfinance.cards.application.dto.InvoiceItemView;
+import com.smarthealthfinance.cards.application.dto.InstallmentPlanView;
+import com.smarthealthfinance.cards.application.dto.CardPurchaseView;
+import com.smarthealthfinance.transactions.presentation.dto.response.TransactionResponse;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.shared.presentation.money.MoneyDto;
 
@@ -85,7 +87,7 @@ public final class CardResponses {
 
         public record InstallmentRef(int number, int count) {}
 
-        static InvoiceItemResponse from(InvoiceItem item) {
+        static InvoiceItemResponse from(InvoiceItemView item) {
             return new InvoiceItemResponse(item.kind().name(), item.transactionId(), item.occurredOn(),
                     item.description(), item.categoryCode(), item.merchantName(), item.source(),
                     item.installmentNumber() == null ? null
@@ -107,7 +109,7 @@ public final class CardResponses {
     public record FutureInstallmentResponse(UUID transactionId, String description, int number, int count,
                                             MoneyDto amount) {
 
-        static FutureInstallmentResponse from(CommittedInstallment installment) {
+        static FutureInstallmentResponse from(FutureInvoicesView.Installment installment) {
             return new FutureInstallmentResponse(installment.transactionId(), installment.description(),
                     installment.number(), installment.count(), money(installment.amount()));
         }
@@ -169,6 +171,61 @@ public final class CardResponses {
                             InvoiceSummaryResponse.from(card.currentInvoice()),
                             UtilizationResponse.from(card.utilization()), money(card.nextInvoiceCommitted())))
                     .toList(), view.asOf(), view.calculationVersion());
+        }
+    }
+
+    public record PurchaseInstallmentResponse(int number, MoneyDto amount, String dueMonth) {}
+
+    /** Compra no cartão e as parcelas geradas (ADR-0026 §10). */
+    public record CardPurchaseResponse(TransactionResponse transaction, List<PurchaseInstallmentResponse> installments,
+                                       String calculationVersion) {
+
+        public static CardPurchaseResponse from(CardPurchaseView view) {
+            return new CardPurchaseResponse(TransactionResponse.from(view.transaction()), view.installments().stream()
+                    .map(part -> new PurchaseInstallmentResponse(part.number(), money(part.amount()),
+                            part.dueMonth().toString()))
+                    .toList(), view.calculationVersion());
+        }
+    }
+
+    /** Pagamento de fatura (TRANSFER conta → cartão) ou estorno (REFUND no cartão). */
+    public record CardTransactionResponse(TransactionResponse transaction) {}
+
+    /** @param amount parcela contratada; o que fica na fatura é {@code amount − cancelledAmount} */
+    public record InstallmentItemResponse(int number, String dueMonth, MoneyDto amount, MoneyDto cancelledAmount,
+                                          String status) {}
+
+    public record ReservedLimitResponse(String dueMonth, MoneyDto amount) {}
+
+    /**
+     * @param currentNumber         parcela na fatura atual (ou fechada não paga); nula se não houver
+     * @param remainingAfterCurrent soma das parcelas em faturas futuras
+     */
+    public record InstallmentPlanResponse(UUID transactionId, String description, LocalDate purchasedOn,
+                                          MoneyDto total, int count, MoneyDto installmentAmount, int paidCount,
+                                          MoneyDto paidAmount, Integer currentNumber, MoneyDto remainingAfterCurrent,
+                                          String lastDueMonth, String status,
+                                          List<InstallmentItemResponse> installments,
+                                          List<ReservedLimitResponse> reservedLimit) {
+
+        public static InstallmentPlanResponse from(InstallmentPlanView view) {
+            return new InstallmentPlanResponse(view.transactionId(), view.description(), view.purchasedOn(),
+                    money(view.total()), view.count(), money(view.installmentAmount()), view.paidCount(),
+                    money(view.paidAmount()), view.currentNumber(), money(view.remainingAfterCurrent()),
+                    view.lastDueMonth().toString(), view.status().name(), view.installments().stream()
+                    .map(item -> new InstallmentItemResponse(item.number(), item.dueMonth().toString(),
+                            money(item.amount()), money(item.cancelledAmount()), item.status().name()))
+                    .toList(), view.reservedLimit().stream()
+                    .map(reserved -> new ReservedLimitResponse(reserved.dueMonth().toString(),
+                            money(reserved.amount())))
+                    .toList());
+        }
+    }
+
+    public record InstallmentPlanListResponse(List<InstallmentPlanResponse> items) {
+
+        public static InstallmentPlanListResponse from(List<InstallmentPlanView> views) {
+            return new InstallmentPlanListResponse(views.stream().map(InstallmentPlanResponse::from).toList());
         }
     }
 

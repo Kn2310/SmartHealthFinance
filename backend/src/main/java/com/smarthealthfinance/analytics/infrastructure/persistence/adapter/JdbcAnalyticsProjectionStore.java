@@ -24,6 +24,9 @@ import java.util.UUID;
  * próprio papel; ADJUSTMENT fica de fora. O CASE não tem {@code ELSE} de propósito: um tipo novo viraria NULL e o
  * {@code not null} da coluna falharia, em vez de projetar errado em silêncio. O teste de paridade compara com a
  * referência em memória que usa o domínio.
+ * <p>
+ * Compra e estorno no cartão entram com {@code card_id} no lugar da conta (ADR-0026 §10); o pagamento de fatura é
+ * uma transferência da conta de origem.
  */
 @Repository
 @Transactional(propagation = Propagation.MANDATORY)
@@ -32,9 +35,9 @@ public class JdbcAnalyticsProjectionStore implements AnalyticsProjectionStore {
     /** {@code %s} recebe o filtro de datas; vazio projeta o Workspace inteiro (rebuild). */
     private static final String PROJECT_TEMPLATE = """
             insert into analytics_daily_flows
-              (workspace_id, day, account_id, flow, category_code, merchant_key, merchant_name, currency, amount,
-               transaction_count)
-            select t.workspace_id, t.occurred_on, t.account_id,
+              (workspace_id, day, account_id, card_id, flow, category_code, merchant_key, merchant_name, currency,
+               amount, transaction_count)
+            select t.workspace_id, t.occurred_on, t.account_id, t.card_id,
                    case t.type
                      when 'INCOME' then 'INCOME'
                      when 'EXPENSE' then 'EXPENSE'
@@ -44,7 +47,8 @@ public class JdbcAnalyticsProjectionStore implements AnalyticsProjectionStore {
                    t.category_code, t.merchant_key, min(t.merchant_name), t.currency, sum(t.amount), count(*)
             from transactions t
             where t.workspace_id = ? and t.status = 'POSTED' and t.type <> 'ADJUSTMENT' %s
-            group by t.workspace_id, t.occurred_on, t.account_id, t.type, t.category_code, t.merchant_key, t.currency
+            group by t.workspace_id, t.occurred_on, t.account_id, t.card_id, t.type, t.category_code, t.merchant_key,
+                     t.currency
             """;
 
     private static final String PROJECT_PERIOD = PROJECT_TEMPLATE.formatted("and t.occurred_on between ? and ?");

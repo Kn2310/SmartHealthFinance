@@ -21,8 +21,9 @@ public class RebuildAnalyticsProjection {
     /**
      * Versão do algoritmo da projeção. Mudou o que é gravado → nova versão → o runner reconstrói (modo missing).
      * v2: chaves de comerciante do {@code MerchantNormalizer} v2 (adendo de 2026-10-14 ao ADR-0013 §1).
+     * v3: cartão no grão (compras e estornos no cartão, ADR-0026 §10).
      */
-    public static final int VERSION = 2;
+    public static final int VERSION = 3;
 
     private static final Logger log = LoggerFactory.getLogger(RebuildAnalyticsProjection.class);
 

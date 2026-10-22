@@ -1,52 +1,36 @@
 package com.smarthealthfinance.cards.application.port;
 
-import com.smarthealthfinance.cards.domain.enums.InvoiceItemKind;
 import com.smarthealthfinance.cards.domain.valueobject.CardId;
 import com.smarthealthfinance.cards.domain.valueobject.CardInvoiceId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.Money;
 
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /**
- * Leitura agregada dos fatos de cartão (ADR-0026 §7): o SQL só soma por fatura; estados, alocação e utilização ficam
- * no domínio ({@code InvoiceLedger}). Só transações {@code POSTED} contam. Toda consulta filtra por Workspace.
- * <p>
- * Parte B: só parcelas de compras. Créditos (estornos) e pagamentos entram na parte C, com os lançamentos.
+ * Fatos {@code POSTED} de cartão (ADR-0026 §7 e §10): parcelas das compras, estornos e a soma dos pagamentos. O SQL só
+ * filtra (status, Workspace, cartão) e soma os pagamentos; estornos nas parcelas, valores por fatura, estados e
+ * utilização ficam no domínio ({@code CreditAllocator}, {@code InvoiceLedger}).
  */
 public interface CardLedgerReader {
 
-    /** @param charges soma das parcelas, sem a parte cancelada; @param credits soma dos créditos */
-    record InvoiceTotals(Money charges, Money credits) {}
+    /** Parcela de uma compra {@code POSTED}, com os dados da transação para os lançamentos da fatura. */
+    record InstallmentFact(UUID transactionId, int number, int count, LocalDate purchasedOn, Money amount,
+                           CardInvoiceId invoiceId, String description, String categoryCode, String merchantName,
+                           String source) {}
 
-    /** @param payments soma dos pagamentos {@code POSTED} do cartão */
-    record CardTotals(Map<CardInvoiceId, InvoiceTotals> invoices, Money payments) {}
+    /** Estorno {@code POSTED} no cartão. */
+    record CreditFact(UUID transactionId, LocalDate occurredOn, Money amount, UUID refundOfTransactionId,
+                      String description, String categoryCode, String merchantName, String source) {}
 
-    /** @param installmentNumber e installmentCount nulos em créditos */
-    record InvoiceItem(InvoiceItemKind kind, UUID transactionId, LocalDate occurredOn, String description,
-                       String categoryCode, String merchantName, String source, Integer installmentNumber,
-                       Integer installmentCount, Money amount, Money cancelledAmount) {}
+    /** @param payments soma dos pagamentos de fatura {@code POSTED} (TRANSFER conta → cartão) */
+    record CardFacts(List<InstallmentFact> installments, List<CreditFact> credits, Money payments) {}
 
-    record ItemPage(List<InvoiceItem> items, long totalItems) {}
+    CardFacts facts(WorkspaceId workspaceId, CardId cardId);
 
-    /** @param amount valor ainda comprometido da parcela (sem a parte cancelada) */
-    record CommittedInstallment(CardInvoiceId invoiceId, UUID transactionId, String description, int number,
-                                int count, Money amount) {}
-
-    CardTotals totals(WorkspaceId workspaceId, CardId cardId);
-
-    /** Totais de todos os cartões do Workspace numa consulta só (resumo, sem N+1). */
-    Map<CardId, CardTotals> totalsByCard(WorkspaceId workspaceId);
-
-    ItemPage items(WorkspaceId workspaceId, CardId cardId, CardInvoiceId invoiceId, int offset, int limit);
-
-    long itemCount(WorkspaceId workspaceId, CardId cardId, CardInvoiceId invoiceId);
-
-    /** Parcelas com valor comprometido nas faturas pedidas, por fatura, data da compra e número. */
-    List<CommittedInstallment> installments(WorkspaceId workspaceId, CardId cardId,
-                                            Collection<CardInvoiceId> invoiceIds);
+    /** Fatos de todos os cartões do Workspace em três consultas (resumo, sem N+1). */
+    Map<CardId, CardFacts> factsByCard(WorkspaceId workspaceId);
 }

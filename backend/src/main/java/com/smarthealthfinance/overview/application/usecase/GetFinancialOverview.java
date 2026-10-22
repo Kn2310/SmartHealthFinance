@@ -163,9 +163,11 @@ public class GetFinancialOverview {
         return new OverviewView.RecentTransaction(movement.id().value(), movement.type(),
                 MovementFlow.of(movement.type(), movement.adjustmentDirection()), movement.adjustmentDirection(),
                 movement.status(), movement.amount(), movement.occurredOn(), movement.description(),
-                ref(byId.get(movement.accountId())),
+                movement.accountId() == null ? null : ref(byId.get(movement.accountId())),
                 movement.destinationAccountId().map(byId::get).map(GetFinancialOverview::ref).orElse(null),
-                movement.refundOfTransactionId().map(refund -> refund.value()).orElse(null), movement.source());
+                movement.refundOfTransactionId().map(refund -> refund.value()).orElse(null), movement.source(),
+                movement.card().map(card -> new OverviewView.CardRef(card.id(), card.nickname(), card.last4()))
+                        .orElse(null));
     }
 
     private static OverviewView.AccountRef ref(Account account) {

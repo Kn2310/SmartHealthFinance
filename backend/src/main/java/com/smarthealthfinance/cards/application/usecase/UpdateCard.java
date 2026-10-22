@@ -6,6 +6,7 @@ import com.smarthealthfinance.cards.application.dto.CardView;
 import com.smarthealthfinance.cards.application.service.BusinessCalendar;
 import com.smarthealthfinance.cards.application.service.CardAccess;
 import com.smarthealthfinance.cards.application.service.CardEvents;
+import com.smarthealthfinance.cards.application.service.InvoiceAssignments;
 import com.smarthealthfinance.cards.application.service.PaymentAccountCheck;
 import com.smarthealthfinance.cards.domain.enums.CardBrand;
 import com.smarthealthfinance.cards.domain.model.CardInvoice;
@@ -41,17 +42,19 @@ public class UpdateCard {
     private final CreditCardRepository cards;
     private final CardInvoiceRepository invoices;
     private final PaymentAccountCheck paymentAccounts;
+    private final InvoiceAssignments assignments;
     private final BusinessCalendar calendar;
     private final Clock clock;
     private final CardEvents events;
 
     public UpdateCard(CardAccess access, CreditCardRepository cards, CardInvoiceRepository invoices,
-                      PaymentAccountCheck paymentAccounts, BusinessCalendar calendar, Clock clock,
-                      CardEvents events) {
+                      PaymentAccountCheck paymentAccounts, InvoiceAssignments assignments, BusinessCalendar calendar,
+                      Clock clock, CardEvents events) {
         this.access = access;
         this.cards = cards;
         this.invoices = invoices;
         this.paymentAccounts = paymentAccounts;
+        this.assignments = assignments;
         this.calendar = calendar;
         this.clock = clock;
         this.events = events;
@@ -81,8 +84,9 @@ public class UpdateCard {
             paymentAccounts.requireActive(card.workspaceId(), account.value());
         }
 
+        boolean cycleChanged = !newCycle.equals(card.cycle());
         List<CardInvoice> recalculated = List.of();
-        if (!newCycle.equals(card.cycle())) {
+        if (cycleChanged) {
             card.ensureActive();
             recalculated = InvoiceCalendar.recalculateOpen(invoices.findByCard(card.workspaceId(), card.id()),
                     newCycle, calendar.today());
@@ -92,10 +96,11 @@ public class UpdateCard {
                 clock.instant());
         cards.save(card);
         invoices.updateDates(recalculated);
+        int moved = cycleChanged ? assignments.reassignOpen(card, calendar.today()) : 0;
         if (changed) {
             events.updated(card);
-            log.info("Card updated cardId={} workspaceId={} invoicesRecalculated={}", card.id(), card.workspaceId(),
-                    recalculated.size());
+            log.info("Card updated cardId={} workspaceId={} invoicesRecalculated={} installmentsMoved={}", card.id(),
+                    card.workspaceId(), recalculated.size(), moved);
         }
 
         return CardView.from(card);

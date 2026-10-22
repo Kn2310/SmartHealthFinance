@@ -5,16 +5,20 @@ import com.smarthealthfinance.accounts.domain.enums.AccountType;
 import com.smarthealthfinance.accounts.domain.model.Account;
 import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.accounts.domain.valueobject.AccountName;
+import com.smarthealthfinance.cards.application.port.CardLedgerReader.CreditFact;
+import com.smarthealthfinance.cards.application.port.CardLedgerReader.InstallmentFact;
 import com.smarthealthfinance.cards.application.service.BusinessCalendar;
 import com.smarthealthfinance.cards.application.service.CardAccess;
 import com.smarthealthfinance.cards.application.service.CardEvents;
 import com.smarthealthfinance.cards.application.service.CardLedgerLoader;
+import com.smarthealthfinance.cards.application.service.InvoiceAssignments;
 import com.smarthealthfinance.cards.application.service.PaymentAccountCheck;
 import com.smarthealthfinance.cards.application.usecase.ArchiveCard;
 import com.smarthealthfinance.cards.application.usecase.CreateCard;
 import com.smarthealthfinance.cards.application.usecase.GetCardUtilization;
 import com.smarthealthfinance.cards.application.usecase.GetCardsSummary;
 import com.smarthealthfinance.cards.application.usecase.GetFutureInvoices;
+import com.smarthealthfinance.cards.application.usecase.GetInstallmentPlans;
 import com.smarthealthfinance.cards.application.usecase.GetInvoice;
 import com.smarthealthfinance.cards.application.usecase.ListCards;
 import com.smarthealthfinance.cards.application.usecase.ListInvoiceItems;
@@ -22,6 +26,7 @@ import com.smarthealthfinance.cards.application.usecase.ListInvoices;
 import com.smarthealthfinance.cards.application.usecase.NotifyClosedInvoices;
 import com.smarthealthfinance.cards.application.usecase.ReactivateCard;
 import com.smarthealthfinance.cards.application.usecase.UpdateCard;
+import com.smarthealthfinance.cards.domain.model.CardInstallment;
 import com.smarthealthfinance.cards.domain.model.CardInvoice;
 import com.smarthealthfinance.cards.domain.model.CreditCard;
 import com.smarthealthfinance.cards.domain.service.InvoiceCalendar;
@@ -39,6 +44,7 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -85,18 +91,21 @@ public final class CardsTestContext {
     public final BusinessCalendar calendar = new BusinessCalendar(clock, ZoneId.of("America/Sao_Paulo"));
     public final PaymentAccountCheck paymentAccounts = new PaymentAccountCheck(accounts);
     public final CardLedgerLoader loader = new CardLedgerLoader(invoices, ledger);
+    public final InMemoryCardInstallmentRepository installments = new InMemoryCardInstallmentRepository();
+    public final InvoiceAssignments assignments = new InvoiceAssignments(invoices, installments, clock);
 
     public final CreateCard createCard = new CreateCard(access, cards, paymentAccounts, clock, events);
-    public final UpdateCard updateCard = new UpdateCard(access, cards, invoices, paymentAccounts, calendar, clock,
-            events);
+    public final UpdateCard updateCard = new UpdateCard(access, cards, invoices, paymentAccounts, assignments,
+            calendar, clock, events);
     public final ArchiveCard archiveCard = new ArchiveCard(access, cards, clock, events);
     public final ReactivateCard reactivateCard = new ReactivateCard(access, cards, clock, events);
     public final ListCards listCards = new ListCards(access, cards);
     public final GetCardsSummary summary = new GetCardsSummary(access, cards, loader, calendar, meters);
     public final ListInvoices listInvoices = new ListInvoices(access, loader, calendar);
-    public final GetInvoice getInvoice = new GetInvoice(access, loader, ledger, calendar, meters);
-    public final ListInvoiceItems listItems = new ListInvoiceItems(access, loader, ledger, calendar);
-    public final GetFutureInvoices future = new GetFutureInvoices(access, loader, ledger, calendar);
+    public final GetInvoice getInvoice = new GetInvoice(access, loader, calendar, meters);
+    public final ListInvoiceItems listItems = new ListInvoiceItems(access, loader, calendar);
+    public final GetFutureInvoices future = new GetFutureInvoices(access, loader, calendar);
+    public final GetInstallmentPlans plans = new GetInstallmentPlans(access, loader, calendar);
     public final GetCardUtilization utilization = new GetCardUtilization(access, loader, calendar, meters);
     public final NotifyClosedInvoices notifyClosed = new NotifyClosedInvoices(invoices, events, calendar, clock,
             meters);
@@ -137,15 +146,50 @@ public final class CardsTestContext {
                 .orElseThrow();
     }
 
-    /** Persiste a fatura do mês de fechamento pela regra atual do cartão e lança o valor informado nela. */
-    public CardInvoice invoiceWith(CreditCard card, YearMonth closingMonth, String charges) {
-        InvoiceCalendar calendar = new InvoiceCalendar(card.cycle(),
-                invoices.findByCard(card.workspaceId(), card.id()).stream().map(CardInvoice::dates).toList());
+    /** A fatura do mês de fechamento, persistida pela regra atual do cartão se ainda não existir. */
+    public CardInvoice invoiceRow(CreditCard card, YearMonth closingMonth) {
+        List<CardInvoice> rows = invoices.findByCard(card.workspaceId(), card.id());
+        for (CardInvoice row : rows) {
+            if (row.dates().closingMonth().equals(closingMonth)) {
+                return row;
+            }
+        }
+        InvoiceCalendar calendar = new InvoiceCalendar(card.cycle(), rows.stream().map(CardInvoice::dates).toList());
         CardInvoice invoice = new CardInvoice(CardInvoiceId.generate(NOW), card.workspaceId(), card.id(),
                 calendar.datesOf(closingMonth), null, null);
         invoices.add(invoice);
-        ledger.charge(card.workspaceId(), card.id(), invoice.id(), Money.of(charges, BRL));
         return invoice;
+    }
+
+    /** Uma compra à vista com o valor informado, na fatura do mês de fechamento. */
+    public CardInvoice invoiceWith(CreditCard card, YearMonth closingMonth, String charges) {
+        CardInvoice invoice = invoiceRow(card, closingMonth);
+        UUID transaction = UUID.randomUUID();
+        Money amount = Money.of(charges, BRL);
+        ledger.installment(card.workspaceId(), card.id(), new InstallmentFact(transaction, 1, 1,
+                invoice.dates().periodStart(), amount, invoice.id(), "Compras", null, null, "MANUAL"));
+        installments.addAll(List.of(new CardInstallment(card.workspaceId(), card.id(), transaction, 1, 1,
+                invoice.dates().periodStart(), amount, invoice.id(), InvoiceCalendar.RULES_VERSION)));
+        return invoice;
+    }
+
+    /** Compra parcelada {@code POSTED}: parcela {@code k} na fatura do ciclo da compra deslocada {@code k − 1}. */
+    public void purchase(CreditCard card, UUID transactionId, LocalDate purchasedOn, String description,
+                         List<Money> parts) {
+        for (int number = 1; number <= parts.size(); number++) {
+            InvoiceCalendar calendar = new InvoiceCalendar(card.cycle(),
+                    invoices.findByCard(card.workspaceId(), card.id()).stream().map(CardInvoice::dates).toList());
+            CardInvoice row = invoiceRow(card, calendar.installmentClosingMonth(purchasedOn, number));
+            ledger.installment(card.workspaceId(), card.id(), new InstallmentFact(transactionId, number, parts.size(),
+                    purchasedOn, parts.get(number - 1), row.id(), description, null, null, "MANUAL"));
+            installments.addAll(List.of(new CardInstallment(card.workspaceId(), card.id(), transactionId, number,
+                    parts.size(), purchasedOn, parts.get(number - 1), row.id(), InvoiceCalendar.RULES_VERSION)));
+        }
+    }
+
+    public void credit(CreditCard card, LocalDate occurredOn, String amount, UUID refundOf) {
+        ledger.credit(card.workspaceId(), card.id(), new CreditFact(UUID.randomUUID(), occurredOn,
+                Money.of(amount, BRL), refundOf, "Estorno", null, null, "MANUAL"));
     }
 
     private AuthenticatedIdentity currentIdentity() {

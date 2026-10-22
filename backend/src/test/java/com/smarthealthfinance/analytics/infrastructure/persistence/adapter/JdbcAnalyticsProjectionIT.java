@@ -32,8 +32,10 @@ import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.CategoryRepository;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
 import com.smarthealthfinance.transactions.domain.service.SystemCategoryRules;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryCode;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryOrigin;
+import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -111,6 +113,7 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
     PlatformTransactionManager transactionManager;
 
     private WorkspaceId anas;
+    private Set<UUID> activeCards = Set.of();
     private WorkspaceId bobs;
     private final List<Account> anasAccounts = new ArrayList<>();
     private AccountId aurora;
@@ -308,9 +311,39 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
                 null, null, "10.00", LocalDate.parse("2026-09-22"), "Padaria do Bob", TransactionStatus.POSTED, null,
                 CREATED_AT);
 
+        // Cartões (ADR-0026 §10): compra e estorno do cartão ativo entram no fluxo; do arquivado, não; o pagamento
+        // de fatura é transferência da conta de origem.
+        UUID platinum = persistedCard(anas, "ACTIVE");
+        UUID oldCard = persistedCard(anas, "ARCHIVED");
+        activeCards = Set.of(platinum);
+        Transaction onCard = categorized(Transaction.createOnCard(TransactionId.generate(CREATED_AT), anas,
+                TransactionType.EXPENSE, new CardReference(platinum), Money.of("412.80", BRL),
+                LocalDate.parse("2026-09-12"), new TransactionDescription("Restaurante Sol"), null, CREATED_AT),
+                "DINING_OUT");
+        Transaction cardRefund = Transaction.createOnCard(TransactionId.generate(CREATED_AT), anas,
+                TransactionType.REFUND, new CardReference(platinum), Money.of("12.80", BRL),
+                LocalDate.parse("2026-09-18"), new TransactionDescription("Estorno Restaurante Sol"), onCard.id(),
+                CREATED_AT);
+        Transaction onOldCard = Transaction.createOnCard(TransactionId.generate(CREATED_AT), anas,
+                TransactionType.EXPENSE, new CardReference(oldCard), Money.of("33.00", BRL),
+                LocalDate.parse("2026-09-12"), new TransactionDescription("Loja Antiga"), null, CREATED_AT);
+        Transaction cardPayment = Transaction.createCardPayment(TransactionId.generate(CREATED_AT), anas, aurora,
+                new CardReference(platinum), Money.of("300.00", BRL), LocalDate.parse("2026-09-25"),
+                new TransactionDescription("Pagamento de fatura"), CREATED_AT);
+
         inTransaction(() -> transactions.addAll(List.of(salary, freelance, market1, market2, lume, lumeAugust,
                 lojaAlfa, outsideTotal, archived, pending, cancelled, reversed, refund, toReserve, fromOld, opening,
-                bobs)));
+                bobs, onCard, cardRefund, onOldCard, cardPayment)));
+    }
+
+    private UUID persistedCard(WorkspaceId workspace, String status) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
+                  due_day, status, created_at, updated_at)
+                values (?, ?, 'Cartão', 'VISA', '4821', 10000, 'BRL', 28, 5, ?, now(), now())""",
+                id, workspace.value(), status);
+        return id;
     }
 
     private Transaction tx(TransactionType type, AccountId account, AccountId destination,
@@ -330,7 +363,7 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
     private void assertParity() {
         ReferenceAnalytics reference = new ReferenceAnalytics(
                 transactions.search(anas, com.smarthealthfinance.transactions.domain.repository.TransactionCriteria
-                        .none(), 0, 1000).items(), anasAccounts, BRL);
+                        .none(), 0, 1000).items(), anasAccounts, activeCards, BRL);
 
         assertThat(readModel.firstActivity(anas)).isEqualTo(reference.firstActivity());
 

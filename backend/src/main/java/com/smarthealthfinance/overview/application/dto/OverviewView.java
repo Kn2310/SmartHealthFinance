@@ -48,9 +48,16 @@ public record OverviewView(UUID workspaceId, Period period, OverviewState state,
 
     public record AccountRef(UUID id, String name) {}
 
+    /** Só os 4 últimos dígitos do cartão (ADR-0025 §1). */
+    public record CardRef(UUID id, String nickname, String last4) {}
+
+    /**
+     * @param account nula em compra e estorno no cartão
+     * @param card    cartão da compra/estorno ou que recebe o pagamento de fatura (ADR-0026 §10)
+     */
     public record RecentTransaction(UUID id, TransactionType type, MovementFlow flow,
                                     AdjustmentDirection adjustmentDirection, TransactionStatus status, Money amount,
                                     LocalDate occurredOn, String description, AccountRef account,
                                     AccountRef destinationAccount, UUID refundOfTransactionId,
-                                    TransactionSource source) {}
+                                    TransactionSource source, CardRef card) {}
 }

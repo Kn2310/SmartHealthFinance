@@ -99,9 +99,11 @@ public class TransactionController {
             @RequestParam(required = false) Boolean uncategorized,
             @RequestParam(required = false) Integer page,
             @Parameter(description = "1 a 100 (padrão 50)")
-            @RequestParam(required = false) Integer pageSize) {
+            @RequestParam(required = false) Integer pageSize,
+            @Parameter(description = "Cartão: compras e estornos nele e pagamentos da fatura dele (ADR-0026 §10)")
+            @RequestParam(required = false) UUID cardId) {
         return TransactionPageResponse.from(listTransactions.execute(workspaceId, new ListTransactions.Query(
-                from, to, type, status, accountId, q, categoryCode, uncategorized, page, pageSize)));
+                from, to, type, status, accountId, q, categoryCode, uncategorized, page, pageSize, cardId)));
     }
 
     @GetMapping("/summary")
@@ -126,9 +128,11 @@ public class TransactionController {
             @Parameter(description = "Código da categoria (ADR-0012)")
             @RequestParam(required = false) String categoryCode,
             @Parameter(description = "true = só transações sem categoria; exclusivo com categoryCode")
-            @RequestParam(required = false) Boolean uncategorized) {
+            @RequestParam(required = false) Boolean uncategorized,
+            @Parameter(description = "Cartão; com cartão, os valores são desse cartão")
+            @RequestParam(required = false) UUID cardId) {
         return TransactionSummaryResponse.from(summarizeTransactions.execute(workspaceId, new ListTransactions.Query(
-                from, to, type, null, accountId, q, categoryCode, uncategorized, null, null)));
+                from, to, type, null, accountId, q, categoryCode, uncategorized, null, null, cardId)));
     }
 
     @PostMapping

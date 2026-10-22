@@ -2,14 +2,12 @@ package com.smarthealthfinance.cards.application.usecase;
 
 import com.smarthealthfinance.cards.application.dto.CardLedgerSnapshot;
 import com.smarthealthfinance.cards.application.dto.InvoiceItemPageView;
+import com.smarthealthfinance.cards.application.dto.InvoiceItemView;
 import com.smarthealthfinance.cards.application.exception.InvoiceNotFoundException;
-import com.smarthealthfinance.cards.application.port.CardLedgerReader;
-import com.smarthealthfinance.cards.application.port.CardLedgerReader.ItemPage;
 import com.smarthealthfinance.cards.application.service.BusinessCalendar;
 import com.smarthealthfinance.cards.application.service.CardAccess;
 import com.smarthealthfinance.cards.application.service.CardLedgerLoader;
 import com.smarthealthfinance.cards.application.service.MonthParameter;
-import com.smarthealthfinance.cards.domain.model.CardInvoice;
 import com.smarthealthfinance.cards.domain.model.CreditCard;
 import com.smarthealthfinance.cards.domain.valueobject.InvoiceDates;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
@@ -20,7 +18,10 @@ import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
-/** Lançamentos de uma fatura, paginados por offset como {@code /transactions} (ADR-0026 §4). */
+/**
+ * Lançamentos de uma fatura, paginados por offset como {@code /transactions} (ADR-0026 §4). Os estornos já vêm
+ * aplicados às parcelas (adendo do ADR-0025 §8); a fatura de um cartão é pequena, então a página é montada em memória.
+ */
 @Service
 public class ListInvoiceItems {
 
@@ -29,14 +30,11 @@ public class ListInvoiceItems {
 
     private final CardAccess access;
     private final CardLedgerLoader loader;
-    private final CardLedgerReader reader;
     private final BusinessCalendar calendar;
 
-    public ListInvoiceItems(CardAccess access, CardLedgerLoader loader, CardLedgerReader reader,
-                            BusinessCalendar calendar) {
+    public ListInvoiceItems(CardAccess access, CardLedgerLoader loader, BusinessCalendar calendar) {
         this.access = access;
         this.loader = loader;
-        this.reader = reader;
         this.calendar = calendar;
     }
 
@@ -59,13 +57,10 @@ public class ListInvoiceItems {
         InvoiceDates dates = snapshot.calendar().byDueMonth(dueMonth).orElseThrow(InvoiceNotFoundException::new);
         snapshot.statement(dates).orElseThrow(InvoiceNotFoundException::new);
 
-        CardInvoice row = snapshot.row(dates.closingMonth()).orElse(null);
-        if (row == null) {
-            return new InvoiceItemPageView(List.of(), pageNumber, size, 0);
-        }
-
-        ItemPage items = reader.items(card.workspaceId(), card.id(), row.id(), Math.multiplyExact(pageNumber, size),
-                size);
-        return new InvoiceItemPageView(items.items(), pageNumber, size, items.totalItems());
+        List<InvoiceItemView> items = snapshot.items(dates.closingMonth());
+        long offset = (long) pageNumber * size;
+        List<InvoiceItemView> pageItems = offset >= items.size() ? List.of()
+                : items.subList((int) offset, (int) Math.min(items.size(), offset + size));
+        return new InvoiceItemPageView(List.copyOf(pageItems), pageNumber, size, items.size());
     }
 }

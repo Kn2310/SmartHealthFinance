@@ -21,6 +21,9 @@ import java.util.Currency;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Implementação de referência do read model: calcula em memória, percorrendo as transações do domínio e usando
@@ -35,12 +38,22 @@ public final class ReferenceOverviewReadModel implements OverviewReadModel {
             .thenComparing(transaction -> transaction.id().value())
             .reversed();
 
+    /** O que a referência precisa saber de um cartão (o Overview não conhece o módulo Cards, só lê a tabela). */
+    public record CardInfo(boolean active, String nickname, String last4) {}
+
     private final TransactionRepository transactions;
     private final AccountRepository accounts;
+    private final Function<UUID, Optional<CardInfo>> cards;
 
     public ReferenceOverviewReadModel(TransactionRepository transactions, AccountRepository accounts) {
+        this(transactions, accounts, id -> Optional.empty());
+    }
+
+    public ReferenceOverviewReadModel(TransactionRepository transactions, AccountRepository accounts,
+                                      Function<UUID, Optional<CardInfo>> cards) {
         this.transactions = transactions;
         this.accounts = accounts;
+        this.cards = cards;
     }
 
     @Override
@@ -73,8 +86,11 @@ public final class ReferenceOverviewReadModel implements OverviewReadModel {
                 .filter(account -> account.status() == AccountStatus.ACTIVE && account.includedInTotal())
                 .map(Account::id)
                 .toList();
+        // Contas ativas no total e cartões ativos (ADR-0006 §17).
         List<Transaction> inScope = all(workspaceId).stream()
-                .filter(t -> t.status() == TransactionStatus.POSTED && inPeriod(t, period) && scope.contains(t.accountId()))
+                .filter(t -> t.status() == TransactionStatus.POSTED && inPeriod(t, period))
+                .filter(t -> t.accountId() != null ? scope.contains(t.accountId())
+                        : t.cardId().flatMap(card -> cards.apply(card.value())).map(CardInfo::active).orElse(false))
                 .toList();
 
         return new CashFlow(sum(inScope, TransactionType.INCOME, currency), sum(inScope, TransactionType.EXPENSE, currency),
@@ -121,8 +137,13 @@ public final class ReferenceOverviewReadModel implements OverviewReadModel {
                 .limit(limit)
                 .map(t -> new RecentMovement(t.id(), t.type(), t.adjustmentDirection().orElse(null), t.accountId(),
                         t.destinationAccountId(), t.amount(), t.occurredOn(), t.description().value(), t.status(),
-                        t.refundOfTransactionId(), t.source()))
+                        t.refundOfTransactionId(), t.source(), cardRef(t)))
                 .toList();
+    }
+
+    private Optional<CardRef> cardRef(Transaction transaction) {
+        Optional<UUID> card = transaction.cardId().or(transaction::destinationCardId).map(id -> id.value());
+        return card.flatMap(id -> cards.apply(id).map(info -> new CardRef(id, info.nickname(), info.last4())));
     }
 
     private List<Transaction> all(WorkspaceId workspaceId) {

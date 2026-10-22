@@ -53,6 +53,11 @@ public final class InMemoryCardInvoiceRepository implements CardInvoiceRepositor
     }
 
     @Override
+    public void deleteAll(List<CardInvoice> deleted) {
+        deleted.forEach(invoice -> invoices.remove(invoice.id()));
+    }
+
+    @Override
     public List<CardInvoice> lockPendingClosed(LocalDate today, int limit) {
         return invoices.values().stream()
                 .filter(invoice -> invoice.closedNotifiedAt() == null && !invoice.dates().closingDate().isAfter(today))

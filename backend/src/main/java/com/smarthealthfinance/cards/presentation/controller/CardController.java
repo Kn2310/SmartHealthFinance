@@ -1,5 +1,6 @@
 package com.smarthealthfinance.cards.presentation.controller;
 
+import com.smarthealthfinance.cards.application.dto.CardPurchaseView;
 import com.smarthealthfinance.cards.application.dto.CardView;
 import com.smarthealthfinance.cards.application.usecase.ArchiveCard;
 import com.smarthealthfinance.cards.application.usecase.CreateCard;
@@ -7,22 +8,35 @@ import com.smarthealthfinance.cards.application.usecase.GetCard;
 import com.smarthealthfinance.cards.application.usecase.GetCardUtilization;
 import com.smarthealthfinance.cards.application.usecase.GetCardsSummary;
 import com.smarthealthfinance.cards.application.usecase.GetFutureInvoices;
+import com.smarthealthfinance.cards.application.usecase.GetInstallmentPlans;
 import com.smarthealthfinance.cards.application.usecase.GetInvoice;
 import com.smarthealthfinance.cards.application.usecase.ListCards;
 import com.smarthealthfinance.cards.application.usecase.ListInvoiceItems;
 import com.smarthealthfinance.cards.application.usecase.ListInvoices;
 import com.smarthealthfinance.cards.application.usecase.ReactivateCard;
+import com.smarthealthfinance.cards.application.usecase.RecordCardCredit;
+import com.smarthealthfinance.cards.application.usecase.RecordCardPayment;
+import com.smarthealthfinance.cards.application.usecase.RecordCardPurchase;
 import com.smarthealthfinance.cards.application.usecase.UpdateCard;
+import com.smarthealthfinance.cards.presentation.dto.request.CardCreditRequest;
+import com.smarthealthfinance.cards.presentation.dto.request.CardPaymentRequest;
+import com.smarthealthfinance.cards.presentation.dto.request.CardPurchaseRequest;
 import com.smarthealthfinance.cards.presentation.dto.request.CardRequest;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardListResponse;
+import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardPurchaseResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardResponse;
+import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardTransactionResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardsSummaryResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.FutureInvoicesResponse;
+import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.InstallmentPlanListResponse;
+import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.InstallmentPlanResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.InvoiceItemPageResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.InvoiceListResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.InvoiceResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.UtilizationResponse;
 import com.smarthealthfinance.shared.presentation.error.ApiError;
+import com.smarthealthfinance.transactions.application.usecase.CreateTransaction;
+import com.smarthealthfinance.transactions.presentation.dto.response.TransactionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -43,6 +57,7 @@ import java.util.UUID;
 public class CardController {
 
     private static final String MONTH = "Mês de vencimento da fatura (YYYY-MM)";
+    private static final String IDEMPOTENCY_KEY = "Idempotency-Key";
 
     private final ListCards listCards;
     private final GetCard getCard;
@@ -56,11 +71,21 @@ public class CardController {
     private final ListInvoiceItems listItems;
     private final GetFutureInvoices getFuture;
     private final GetCardUtilization getUtilization;
+    private final RecordCardPurchase recordPurchase;
+    private final RecordCardPayment recordPayment;
+    private final RecordCardCredit recordCredit;
+    private final GetInstallmentPlans installmentPlans;
 
     public CardController(ListCards listCards, GetCard getCard, CreateCard createCard, UpdateCard updateCard,
                           ArchiveCard archiveCard, ReactivateCard reactivateCard, GetCardsSummary getSummary,
                           ListInvoices listInvoices, GetInvoice getInvoice, ListInvoiceItems listItems,
-                          GetFutureInvoices getFuture, GetCardUtilization getUtilization) {
+                          GetFutureInvoices getFuture, GetCardUtilization getUtilization,
+                          RecordCardPurchase recordPurchase, RecordCardPayment recordPayment,
+                          RecordCardCredit recordCredit, GetInstallmentPlans installmentPlans) {
+        this.recordPurchase = recordPurchase;
+        this.recordPayment = recordPayment;
+        this.recordCredit = recordCredit;
+        this.installmentPlans = installmentPlans;
         this.listCards = listCards;
         this.getCard = getCard;
         this.createCard = createCard;
@@ -217,6 +242,115 @@ public class CardController {
                                                 @RequestParam(required = false) Integer pageSize) {
         return InvoiceItemPageResponse.from(listItems.execute(workspaceId, cardId, dueMonth, page,
                 pageSize));
+    }
+
+    @PostMapping("/{cardId}/purchases")
+    @Operation(summary = "Compra no cartão, à vista ou parcelada (idempotente por Idempotency-Key)")
+    @ApiResponse(responseCode = "201", description = "Compra registrada com as parcelas")
+    @ApiResponse(responseCode = "200", description = "Replay: a mesma chave e conteúdo já foram processados")
+    @ApiResponse(responseCode = "400",
+            description = "VALIDATION_FAILED (installmentCount OUT_OF_RANGE/TOO_MANY_FOR_AMOUNT, Idempotency-Key)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "409", description = "CARD_ARCHIVED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "422", description = "IDEMPOTENCY_KEY_REUSED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public ResponseEntity<CardPurchaseResponse> recordPurchase(
+            @PathVariable UUID workspaceId, @PathVariable UUID cardId,
+            @Parameter(description = "Chave única por intenção", required = true)
+            @RequestHeader(name = IDEMPOTENCY_KEY, required = false) String idempotencyKey,
+            @Valid @RequestBody CardPurchaseRequest request) {
+        CardPurchaseView view = recordPurchase.execute(workspaceId, cardId, new RecordCardPurchase.Command(
+                idempotencyKey, request.amount().amount(), request.amount().currency(), request.occurredOn(),
+                request.description(), request.installmentCount()));
+        CardPurchaseResponse body = CardPurchaseResponse.from(view);
+        return view.replayed() ? ResponseEntity.ok(body) : created(workspaceId, view.transaction().id(), body);
+    }
+
+    @PostMapping("/{cardId}/payments")
+    @Operation(summary = "Pagamento de fatura, total ou parcial: transferência da conta para o cartão (idempotente)")
+    @ApiResponse(responseCode = "201", description = "Pagamento registrado")
+    @ApiResponse(responseCode = "200", description = "Replay: a mesma chave e conteúdo já foram processados")
+    @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou ACCOUNT_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "409", description = "CARD_ARCHIVED ou ACCOUNT_ARCHIVED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "422", description = "IDEMPOTENCY_KEY_REUSED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public ResponseEntity<CardTransactionResponse> recordPayment(
+            @PathVariable UUID workspaceId, @PathVariable UUID cardId,
+            @Parameter(description = "Chave única por intenção", required = true)
+            @RequestHeader(name = IDEMPOTENCY_KEY, required = false) String idempotencyKey,
+            @Valid @RequestBody CardPaymentRequest request) {
+        CreateTransaction.Result result = recordPayment.execute(workspaceId, cardId, new RecordCardPayment.Command(
+                idempotencyKey, request.accountId(), request.amount().amount(), request.amount().currency(),
+                request.occurredOn(), request.description()));
+        return transactionResult(workspaceId, result);
+    }
+
+    @PostMapping("/{cardId}/credits")
+    @Operation(summary = "Estorno ou crédito no cartão, opcionalmente vinculado a uma compra dele (idempotente)")
+    @ApiResponse(responseCode = "201", description = "Estorno registrado")
+    @ApiResponse(responseCode = "200", description = "Replay: a mesma chave e conteúdo já foram processados")
+    @ApiResponse(responseCode = "400",
+            description = "VALIDATION_FAILED (refundOfTransactionId NOT_FOUND/NOT_SAME_CARD/NOT_REFUNDABLE, amount "
+                    + "EXCEEDS_REFUNDABLE)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "409", description = "CARD_ARCHIVED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "422", description = "IDEMPOTENCY_KEY_REUSED",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public ResponseEntity<CardTransactionResponse> recordCredit(
+            @PathVariable UUID workspaceId, @PathVariable UUID cardId,
+            @Parameter(description = "Chave única por intenção", required = true)
+            @RequestHeader(name = IDEMPOTENCY_KEY, required = false) String idempotencyKey,
+            @Valid @RequestBody CardCreditRequest request) {
+        CreateTransaction.Result result = recordCredit.execute(workspaceId, cardId, new RecordCardCredit.Command(
+                idempotencyKey, request.amount().amount(), request.amount().currency(), request.occurredOn(),
+                request.description(), request.refundOfTransactionId()));
+        return transactionResult(workspaceId, result);
+    }
+
+    @GetMapping("/{cardId}/installments")
+    @Operation(summary = "Parcelamentos do cartão (compras em mais de uma parcela)")
+    @ApiResponse(responseCode = "200", description = "Parcelamentos, da compra mais recente para a mais antiga")
+    @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED (status)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public InstallmentPlanListResponse listInstallmentPlans(
+            @PathVariable UUID workspaceId, @PathVariable UUID cardId,
+            @Parameter(description = "ACTIVE (padrão), FINISHED ou ALL")
+            @RequestParam(required = false) String status) {
+        return InstallmentPlanListResponse.from(installmentPlans.list(workspaceId, cardId, status));
+    }
+
+    @GetMapping("/{cardId}/installments/{transactionId}")
+    @Operation(summary = "Parcelamento de uma compra do cartão, com cada parcela e o limite reservado")
+    @ApiResponse(responseCode = "200", description = "Parcelamento")
+    @ApiResponse(responseCode = "404",
+            description = "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou TRANSACTION_NOT_FOUND (não é compra deste cartão)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public InstallmentPlanResponse getInstallmentPlan(@PathVariable UUID workspaceId, @PathVariable UUID cardId,
+                                                      @PathVariable UUID transactionId) {
+        return InstallmentPlanResponse.from(installmentPlans.get(workspaceId, cardId, transactionId));
+    }
+
+    private static ResponseEntity<CardTransactionResponse> transactionResult(UUID workspaceId,
+                                                                             CreateTransaction.Result result) {
+        CardTransactionResponse body = new CardTransactionResponse(TransactionResponse.from(result.transaction()));
+        return result.replayed() ? ResponseEntity.ok(body) : created(workspaceId, result.transaction().id(), body);
+    }
+
+    private static <T> ResponseEntity<T> created(UUID workspaceId, UUID transactionId, T body) {
+        return ResponseEntity.created(URI.create("/api/v1/workspaces/" + workspaceId + "/transactions/"
+                + transactionId)).body(body);
     }
 
     @GetMapping("/{cardId}/utilization")

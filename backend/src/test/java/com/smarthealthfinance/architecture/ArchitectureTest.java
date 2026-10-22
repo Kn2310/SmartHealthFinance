@@ -301,14 +301,17 @@ class ArchitectureTest {
 		.resideInAnyPackage("com.smarthealthfinance.accounts.application.usecase..",
 				"com.smarthealthfinance.accounts.infrastructure..", "com.smarthealthfinance.accounts.presentation..",
 				"com.smarthealthfinance.transactions.infrastructure..",
-				"com.smarthealthfinance.transactions.presentation..", "com.smarthealthfinance.ingestion..",
+				"com.smarthealthfinance.transactions.presentation.controller..",
+				"com.smarthealthfinance.transactions.presentation.handler..",
+				"com.smarthealthfinance.transactions.presentation.dto.request..", "com.smarthealthfinance.ingestion..",
 				"com.smarthealthfinance.overview..", "com.smarthealthfinance.analytics..",
 				"com.smarthealthfinance.health..", "com.smarthealthfinance.insights..",
 				"com.smarthealthfinance.identity.application.usecase..",
 				"com.smarthealthfinance.identity.infrastructure..")
 		.allowEmptyShould(true)
 		.because("Cards lê contas pela porta de domínio e lança transações só pelos casos de uso de Transactions, "
-				+ "nunca pelos adapters (ADR-0025 §1)");
+				+ "nunca pelos adapters; a resposta reusa o TransactionResponse para o contrato ser um só "
+				+ "(ADR-0025 §1, ADR-0026 §10)");
 
 	@ArchTest
 	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()

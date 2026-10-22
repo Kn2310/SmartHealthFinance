@@ -11,6 +11,7 @@ import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.repository.TransactionCriteria;
 import com.smarthealthfinance.transactions.domain.repository.TransactionPage;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,9 +40,16 @@ public class ListTransactions {
      *
      * @param categoryCode  só transações desta categoria (só o formato é validado, ADR-0012 §9)
      * @param uncategorized {@code true} = só "Sem categoria"; exclusivo com {@code categoryCode}
+     * @param cardId        cartão de origem ou de destino (ADR-0026 §10); cartão alheio = inexistente (lista vazia)
      */
     public record Query(LocalDate from, LocalDate to, String type, String status, UUID accountId, String text,
-                        String categoryCode, Boolean uncategorized, Integer page, Integer pageSize) {
+                        String categoryCode, Boolean uncategorized, Integer page, Integer pageSize, UUID cardId) {
+
+        /** Sem filtro de cartão. */
+        public Query(LocalDate from, LocalDate to, String type, String status, UUID accountId, String text,
+                     String categoryCode, Boolean uncategorized, Integer page, Integer pageSize) {
+            this(from, to, type, status, accountId, text, categoryCode, uncategorized, page, pageSize, null);
+        }
 
         /** Sem filtro de categoria. */
         public Query(LocalDate from, LocalDate to, String type, String status, UUID accountId, String text,
@@ -94,7 +102,8 @@ public class ListTransactions {
                 query.accountId() == null ? null : new AccountId(query.accountId()),
                 text,
                 category,
-                uncategorized);
+                uncategorized,
+                query.cardId() == null ? null : new CardReference(query.cardId()));
     }
 
     private static boolean isBlank(String value) {

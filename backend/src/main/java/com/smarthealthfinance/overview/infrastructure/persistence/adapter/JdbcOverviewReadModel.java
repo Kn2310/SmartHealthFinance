@@ -3,6 +3,7 @@ package com.smarthealthfinance.overview.infrastructure.persistence.adapter;
 import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.overview.application.port.OverviewReadModel;
+import com.smarthealthfinance.overview.application.port.OverviewReadModel.CardRef;
 import com.smarthealthfinance.overview.domain.enums.DataSource;
 import com.smarthealthfinance.overview.domain.model.CashFlow;
 import com.smarthealthfinance.overview.domain.valueobject.OverviewPeriod;
@@ -66,11 +67,12 @@ public class JdbcOverviewReadModel implements OverviewReadModel {
                                  end as delta
                           from transactions t
                           where t.workspace_id = ? and t.status = 'POSTED' and t.occurred_on <= ?
+                            and t.account_id is not null
                           union all
                           select t.destination_account_id, t.occurred_on, t.amount
                           from transactions t
                           where t.workspace_id = ? and t.status = 'POSTED' and t.type = 'TRANSFER'
-                            and t.occurred_on <= ?
+                            and t.destination_account_id is not null and t.occurred_on <= ?
                         ) leg
                         group by leg.account_id
                         """,
@@ -91,11 +93,12 @@ public class JdbcOverviewReadModel implements OverviewReadModel {
                                coalesce(sum(t.amount) filter (where t.type = 'EXPENSE'), 0) as expense,
                                coalesce(sum(t.amount) filter (where t.type = 'REFUND'), 0) as refunds
                         from transactions t
-                        join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        left join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        left join credit_cards c on c.id = t.card_id and c.workspace_id = t.workspace_id
                         where t.workspace_id = ? and t.status = 'POSTED'
                           and t.type in ('INCOME', 'EXPENSE', 'REFUND')
                           and t.occurred_on between ? and ?
-                          and a.status = 'ACTIVE' and a.included_in_total
+                          and ((a.status = 'ACTIVE' and a.included_in_total) or c.status = 'ACTIVE')
                         """,
                 (rs, row) -> new CashFlow(money(rs, "income", currency), money(rs, "expense", currency),
                         money(rs, "refunds", currency)),
@@ -107,11 +110,12 @@ public class JdbcOverviewReadModel implements OverviewReadModel {
         List<String> sources = jdbc.queryForList("""
                         select distinct case when t.source = 'MANUAL' then 'MANUAL' else b.format end as source
                         from transactions t
-                        join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        left join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        left join credit_cards c on c.id = t.card_id and c.workspace_id = t.workspace_id
                         left join import_records r on r.transaction_id = t.id and r.workspace_id = t.workspace_id
                         left join import_batches b on b.id = r.batch_id and b.workspace_id = r.workspace_id
                         where t.workspace_id = ? and t.status = 'POSTED' and t.occurred_on between ? and ?
-                          and a.status = 'ACTIVE'
+                          and (a.status = 'ACTIVE' or c.status = 'ACTIVE')
                         """,
                 String.class, workspaceId.value(), period.from(), period.to());
         Set<DataSource> result = EnumSet.noneOf(DataSource.class);
@@ -141,11 +145,15 @@ public class JdbcOverviewReadModel implements OverviewReadModel {
     public List<RecentMovement> recentMovements(WorkspaceId workspaceId, OverviewPeriod period, int limit,
                                                 Currency currency) {
         return jdbc.query("""
-                        select id, type, adjustment_direction, account_id, destination_account_id, amount,
-                               occurred_on, description, status, refund_of_transaction_id, source
-                        from transactions
-                        where workspace_id = ? and status in ('POSTED', 'PENDING') and occurred_on between ? and ?
-                        order by occurred_on desc, created_at desc, id desc
+                        select t.id, t.type, t.adjustment_direction, t.account_id, t.destination_account_id, t.amount,
+                               t.occurred_on, t.description, t.status, t.refund_of_transaction_id, t.source,
+                               c.id as card_id, c.nickname as card_nickname, c.last4 as card_last4
+                        from transactions t
+                        left join credit_cards c on c.id = coalesce(t.card_id, t.destination_card_id)
+                          and c.workspace_id = t.workspace_id
+                        where t.workspace_id = ? and t.status in ('POSTED', 'PENDING')
+                          and t.occurred_on between ? and ?
+                        order by t.occurred_on desc, t.created_at desc, t.id desc
                         limit ?
                         """,
                 (rs, row) -> recentMovement(rs, currency),
@@ -154,21 +162,25 @@ public class JdbcOverviewReadModel implements OverviewReadModel {
 
     private static RecentMovement recentMovement(ResultSet rs, Currency currency) throws SQLException {
         String direction = rs.getString("adjustment_direction");
+        UUID account = rs.getObject("account_id", UUID.class);
         UUID destination = rs.getObject("destination_account_id", UUID.class);
         UUID refundOf = rs.getObject("refund_of_transaction_id", UUID.class);
+        UUID card = rs.getObject("card_id", UUID.class);
 
         return new RecentMovement(
                 new TransactionId(rs.getObject("id", UUID.class)),
                 TransactionType.valueOf(rs.getString("type")),
                 direction == null ? null : AdjustmentDirection.valueOf(direction),
-                new AccountId(rs.getObject("account_id", UUID.class)),
+                account == null ? null : new AccountId(account),
                 Optional.ofNullable(destination).map(AccountId::new),
                 money(rs, "amount", currency),
                 rs.getObject("occurred_on", LocalDate.class),
                 rs.getString("description"),
                 TransactionStatus.valueOf(rs.getString("status")),
                 Optional.ofNullable(refundOf).map(TransactionId::new),
-                TransactionSource.valueOf(rs.getString("source")));
+                TransactionSource.valueOf(rs.getString("source")),
+                card == null ? Optional.empty()
+                        : Optional.of(new CardRef(card, rs.getString("card_nickname"), rs.getString("card_last4"))));
     }
 
     private static Money money(ResultSet rs, String column, Currency currency) throws SQLException {
