@@ -58,6 +58,13 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private static final String IMPORT = IMPORTS + "/{importId}";
     private static final String INSIGHTS = WORKSPACE_SCOPE + "/insights";
     private static final String INSIGHT = INSIGHTS + "/{insightId}";
+    private static final String CARDS = WORKSPACE_SCOPE + "/cards";
+    private static final String CARD = CARDS + "/{cardId}";
+    private static final String CARD_INVOICE = CARD + "/invoices/{dueMonth}";
+    private static final String CARD_JSON = """
+            {"nickname": "Invasor", "brand": "VISA", "last4": "0000", "limit": {"amount": "100.00", "currency": "BRL"},
+             "closingDay": 28, "dueDay": 5}
+            """;
     /** O Workspace é autorizado antes de procurar o insight: qualquer id serve para o caso "Workspace alheio". */
     private static final String SOME_INSIGHT = "00000000-0000-7000-8000-00000000abcd";
 
@@ -85,10 +92,10 @@ class WorkspaceIsolationIT extends IntegrationTest {
 
     /** Ids de um Workspace semeado: uma conta ativa, uma segunda conta, uma arquivada, transações POSTED/PENDING e um preview de importação. */
     record Fixture(String workspace, String account, String otherAccount, String archivedAccount, String posted,
-                   String pending, String importId) {
+                   String pending, String importId, String card) {
 
         List<String> ids() {
-            return List.of(workspace, account, otherAccount, archivedAccount, posted, pending, importId);
+            return List.of(workspace, account, otherAccount, archivedAccount, posted, pending, importId, card);
         }
     }
 
@@ -202,7 +209,22 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("imports: consultar", HttpMethod.GET, IMPORT, f -> ids(f.importId()), NONE),
             op("imports: linhas", HttpMethod.GET, IMPORT + "/records", f -> ids(f.importId()), NONE),
             op("imports: confirmar", HttpMethod.POST, IMPORT + "/confirm", f -> ids(f.importId()), NONE),
-            op("imports: cancelar", HttpMethod.POST, IMPORT + "/cancel", f -> ids(f.importId()), NONE));
+            op("imports: cancelar", HttpMethod.POST, IMPORT + "/cancel", f -> ids(f.importId()), NONE),
+
+            op("cards: listar", HttpMethod.GET, CARDS, f -> new Object[0], NONE),
+            op("cards: criar", HttpMethod.POST, CARDS, f -> new Object[0], json(f -> CARD_JSON)),
+            op("cards: resumo", HttpMethod.GET, CARDS + "/summary", f -> new Object[0], NONE),
+            op("cards: consultar", HttpMethod.GET, CARD, f -> ids(f.card()), NONE),
+            op("cards: editar", HttpMethod.PUT, CARD, f -> ids(f.card()), json(f -> CARD_JSON)),
+            op("cards: arquivar", HttpMethod.POST, CARD + "/archive", f -> ids(f.card()), NONE),
+            op("cards: reativar", HttpMethod.POST, CARD + "/reactivate", f -> ids(f.card()), NONE),
+            op("cards: faturas", HttpMethod.GET, CARD + "/invoices", f -> ids(f.card()), NONE),
+            op("cards: fatura atual", HttpMethod.GET, CARD + "/invoices/current", f -> ids(f.card()), NONE),
+            op("cards: faturas futuras", HttpMethod.GET, CARD + "/invoices/future", f -> ids(f.card()), NONE),
+            op("cards: fatura do mês", HttpMethod.GET, CARD_INVOICE, f -> ids(f.card(), "2026-10"), NONE),
+            op("cards: lançamentos da fatura", HttpMethod.GET, CARD_INVOICE + "/items", f -> ids(f.card(), "2026-10"),
+                    NONE),
+            op("cards: utilização", HttpMethod.GET, CARD + "/utilization", f -> ids(f.card()), NONE));
 
     static Stream<Op> foreignWorkspaceOperations() {
         return FOREIGN_WORKSPACE.stream();
@@ -329,7 +351,37 @@ class WorkspaceIsolationIT extends IntegrationTest {
             // ADR-0023 §1: insights relacionados a uma transação alheia = transação inexistente.
             cross("insights: relacionados a transação alheia", HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND",
                     Fixture::posted, (mvc, own, id) -> mvc.get().uri(INSIGHTS + "/related", own.workspace())
-                            .param("transactionId", id)));
+                            .param("transactionId", id)),
+
+            // ADR-0026 §1: cartão de outro Workspace → 404 CARD_NOT_FOUND; conta padrão alheia → ACCOUNT_NOT_FOUND.
+            cross("cards: consultar cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(CARD, own.workspace(), id)),
+            cross("cards: editar cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.put().uri(CARD, own.workspace(), id).contentType(MediaType.APPLICATION_JSON)
+                            .content(CARD_JSON)),
+            cross("cards: arquivar cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.post().uri(CARD + "/archive", own.workspace(), id)),
+            cross("cards: reativar cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.post().uri(CARD + "/reactivate", own.workspace(), id)),
+            cross("cards: faturas de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(CARD + "/invoices", own.workspace(), id)),
+            cross("cards: fatura atual de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(CARD + "/invoices/current", own.workspace(), id)),
+            cross("cards: faturas futuras de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(CARD + "/invoices/future", own.workspace(), id)),
+            cross("cards: fatura do mês de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(CARD_INVOICE, own.workspace(), id, "2026-10")),
+            cross("cards: lançamentos de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(CARD_INVOICE + "/items", own.workspace(), id, "2026-10")),
+            cross("cards: utilização de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(CARD + "/utilization", own.workspace(), id)),
+            cross("cards: conta padrão alheia", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
+                    (mvc, own, id) -> mvc.post().uri(CARDS, own.workspace()).contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"nickname": "Com conta alheia", "brand": "VISA", "last4": "1234",
+                                     "limit": {"amount": "100.00", "currency": "BRL"}, "closingDay": 28, "dueDay": 5,
+                                     "defaultPaymentAccountId": "%s"}
+                                    """.formatted(id))));
 
     static Stream<CrossOp> foreignReferenceOperations() {
         return FOREIGN_REFERENCE.stream();
@@ -381,7 +433,15 @@ class WorkspaceIsolationIT extends IntegrationTest {
         MvcTestResult upload = mvc.post().uri(IMPORTS, workspace).multipart().file(statement())
                 .param("accountId", account).header("Idempotency-Key", newKey()).with(who).exchange();
         assertThat(upload).hasStatus(HttpStatus.CREATED);
-        return new Fixture(workspace, account, other, archived, posted, pending, read(upload, "$.id"));
+        MvcTestResult card = mvc.post().uri(CARDS, workspace).with(who).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"nickname": "%s Cartão", "brand": "MASTERCARD", "last4": "4821",
+                         "limit": {"amount": "%s", "currency": "BRL"}, "closingDay": 28, "dueDay": 5,
+                         "defaultPaymentAccountId": "%s"}
+                        """.formatted(accountName, amount, account)).exchange();
+        assertThat(card).hasStatus(HttpStatus.CREATED);
+        return new Fixture(workspace, account, other, archived, posted, pending, read(upload, "$.id"),
+                read(card, "$.id"));
     }
 
     private String createAccount(RequestPostProcessor who, String workspace, String name) throws Exception {
@@ -418,7 +478,7 @@ class WorkspaceIsolationIT extends IntegrationTest {
         return Stream.of("users", "workspaces", "workspace_memberships", "accounts", "transactions",
                         "transaction_idempotency_keys", "import_batches", "import_records", "imported_transaction_keys",
                         "outbox_events", "processed_events", "health_workspaces", "health_snapshots",
-                        "insights_workspaces", "insights")
+                        "insights_workspaces", "insights", "credit_cards", "card_invoices", "card_installments")
                 .map(table -> table + "=" + jdbc.queryForObject(
                         "select coalesce(string_agg(t::text, '|' order by t::text), '') from " + table + " t",
                         String.class))
