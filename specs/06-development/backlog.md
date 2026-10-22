@@ -159,6 +159,16 @@
 
 ## M8 Cards
 
+- [x] modelo (ADR-0025):
+  - compras = transações com `card_id`, pelo valor total na data da compra;
+  - pagamento de fatura = `TRANSFER` conta → cartão;
+  - fatura `[fechamento anterior, fechamento)` pelo mês do vencimento, com valor e estado derivados;
+  - centavos das parcelas na 1ª;
+  - estorno consome as parcelas futuras;
+  - utilização = (em aberto + parcelas futuras) ÷ limite;
+  - dívida fora do saldo total;
+  - eventos `card.*` e `invoice.closed`;
+  - adendos ADR-0005 §17 e ADR-0006 §17.
 - [ ] card
 - [ ] invoice
 - [ ] installment
