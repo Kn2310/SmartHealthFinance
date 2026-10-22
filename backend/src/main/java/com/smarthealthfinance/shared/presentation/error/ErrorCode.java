@@ -41,6 +41,11 @@ public enum ErrorCode {
 	INSIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "Insight não encontrado."),
 	/** Só um insight ativo pode ser dispensado (ADR-0023 §3). */
 	INSIGHT_NOT_ACTIVE(HttpStatus.CONFLICT, "O insight não está mais ativo."),
+	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0026). */
+	CARD_NOT_FOUND(HttpStatus.NOT_FOUND, "Cartão não encontrado."),
+	CARD_ARCHIVED(HttpStatus.CONFLICT, "Cartão arquivado não pode ser alterado."),
+	/** Fatura passada sem lançamentos ou mês sem fatura com esse vencimento (ADR-0026 §4). */
+	INVOICE_NOT_FOUND(HttpStatus.NOT_FOUND, "Fatura não encontrada."),
 	/** Mesma Idempotency-Key com conteúdo diferente (spec 05.6). */
 	IDEMPOTENCY_KEY_REUSED(HttpStatus.UNPROCESSABLE_CONTENT,
 			"A Idempotency-Key já foi usada em uma requisição com outro conteúdo.");

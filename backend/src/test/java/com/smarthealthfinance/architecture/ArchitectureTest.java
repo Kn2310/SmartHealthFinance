@@ -278,6 +278,38 @@ class ArchitectureTest {
 				+ "escrita do snapshot), nunca casos de uso ou adapters, e conhecem os eventos só pelo nome (ADR-0022 §1, "
 				+ "ADR-0023)");
 
+	// Cards (ADR-0025/0026) fica a jusante do Financial Core: identity → accounts → transactions → cards.
+
+	@ArchTest
+	static final ArchRule nothingUpstreamDependsOnCards = noClasses().that()
+		.resideInAnyPackage("com.smarthealthfinance.identity..", "com.smarthealthfinance.accounts..",
+				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.ingestion..",
+				"com.smarthealthfinance.overview..", "com.smarthealthfinance.analytics..",
+				"com.smarthealthfinance.health..", "com.smarthealthfinance.shared..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.cards..")
+		.allowEmptyShould(true)
+		.because("Cards conhece o cartão como referência; o núcleo não depende de Cards, e Overview, Analytics e "
+				+ "Health só passam a ler as portas de Cards na Sessão 6.2 (ADR-0025 §1, ADR-0026 §9)");
+
+	@ArchTest
+	static final ArchRule cardsOnlyUsesCorePortsAndDomain = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.cards..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.accounts.application.usecase..",
+				"com.smarthealthfinance.accounts.infrastructure..", "com.smarthealthfinance.accounts.presentation..",
+				"com.smarthealthfinance.transactions.infrastructure..",
+				"com.smarthealthfinance.transactions.presentation..", "com.smarthealthfinance.ingestion..",
+				"com.smarthealthfinance.overview..", "com.smarthealthfinance.analytics..",
+				"com.smarthealthfinance.health..", "com.smarthealthfinance.insights..",
+				"com.smarthealthfinance.identity.application.usecase..",
+				"com.smarthealthfinance.identity.infrastructure..")
+		.allowEmptyShould(true)
+		.because("Cards lê contas pela porta de domínio e lança transações só pelos casos de uso de Transactions, "
+				+ "nunca pelos adapters (ADR-0025 §1)");
+
 	@ArchTest
 	static final ArchRule identityDoesNotDependOnFinancialModules = noClasses().that()
 		.resideInAPackage("com.smarthealthfinance.identity..")

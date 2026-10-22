@@ -169,10 +169,16 @@
   - dívida fora do saldo total;
   - eventos `card.*` e `invoice.closed`;
   - adendos ADR-0005 §17 e ADR-0006 §17.
-- [ ] card
-- [ ] invoice
+- [x] card (ADR-0026): módulo `cards`, `CreditCard` só com os 4 últimos dígitos, CRUD + arquivar/reativar, requests
+  que recusam campos desconhecidos, conta de pagamento padrão, eventos `card.*`, ArchUnit e suíte de isolamento
+- [x] invoice — núcleo (ADR-0026): ciclo `invoice-v1` (dia 31, fevereiro, fechamento exclusivo, vencimento efetivo no
+  fim de semana), datas congeladas depois do fechamento, estados derivados, alocação de pagamentos, faturas por mês de
+  vencimento, atual, futuras comprometidas e lançamentos paginados; job `invoice.closed`; paridade do SQL. Compras,
+  créditos e pagamentos entram na parte C
+- [ ] invoice — lançamentos (compra, estorno, pagamento) e reatribuição de parcelas na mudança de ciclo (parte C)
 - [ ] installment
-- [ ] utilization
+- [x] utilization (ADR-0025 §9, ADR-0026 §6): (em aberto + fatura atual + parcelas futuras) ÷ limite, inteiro
+  HALF_EVEN, composição e "sem parcelas futuras"; resumo dos cartões ativos numa chamada
 - [ ] payment
 
 ## M9 Forecast

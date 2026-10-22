@@ -31,6 +31,12 @@ export const RECORD_STATUSES = ['VALID', 'INVALID', 'DUPLICATE', 'IMPORTED'] as 
 export const RECORD_DIRECTIONS = ['INFLOW', 'OUTFLOW'] as const
 /** Natureza da categoria (ADR-0012 §2): EXPENSE serve a despesa e reembolso; INCOME, a receita. */
 export const CATEGORY_NATURES = ['EXPENSE', 'INCOME'] as const
+export const CARD_BRANDS = ['VISA', 'MASTERCARD', 'ELO', 'AMEX', 'HIPERCARD', 'OTHER'] as const
+export const CARD_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
+export const INVOICE_STATUSES = ['FUTURE', 'OPEN', 'CLOSED', 'PARTIALLY_PAID', 'PAID', 'OVERDUE'] as const
+export const INVOICE_DATES_SOURCES = ['CALCULATED', 'IMPORTED'] as const
+export const INVOICE_ITEM_KINDS = ['CHARGE', 'CREDIT'] as const
+export const CARD_NICKNAME_MAX_LENGTH = 100
 
 /** `AccountName.MAX_LENGTH` e `InstitutionName.MAX_LENGTH` do backend: o BFF e o formulário recusam antes. */
 export const ACCOUNT_NAME_MAX_LENGTH = 100
@@ -54,6 +60,8 @@ type UpdateAcc = S['UpdateAccountRequest']
 type Imp = S['ImportResponse']
 type Rec = S['ImportRecordResponse']
 type Cat = S['CategoryResponse']
+type Card = S['CardResponse']
+type Inv = S['InvoiceSummaryResponse']
 export type EnumChecks = [
   Assert<Equals<Values<typeof OVERVIEW_STATES>, O['state']>>,
   Assert<Equals<Values<typeof PERIOD_TYPES>, O['period']['type']>>,
@@ -77,6 +85,12 @@ export type EnumChecks = [
   Assert<Equals<Values<typeof TRANSACTION_SOURCES>, Txn['source']>>,
   Assert<Equals<Values<typeof TRANSACTION_TYPES>, CreateTxn['type']>>,
   Assert<Equals<Values<typeof CATEGORY_NATURES>, Cat['nature']>>,
+  Assert<Equals<Values<typeof CARD_BRANDS>, Card['brand']>>,
+  Assert<Equals<Values<typeof CARD_BRANDS>, S['CardRequest']['brand']>>,
+  Assert<Equals<Values<typeof CARD_STATUSES>, Card['status']>>,
+  Assert<Equals<Values<typeof INVOICE_STATUSES>, Inv['status']>>,
+  Assert<Equals<Values<typeof INVOICE_DATES_SOURCES>, Inv['datesSource']>>,
+  Assert<Equals<Values<typeof INVOICE_ITEM_KINDS>, S['InvoiceItemResponse']['kind']>>,
 ]
 
 /** Campos de cada record Java (nomes iguais aos do backend) ↔ chaves do tipo TS correspondente. */
@@ -127,6 +141,38 @@ export const RECORD_FIELDS = {
   MarkAsRefundRequest: ['refundOfTransactionId'],
   CategoryListResponse: ['items'],
   CategoryResponse: ['code', 'name', 'nature', 'active'],
+  CardRequest: [
+    'nickname', 'institutionName', 'brand', 'last4', 'limit', 'closingDay', 'dueDay', 'defaultPaymentAccountId',
+  ],
+  CardResponse: [
+    'id', 'workspaceId', 'nickname', 'institutionName', 'brand', 'last4', 'limit', 'closingDay', 'dueDay',
+    'defaultPaymentAccountId', 'status', 'createdAt', 'updatedAt',
+  ],
+  CardListResponse: ['items'],
+  InvoiceSummaryResponse: [
+    'dueMonth', 'periodStart', 'closingDate', 'dueDate', 'effectiveDueDate', 'datesSource', 'status', 'charges',
+    'credits', 'amount', 'paid', 'remaining', 'minimumPayment', 'partial',
+  ],
+  InvoiceListResponse: ['items'],
+  InvoiceResponse: ['invoice', 'itemCount', 'asOf', 'calculationVersion'],
+  InvoiceItemResponse: [
+    'kind', 'transactionId', 'occurredOn', 'description', 'categoryCode', 'merchantName', 'source', 'installment',
+    'amount', 'cancelledAmount',
+  ],
+  InstallmentRef: ['number', 'count'],
+  InvoiceItemPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
+  FutureInstallmentResponse: ['transactionId', 'description', 'number', 'count', 'amount'],
+  FutureInvoiceMonthResponse: ['dueMonth', 'committed', 'installments'],
+  FutureInvoicesResponse: ['months', 'totalCommitted', 'asOf', 'calculationVersion'],
+  UtilizationCompositionResponse: ['previousOutstanding', 'currentInvoice', 'futureInstallments'],
+  UtilizationResponse: [
+    'limit', 'utilized', 'available', 'credit', 'utilizationPercent', 'utilizationWithoutFuturePercent',
+    'composition', 'asOf', 'calculationVersion',
+  ],
+  CardSummaryResponse: ['card', 'currentInvoice', 'utilization', 'nextInvoiceCommitted'],
+  CardsSummaryResponse: [
+    'totalLimit', 'utilized', 'openInvoices', 'nextDueDate', 'cards', 'asOf', 'calculationVersion',
+  ],
 } as const
 
 type F = typeof RECORD_FIELDS
@@ -159,4 +205,20 @@ export type FieldChecks = [
   Assert<Equals<Values<F['MarkAsRefundRequest']>, keyof S['MarkAsRefundRequest']>>,
   Assert<Equals<Values<F['CategoryListResponse']>, keyof S['CategoryListResponse']>>,
   Assert<Equals<Values<F['CategoryResponse']>, keyof Cat>>,
+  Assert<Equals<Values<F['CardRequest']>, keyof S['CardRequest']>>,
+  Assert<Equals<Values<F['CardResponse']>, keyof Card>>,
+  Assert<Equals<Values<F['CardListResponse']>, keyof S['CardListResponse']>>,
+  Assert<Equals<Values<F['InvoiceSummaryResponse']>, keyof Inv>>,
+  Assert<Equals<Values<F['InvoiceListResponse']>, keyof S['InvoiceListResponse']>>,
+  Assert<Equals<Values<F['InvoiceResponse']>, keyof S['InvoiceResponse']>>,
+  Assert<Equals<Values<F['InvoiceItemResponse']>, keyof S['InvoiceItemResponse']>>,
+  Assert<Equals<Values<F['InstallmentRef']>, keyof S['InstallmentRef']>>,
+  Assert<Equals<Values<F['InvoiceItemPageResponse']>, keyof S['InvoiceItemPageResponse']>>,
+  Assert<Equals<Values<F['FutureInstallmentResponse']>, keyof S['FutureInstallmentResponse']>>,
+  Assert<Equals<Values<F['FutureInvoiceMonthResponse']>, keyof S['FutureInvoiceMonthResponse']>>,
+  Assert<Equals<Values<F['FutureInvoicesResponse']>, keyof S['FutureInvoicesResponse']>>,
+  Assert<Equals<Values<F['UtilizationCompositionResponse']>, keyof S['UtilizationCompositionResponse']>>,
+  Assert<Equals<Values<F['UtilizationResponse']>, keyof S['UtilizationResponse']>>,
+  Assert<Equals<Values<F['CardSummaryResponse']>, keyof S['CardSummaryResponse']>>,
+  Assert<Equals<Values<F['CardsSummaryResponse']>, keyof S['CardsSummaryResponse']>>,
 ]

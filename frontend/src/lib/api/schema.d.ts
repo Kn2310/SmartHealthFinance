@@ -588,8 +588,140 @@ export interface components {
       pageSize: number
       totalItems: number
     }
+    /**
+     * Cadastro/edição do cartão (ADR-0026 §2): só os 4 últimos dígitos. Campo desconhecido (número completo, CVV,
+     * validade) recusa a requisição com 400 MALFORMED_REQUEST.
+     */
+    CardRequest: {
+      nickname: string
+      institutionName?: string | null
+      brand: CardBrand
+      last4: string
+      limit: components['schemas']['MoneyDto']
+      closingDay: number
+      dueDay: number
+      defaultPaymentAccountId?: string | null
+    }
+    CardResponse: {
+      id: string
+      workspaceId: string
+      nickname: string
+      institutionName: string | null
+      brand: CardBrand
+      last4: string
+      limit: components['schemas']['MoneyDto']
+      closingDay: number
+      dueDay: number
+      defaultPaymentAccountId: string | null
+      status: 'ACTIVE' | 'ARCHIVED'
+      createdAt: string
+      updatedAt: string
+    }
+    CardListResponse: { items: components['schemas']['CardResponse'][] }
+    /**
+     * Fatura pelo mês de vencimento (`YYYY-MM`). Valores e estado calculados no backend (ADR-0025 §5); `partial` = aberta,
+     * pode mudar até o fechamento; `minimumPayment` só quando informado no arquivo.
+     */
+    InvoiceSummaryResponse: {
+      dueMonth: string
+      periodStart: string
+      closingDate: string
+      dueDate: string
+      effectiveDueDate: string
+      datesSource: 'CALCULATED' | 'IMPORTED'
+      status: InvoiceStatus
+      charges: components['schemas']['MoneyDto']
+      credits: components['schemas']['MoneyDto']
+      amount: components['schemas']['MoneyDto']
+      paid: components['schemas']['MoneyDto']
+      remaining: components['schemas']['MoneyDto']
+      minimumPayment: components['schemas']['MoneyDto'] | null
+      partial: boolean
+    }
+    InvoiceListResponse: { items: components['schemas']['InvoiceSummaryResponse'][] }
+    InvoiceResponse: {
+      invoice: components['schemas']['InvoiceSummaryResponse']
+      itemCount: number
+      asOf: string
+      calculationVersion: string
+    }
+    InstallmentRef: { number: number; count: number }
+    /** `installment` nulo em créditos. */
+    InvoiceItemResponse: {
+      kind: 'CHARGE' | 'CREDIT'
+      transactionId: string
+      occurredOn: string
+      description: string
+      categoryCode: string | null
+      merchantName: string | null
+      source: 'MANUAL' | 'IMPORT'
+      installment: components['schemas']['InstallmentRef'] | null
+      amount: components['schemas']['MoneyDto']
+      cancelledAmount: components['schemas']['MoneyDto']
+    }
+    InvoiceItemPageResponse: {
+      items: components['schemas']['InvoiceItemResponse'][]
+      page: number
+      pageSize: number
+      totalItems: number
+    }
+    FutureInstallmentResponse: {
+      transactionId: string
+      description: string
+      number: number
+      count: number
+      amount: components['schemas']['MoneyDto']
+    }
+    FutureInvoiceMonthResponse: {
+      dueMonth: string
+      committed: components['schemas']['MoneyDto']
+      installments: components['schemas']['FutureInstallmentResponse'][]
+    }
+    /** Só o valor já comprometido em parcelas: nenhuma estimativa (ADR-0025 §10). */
+    FutureInvoicesResponse: {
+      months: components['schemas']['FutureInvoiceMonthResponse'][]
+      totalCommitted: components['schemas']['MoneyDto']
+      asOf: string
+      calculationVersion: string
+    }
+    UtilizationCompositionResponse: {
+      previousOutstanding: components['schemas']['MoneyDto']
+      currentInvoice: components['schemas']['MoneyDto']
+      futureInstallments: components['schemas']['MoneyDto']
+    }
+    /** Utilização do limite (ADR-0025 §9): `available` pode ser negativo; percentuais inteiros (HALF_EVEN). */
+    UtilizationResponse: {
+      limit: components['schemas']['MoneyDto']
+      utilized: components['schemas']['MoneyDto']
+      available: components['schemas']['MoneyDto']
+      credit: components['schemas']['MoneyDto']
+      utilizationPercent: number
+      utilizationWithoutFuturePercent: number
+      composition: components['schemas']['UtilizationCompositionResponse']
+      asOf: string
+      calculationVersion: string
+    }
+    CardSummaryResponse: {
+      card: components['schemas']['CardResponse']
+      currentInvoice: components['schemas']['InvoiceSummaryResponse']
+      utilization: components['schemas']['UtilizationResponse']
+      nextInvoiceCommitted: components['schemas']['MoneyDto']
+    }
+    /** Resumo dos cartões ativos (ADR-0026 §3); `nextDueDate` nulo sem fatura em aberto. */
+    CardsSummaryResponse: {
+      totalLimit: components['schemas']['MoneyDto']
+      utilized: components['schemas']['MoneyDto']
+      openInvoices: components['schemas']['MoneyDto']
+      nextDueDate: string | null
+      cards: components['schemas']['CardSummaryResponse'][]
+      asOf: string
+      calculationVersion: string
+    }
   }
 }
+
+export type CardBrand = 'VISA' | 'MASTERCARD' | 'ELO' | 'AMEX' | 'HIPERCARD' | 'OTHER'
+export type InvoiceStatus = 'FUTURE' | 'OPEN' | 'CLOSED' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE'
 
 type MoneyDto = components['schemas']['MoneyDto']
 export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
@@ -736,6 +868,18 @@ type TransactionErrors = {
   404: { content: { 'application/json': components['schemas']['ApiError'] } }
   409: { content: { 'application/json': components['schemas']['ApiError'] } }
 }
+
+type CardErrors = {
+  400: { content: { 'application/json': components['schemas']['ApiError'] } }
+  404: { content: { 'application/json': components['schemas']['ApiError'] } }
+  409: { content: { 'application/json': components['schemas']['ApiError'] } }
+}
+
+type CardPath = { workspaceId: string; cardId: string }
+type CardInvoicePath = { workspaceId: string; cardId: string; dueMonth: string }
+type CardResult = {
+  200: { content: { 'application/json': components['schemas']['CardResponse'] } }
+} & CardErrors
 
 type TransactionPath = { workspaceId: string; transactionId: string }
 type TransactionResult = {
@@ -1072,6 +1216,83 @@ export interface paths {
       responses: {
         200: { content: { 'application/json': components['schemas']['ImportResponse'] } }
       } & ImportErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards': {
+    get: {
+      parameters: { query?: { includeArchived?: boolean }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['CardListResponse'] } } } & CardErrors
+    }
+    post: {
+      parameters: { path: { workspaceId: string } }
+      requestBody: { content: { 'application/json': components['schemas']['CardRequest'] } }
+      responses: { 201: { content: { 'application/json': components['schemas']['CardResponse'] } } } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/summary': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CardsSummaryResponse'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}': {
+    get: { parameters: { path: CardPath }; responses: CardResult }
+    put: {
+      parameters: { path: CardPath }
+      requestBody: { content: { 'application/json': components['schemas']['CardRequest'] } }
+      responses: CardResult
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/archive': {
+    post: { parameters: { path: CardPath }; responses: CardResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/reactivate': {
+    post: { parameters: { path: CardPath }; responses: CardResult }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices': {
+    get: {
+      parameters: { query?: { from?: string; to?: string }; path: CardPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['InvoiceListResponse'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices/current': {
+    get: {
+      parameters: { path: CardPath }
+      responses: { 200: { content: { 'application/json': components['schemas']['InvoiceResponse'] } } } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices/future': {
+    get: {
+      parameters: { path: CardPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['FutureInvoicesResponse'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices/{dueMonth}': {
+    get: {
+      parameters: { path: CardInvoicePath }
+      responses: { 200: { content: { 'application/json': components['schemas']['InvoiceResponse'] } } } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/invoices/{dueMonth}/items': {
+    get: {
+      parameters: { query?: { page?: number; pageSize?: number }; path: CardInvoicePath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['InvoiceItemPageResponse'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/utilization': {
+    get: {
+      parameters: { path: CardPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['UtilizationResponse'] } }
+      } & CardErrors
     }
   }
 }

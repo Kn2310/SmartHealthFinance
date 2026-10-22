@@ -4,6 +4,12 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   ACCOUNT_NAME_MAX_LENGTH,
+  CARD_BRANDS,
+  CARD_NICKNAME_MAX_LENGTH,
+  CARD_STATUSES,
+  INVOICE_DATES_SOURCES,
+  INVOICE_ITEM_KINDS,
+  INVOICE_STATUSES,
   CATEGORY_CODE_MAX_LENGTH,
   CATEGORY_NATURES,
   ACCOUNT_STATUSES,
@@ -161,6 +167,37 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     expect(source).toContain('"INFLOW"')
     expect(source).toContain('"OUTFLOW"')
     expect(sorted(RECORD_DIRECTIONS)).toEqual(['INFLOW', 'OUTFLOW'])
+  })
+
+  it.each([
+    ['cards/domain/enums/CardBrand.java', CARD_BRANDS],
+    ['cards/domain/enums/CardStatus.java', CARD_STATUSES],
+    ['cards/domain/enums/InvoiceStatus.java', INVOICE_STATUSES],
+    ['cards/domain/enums/InvoiceDatesSource.java', INVOICE_DATES_SOURCES],
+    ['cards/domain/enums/InvoiceItemKind.java', INVOICE_ITEM_KINDS],
+  ])('enum %s', (path, frontend) => {
+    expect(sorted(frontend)).toEqual(sorted(javaEnum(path)))
+  })
+
+  it('records e request de Cartões têm exatamente os campos do contrato manual', () => {
+    const responses = javaRecords('cards/presentation/dto/response/CardResponses.java')
+    for (const name of [
+      'CardResponse', 'CardListResponse', 'InvoiceSummaryResponse', 'InvoiceListResponse', 'InvoiceResponse',
+      'InvoiceItemResponse', 'InstallmentRef', 'InvoiceItemPageResponse', 'FutureInstallmentResponse',
+      'FutureInvoiceMonthResponse', 'FutureInvoicesResponse', 'UtilizationCompositionResponse', 'UtilizationResponse',
+      'CardSummaryResponse', 'CardsSummaryResponse',
+    ] as const) {
+      expect(sorted(responses[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
+    }
+    // O último componente do request (campos desconhecidos → 400) não faz parte do contrato.
+    const request = (javaRecords('cards/presentation/dto/request/CardRequest.java').CardRequest ?? []).filter(
+      (field) => /^\w+$/.test(field) && field !== 'unknownFields',
+    )
+    expect(sorted(request)).toEqual(sorted(RECORD_FIELDS.CardRequest))
+    expect(read('cards/presentation/dto/request/CardRequest.java')).toMatch(/@JsonAnySetter/)
+    expect(Number(/MAX_LENGTH\s*=\s*(\d+)/.exec(read('cards/domain/valueobject/CardNickname.java'))?.[1])).toBe(
+      CARD_NICKNAME_MAX_LENGTH,
+    )
   })
 
   it('MoneyDto continua {amount: String, currency: String}', () => {
