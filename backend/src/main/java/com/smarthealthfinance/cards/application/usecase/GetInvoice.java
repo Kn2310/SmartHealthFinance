@@ -4,7 +4,6 @@ import com.smarthealthfinance.cards.application.dto.CardLedgerSnapshot;
 import com.smarthealthfinance.cards.application.dto.InvoiceSummaryView;
 import com.smarthealthfinance.cards.application.dto.InvoiceView;
 import com.smarthealthfinance.cards.application.exception.InvoiceNotFoundException;
-import com.smarthealthfinance.cards.application.port.CardLedgerReader;
 import com.smarthealthfinance.cards.application.service.BusinessCalendar;
 import com.smarthealthfinance.cards.application.service.CardAccess;
 import com.smarthealthfinance.cards.application.service.CardLedgerLoader;
@@ -30,15 +29,13 @@ public class GetInvoice {
 
     private final CardAccess access;
     private final CardLedgerLoader loader;
-    private final CardLedgerReader reader;
     private final BusinessCalendar calendar;
     private final MeterRegistry meters;
 
-    public GetInvoice(CardAccess access, CardLedgerLoader loader, CardLedgerReader reader, BusinessCalendar calendar,
+    public GetInvoice(CardAccess access, CardLedgerLoader loader, BusinessCalendar calendar,
                       MeterRegistry meters) {
         this.access = access;
         this.loader = loader;
-        this.reader = reader;
         this.calendar = calendar;
         this.meters = meters;
     }
@@ -67,10 +64,8 @@ public class GetInvoice {
     private InvoiceView view(CardLedgerSnapshot snapshot, InvoiceDates dates) {
         InvoiceStatement statement = snapshot.statement(dates).orElseThrow(InvoiceNotFoundException::new);
         CardInvoice row = snapshot.row(dates.closingMonth()).orElse(null);
-        long itemCount = row == null ? 0
-                : reader.itemCount(snapshot.card().workspaceId(), snapshot.card().id(), row.id());
-        return new InvoiceView(InvoiceSummaryView.from(statement, row), itemCount, snapshot.today(),
-                InvoiceCalendar.RULES_VERSION);
+        return new InvoiceView(InvoiceSummaryView.from(statement, row), snapshot.items(dates.closingMonth()).size(),
+                snapshot.today(), InvoiceCalendar.RULES_VERSION);
     }
 
     private InvoiceView timed(Timer.Sample sample, InvoiceView view) {

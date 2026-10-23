@@ -166,6 +166,11 @@ public class JpaTransactionRepository implements TransactionRepository {
                         cb.equal(root.get("accountId"), criteria.accountId().value()),
                         cb.equal(root.get("destinationAccountId"), criteria.accountId().value())));
             }
+            if (criteria.cardId() != null) {
+                predicates.add(cb.or(
+                        cb.equal(root.get("cardId"), criteria.cardId().value()),
+                        cb.equal(root.get("destinationCardId"), criteria.cardId().value())));
+            }
             if (criteria.categoryCode() != null) {
                 predicates.add(cb.equal(root.get("categoryCode"), criteria.categoryCode().value()));
             }

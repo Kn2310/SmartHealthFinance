@@ -23,7 +23,7 @@ import {
   type Transaction,
   type TransitionAction,
 } from './api'
-import { accountNames, categoryNames, useAccounts, useCategories, useTransaction } from './hooks'
+import { accountNames, cardNames, categoryNames, useAccounts, useCards, useCategories, useTransaction } from './hooks'
 import { acceptedNature, CATEGORY_SOURCE_LABEL, NO_CATEGORY_LABEL, SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
 import { categoryErrorMessage, fieldErrorMessage, requestFailureMessage } from './messages'
 import { RelatedInsight } from '@/features/insights/RelatedInsight'
@@ -155,6 +155,9 @@ function Loaded({
   const badge = statusBadge(transaction.status)
   const voided = transaction.status === 'CANCELLED' || transaction.status === 'REVERSED'
   const accountName = (accountId: string) => names.get(accountId) ?? (accounts.status === 'loading' ? 'Carregando…' : 'Conta')
+  const cards = useCards()
+  const cardsById = cardNames(cards)
+  const cardName = (cardId: string) => cardsById.get(cardId) ?? (cards.status === 'loading' ? 'Carregando…' : 'Cartão')
 
   async function run(action: TransitionAction) {
     if (inFlight.current) return
@@ -234,14 +237,29 @@ function Loaded({
           Detalhes
         </h2>
         <dl className={styles.facts}>
-          <div className={styles.fact}>
-            <dt>{transaction.destinationAccountId ? 'Conta de origem' : 'Conta'}</dt>
-            <dd>
-              <Link href={`/accounts/${transaction.accountId}`} className={styles.link}>
-                {accountName(transaction.accountId)}
-              </Link>
-            </dd>
-          </div>
+          {transaction.accountId ? (
+            <div className={styles.fact}>
+              <dt>{transaction.destinationAccountId || transaction.destinationCardId ? 'Conta de origem' : 'Conta'}</dt>
+              <dd>
+                <Link href={`/accounts/${transaction.accountId}`} className={styles.link}>
+                  {accountName(transaction.accountId)}
+                </Link>
+              </dd>
+            </div>
+          ) : null}
+          {transaction.cardId ? (
+            // D-TxnDetail: "Pago com" o cartão (só os 4 últimos dígitos — ADR-0025 §1).
+            <div className={styles.fact}>
+              <dt>Pago com</dt>
+              <dd>{cardName(transaction.cardId)}</dd>
+            </div>
+          ) : null}
+          {transaction.destinationCardId ? (
+            <div className={styles.fact}>
+              <dt>Fatura do cartão</dt>
+              <dd>{cardName(transaction.destinationCardId)}</dd>
+            </div>
+          ) : null}
           {transaction.destinationAccountId ? (
             <div className={styles.fact}>
               <dt>Conta de destino</dt>
@@ -368,6 +386,26 @@ function Loaded({
               )}
             </div>
           )}
+        </section>
+      ) : null}
+
+      {transaction.type === 'EXPENSE' && transaction.status === 'POSTED' && transaction.accountId ? (
+        // Reembolso pela UI (pendência do M2): o formulário já vem com a conta e o vínculo com esta despesa.
+        <section className={accountStyles.panel} aria-labelledby="refund-title">
+          <h2 id="refund-title" className={accountStyles.sectionTitle}>
+            Recebeu de volta?
+          </h2>
+          <p className={accountStyles.muted}>
+            Registre o reembolso desta despesa. Ele reduz o gasto e não é contado como receita.
+          </p>
+          <div className={styles.actionRow}>
+            <Button
+              variant="secondary"
+              href={`/transactions/new?type=REFUND&accountId=${transaction.accountId}&refundOf=${transaction.id}`}
+            >
+              Registrar reembolso
+            </Button>
+          </div>
         </section>
       ) : null}
 

@@ -17,6 +17,7 @@ import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.IdempotencyKey;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
@@ -29,6 +30,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.Currency;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -69,14 +71,48 @@ public class CreateTransaction {
     /** @param replayed true quando a chave já tinha sido usada com o mesmo conteúdo (nada foi gravado) */
     public record Result(TransactionView transaction, boolean replayed) {}
 
+    /** Lançamento no cartão, criado só pelo módulo Cards (ADR-0026 §10). */
+    public enum CardOperation {
+        /** Compra: EXPENSE no cartão. */
+        PURCHASE,
+        /** Estorno ou crédito: REFUND no cartão. */
+        CREDIT,
+        /** Pagamento de fatura: TRANSFER da conta para o cartão. */
+        PAYMENT
+    }
+
+    /**
+     * @param cardId          cartão já validado pelo Cards (existe no Workspace e está ativo)
+     * @param accountId       só em PAYMENT: a conta de origem
+     * @param callerComponent parte do pedido que só o Cards conhece (ex.: parcelas), incluída no hash da chave
+     */
+    public record CardCommand(String idempotencyKey, CardOperation operation, UUID cardId, UUID accountId,
+                              String amount, String currency, LocalDate occurredOn, String description,
+                              UUID refundOfTransactionId, String callerComponent) {}
+
     @Transactional
     public Result execute(UUID workspaceId, Command command) {
         WorkspaceId workspace = access.requireWorkspace(workspaceId);
-        IdempotencyKey key = new IdempotencyKey(command.idempotencyKey());
         Instant now = clock.instant();
+        return record(workspace, new IdempotencyKey(command.idempotencyKey()), toTransaction(workspace, command, now),
+                null, now);
+    }
 
-        Transaction candidate = toTransaction(workspace, command, now);
-        String requestHash = TransactionFingerprint.of(candidate);
+    /**
+     * Compra, estorno ou pagamento de fatura no cartão (ADR-0025 §2/§7/§8), com as mesmas garantias do lançamento
+     * manual: autorização, idempotência, reembolso limitado ao original e eventos {@code transaction.*}.
+     */
+    @Transactional
+    public Result executeOnCard(UUID workspaceId, CardCommand command) {
+        WorkspaceId workspace = access.requireWorkspace(workspaceId);
+        Instant now = clock.instant();
+        return record(workspace, new IdempotencyKey(command.idempotencyKey()), toCardTransaction(workspace, command,
+                now), command.callerComponent(), now);
+    }
+
+    private Result record(WorkspaceId workspace, IdempotencyKey key, Transaction candidate, String callerComponent,
+                          Instant now) {
+        String requestHash = TransactionFingerprint.of(candidate, callerComponent);
 
         Optional<TransactionIdempotencyStore.Entry> previous = idempotency.find(workspace, key);
         if (previous.isPresent()) {
@@ -118,6 +154,30 @@ public class CreateTransaction {
                 now);
     }
 
+    private static Transaction toCardTransaction(WorkspaceId workspace, CardCommand command, Instant now) {
+        Objects.requireNonNull(command.operation(), "operation");
+        CardReference card = new CardReference(Objects.requireNonNull(command.cardId(), "cardId"));
+        Money amount = Money.of(command.amount(), parseCurrency(command.currency()));
+        TransactionDescription description = new TransactionDescription(command.description());
+        TransactionId id = TransactionId.generate(now);
+
+        return switch (command.operation()) {
+            case PURCHASE -> Transaction.createOnCard(id, workspace, TransactionType.EXPENSE, card, amount,
+                    command.occurredOn(), description, null, now);
+            case CREDIT -> Transaction.createOnCard(id, workspace, TransactionType.REFUND, card, amount,
+                    command.occurredOn(), description,
+                    command.refundOfTransactionId() == null ? null : new TransactionId(command.refundOfTransactionId()),
+                    now);
+            case PAYMENT -> {
+                if (command.accountId() == null) {
+                    throw new InvalidValueException("accountId", "REQUIRED");
+                }
+                yield Transaction.createCardPayment(id, workspace, new AccountId(command.accountId()), card, amount,
+                        command.occurredOn(), description, now);
+            }
+        };
+    }
+
     private static Currency parseCurrency(String code) {
         if (code == null || code.isBlank()) {
             throw new InvalidValueException("currency", "REQUIRED");
@@ -131,7 +191,9 @@ public class CreateTransaction {
     }
 
     private void verifyAgainstCurrentState(WorkspaceId workspace, Transaction candidate) {
-        requireMovableAccount(workspace, candidate.accountId(), candidate);
+        if (candidate.accountId() != null) {
+            requireMovableAccount(workspace, candidate.accountId(), candidate);
+        }
         candidate.destinationAccountId().ifPresent(destination -> requireMovableAccount(workspace, destination,
                 candidate));
 
@@ -139,6 +201,10 @@ public class CreateTransaction {
             // Lock no original: reembolsos concorrentes são serializados e nunca somam mais que a despesa.
             Transaction original = transactions.findByIdForUpdate(workspace, originalId)
                     .orElseThrow(() -> new InvalidValueException("refundOfTransactionId", "NOT_FOUND"));
+            // Estorno no cartão abate as parcelas da compra: só vale para uma compra do mesmo cartão (ADR-0026 §10).
+            if (candidate.cardId().isPresent() && !candidate.cardId().equals(original.cardId())) {
+                throw new InvalidValueException("refundOfTransactionId", "NOT_SAME_CARD");
+            }
             original.ensureRefundable(candidate.amount(), transactions.findRefundsOf(workspace, originalId));
         });
     }

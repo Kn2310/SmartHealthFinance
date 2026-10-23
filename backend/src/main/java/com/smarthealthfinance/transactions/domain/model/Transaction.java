@@ -14,6 +14,7 @@ import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.exception.InvalidTransactionStatusTransitionException;
 import com.smarthealthfinance.transactions.domain.service.MerchantNormalizer;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryOrigin;
 import com.smarthealthfinance.transactions.domain.valueobject.Merchant;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
@@ -38,8 +39,13 @@ public class Transaction {
     private final TransactionId id;
     private final WorkspaceId workspaceId;
     private final TransactionType type;
+    /** Conta de origem; nula só em compra e estorno no cartão ({@link #cardId}), ADR-0025 §2. */
     private final AccountId accountId;
     private final AccountId destinationAccountId;
+    /** Cartão da compra ou do estorno, alternativo a {@link #accountId}. */
+    private final CardReference cardId;
+    /** Cartão que recebe o pagamento de fatura (TRANSFER conta → cartão). */
+    private final CardReference destinationCardId;
     private final AdjustmentDirection adjustmentDirection;
     private final Money amount;
     private final LocalDate occurredOn;
@@ -64,6 +70,8 @@ public class Transaction {
             TransactionType type,
             AccountId accountId,
             AccountId destinationAccountId,
+            CardReference cardId,
+            CardReference destinationCardId,
             AdjustmentDirection adjustmentDirection,
             Money amount,
             LocalDate occurredOn,
@@ -83,8 +91,19 @@ public class Transaction {
         this.id = Objects.requireNonNull(id, "id");
         this.workspaceId = Objects.requireNonNull(workspaceId, "workspaceId");
         this.type = Objects.requireNonNull(type, "type");
-        this.accountId = Objects.requireNonNull(accountId, "accountId");
+        if ((accountId == null) == (cardId == null)) {
+            throw new IllegalArgumentException("A transação tem exatamente uma origem: conta ou cartão");
+        }
+        if (cardId != null && type != TransactionType.EXPENSE && type != TransactionType.REFUND) {
+            throw new IllegalArgumentException("No cartão só existem compra e estorno");
+        }
+        if (destinationCardId != null && (type != TransactionType.TRANSFER || destinationAccountId != null)) {
+            throw new IllegalArgumentException("Cartão de destino só em transferência, sem conta de destino");
+        }
+        this.accountId = accountId;
         this.destinationAccountId = destinationAccountId;
+        this.cardId = cardId;
+        this.destinationCardId = destinationCardId;
         this.adjustmentDirection = adjustmentDirection;
         this.amount = Objects.requireNonNull(amount, "amount");
         this.occurredOn = Objects.requireNonNull(occurredOn, "occurredOn");
@@ -135,8 +154,54 @@ public class Transaction {
             TransactionId refundOfTransactionId,
             Instant now
     ) {
-        return newFact(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
+        Objects.requireNonNull(accountId, "accountId");
+        return newFact(id, workspaceId, type, accountId, destinationAccountId, null, null, adjustmentDirection, amount,
                 occurredOn, description, initialStatus, TransactionSource.MANUAL, refundOfTransactionId, null, now);
+    }
+
+    /**
+     * Compra ({@code EXPENSE}) ou estorno ({@code REFUND}) no cartão (ADR-0025 §2/§8): sem conta, nasce POSTED e não
+     * move o saldo de nenhuma conta. O cartão é validado pelo módulo Cards antes da criação.
+     *
+     * @param refundOfTransactionId só em REFUND; a elegibilidade é verificada por {@link #ensureRefundable}
+     */
+    public static Transaction createOnCard(
+            TransactionId id,
+            WorkspaceId workspaceId,
+            TransactionType type,
+            CardReference cardId,
+            Money amount,
+            LocalDate occurredOn,
+            TransactionDescription description,
+            TransactionId refundOfTransactionId,
+            Instant now
+    ) {
+        Objects.requireNonNull(cardId, "cardId");
+        if (type != TransactionType.EXPENSE && type != TransactionType.REFUND) {
+            throw new InvalidValueException("type", "NOT_ALLOWED_ON_CARD");
+        }
+        return newFact(id, workspaceId, type, null, null, cardId, null, null, amount, occurredOn, description,
+                TransactionStatus.POSTED, TransactionSource.MANUAL, refundOfTransactionId, null, now);
+    }
+
+    /**
+     * Pagamento de fatura (ADR-0025 §7): transferência da conta para o cartão, POSTED. Debita a conta e nunca é
+     * despesa nem receita.
+     */
+    public static Transaction createCardPayment(
+            TransactionId id,
+            WorkspaceId workspaceId,
+            AccountId accountId,
+            CardReference destinationCardId,
+            Money amount,
+            LocalDate occurredOn,
+            TransactionDescription description,
+            Instant now
+    ) {
+        Objects.requireNonNull(accountId, "accountId");
+        Objects.requireNonNull(destinationCardId, "destinationCardId");
+        return newFact(id, workspaceId, TransactionType.TRANSFER, accountId, null, null, destinationCardId, null,
+                amount, occurredOn, description, TransactionStatus.POSTED, TransactionSource.MANUAL, null, null, now);
     }
 
     /**
@@ -156,9 +221,10 @@ public class Transaction {
             TransactionDescription description,
             Instant now
     ) {
+        Objects.requireNonNull(accountId, "accountId");
         return newFact(id, workspaceId, inflow ? TransactionType.INCOME : TransactionType.EXPENSE, accountId, null,
-                null, amount, occurredOn, description, TransactionStatus.POSTED, TransactionSource.IMPORT, null, null,
-                now);
+                null, null, null, amount, occurredOn, description, TransactionStatus.POSTED, TransactionSource.IMPORT,
+                null, null, now);
     }
 
     /**
@@ -173,7 +239,7 @@ public class Transaction {
                                               TransactionId refundOfTransactionId, Instant now) {
         Objects.requireNonNull(original, "original");
         original.ensureReclassifiable();
-        return newFact(id, original.workspaceId, TransactionType.REFUND, original.accountId, null, null,
+        return newFact(id, original.workspaceId, TransactionType.REFUND, original.accountId, null, null, null, null,
                 original.amount, original.occurredOn, original.description, TransactionStatus.POSTED, original.source,
                 refundOfTransactionId, original.id, now);
     }
@@ -184,6 +250,8 @@ public class Transaction {
             TransactionType type,
             AccountId accountId,
             AccountId destinationAccountId,
+            CardReference cardId,
+            CardReference destinationCardId,
             AdjustmentDirection adjustmentDirection,
             Money amount,
             LocalDate occurredOn,
@@ -195,7 +263,6 @@ public class Transaction {
             Instant now
     ) {
         Objects.requireNonNull(type, "type");
-        Objects.requireNonNull(accountId, "accountId");
         Objects.requireNonNull(amount, "amount");
         Objects.requireNonNull(initialStatus, "status");
 
@@ -212,19 +279,51 @@ public class Transaction {
             throw new InvalidValueException("status", "INVALID_INITIAL");
         }
 
-        requireTypeSpecificFields(type, accountId, destinationAccountId, adjustmentDirection, refundOfTransactionId);
+        requireTypeSpecificFields(type, accountId, destinationAccountId, destinationCardId, adjustmentDirection,
+                refundOfTransactionId);
 
         // Comerciante só onde há categoria (ADR-0013 §1): transferência e ajuste não têm comerciante.
         Merchant merchant = CategoryNature.acceptedBy(type).isPresent()
                 ? MerchantNormalizer.normalize(description.value()).orElse(null)
                 : null;
 
-        return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, initialStatus, source, refundOfTransactionId, null, null, merchant,
-                reclassifiedFromTransactionId, null, now, now, 0);
+        return new Transaction(id, workspaceId, type, accountId, destinationAccountId, cardId, destinationCardId,
+                adjustmentDirection, amount, occurredOn, description, initialStatus, source, refundOfTransactionId,
+                null, null, merchant, reclassifiedFromTransactionId, null, now, now, 0);
     }
 
-    /** Restauração completa, com o vínculo de reclassificação ("marcar como reembolso"). */
+    /** Restauração completa, com cartões (ADR-0025 §2) e o vínculo de reclassificação. */
+    public static Transaction restore(
+            TransactionId id,
+            WorkspaceId workspaceId,
+            TransactionType type,
+            AccountId accountId,
+            AccountId destinationAccountId,
+            CardReference cardId,
+            CardReference destinationCardId,
+            AdjustmentDirection adjustmentDirection,
+            Money amount,
+            LocalDate occurredOn,
+            TransactionDescription description,
+            TransactionStatus status,
+            TransactionSource source,
+            TransactionId refundOfTransactionId,
+            TransactionCategory category,
+            CategoryOrigin categoryOrigin,
+            Merchant merchant,
+            TransactionId reclassifiedFromTransactionId,
+            TransactionId reclassifiedAsTransactionId,
+            Instant createdAt,
+            Instant updatedAt,
+            long version
+    ) {
+        return new Transaction(id, workspaceId, type, accountId, destinationAccountId, cardId, destinationCardId,
+                adjustmentDirection, amount, occurredOn, description, status, source, refundOfTransactionId, category,
+                categoryOrigin, merchant, reclassifiedFromTransactionId, reclassifiedAsTransactionId, createdAt,
+                updatedAt, version);
+    }
+
+    /** Restauração de transação de conta, com o vínculo de reclassificação ("marcar como reembolso"). */
     public static Transaction restore(
             TransactionId id,
             WorkspaceId workspaceId,
@@ -247,9 +346,9 @@ public class Transaction {
             Instant updatedAt,
             long version
     ) {
-        return new Transaction(id, workspaceId, type, accountId, destinationAccountId, adjustmentDirection, amount,
-                occurredOn, description, status, source, refundOfTransactionId, category, categoryOrigin, merchant,
-                reclassifiedFromTransactionId, reclassifiedAsTransactionId, createdAt, updatedAt, version);
+        return restore(id, workspaceId, type, accountId, destinationAccountId, null, null, adjustmentDirection,
+                amount, occurredOn, description, status, source, refundOfTransactionId, category, categoryOrigin,
+                merchant, reclassifiedFromTransactionId, reclassifiedAsTransactionId, createdAt, updatedAt, version);
     }
 
     /** Com a origem da categoria e o comerciante (ADR-0013), sem reclassificação. */
@@ -306,14 +405,15 @@ public class Transaction {
             TransactionType type,
             AccountId accountId,
             AccountId destinationAccountId,
+            CardReference destinationCardId,
             AdjustmentDirection adjustmentDirection,
             TransactionId refundOfTransactionId
     ) {
         if (type == TransactionType.TRANSFER) {
-            if (destinationAccountId == null) {
+            if (destinationAccountId == null && destinationCardId == null) {
                 throw new InvalidValueException("destinationAccountId", "REQUIRED");
             }
-            if (destinationAccountId.equals(accountId)) {
+            if (destinationAccountId != null && destinationAccountId.equals(accountId)) {
                 throw new InvalidValueException("destinationAccountId", "SAME_ACCOUNT");
             }
         }
@@ -523,14 +623,15 @@ public class Transaction {
 
     /**
      * Efeito desta transação no saldo de {@code account} (positivo, negativo ou zero). Fonte única da semântica de
-     * saldo (ADR-0006): só POSTED conta; transferência debita a origem e credita o destino.
+     * saldo (ADR-0006): só POSTED conta; transferência debita a origem e credita o destino. Compra e estorno no cartão
+     * não movem conta nenhuma; o pagamento de fatura só debita a conta de origem (ADR-0025 §3).
      */
     public Money balanceEffectOn(AccountId account) {
         Objects.requireNonNull(account, "account");
         if (!status.affectsBalance()) {
             return Money.zero(amount.currency());
         }
-        if (accountId.equals(account)) {
+        if (account.equals(accountId)) {
             return type.originEffect(adjustmentDirection) == BalanceEffect.CREDIT ? amount : amount.negate();
         }
         if (account.equals(destinationAccountId)) {
@@ -548,7 +649,12 @@ public class Transaction {
 
     /** A conta é origem ou destino desta transação. */
     public boolean involves(AccountId account) {
-        return accountId.equals(account) || account.equals(destinationAccountId);
+        return account.equals(accountId) || account.equals(destinationAccountId);
+    }
+
+    /** O cartão é origem (compra, estorno) ou destino (pagamento) desta transação. */
+    public boolean involves(CardReference card) {
+        return card.equals(cardId) || card.equals(destinationCardId);
     }
 
     private void transition(TransactionStatus from, TransactionStatus to, Instant now) {
@@ -565,8 +671,11 @@ public class Transaction {
     public TransactionId id() { return id; }
     public WorkspaceId workspaceId() { return workspaceId; }
     public TransactionType type() { return type; }
+    /** Nula só em compra e estorno no cartão: use {@link #cardId()} nesse caso. */
     public AccountId accountId() { return accountId; }
     public Optional<AccountId> destinationAccountId() { return Optional.ofNullable(destinationAccountId); }
+    public Optional<CardReference> cardId() { return Optional.ofNullable(cardId); }
+    public Optional<CardReference> destinationCardId() { return Optional.ofNullable(destinationCardId); }
     public Optional<AdjustmentDirection> adjustmentDirection() { return Optional.ofNullable(adjustmentDirection); }
     public Money amount() { return amount; }
     public LocalDate occurredOn() { return occurredOn; }

@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * Consultas de leitura que alimentam o Overview (ADR-0006). Não é um repositório de agregado: devolve projeções.
@@ -33,7 +34,7 @@ public interface OverviewReadModel {
      */
     Map<AccountId, AccountFigures> accountFigures(WorkspaceId workspaceId, OverviewPeriod period, Currency currency);
 
-    /** Fluxo de caixa de contas ativas incluídas no total. */
+    /** Fluxo de caixa de contas ativas incluídas no total e de cartões ativos (ADR-0006 §17). */
     CashFlow cashFlow(WorkspaceId workspaceId, OverviewPeriod period, Currency currency);
 
     Activity activity(WorkspaceId workspaceId, OverviewPeriod period, Currency currency);
@@ -56,8 +57,16 @@ public interface OverviewReadModel {
     record Activity(boolean hasPostedTransactions, int postedInPeriod, int pendingInPeriod, int transferCount,
                     Money transferVolume) {}
 
+    /**
+     * @param accountId nula em compra e estorno no cartão (ADR-0025 §2)
+     * @param card      cartão da compra/estorno ou que recebe o pagamento de fatura; vazio nas demais
+     */
     record RecentMovement(TransactionId id, TransactionType type, AdjustmentDirection adjustmentDirection,
                           AccountId accountId, Optional<AccountId> destinationAccountId, Money amount,
                           LocalDate occurredOn, String description, TransactionStatus status,
-                          Optional<TransactionId> refundOfTransactionId, TransactionSource source) {}
+                          Optional<TransactionId> refundOfTransactionId, TransactionSource source,
+                          Optional<CardRef> card) {}
+
+    /** Só o necessário para exibir "Cartão Aurora •••• 4821" (ADR-0026 §10). */
+    record CardRef(UUID id, String nickname, String last4) {}
 }

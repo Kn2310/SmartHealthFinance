@@ -46,6 +46,8 @@ const txn = (overrides: Partial<Transaction> = {}): Transaction => ({
   workspaceId: 'ws',
   accountId: AURORA,
   destinationAccountId: null,
+  cardId: null,
+  destinationCardId: null,
   type: 'EXPENSE',
   adjustmentDirection: null,
   amount: { amount: '86.40', currency: 'BRL' },
@@ -356,11 +358,13 @@ describe('/transactions/new — lançamento manual', () => {
     expect(body(post.init)).toEqual({
       type: 'EXPENSE',
       accountId: AURORA,
+      destinationAccountId: null,
       adjustmentDirection: null,
       amount: '1234.56',
       occurredOn: '2026-10-09',
       description: 'Mercado',
       status: 'POSTED',
+      refundOfTransactionId: null,
     })
     expect(header(post.init, 'Idempotency-Key')).toMatch(/^web:[0-9a-f-]{36}$/)
     expect(screen.getByRole('button', { name: 'Registrando…' })).toBeDisabled()
@@ -844,5 +848,213 @@ describe('Mais (M-More)', () => {
     expect(screen.getByRole('link', { name: /Insights/ })).not.toHaveTextContent('Em breve')
     expect(screen.getByRole('link', { name: /Objetivos/ })).toHaveTextContent('Em breve')
     expect(await axeViolations(container)).toEqual([])
+  })
+})
+
+describe('/transactions/new — transferência, reembolso e cartão (ADR-0026 §10)', () => {
+  const CARD = '01922f5e-0000-7000-8000-0000000000c1'
+  const card = (overrides: Record<string, unknown> = {}) => ({
+    id: CARD,
+    workspaceId: 'ws',
+    nickname: 'Aurora Platinum',
+    institutionName: null,
+    brand: 'MASTERCARD',
+    last4: '4821',
+    limit: { amount: '12000.00', currency: 'BRL' },
+    closingDay: 28,
+    dueDay: 5,
+    defaultPaymentAccountId: NORTE,
+    status: 'ACTIVE',
+    createdAt: '2026-10-01T00:00:00Z',
+    updatedAt: '2026-10-01T00:00:00Z',
+    ...overrides,
+  })
+  const routes = (extra: Parameters<typeof stubBff>[0] = {}, cards = [card()]) => ({
+    'GET /api/bff/accounts': () => json(accountsList()),
+    'GET /api/bff/cards': () => json({ items: cards }),
+    ...extra,
+  })
+  const posts = <T extends { method: string }>(calls: T[]) => calls.filter((c) => c.method === 'POST')
+
+  it('transferência: origem diferente do destino e envio com as duas contas', async () => {
+    const calls = stub(routes({ 'POST /api/bff/transactions': () => json(txn({ type: 'TRANSFER' }), 201) }))
+    const user = userEvent.setup()
+    render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} />)
+
+    await user.click(await screen.findByRole('radio', { name: 'Transferência' }))
+    expect(screen.getByText(/não é receita nem despesa/)).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Conta de origem'), AURORA)
+    await user.selectOptions(screen.getByLabelText('Conta de destino'), AURORA)
+    await user.type(screen.getByLabelText('Valor'), '500')
+    await user.type(screen.getByLabelText('Descrição'), 'Para a reserva')
+    await user.click(screen.getByRole('button', { name: 'Registrar transação' }))
+    expect(await screen.findByText('A conta de destino precisa ser diferente da conta de origem.')).toBeInTheDocument()
+    expect(posts(calls)).toHaveLength(0)
+
+    await user.selectOptions(screen.getByLabelText('Conta de destino'), NORTE)
+    await user.click(screen.getByRole('button', { name: 'Registrar transação' }))
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/transactions?registered=posted'))
+    expect(body(posts(calls)[0]!.init)).toMatchObject({
+      type: 'TRANSFER',
+      accountId: AURORA,
+      destinationAccountId: NORTE,
+      amount: '500.00',
+      refundOfTransactionId: null,
+    })
+  })
+
+  it('reembolso aberto a partir da despesa já vem vinculado; sem o vínculo vai como reembolso solto', async () => {
+    const calls = stub(routes({ 'POST /api/bff/transactions': () => json(txn({ type: 'REFUND' }), 201) }))
+    const user = userEvent.setup()
+    const { container } = render(
+      <NewTransactionView initialAccountId={AURORA} returnTo={{ kind: 'transactions' }} initialType="REFUND" refundOf={TXN} />,
+    )
+
+    expect(await screen.findByRole('radio', { name: 'Reembolso' })).toBeChecked()
+    expect(screen.getByText(/vinculado à despesa original/)).toBeInTheDocument()
+    expect(await axeViolations(container)).toEqual([])
+    await user.type(screen.getByLabelText('Valor'), '30')
+    await user.type(screen.getByLabelText('Descrição'), 'Estorno da loja')
+    await user.click(screen.getByRole('button', { name: 'Registrar transação' }))
+    await waitFor(() => expect(push).toHaveBeenCalled())
+    expect(body(posts(calls)[0]!.init)).toMatchObject({ type: 'REFUND', accountId: AURORA, refundOfTransactionId: TXN })
+  })
+
+  it('remover o vínculo envia o reembolso sem a despesa original', async () => {
+    const calls = stub(routes({ 'POST /api/bff/transactions': () => json(txn({ type: 'REFUND' }), 201) }))
+    const user = userEvent.setup()
+    render(<NewTransactionView initialAccountId={AURORA} returnTo={{ kind: 'transactions' }} initialType="REFUND" refundOf={TXN} />)
+
+    await user.click(await screen.findByRole('button', { name: 'Remover vínculo com a despesa' }))
+    await user.type(screen.getByLabelText('Valor'), '30')
+    await user.type(screen.getByLabelText('Descrição'), 'Cashback')
+    await user.click(screen.getByRole('button', { name: 'Registrar transação' }))
+    await waitFor(() => expect(push).toHaveBeenCalled())
+    expect(body(posts(calls)[0]!.init)).toMatchObject({ type: 'REFUND', refundOfTransactionId: null })
+  })
+
+  it('compra parcelada vai para o cartão com o total e as parcelas; nunca pede número completo nem CVV', async () => {
+    const calls = stub(routes({ 'POST /api/bff/cards/': () => json({ transaction: txn(), installments: [] }, 201) }))
+    const user = userEvent.setup()
+    const { container } = render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} />)
+
+    await user.click(await screen.findByRole('radio', { name: 'Compra no cartão' }))
+    await user.selectOptions(await screen.findByLabelText('Cartão'), CARD)
+    expect(screen.getByRole('option', { name: 'Aurora Platinum •••• 4821' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Conta')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText(/CVV|número do cartão|validade/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Ainda pendente' })).not.toBeInTheDocument()
+    await user.type(screen.getByLabelText('Valor total da compra'), '300')
+    await user.clear(screen.getByLabelText('Parcelas'))
+    await user.type(screen.getByLabelText('Parcelas'), '3')
+    await user.type(screen.getByLabelText('Descrição'), 'Geladeira')
+    expect(await axeViolations(container)).toEqual([])
+    await user.click(screen.getByRole('button', { name: 'Registrar transação' }))
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/transactions?registered=posted'))
+    const post = calls.find((c) => c.method === 'POST')!
+    expect(post.url).toBe(`/api/bff/cards/${CARD}/purchases`)
+    expect(body(post.init)).toEqual({ amount: '300.00', occurredOn: '2026-10-09', description: 'Geladeira', installmentCount: 3 })
+    expect(header(post.init, 'Idempotency-Key')).toMatch(/^web:[0-9a-f-]{36}$/)
+  })
+
+  it('pagamento de fatura sugere a conta padrão do cartão e vai como transferência para o cartão', async () => {
+    const calls = stub(routes({ 'POST /api/bff/cards/': () => json({ transaction: txn({ type: 'TRANSFER' }) }, 201) }))
+    const user = userEvent.setup()
+    render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} />)
+
+    await user.click(await screen.findByRole('radio', { name: 'Pagamento de fatura' }))
+    await user.selectOptions(await screen.findByLabelText('Cartão'), CARD)
+    expect(screen.getByLabelText('Pagar com a conta')).toHaveValue(NORTE)
+    expect(screen.getByText(/não conta como gasto de novo/)).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Valor'), '100')
+    await user.click(screen.getByRole('button', { name: 'Registrar transação' }))
+
+    await waitFor(() => expect(push).toHaveBeenCalled())
+    const post = calls.find((c) => c.method === 'POST')!
+    expect(post.url).toBe(`/api/bff/cards/${CARD}/payments`)
+    expect(body(post.init)).toEqual({ accountId: NORTE, amount: '100.00', occurredOn: '2026-10-09', description: null })
+  })
+
+  it('sem cartão ativo oferece o cadastro e não deixa enviar', async () => {
+    stub(routes({}, [card({ status: 'ARCHIVED' })]))
+    const user = userEvent.setup()
+    render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} />)
+
+    await user.click(await screen.findByRole('radio', { name: 'Compra no cartão' }))
+    expect(await screen.findByRole('link', { name: 'Adicionar cartão' })).toHaveAttribute('href', '/cards/new')
+    expect(screen.getByRole('button', { name: 'Registrar transação' })).toBeDisabled()
+  })
+
+  it('cartão arquivado no servidor vira erro no campo Cartão', async () => {
+    stub(routes({ 'POST /api/bff/cards/': () => json({ code: 'CARD_ARCHIVED' }, 409) }))
+    const user = userEvent.setup()
+    render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} />)
+
+    await user.click(await screen.findByRole('radio', { name: 'Compra no cartão' }))
+    await user.selectOptions(await screen.findByLabelText('Cartão'), CARD)
+    await user.type(screen.getByLabelText('Valor total da compra'), '10')
+    await user.type(screen.getByLabelText('Descrição'), 'Café')
+    await user.click(screen.getByRole('button', { name: 'Registrar transação' }))
+    await waitFor(() => expect(screen.getByLabelText('Cartão')).toHaveFocus())
+    expect(screen.getByLabelText('Cartão')).toHaveAccessibleDescription(/arquivado/)
+  })
+
+  it('lista e detalhe mostram o cartão (só os 4 últimos dígitos) no lugar da conta', async () => {
+    const onCard = txn({ accountId: null, cardId: CARD })
+    stub({
+      'GET /api/bff/transactions': () => json(page([onCard])),
+      'GET /api/bff/accounts': () => json(accountsList()),
+      'GET /api/bff/cards': () => json({ items: [card()] }),
+    })
+    render(<TransactionsView />)
+    expect(await screen.findByText(/Aurora Platinum •••• 4821/)).toBeInTheDocument()
+  })
+
+  it('detalhe da compra no cartão: "Pago com" o cartão, sem conta e sem o atalho de reembolso em conta', async () => {
+    stub({
+      'GET /api/bff/accounts': () => json(accountsList()),
+      'GET /api/bff/categories': () => json(catalog),
+      'GET /api/bff/cards': () => json({ items: [card()] }),
+      'GET /api/bff/transactions/': () => json(txn({ accountId: null, cardId: CARD })),
+    })
+    const { container } = render(<TransactionDetailView id={TXN} />)
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Bistrô Lume' })).toBeInTheDocument()
+    expect(await screen.findByText('Aurora Platinum •••• 4821')).toBeInTheDocument()
+    expect(screen.getByText('Pago com')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Conta Aurora' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Registrar reembolso' })).not.toBeInTheDocument()
+    expect(await axeViolations(container)).toEqual([])
+  })
+
+  it('detalhe do pagamento de fatura mostra a conta e a fatura do cartão', async () => {
+    stub({
+      'GET /api/bff/accounts': () => json(accountsList()),
+      'GET /api/bff/categories': () => json(catalog),
+      'GET /api/bff/cards': () => json({ items: [card()] }),
+      'GET /api/bff/transactions/': () =>
+        json(txn({ type: 'TRANSFER', accountId: NORTE, destinationCardId: CARD, description: 'Pagamento de fatura' })),
+    })
+    render(<TransactionDetailView id={TXN} />)
+
+    expect(await screen.findByText('Fatura do cartão')).toBeInTheDocument()
+    expect(await screen.findByText('Aurora Platinum •••• 4821')).toBeInTheDocument()
+    expect(await screen.findByRole('link', { name: 'Reserva' })).toHaveAttribute('href', `/accounts/${NORTE}`)
+  })
+
+  it('despesa efetivada em conta oferece "Registrar reembolso" já vinculado', async () => {
+    stub({
+      'GET /api/bff/accounts': () => json(accountsList()),
+      'GET /api/bff/categories': () => json(catalog),
+      'GET /api/bff/cards': () => json({ items: [] }),
+      'GET /api/bff/transactions/': () => json(txn()),
+    })
+    render(<TransactionDetailView id={TXN} />)
+
+    expect(await screen.findByRole('link', { name: 'Registrar reembolso' })).toHaveAttribute(
+      'href',
+      `/transactions/new?type=REFUND&accountId=${AURORA}&refundOf=${TXN}`,
+    )
   })
 })

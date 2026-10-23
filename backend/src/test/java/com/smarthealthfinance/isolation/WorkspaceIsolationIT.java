@@ -92,10 +92,11 @@ class WorkspaceIsolationIT extends IntegrationTest {
 
     /** Ids de um Workspace semeado: uma conta ativa, uma segunda conta, uma arquivada, transações POSTED/PENDING e um preview de importação. */
     record Fixture(String workspace, String account, String otherAccount, String archivedAccount, String posted,
-                   String pending, String importId, String card) {
+                   String pending, String importId, String card, String purchase) {
 
         List<String> ids() {
-            return List.of(workspace, account, otherAccount, archivedAccount, posted, pending, importId, card);
+            return List.of(workspace, account, otherAccount, archivedAccount, posted, pending, importId, card,
+                    purchase);
         }
     }
 
@@ -224,7 +225,21 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("cards: fatura do mês", HttpMethod.GET, CARD_INVOICE, f -> ids(f.card(), "2026-10"), NONE),
             op("cards: lançamentos da fatura", HttpMethod.GET, CARD_INVOICE + "/items", f -> ids(f.card(), "2026-10"),
                     NONE),
-            op("cards: utilização", HttpMethod.GET, CARD + "/utilization", f -> ids(f.card()), NONE));
+            op("cards: utilização", HttpMethod.GET, CARD + "/utilization", f -> ids(f.card()), NONE),
+            op("cards: compra", HttpMethod.POST, CARD + "/purchases", f -> ids(f.card()), idempotent(json(f -> """
+                    {"amount": {"amount": "1.00", "currency": "BRL"}, "occurredOn": "2026-09-22",
+                     "description": "Invasora", "installmentCount": 1}
+                    """))),
+            op("cards: pagamento", HttpMethod.POST, CARD + "/payments", f -> ids(f.card()), idempotent(json(f -> """
+                    {"accountId": "%s", "amount": {"amount": "1.00", "currency": "BRL"}, "occurredOn": "2026-09-22"}
+                    """.formatted(f.account())))),
+            op("cards: estorno", HttpMethod.POST, CARD + "/credits", f -> ids(f.card()), idempotent(json(f -> """
+                    {"amount": {"amount": "1.00", "currency": "BRL"}, "occurredOn": "2026-09-22",
+                     "description": "Invasora"}
+                    """))),
+            op("cards: parcelamentos", HttpMethod.GET, CARD + "/installments", f -> ids(f.card()), NONE),
+            op("cards: parcelamento", HttpMethod.GET, CARD + "/installments/{transactionId}",
+                    f -> ids(f.card(), f.purchase()), NONE));
 
     static Stream<Op> foreignWorkspaceOperations() {
         return FOREIGN_WORKSPACE.stream();
@@ -381,7 +396,39 @@ class WorkspaceIsolationIT extends IntegrationTest {
                                     {"nickname": "Com conta alheia", "brand": "VISA", "last4": "1234",
                                      "limit": {"amount": "100.00", "currency": "BRL"}, "closingDay": 28, "dueDay": 5,
                                      "defaultPaymentAccountId": "%s"}
-                                    """.formatted(id))));
+                                    """.formatted(id))),
+
+            // ADR-0026 §10: lançamentos em cartão alheio, com conta alheia ou sobre compra alheia = inexistente.
+            cross("cards: compra no cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.post().uri(CARD + "/purchases", own.workspace(), id)
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"amount": {"amount": "1.00", "currency": "BRL"}, "occurredOn": "2026-09-22",
+                                     "description": "No cartão alheio"}
+                                    """)),
+            cross("cards: pagamento de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.post().uri(CARD + "/payments", own.workspace(), id)
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"accountId": "%s", "amount": {"amount": "1.00", "currency": "BRL"},
+                                     "occurredOn": "2026-09-22"}
+                                    """.formatted(own.account()))),
+            cross("cards: pagamento com conta alheia", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
+                    (mvc, own, id) -> mvc.post().uri(CARD + "/payments", own.workspace(), own.card())
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"accountId": "%s", "amount": {"amount": "1.00", "currency": "BRL"},
+                                     "occurredOn": "2026-09-22"}
+                                    """.formatted(id))),
+            cross("cards: estorno de compra alheia", HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", Fixture::purchase,
+                    (mvc, own, id) -> mvc.post().uri(CARD + "/credits", own.workspace(), own.card())
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"amount": {"amount": "1.00", "currency": "BRL"}, "occurredOn": "2026-09-22",
+                                     "description": "Estorno alheio", "refundOfTransactionId": "%s"}
+                                    """.formatted(id))),
+            cross("cards: parcelamento de compra alheia", HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND",
+                    Fixture::purchase,
+                    (mvc, own, id) -> mvc.get().uri(CARD + "/installments/{transactionId}", own.workspace(),
+                            own.card(), id)),
+            cross("transactions: filtrar por cartão alheio", HttpStatus.OK, null, Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(TRANSACTIONS, own.workspace()).param("cardId", id)));
 
     static Stream<CrossOp> foreignReferenceOperations() {
         return FOREIGN_REFERENCE.stream();
@@ -440,8 +487,14 @@ class WorkspaceIsolationIT extends IntegrationTest {
                          "defaultPaymentAccountId": "%s"}
                         """.formatted(accountName, amount, account)).exchange();
         assertThat(card).hasStatus(HttpStatus.CREATED);
+        MvcTestResult purchase = mvc.post().uri(CARD + "/purchases", workspace, read(card, "$.id")).with(who)
+                .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                        {"amount": {"amount": "%s", "currency": "BRL"}, "occurredOn": "2026-09-22",
+                         "description": "%s", "installmentCount": 3}
+                        """.formatted(amount, description)).exchange();
+        assertThat(purchase).hasStatus(HttpStatus.CREATED);
         return new Fixture(workspace, account, other, archived, posted, pending, read(upload, "$.id"),
-                read(card, "$.id"));
+                read(card, "$.id"), read(purchase, "$.transaction.id"));
     }
 
     private String createAccount(RequestPostProcessor who, String workspace, String name) throws Exception {

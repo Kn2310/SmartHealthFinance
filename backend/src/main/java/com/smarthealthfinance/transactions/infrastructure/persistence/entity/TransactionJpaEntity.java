@@ -10,6 +10,7 @@ import com.smarthealthfinance.transactions.domain.enums.TransactionSource;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryCode;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryOrigin;
 import com.smarthealthfinance.transactions.domain.valueobject.Merchant;
@@ -43,11 +44,17 @@ public class TransactionJpaEntity {
     @Column(nullable = false, updatable = false)
     private TransactionType type;
 
-    @Column(name = "account_id", nullable = false, updatable = false)
+    @Column(name = "account_id", updatable = false)
     private UUID accountId;
 
     @Column(name = "destination_account_id", updatable = false)
     private UUID destinationAccountId;
+
+    @Column(name = "card_id", updatable = false)
+    private UUID cardId;
+
+    @Column(name = "destination_card_id", updatable = false)
+    private UUID destinationCardId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "adjustment_direction", updatable = false)
@@ -123,8 +130,10 @@ public class TransactionJpaEntity {
         entity.id = transaction.id().value();
         entity.workspaceId = transaction.workspaceId().value();
         entity.type = transaction.type();
-        entity.accountId = transaction.accountId().value();
+        entity.accountId = transaction.accountId() == null ? null : transaction.accountId().value();
         entity.destinationAccountId = transaction.destinationAccountId().map(AccountId::value).orElse(null);
+        entity.cardId = transaction.cardId().map(CardReference::value).orElse(null);
+        entity.destinationCardId = transaction.destinationCardId().map(CardReference::value).orElse(null);
         entity.adjustmentDirection = transaction.adjustmentDirection().orElse(null);
         entity.amount = transaction.amount().amount();
         entity.currency = transaction.amount().currency().getCurrencyCode();
@@ -152,8 +161,11 @@ public class TransactionJpaEntity {
     }
 
     public Transaction toDomain() {
-        return Transaction.restore(new TransactionId(id), new WorkspaceId(workspaceId), type, new AccountId(accountId),
-                destinationAccountId == null ? null : new AccountId(destinationAccountId), adjustmentDirection,
+        return Transaction.restore(new TransactionId(id), new WorkspaceId(workspaceId), type,
+                accountId == null ? null : new AccountId(accountId),
+                destinationAccountId == null ? null : new AccountId(destinationAccountId),
+                cardId == null ? null : new CardReference(cardId),
+                destinationCardId == null ? null : new CardReference(destinationCardId), adjustmentDirection,
                 new Money(amount, Currency.getInstance(currency)), occurredOn, new TransactionDescription(description),
                 status, source, refundOfTransactionId == null ? null : new TransactionId(refundOfTransactionId),
                 categoryCode == null ? null : new TransactionCategory(new CategoryCode(categoryCode), categoryNature),

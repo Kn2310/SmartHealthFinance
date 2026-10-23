@@ -28,6 +28,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -43,11 +44,19 @@ public final class ReferenceAnalytics {
 
     private final List<Transaction> transactions;
     private final Map<AccountId, Account> accounts;
+    private final Set<UUID> activeCards;
     private final Currency currency;
 
     public ReferenceAnalytics(List<Transaction> transactions, List<Account> accounts, Currency currency) {
+        this(transactions, accounts, Set.of(), currency);
+    }
+
+    /** @param activeCards cartões ativos: compras e estornos deles entram no fluxo (ADR-0026 §10) */
+    public ReferenceAnalytics(List<Transaction> transactions, List<Account> accounts, Set<UUID> activeCards,
+                              Currency currency) {
         this.transactions = transactions;
         this.accounts = accounts.stream().collect(Collectors.toMap(Account::id, Function.identity()));
+        this.activeCards = activeCards;
         this.currency = currency;
     }
 
@@ -117,7 +126,7 @@ public final class ReferenceAnalytics {
     public Optional<LocalDate> firstActivity() {
         return transactions.stream()
                 .filter(t -> CASH_FLOW.contains(t.cashFlowRole()))
-                .filter(t -> countsInTotal(accounts.get(t.accountId())))
+                .filter(this::countsInFlow)
                 .map(Transaction::occurredOn)
                 .min(Comparator.naturalOrder());
     }
@@ -146,19 +155,26 @@ public final class ReferenceAnalytics {
     private List<Transaction> inCashFlow(AnalyticsPeriod period) {
         return projected(period).stream()
                 .filter(t -> CASH_FLOW.contains(t.cashFlowRole()))
-                .filter(t -> countsInTotal(accounts.get(t.accountId())))
+                .filter(this::countsInFlow)
                 .toList();
     }
 
     private Money sum(List<Transaction> items, CashFlowRole role) {
         return total(items.stream()
                 .filter(t -> t.cashFlowRole() == role)
-                .filter(t -> countsInTotal(accounts.get(t.accountId())))
+                .filter(this::countsInFlow)
                 .toList());
     }
 
     private Money total(List<Transaction> items) {
         return items.stream().map(Transaction::amount).reduce(Money.zero(currency), Money::plus);
+    }
+
+    private boolean countsInFlow(Transaction transaction) {
+        if (transaction.cardId().isPresent()) {
+            return activeCards.contains(transaction.cardId().get().value());
+        }
+        return countsInTotal(accounts.get(transaction.accountId()));
     }
 
     private static boolean countsInTotal(Account account) {

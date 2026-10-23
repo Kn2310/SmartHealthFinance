@@ -18,12 +18,16 @@ import com.smarthealthfinance.overview.application.port.OverviewReadModel.Activi
 import com.smarthealthfinance.overview.domain.enums.PeriodType;
 import com.smarthealthfinance.overview.domain.model.CashFlow;
 import com.smarthealthfinance.overview.domain.valueobject.OverviewPeriod;
+import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.support.IntegrationTest;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
+import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
+import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +38,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.smarthealthfinance.accounts.AccountsFixtures.account;
@@ -105,6 +111,40 @@ class JdbcOverviewReadModelIT extends IntegrationTest {
         for (OverviewPeriod period : periods()) {
             assertParity(anas, period);
         }
+    }
+
+    /**
+     * Cartões (ADR-0006 §17): compra e estorno de cartão ativo entram no fluxo sem mover saldo de conta; cartão
+     * arquivado sai do fluxo; o pagamento de fatura só debita a conta e é transferência.
+     */
+    @Test
+    void sqlMatchesTheDomainSemanticsWithCards() {
+        populateEverything();
+        UUID active = persistedCard(anas, "Aurora Platinum", "4821", "ACTIVE");
+        UUID archivedCard = persistedCard(anas, "Cartão antigo", "0937", "ARCHIVED");
+        Map<UUID, ReferenceOverviewReadModel.CardInfo> cards = Map.of(
+                active, new ReferenceOverviewReadModel.CardInfo(true, "Aurora Platinum", "4821"),
+                archivedCard, new ReferenceOverviewReadModel.CardInfo(false, "Cartão antigo", "0937"));
+        reference = new ReferenceOverviewReadModel(transactions, accounts, id -> Optional.ofNullable(cards.get(id)));
+
+        Transaction notebook = onCard(TransactionType.EXPENSE, active, "4800", "2026-09-12", null);
+        onCard(TransactionType.REFUND, active, "480", "2026-09-20", notebook);
+        onCard(TransactionType.EXPENSE, archivedCard, "70", "2026-09-13", null);
+        Transaction reversed = onCard(TransactionType.EXPENSE, active, "33", "2026-09-14", null);
+        change(reversed, Transaction::reverse);
+        transactions.add(Transaction.createCardPayment(TransactionId.generate(CREATED_AT), anas, aurora,
+                new CardReference(active), Money.of("1000", BRL), LocalDate.parse("2026-09-25"),
+                new TransactionDescription("Pagamento de fatura"), CREATED_AT));
+
+        for (OverviewPeriod period : periods()) {
+            assertParity(anas, period);
+        }
+        CashFlow september = readModel.cashFlow(anas, period("2026-09-01", "2026-09-30"), BRL);
+        assertThat(september.expense()).isEqualTo(Money.of("5120", BRL)); // 200 + 120 de conta + 4800 do cartão
+        assertThat(september.refunds()).isEqualTo(Money.of("530", BRL));
+        assertThat(readModel.recentMovements(anas, period("2026-09-25", "2026-09-25"), 5, BRL)).singleElement()
+                .satisfies(movement -> assertThat(movement.card()).get()
+                        .extracting(OverviewReadModel.CardRef::last4).isEqualTo("4821"));
     }
 
     @Test
@@ -362,6 +402,26 @@ class JdbcOverviewReadModelIT extends IntegrationTest {
                 workspaceId, new AccountName(name), AccountType.OTHER, null, BRL, false, CREATED_AT);
         accounts.add(account);
         return account.id();
+    }
+
+    /** Linha mínima de cartão: o Overview só lê status, apelido e os 4 últimos dígitos. */
+    private UUID persistedCard(WorkspaceId workspace, String nickname, String last4, String status) {
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
+                  due_day, status, created_at, updated_at)
+                values (?, ?, ?, 'VISA', ?, 10000, 'BRL', 28, 5, ?, now(), now())""",
+                id, workspace.value(), nickname, last4, status);
+        return id;
+    }
+
+    private Transaction onCard(TransactionType type, UUID card, String amount, String date, Transaction refundOf) {
+        Transaction transaction = Transaction.createOnCard(TransactionId.generate(CREATED_AT), anas, type,
+                new CardReference(card), Money.of(amount, BRL), LocalDate.parse(date),
+                new TransactionDescription(type.name() + " cartão " + date), refundOf == null ? null : refundOf.id(),
+                CREATED_AT);
+        transactions.add(transaction);
+        return transaction;
     }
 
     private void archive(WorkspaceId workspace, AccountId id) {

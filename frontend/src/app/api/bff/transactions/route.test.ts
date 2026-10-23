@@ -178,11 +178,13 @@ describe('POST /api/bff/transactions (lançamento manual)', () => {
     expect(options.body).toEqual({
       type: 'EXPENSE',
       accountId: ACCOUNT,
+      destinationAccountId: null,
       adjustmentDirection: null,
       amount: { amount: '86.40', currency: 'BRL' },
       occurredOn: '2026-10-09',
       description: 'Bistrô Lume',
       status: 'POSTED',
+      refundOfTransactionId: null,
     })
   })
 
@@ -220,7 +222,7 @@ describe('POST /api/bff/transactions (lançamento manual)', () => {
 
   it('recusa no BFF, sem chamar o backend: valor numérico (float), tipo fora do escopo, status inválido, campos ausentes', async () => {
     const response = await create(
-      jsonRequest('/api/bff/transactions', 'POST', { type: 'TRANSFER', accountId: 'x', amount: 86.4, occurredOn: '2026-13-01', description: ' ', status: 'CANCELLED' }),
+      jsonRequest('/api/bff/transactions', 'POST', { type: 'CARD_PURCHASE', accountId: 'x', amount: 86.4, occurredOn: '2026-13-01', description: ' ', status: 'CANCELLED' }),
     )
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({
@@ -232,6 +234,50 @@ describe('POST /api/bff/transactions (lançamento manual)', () => {
         { field: 'occurredOn', code: 'INVALID' },
         { field: 'description', code: 'REQUIRED' },
         { field: 'status', code: 'INVALID' },
+      ],
+    })
+    expect(POST_BACKEND).not.toHaveBeenCalled()
+  })
+
+  it('transferência entre contas e reembolso vinculado passam pela UI (pendência do M2 — ADR-0026 §10)', async () => {
+    POST_BACKEND.mockResolvedValue({ data: transaction, response: { status: 201 } })
+    const OTHER = '01922f5e-0000-7000-8000-0000000000cc'
+    await create(jsonRequest('/api/bff/transactions', 'POST', { ...valid, type: 'TRANSFER', destinationAccountId: OTHER }))
+    expect(POST_BACKEND.mock.calls[0]![1].body).toMatchObject({
+      type: 'TRANSFER',
+      accountId: ACCOUNT,
+      destinationAccountId: OTHER,
+      refundOfTransactionId: null,
+    })
+    await create(jsonRequest('/api/bff/transactions', 'POST', { ...valid, type: 'REFUND', refundOfTransactionId: TXN }))
+    expect(POST_BACKEND.mock.calls[1]![1].body).toMatchObject({
+      type: 'REFUND',
+      destinationAccountId: null,
+      refundOfTransactionId: TXN,
+    })
+  })
+
+  it('transferência sem destino ou para a mesma conta é recusada no BFF', async () => {
+    const missing = await create(jsonRequest('/api/bff/transactions', 'POST', { ...valid, type: 'TRANSFER' }))
+    expect(await missing.json()).toEqual({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'destinationAccountId', code: 'REQUIRED' }],
+    })
+    const same = await create(
+      jsonRequest('/api/bff/transactions', 'POST', { ...valid, type: 'TRANSFER', destinationAccountId: ACCOUNT }),
+    )
+    expect(await same.json()).toEqual({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'destinationAccountId', code: 'SAME_ACCOUNT' }],
+    })
+    const stray = await create(
+      jsonRequest('/api/bff/transactions', 'POST', { ...valid, destinationAccountId: ACCOUNT, refundOfTransactionId: TXN }),
+    )
+    expect(await stray.json()).toEqual({
+      code: 'VALIDATION_FAILED',
+      details: [
+        { field: 'destinationAccountId', code: 'NOT_ALLOWED' },
+        { field: 'refundOfTransactionId', code: 'NOT_ALLOWED' },
       ],
     })
     expect(POST_BACKEND).not.toHaveBeenCalled()

@@ -18,7 +18,9 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static com.smarthealthfinance.cards.application.CardsTestContext.BRL;
 import static com.smarthealthfinance.shared.domain.InvalidValueAssert.assertInvalidValue;
@@ -122,6 +124,31 @@ class CardCommandsTest {
         assertThat(ctx.invoices.get(october.id()).dates().closingDate()).isEqualTo(LocalDate.parse("2026-09-25"));
         assertThat(ctx.invoices.get(october.id()).dates().dueDate()).isEqualTo(LocalDate.parse("2026-10-02"));
         assertThat(ctx.outbox).extracting(IntegrationEvent::eventType).containsExactly(CardEvents.UPDATED);
+    }
+
+    @Test
+    void changingTheCycleMovesInstallmentsOfOpenInvoicesButNeverIntoClosedOnes() {
+        CardView view = ctx.createCard.execute(ctx.anasWorkspaceId(), ctx.auroraCommand());
+        CreditCard card = ctx.storedCard(view.id());
+        UUID purchase = UUID.randomUUID();
+        // Compra em 26 set, 3×: parcelas nas faturas que fecham em set, out e nov (fecha 28).
+        ctx.purchase(card, purchase, LocalDate.parse("2026-09-26"), "Geladeira",
+                List.of(Money.of("100.00", BRL), Money.of("100.00", BRL), Money.of("100.00", BRL)));
+        CardInvoice august = ctx.invoiceWith(card, YearMonth.of(2026, 8), "50.00");
+
+        // Fecha 25: 26 set passa para a fatura que fecha em 25 out; a de setembro fica vazia e sai.
+        ctx.updateCard.execute(ctx.anasWorkspaceId(), view.id(), new UpdateCard.Command("Aurora Platinum",
+                "Banco Aurora", "MASTERCARD", "4821", "12000.00", "BRL", 25, 2, null));
+
+        List<YearMonth> months = ctx.installments.findByTransaction(card.workspaceId(), purchase).stream()
+                .map(installment -> ctx.invoices.get(installment.invoiceId()).dates().closingMonth())
+                .toList();
+        assertThat(months).containsExactly(YearMonth.of(2026, 10), YearMonth.of(2026, 11), YearMonth.of(2026, 12));
+        assertThat(ctx.invoices.findByCard(card.workspaceId(), card.id()))
+                .extracting(invoice -> invoice.dates().closingMonth())
+                .containsExactly(YearMonth.of(2026, 8), YearMonth.of(2026, 10), YearMonth.of(2026, 11),
+                        YearMonth.of(2026, 12));
+        assertThat(ctx.invoices.get(august.id()).dates()).isEqualTo(august.dates());
     }
 
     @Test

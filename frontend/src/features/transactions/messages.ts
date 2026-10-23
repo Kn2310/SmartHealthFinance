@@ -7,13 +7,49 @@ function lookup(table: Partial<Record<string, string>>, key: string | null | und
   return (key != null ? table[key] : undefined) ?? fallback
 }
 
-export type FormField = 'type' | 'adjustmentDirection' | 'accountId' | 'amount' | 'occurredOn' | 'description' | 'status'
+export type FormField =
+  | 'type'
+  | 'adjustmentDirection'
+  | 'cardId'
+  | 'accountId'
+  | 'destinationAccountId'
+  | 'refundOfTransactionId'
+  | 'amount'
+  | 'installmentCount'
+  | 'occurredOn'
+  | 'description'
+  | 'status'
 
 /** Ordem visual do formulário: o foco vai para o primeiro campo com erro. */
-export const FIELD_ORDER: FormField[] = ['type', 'adjustmentDirection', 'accountId', 'amount', 'occurredOn', 'description', 'status']
+export const FIELD_ORDER: FormField[] = [
+  'type', 'adjustmentDirection', 'cardId', 'accountId', 'destinationAccountId', 'refundOfTransactionId', 'amount',
+  'installmentCount', 'occurredOn', 'description', 'status',
+]
 
 const FIELD_ERROR: Record<FormField, Partial<Record<string, string>> & { fallback: string }> = {
-  type: { fallback: 'Escolha se é receita, despesa ou ajuste.' },
+  type: { fallback: 'Escolha o tipo de lançamento.' },
+  cardId: {
+    REQUIRED: 'Escolha o cartão.',
+    CARD_NOT_FOUND: 'Este cartão não está mais disponível. Escolha outro.',
+    CARD_ARCHIVED: 'O cartão está arquivado e não recebe lançamentos. Escolha outro.',
+    fallback: 'Escolha um cartão ativo.',
+  },
+  destinationAccountId: {
+    REQUIRED: 'Escolha a conta de destino.',
+    SAME_ACCOUNT: 'A conta de destino precisa ser diferente da conta de origem.',
+    fallback: 'Escolha uma conta de destino ativa.',
+  },
+  refundOfTransactionId: {
+    NOT_FOUND: 'A despesa original não está mais disponível. Remova o vínculo para seguir.',
+    NOT_REFUNDABLE: 'Só despesas já lançadas podem receber reembolso. Remova o vínculo para seguir.',
+    NOT_SAME_CARD: 'O estorno só vale para uma compra do mesmo cartão.',
+    fallback: 'Confira a despesa original ou remova o vínculo.',
+  },
+  installmentCount: {
+    OUT_OF_RANGE: 'Escolha de 1 a 48 parcelas.',
+    TOO_MANY_FOR_AMOUNT: 'O valor é pequeno demais para tantas parcelas: cada parcela precisa ter ao menos R$ 0,01.',
+    fallback: 'Confira o número de parcelas.',
+  },
   adjustmentDirection: { REQUIRED: 'Escolha se o ajuste aumenta ou diminui o saldo.', fallback: 'Escolha a direção do ajuste.' },
   accountId: {
     REQUIRED: 'Escolha a conta.',
@@ -27,6 +63,7 @@ const FIELD_ERROR: Record<FormField, Partial<Record<string, string>> & { fallbac
     TOO_MANY_DECIMALS: 'Use no máximo 2 casas decimais.',
     TOO_LARGE: 'O valor é alto demais.',
     MISMATCH: 'A moeda não é a da conta.',
+    EXCEEDS_REFUNDABLE: 'O reembolso passaria do valor da despesa original. Confira o valor.',
     fallback: 'Confira o valor.',
   },
   occurredOn: { REQUIRED: 'Informe a data.', fallback: 'Informe uma data válida.' },
@@ -59,6 +96,8 @@ const REQUEST_FAILURE: Partial<Record<string, string>> = {
   TRANSACTION_STATUS_CONFLICT: 'O status desta transação mudou. Recarregue para ver as ações disponíveis.',
   ACCOUNT_NOT_FOUND: 'A conta não está mais disponível. Escolha outra.',
   ACCOUNT_ARCHIVED: 'A conta está arquivada e não recebe movimentações. Reative-a ou escolha outra.',
+  CARD_NOT_FOUND: 'O cartão não está mais disponível. Escolha outro.',
+  CARD_ARCHIVED: 'O cartão está arquivado e não recebe lançamentos. Escolha outro.',
   CONFLICT: 'Esta transação foi alterada em outra janela. Recarregue os dados antes de salvar de novo.',
   IDEMPOTENCY_KEY_REUSED:
     'Um envio anterior deste formulário já foi registrado. Confira a lista de transações antes de registrar de novo.',

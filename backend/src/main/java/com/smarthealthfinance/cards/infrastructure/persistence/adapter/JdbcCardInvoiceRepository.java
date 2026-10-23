@@ -110,6 +110,14 @@ public class JdbcCardInvoiceRepository implements CardInvoiceRepository {
     }
 
     @Override
+    public void deleteAll(List<CardInvoice> invoices) {
+        for (CardInvoice invoice : invoices) {
+            jdbc.update("delete from card_invoices where id = ? and workspace_id = ?", invoice.id().value(),
+                    invoice.workspaceId().value());
+        }
+    }
+
+    @Override
     public List<CardInvoice> lockPendingClosed(LocalDate today, int limit) {
         return jdbc.query("select " + COLUMNS + """
                  from card_invoices

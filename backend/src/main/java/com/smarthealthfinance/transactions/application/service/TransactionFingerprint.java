@@ -22,10 +22,19 @@ public final class TransactionFingerprint {
     }
 
     public static String of(Transaction transaction) {
+        return of(transaction, null);
+    }
+
+    /**
+     * @param callerComponent parte do pedido que não está na transação, definida por quem a cria (ex.: o número de
+     *                        parcelas de uma compra no cartão, ADR-0026 §10). Cartões e esse componente só entram no
+     *                        hash quando presentes: transações de conta mantêm o mesmo hash {@code v1} de antes.
+     */
+    public static String of(Transaction transaction, String callerComponent) {
         StringBuilder canonical = new StringBuilder();
         append(canonical, FORMAT);
         append(canonical, transaction.type().name());
-        append(canonical, transaction.accountId().value());
+        append(canonical, transaction.accountId() == null ? null : transaction.accountId().value());
         append(canonical, transaction.destinationAccountId().map(id -> id.value().toString()).orElse(null));
         append(canonical, transaction.adjustmentDirection().map(Enum::name).orElse(null));
         append(canonical, transaction.amount().toPlainString());
@@ -34,6 +43,12 @@ public final class TransactionFingerprint {
         append(canonical, transaction.description().value());
         append(canonical, transaction.status().name());
         append(canonical, transaction.refundOfTransactionId().map(id -> id.value().toString()).orElse(null));
+        if (transaction.cardId().isPresent() || transaction.destinationCardId().isPresent() || callerComponent != null) {
+            append(canonical, "card");
+            append(canonical, transaction.cardId().map(id -> id.value().toString()).orElse(null));
+            append(canonical, transaction.destinationCardId().map(id -> id.value().toString()).orElse(null));
+            append(canonical, callerComponent);
+        }
         return sha256(canonical.toString());
     }
 

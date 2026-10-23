@@ -28,10 +28,17 @@ public record OverviewResponse(UUID workspaceId, Period period, String state, Su
 
     public record AccountRef(UUID id, String name) {}
 
+    /** Só os 4 últimos dígitos do cartão (ADR-0025 §1). */
+    public record CardRef(UUID id, String nickname, String last4) {}
+
+    /**
+     * @param account nula em compra e estorno no cartão
+     * @param card    cartão da compra/estorno ou que recebe o pagamento de fatura; nulo nas demais (ADR-0026 §10)
+     */
     public record RecentTransaction(UUID id, String type, String flow, String adjustmentDirection, String status,
                                     MoneyDto amount, LocalDate occurredOn, String description, AccountRef account,
                                     AccountRef destinationAccount, UUID refundOfTransactionId,
-                                    String source) {}
+                                    String source, CardRef card) {}
 
     public static OverviewResponse from(OverviewView view) {
         return new OverviewResponse(view.workspaceId(),
@@ -57,7 +64,8 @@ public record OverviewResponse(UUID workspaceId, Period period, String state, Su
         return new RecentTransaction(t.id(), t.type().name(), t.flow().name(),
                 t.adjustmentDirection() == null ? null : t.adjustmentDirection().name(), t.status().name(),
                 money(t.amount()), t.occurredOn(), t.description(), ref(t.account()), ref(t.destinationAccount()),
-                t.refundOfTransactionId(), t.source().name());
+                t.refundOfTransactionId(), t.source().name(),
+                t.card() == null ? null : new CardRef(t.card().id(), t.card().nickname(), t.card().last4()));
     }
 
     private static AccountRef ref(OverviewView.AccountRef ref) {

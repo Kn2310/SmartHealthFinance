@@ -21,6 +21,9 @@ public interface CardInvoiceRepository {
     /** Atualiza só as datas (recálculo do ciclo das faturas não fechadas). */
     void updateDates(List<CardInvoice> invoices);
 
+    /** Remove faturas não fechadas que ficaram sem parcelas depois de uma reatribuição. */
+    void deleteAll(List<CardInvoice> invoices);
+
     /**
      * Job de sistema do {@code invoice.closed} (ADR-0026 §8), em todos os Workspaces: faturas já fechadas e ainda não
      * notificadas, bloqueadas com {@code SKIP LOCKED} para várias instâncias se repartirem.

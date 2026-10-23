@@ -53,7 +53,9 @@
 - [x] transaction UI (`/transactions` com filtros, `/transactions/new` receita/despesa/ajuste com `Idempotency-Key` por intenção, `/transactions/{id}` efetivar/cancelar/estornar e editar descrição; BFF `/api/bff/transactions[/{id}[/post|/cancel|/reverse]]`; M-More mínimo — ADR-0005 §16)
 - [x] métricas do topo de D-Transactions (Entradas/Saídas/Transferências/Resultado do período filtrado, `GET
   .../transactions/summary` com os filtros da lista) e "Por que meu dinheiro mudou?" com filtro de mês inteiro — ADR-0016
-- [ ] pendência: transferência e reembolso pela UI (a API já suporta; a UI só exibe)
+- [x] transferência e reembolso pela UI (ADR-0026 §10): "Transferência" com conta de origem e de destino e
+  "Reembolso" em `/transactions/new`; "Registrar reembolso" no detalhe da despesa efetivada abre o formulário já
+  vinculado (`?type=REFUND&refundOf=…`), com opção de remover o vínculo; BFF valida destino e vínculo por tipo
 - [x] eventos `transaction.*` (created, posted, cancelled, reversed, categorized) pela outbox, consumidos pela
   projeção de Analytics (ADR-0014); importações seguem pelo `import.completed`
 
@@ -175,11 +177,54 @@
   fim de semana), datas congeladas depois do fechamento, estados derivados, alocação de pagamentos, faturas por mês de
   vencimento, atual, futuras comprometidas e lançamentos paginados; job `invoice.closed`; paridade do SQL. Compras,
   créditos e pagamentos entram na parte C
-- [ ] invoice — lançamentos (compra, estorno, pagamento) e reatribuição de parcelas na mudança de ciclo (parte C)
-- [ ] installment
+- [x] invoice — lançamentos (ADR-0026 §10): compras, estornos e pagamentos entram nas faturas; reatribuição das
+  parcelas das faturas não fechadas na mudança de ciclo, na mesma transação (mês fechado → primeira não fechada)
+- [x] installment (ADR-0026 §10): `POST /cards/{id}/purchases` à vista ou em 1–48 parcelas com `Idempotency-Key`
+  (o hash inclui o número de parcelas), centavos na 1ª parcela, `GET /cards/{id}/installments[/{transactionId}]`;
+  estornos (`POST …/credits`) aplicados na leitura pelo `CreditAllocator` (parcelas não faturadas, da última para a
+  primeira; o resto vira crédito na fatura da data do estorno)
 - [x] utilization (ADR-0025 §9, ADR-0026 §6): (em aberto + fatura atual + parcelas futuras) ÷ limite, inteiro
   HALF_EVEN, composição e "sem parcelas futuras"; resumo dos cartões ativos numa chamada
-- [ ] payment
+- [x] payment (ADR-0026 §10): `POST /cards/{id}/payments` grava `TRANSFER` conta → cartão (`destination_card_id`),
+  aplicado da fatura mais antiga para a mais nova; sai do saldo, não entra em despesas
+- [x] sem dupla contagem no Overview e no Analytics: compra e estorno de cartão ativo em despesas/reembolsos, pagamento
+  só em transferências, saldo total só de contas; `analytics_daily_flows.card_id`, rebuild `VERSION` 3; paridade SQL
+- [x] frontend mínimo (ADR-0026 §10): "Compra no cartão" (total + parcelas) e "Pagamento de fatura" (conta padrão
+  sugerida) em `/transactions/new`; `/cards/new` só com os 4 últimos dígitos; cartão na lista, no detalhe ("Pago com",
+  "Fatura do cartão") e na Home; BFF `/api/bff/cards[/{id}/purchases|payments|credits]`; E2E
+  `card-transactions.spec.ts` (cartão → compra parcelada → pagamento → Home sem dupla contagem)
+
+### Handoff da Sessão 6.1 para a 6.2
+
+**Decisões em vigor** (não reabrir sem ADR): ADR-0025 (modelo, com adendo de estornos) e ADR-0026 (API, com o adendo
+§10 dos lançamentos). Pontos que a 6.2 deve respeitar:
+- compra = `EXPENSE` com `card_id` (sem conta), pelo total na data da compra; pagamento = `TRANSFER` com
+  `destination_card_id`; estorno = `REFUND` com `card_id`. Cartão só aceita `POSTED`/`REVERSED` (sem `PENDING`);
+- fatura, parcelas, estornos, pagamentos e utilização são calculados no backend (`invoice-v1`); o frontend só exibe e
+  deve mostrar a versão do cálculo onde houver valor derivado;
+- correção de lançamento errado = `POST /transactions/{id}/reverse`.
+
+**Contratos prontos para as telas:** `GET /cards`, `/cards/summary`, `/cards/{id}` (com `PUT`, `archive` e
+`reactivate`), `/cards/{id}/invoices` (`/current`, `/future`, `/{dueMonth}` e `/{dueMonth}/items` paginado),
+`/cards/{id}/installments[/{transactionId}]`,
+`/cards/{id}/utilization`; `POST /cards/{id}/purchases|payments|credits`; `GET /transactions?cardId=` e
+`/transactions/summary?cardId=`; `recentTransactions[].card` no Overview. O BFF hoje só expõe `GET|POST /api/bff/cards`
+e os três `POST` de lançamento — a 6.2 adiciona os `GET` de fatura, parcelamento, resumo e utilização.
+
+**Eventos:** `card.created|updated|archived|reactivated` e `invoice.closed` (job) vão para a outbox, ainda **sem
+consumidor**. Lançamentos de cartão usam os `transaction.*` existentes (payload só com id e `occurredOn`); o Analytics
+os consome e relê a fonte.
+
+**Lacunas conhecidas (fora do escopo da 6.1):**
+- estorno no cartão pela UI (a rota e o BFF existem; o detalhe só oferece "Registrar reembolso" para despesa em conta);
+- edição/arquivamento do cartão pela UI e o filtro "Conta ou cartão" na lista de transações;
+- telas `/cards`, fatura, faturas futuras e parcelamento; bloco "Faturas a pagar" no Overview; chip "Cartões" nos
+  Insights;
+- o item "Cartões" da navegação aponta para `/cards`, que ainda não existe (só `/cards/new`).
+
+**Pendências que precisam de decisão:** as listadas no ADR-0025 §14 (CSV/OFX de fatura, parcelas no extrato,
+conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v2`, detectores, histórico de utilização,
+`INCOME`/`ADJUSTMENT`/`PENDING` no cartão).
 
 ## M9 Forecast
 

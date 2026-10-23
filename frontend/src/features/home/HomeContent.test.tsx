@@ -21,6 +21,7 @@ const pending = (overrides: Partial<OverviewTransaction> = {}): OverviewTransact
   destinationAccount: null,
   refundOfTransactionId: null,
   source: 'MANUAL',
+  card: null,
   ...overrides,
 })
 

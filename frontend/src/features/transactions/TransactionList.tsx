@@ -17,7 +17,7 @@ import {
   type Filters,
   type PeriodPreset,
 } from './filters'
-import { accountNames, categoryNames, useAccounts, useCategories, useTransactionPages } from './hooks'
+import { accountNames, cardNames, categoryNames, useAccounts, useCards, useCategories, useTransactionPages } from './hooks'
 import { NO_CATEGORY_LABEL, STATUS_OPTIONS, TYPE_OPTIONS } from './labels'
 import { plural, requestFailureMessage } from './messages'
 import { PeriodSummary } from './PeriodSummary'
@@ -71,7 +71,9 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
   const effective: Filters = fixedAccountId ? { ...filters, accountId: fixedAccountId } : filters
   const pages = useTransactionPages(toListParams(effective, query, today))
   const accounts = useAccounts()
-  const names = accountNames(accounts)
+  const cards = useCards()
+  // Contas e cartões: compra e estorno no cartão mostram o cartão no lugar da conta (ADR-0026 §10).
+  const names = new Map([...accountNames(accounts), ...cardNames(cards)])
   const categories = useCategories()
   const categoriesByCode = categoryNames(categories)
   const range = periodRange(effective, today)

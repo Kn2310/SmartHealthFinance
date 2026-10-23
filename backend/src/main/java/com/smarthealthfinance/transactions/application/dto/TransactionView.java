@@ -7,6 +7,7 @@ import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.enums.CategorySource;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.CategoryOrigin;
 import com.smarthealthfinance.transactions.domain.valueobject.Merchant;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
@@ -17,6 +18,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
+ * @param accountId    nulo em compra e estorno no cartão ({@code cardId}, ADR-0025 §2)
+ * @param destinationCardId cartão que recebe o pagamento de fatura (TRANSFER conta → cartão)
  * @param amount       já na escala de exibição da moeda (86.40, nunca 86.4000)
  * @param categoryCode   {@code null} = "Sem categoria" (ADR-0012 §4)
  * @param categorySource origem da categoria; nulo enquanto ninguém (regra ou usuário) a tratou (ADR-0013 §3)
@@ -25,7 +28,8 @@ import java.util.UUID;
  * @param reclassifiedAsTransactionId   reembolso que substituiu esta receita estornada
  */
 public record TransactionView(
-        UUID id, UUID workspaceId, UUID accountId, UUID destinationAccountId, TransactionType type,
+        UUID id, UUID workspaceId, UUID accountId, UUID destinationAccountId, UUID cardId, UUID destinationCardId,
+        TransactionType type,
         AdjustmentDirection adjustmentDirection, BigDecimal amount, String currency, LocalDate occurredOn,
         String description, TransactionStatus status, TransactionSource source, UUID refundOfTransactionId,
         String categoryCode, CategorySource categorySource, String merchantName, UUID reclassifiedFromTransactionId,
@@ -33,8 +37,11 @@ public record TransactionView(
 ) {
     public static TransactionView from(Transaction transaction) {
         return new TransactionView(
-                transaction.id().value(), transaction.workspaceId().value(), transaction.accountId().value(),
-                transaction.destinationAccountId().map(AccountId::value).orElse(null), transaction.type(),
+                transaction.id().value(), transaction.workspaceId().value(),
+                transaction.accountId() == null ? null : transaction.accountId().value(),
+                transaction.destinationAccountId().map(AccountId::value).orElse(null),
+                transaction.cardId().map(CardReference::value).orElse(null),
+                transaction.destinationCardId().map(CardReference::value).orElse(null), transaction.type(),
                 transaction.adjustmentDirection().orElse(null), new BigDecimal(transaction.amount().toPlainString()),
                 transaction.amount().currency().getCurrencyCode(), transaction.occurredOn(),
                 transaction.description().value(), transaction.status(), transaction.source(),

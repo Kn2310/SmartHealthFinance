@@ -36,6 +36,10 @@ export const CARD_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
 export const INVOICE_STATUSES = ['FUTURE', 'OPEN', 'CLOSED', 'PARTIALLY_PAID', 'PAID', 'OVERDUE'] as const
 export const INVOICE_DATES_SOURCES = ['CALCULATED', 'IMPORTED'] as const
 export const INVOICE_ITEM_KINDS = ['CHARGE', 'CREDIT'] as const
+export const INSTALLMENT_STATUSES = ['PAID', 'CURRENT', 'FUTURE', 'CANCELLED'] as const
+export const INSTALLMENT_PLAN_STATUSES = ['ACTIVE', 'FINISHED', 'CANCELLED'] as const
+/** Parcelas de uma compra no cartão (InstallmentSplitter.MAX_INSTALLMENTS). */
+export const MAX_INSTALLMENTS = 48
 export const CARD_NICKNAME_MAX_LENGTH = 100
 
 /** `AccountName.MAX_LENGTH` e `InstitutionName.MAX_LENGTH` do backend: o BFF e o formulário recusam antes. */
@@ -91,6 +95,8 @@ export type EnumChecks = [
   Assert<Equals<Values<typeof INVOICE_STATUSES>, Inv['status']>>,
   Assert<Equals<Values<typeof INVOICE_DATES_SOURCES>, Inv['datesSource']>>,
   Assert<Equals<Values<typeof INVOICE_ITEM_KINDS>, S['InvoiceItemResponse']['kind']>>,
+  Assert<Equals<Values<typeof INSTALLMENT_STATUSES>, S['InstallmentItemResponse']['status']>>,
+  Assert<Equals<Values<typeof INSTALLMENT_PLAN_STATUSES>, S['InstallmentPlanResponse']['status']>>,
 ]
 
 /** Campos de cada record Java (nomes iguais aos do backend) ↔ chaves do tipo TS correspondente. */
@@ -104,8 +110,9 @@ export const RECORD_FIELDS = {
   AccountRef: ['id', 'name'],
   RecentTransaction: [
     'id', 'type', 'flow', 'adjustmentDirection', 'status', 'amount', 'occurredOn', 'description', 'account',
-    'destinationAccount', 'refundOfTransactionId', 'source',
+    'destinationAccount', 'refundOfTransactionId', 'source', 'card',
   ],
+  CardRef: ['id', 'nickname', 'last4'],
   MoneyDto: ['amount', 'currency'],
   AccountResponse: [
     'id', 'workspaceId', 'name', 'type', 'institutionName', 'currency', 'includedInTotal', 'status', 'createdAt',
@@ -127,8 +134,8 @@ export const RECORD_FIELDS = {
   ImportPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   ImportRecordPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   TransactionResponse: [
-    'id', 'workspaceId', 'accountId', 'destinationAccountId', 'type', 'adjustmentDirection', 'amount', 'occurredOn',
-    'description', 'status', 'source', 'refundOfTransactionId', 'categoryCode', 'categorySource', 'merchantName',
+    'id', 'workspaceId', 'accountId', 'destinationAccountId', 'cardId', 'destinationCardId', 'type',
+    'adjustmentDirection', 'amount', 'occurredOn', 'description', 'status', 'source', 'refundOfTransactionId', 'categoryCode', 'categorySource', 'merchantName',
     'reclassifiedFromTransactionId', 'reclassifiedAsTransactionId', 'createdAt', 'updatedAt',
   ],
   TransactionPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
@@ -170,6 +177,19 @@ export const RECORD_FIELDS = {
     'composition', 'asOf', 'calculationVersion',
   ],
   CardSummaryResponse: ['card', 'currentInvoice', 'utilization', 'nextInvoiceCommitted'],
+  CardPurchaseRequest: ['amount', 'occurredOn', 'description', 'installmentCount'],
+  CardPaymentRequest: ['accountId', 'amount', 'occurredOn', 'description'],
+  CardCreditRequest: ['amount', 'occurredOn', 'description', 'refundOfTransactionId'],
+  PurchaseInstallmentResponse: ['number', 'amount', 'dueMonth'],
+  CardPurchaseResponse: ['transaction', 'installments', 'calculationVersion'],
+  CardTransactionResponse: ['transaction'],
+  InstallmentItemResponse: ['number', 'dueMonth', 'amount', 'cancelledAmount', 'status'],
+  ReservedLimitResponse: ['dueMonth', 'amount'],
+  InstallmentPlanResponse: [
+    'transactionId', 'description', 'purchasedOn', 'total', 'count', 'installmentAmount', 'paidCount', 'paidAmount',
+    'currentNumber', 'remainingAfterCurrent', 'lastDueMonth', 'status', 'installments', 'reservedLimit',
+  ],
+  InstallmentPlanListResponse: ['items'],
   CardsSummaryResponse: [
     'totalLimit', 'utilized', 'openInvoices', 'nextDueDate', 'cards', 'asOf', 'calculationVersion',
   ],
@@ -183,7 +203,7 @@ export type FieldChecks = [
   Assert<Equals<Values<F['CashFlow']>, keyof NonNullable<O['cashFlow']>>>,
   Assert<Equals<Values<F['Transfers']>, keyof NonNullable<O['cashFlow']>['transfers']>>,
   Assert<Equals<Values<F['AccountSummary']>, keyof O['accounts'][number]>>,
-  Assert<Equals<Values<F['AccountRef']>, keyof Tx['account']>>,
+  Assert<Equals<Values<F['AccountRef']>, keyof NonNullable<Tx['account']>>>,
   Assert<Equals<Values<F['RecentTransaction']>, keyof Tx>>,
   Assert<Equals<Values<F['MoneyDto']>, keyof S['MoneyDto']>>,
   Assert<Equals<Values<F['AccountResponse']>, keyof Acc>>,
@@ -221,4 +241,15 @@ export type FieldChecks = [
   Assert<Equals<Values<F['UtilizationResponse']>, keyof S['UtilizationResponse']>>,
   Assert<Equals<Values<F['CardSummaryResponse']>, keyof S['CardSummaryResponse']>>,
   Assert<Equals<Values<F['CardsSummaryResponse']>, keyof S['CardsSummaryResponse']>>,
+  Assert<Equals<Values<F['CardRef']>, keyof NonNullable<Tx['card']>>>,
+  Assert<Equals<Values<F['CardPurchaseRequest']>, keyof S['CardPurchaseRequest']>>,
+  Assert<Equals<Values<F['CardPaymentRequest']>, keyof S['CardPaymentRequest']>>,
+  Assert<Equals<Values<F['CardCreditRequest']>, keyof S['CardCreditRequest']>>,
+  Assert<Equals<Values<F['PurchaseInstallmentResponse']>, keyof S['PurchaseInstallmentResponse']>>,
+  Assert<Equals<Values<F['CardPurchaseResponse']>, keyof S['CardPurchaseResponse']>>,
+  Assert<Equals<Values<F['CardTransactionResponse']>, keyof S['CardTransactionResponse']>>,
+  Assert<Equals<Values<F['InstallmentItemResponse']>, keyof S['InstallmentItemResponse']>>,
+  Assert<Equals<Values<F['ReservedLimitResponse']>, keyof S['ReservedLimitResponse']>>,
+  Assert<Equals<Values<F['InstallmentPlanResponse']>, keyof S['InstallmentPlanResponse']>>,
+  Assert<Equals<Values<F['InstallmentPlanListResponse']>, keyof S['InstallmentPlanListResponse']>>,
 ]

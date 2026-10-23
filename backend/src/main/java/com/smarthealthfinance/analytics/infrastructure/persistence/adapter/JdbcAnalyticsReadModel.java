@@ -45,11 +45,13 @@ public class JdbcAnalyticsReadModel implements AnalyticsReadModel {
 
     /** Linha que entra no fluxo de caixa: papel do fluxo e conta ativa incluída no total. */
     private static final String IN_CASH_FLOW = """
-            f.flow in ('INCOME', 'EXPENSE', 'REFUND') and a.status = 'ACTIVE' and a.included_in_total""";
+            f.flow in ('INCOME', 'EXPENSE', 'REFUND')
+            and ((a.status = 'ACTIVE' and a.included_in_total) or c.status = 'ACTIVE')""";
 
     private static final String FROM = """
             from analytics_daily_flows f
-            join accounts a on a.id = f.account_id and a.workspace_id = f.workspace_id
+            left join accounts a on a.id = f.account_id and a.workspace_id = f.workspace_id
+            left join credit_cards c on c.id = f.card_id and c.workspace_id = f.workspace_id
             where f.workspace_id = ? and f.day between ? and ?
             """;
 
@@ -155,7 +157,8 @@ public class JdbcAnalyticsReadModel implements AnalyticsReadModel {
         return Optional.ofNullable(jdbc.queryForObject("""
                         select min(f.day)
                         from analytics_daily_flows f
-                        join accounts a on a.id = f.account_id and a.workspace_id = f.workspace_id
+                        left join accounts a on a.id = f.account_id and a.workspace_id = f.workspace_id
+                        left join credit_cards c on c.id = f.card_id and c.workspace_id = f.workspace_id
                         where f.workspace_id = ? and %s
                         """.formatted(IN_CASH_FLOW),
                 LocalDate.class, workspaceId.value()));
@@ -167,10 +170,11 @@ public class JdbcAnalyticsReadModel implements AnalyticsReadModel {
         return jdbc.query("""
                         select t.id, t.occurred_on, t.description, t.merchant_name, t.category_code, t.amount
                         from transactions t
-                        join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        left join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        left join credit_cards c on c.id = t.card_id and c.workspace_id = t.workspace_id
                         where t.workspace_id = ? and t.status = 'POSTED' and t.type = 'EXPENSE'
                           and t.occurred_on between ? and ?
-                          and a.status = 'ACTIVE' and a.included_in_total
+                          and ((a.status = 'ACTIVE' and a.included_in_total) or c.status = 'ACTIVE')
                         order by t.amount desc, t.occurred_on desc, t.id
                         limit ?
                         """,
