@@ -199,6 +199,109 @@ ainda não existe (ADR-0003/0004/0005 adiaram eventos por isso).
     - Para o selo, `recentTransactions` do Overview passou a expor `source` (campo aditivo; ADR-0006).
     - A UI oferece um modelo CSV (`/modelo-extrato.csv`, UTF-8 com BOM para o Excel).
 
+### Faturas de cartão (adendo de 2026-10-23, M8 Sessão 6.2 parte D)
+
+> Decisões aprovadas em 2026-10-23:
+> - **Ingestion → Cards**: o processamento chama um caso de uso de Cards na mesma transação tudo-ou-nada;
+> - **CSV canônico com o sinal de fatura** (positivo = compra) e coluna opcional `parcela`;
+> - **parcelas reconstruídas** quando não há parcelamento compatível, com o **início do acompanhamento** do cartão
+>   (ADR-0025 §15);
+> - **a conta é a fonte do pagamento**: o crédito de pagamento no arquivo do cartão não vira transação, e o débito da
+>   conta é conciliado por uma ação explícita (ADR-0025 §7, adendo).
+
+19. **Destino cartão.**
+    - O upload recebe `accountId` **ou** `cardId`, nunca os dois e nunca nenhum
+      (`400 VALIDATION_FAILED destination EXACTLY_ONE`).
+    - O cartão precisa estar ativo e no mesmo Workspace: `404 CARD_NOT_FOUND` ou `409 CARD_ARCHIVED`.
+    - O hash da `Idempotency-Key` com cartão é `sha256("v1|card|" + cardId + "|" + hashDoArquivo)`. O formato da conta
+      não muda.
+    - Um cartão arquivado entre o preview e o processamento leva a `FAILED` `CARD_ARCHIVED`, não retentável, como a
+      conta (§12).
+20. **Direção dos módulos:** `identity → accounts → transactions → cards → ingestion`.
+    - Para um batch de cartão, o `ProcessImport` chama `RecordImportedCardTransactions` (Cards, `MANDATORY`).
+    - Esse caso de uso lança as transações pelo caso de uso de Transactions (`source = IMPORT`, `card_id`) e gera as
+      parcelas, tudo na transação de banco do batch.
+    - ArchUnit: Ingestion pode usar casos de uso e DTOs de Cards, e Cards nunca depende de Ingestion.
+21. **OFX de cartão.**
+    - `CCSTMTRS` só é aceito com destino cartão, e `STMTRS` só com conta. O tipo trocado leva a
+      `422 IMPORT_FILE_REJECTED` `STATEMENT_TYPE_MISMATCH`.
+    - As regras de extrato único e BRL (§5) continuam valendo.
+    - O sinal segue o OFX: `TRNAMT` negativo é compra e positivo é crédito.
+    - `TRNTYPE` é lido só para reconhecer `PAYMENT` (item 23).
+    - **Dados da fatura, só quando explícitos:** se o arquivo trouxer o agregado `CCCLOSING` com `DTPMTDUE` e/ou
+      `MINPMTDUE`, a fatura do cartão que vence naquele mês recebe:
+      - o pagamento mínimo, mostrado como "Informado no arquivo";
+      - o vencimento real, com `dates_source = IMPORTED`.
+    - O fechamento real (`DTCLOSE`) **não** é aplicado nesta versão, porque exigiria reatribuir as parcelas.
+    - O CSV não tem campo para nenhum desses dados.
+22. **CSV de fatura:** o mesmo modelo canônico do §6, com a mesma autodetecção, separador e regras de valor.
+    - **Sinal invertido em relação ao extrato de conta:** positivo é compra e negativo é crédito, como nas exportações
+      de fatura.
+    - **Coluna opcional `parcela`** (`parcelas`, `installment`), no formato `k/n` ou `k de n`. Um valor fora do padrão
+      leva a `INVALID_INSTALLMENT`.
+    - **Convenção interna única:** o parser normaliza toda linha de cartão para negativo = compra, qualquer que seja o
+      formato. Records e chaves de dedupe têm o mesmo sinal no OFX e no CSV.
+    - A UI oferece `/modelo-fatura.csv`.
+23. **Classificação das linhas de cartão** (domínio do Ingestion, determinística, visível no preview):
+    - **Crédito de pagamento:** crédito com `TRNTYPE` `PAYMENT`, ou cuja descrição normalizada comece com
+      `PAGAMENTO`, `PAGTO`, `PGTO` ou `PAG FATURA`.
+      - Vira o record **`SKIPPED`** com o motivo `CARD_PAYMENT` ("Pagamento: registre pela conta"). Nenhuma transação
+        é criada.
+    - **Outro crédito:** `REFUND` no cartão, sem vínculo, que entra na fatura do ciclo da data (ADR-0025 §8).
+      Vincular depois a uma compra fica para depois do M8.
+    - **Débito com marcador de parcela:** parcela (itens 24–26).
+    - **Outro débito:** compra à vista. Anuidade, IOF e juros entram aqui, porque `ADJUSTMENT` no cartão continua fora
+      do MVP.
+24. **Detecção de parcela.**
+    - A coluna `parcela` tem prioridade.
+    - Na falta dela, procura-se na descrição normalizada:
+      - `PARC` ou `PARCELA` seguido de `k/n` ou `k DE n`;
+      - um `k/n` isolado no **fim** da descrição.
+    - Vale só com 1 ≤ k ≤ n e 2 ≤ n ≤ 48. Fora disso a linha é uma compra comum.
+    - A descrição da compra é a da linha sem o marcador.
+    - Risco aceito: uma data no fim da descrição ("… 05/12") pode ser lida como parcela. O preview mostra
+      "Parcela k de n" em cada linha para o usuário conferir antes de confirmar.
+25. **Data da compra de uma parcela.**
+    - A **fatura do arquivo** é a do ciclo da maior data entre as linhas.
+    - Se a parcela k, contada a partir da data da linha, cai nessa fatura, a data da linha é a data da compra.
+    - Caso contrário, a linha traz a data de lançamento, e a compra é essa data menos k − 1 meses, com o dia limitado
+      ao fim do mês.
+26. **Conciliação ou reconstrução** (Cards, no processamento).
+    - **Busca de compatível:** compra `POSTED` do mesmo cartão em n parcelas, com a parcela k na mesma fatura,
+      |valor da linha − parcela k| < n centavos e a parcela k ainda não confirmada por arquivo.
+    - **Desempate:** data da compra mais antiga, depois o id.
+    - **Encontrou:** record **`RECONCILED`** apontando para a compra existente, manual ou importada. Nada é lançado, e
+      a parcela k passa a constar como confirmada por arquivo (`card_installment_confirmations`).
+    - **Não encontrou:** a compra é reconstruída em n parcelas, com **total = valor da linha × n** na data da compra.
+      - As parcelas são todas iguais (`InstallmentSplitter`).
+      - A parcela k fica confirmada.
+      - Na conciliação dos meses seguintes, a diferença de centavos fica dentro da tolerância.
+      - Limitação documentada: quando a 1ª parcela do banco carrega o resto dos centavos, o total reconstruído difere
+        do real em menos de n centavos por parcela.
+    - Parcelas anteriores ao início do acompanhamento ficam fora da fatura e da utilização (ADR-0025 §15). A despesa
+      continua sendo o total, na data da compra (ADR-0025 §3).
+27. **Deduplicação por cartão.**
+    - `imported_transaction_keys` ganha `card_id`, com exatamente um entre conta e cartão. A fórmula `v1` não muda.
+    - A chave de uma linha conciliada aponta para a compra existente, então várias chaves podem apontar para a mesma
+      compra (uma por parcela).
+    - Não há dedupe contra lançamentos manuais à vista. A limitação do §11 continua.
+28. **Início do acompanhamento.** O processamento recua o início do acompanhamento do cartão, sem nunca avançá-lo,
+    até a fatura mais antiga com evidência no arquivo:
+    - para uma linha comum, o ciclo da data da linha;
+    - para uma parcela, a fatura em que a parcela cai.
+29. **Batch, records e evento.**
+    - `import_batches` ganha `card_id`, com exatamente um entre conta e cartão, e as contagens `skipped_lines` e
+      `reconciled_lines`.
+    - `total = valid + invalid + duplicate + skipped`; depois do processamento, `imported + reconciled ≤ valid`.
+    - `import_records` ganha os status `SKIPPED` e `RECONCILED` e as colunas `installment_number` e
+      `installment_count`.
+    - `import.completed` leva `cardId` no lugar de `accountId`. `firstDate` cobre também a data das compras
+      reconstruídas, para o Analytics recalcular o mês da compra.
+    - API: `ImportResponse` ganha `cardId`, e `accountId` passa a aceitar nulo. Os records ganham
+      `installment {number, count}` e os novos status. Todas as mudanças são aditivas.
+30. **UI:** `/import` lista contas e cartões ativos como destino. O preview mostra "Parcela k de n" e "Pagamento:
+    registre pela conta", e o resultado mostra as linhas conciliadas.
+
 ## Alternatives
 
 - **Async in-process sem RabbitMQ:** rejeitada (decisão aprovada). Divergiria da 05.7 e adiaria a Outbox de novo.
@@ -214,6 +317,18 @@ ainda não existe (ADR-0003/0004/0005 adiaram eventos por isso).
 - **Processamento por linha (commits parciais):** rejeitado. Batch parcialmente aplicado é difícil de explicar e
   de reprocessar; com 5.000 linhas uma transação basta.
 - **Inferir transferências/reembolsos:** adiado. É regra financeira nova e exige revisão do usuário.
+- **Faturas (adendo de 2026-10-23):**
+  - **Cards consumindo eventos para gerar as parcelas:** rejeitado. A fatura e a utilização ficariam
+    inconsistentes por um tempo (o mesmo motivo do ADR-0026, Alternatives).
+  - **Importação de cartão dentro de Cards:** rejeitada. Duplicaria batch, records, dedupe, expiração e worker.
+  - **Sinal da conta no CSV de fatura:** rejeitado. As exportações de fatura usam positivo para compra, e o arquivo
+    seria importado invertido.
+  - **Sinal autodetectado:** rejeitado. É heurística, e um arquivo com muitos créditos sairia invertido sem aviso.
+  - **Parcela como compra à vista:** rejeitada. As parcelas futuras sumiriam da utilização, e cada mês repetiria uma
+    "compra".
+  - **Crédito de pagamento como `TRANSFER` a partir da conta padrão:** rejeitado. Duplicaria o débito importado na
+    conta e inventaria a origem.
+  - **Crédito de pagamento como `REFUND`:** rejeitado, porque seria dupla contagem.
 
 ## Consequences
 
