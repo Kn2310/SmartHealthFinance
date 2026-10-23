@@ -108,7 +108,7 @@ class CardApiIT extends IntegrationTest {
                 .hasPathSatisfying("$.invoice.status", s -> assertThat(s).asString().isEqualTo("OPEN"))
                 .hasPathSatisfying("$.invoice.amount.amount", a -> assertThat(a).asString().isEqualTo("0.00"))
                 .hasPathSatisfying("$.invoice.datesSource", s -> assertThat(s).asString().isEqualTo("CALCULATED"))
-                .hasPathSatisfying("$.calculationVersion", v -> assertThat(v).asString().isEqualTo("invoice-v1"))
+                .hasPathSatisfying("$.calculationVersion", v -> assertThat(v).asString().isEqualTo("invoice-v2"))
                 .hasPathSatisfying("$.asOf", v -> assertThat(v).asString().isEqualTo(today.toString()));
         assertThat(read(current, "$.invoice.partial")).isEqualTo(true);
         assertThat(read(current, "$.invoice.minimumPayment")).isNull();

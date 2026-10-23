@@ -15,6 +15,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Instant;
+import java.time.YearMonth;
 import java.util.Currency;
 import java.util.UUID;
 
@@ -90,6 +91,6 @@ class CreditCardTest {
     static CreditCard aurora() {
         return CreditCard.create(CardId.generate(NOW), new WorkspaceId(UUID.randomUUID()),
                 new CardNickname("Aurora Platinum"), null, CardBrand.MASTERCARD, new CardLast4("4821"),
-                new CardLimit(Money.of("12000.00", BRL)), new BillingCycle(28, 5), null, NOW);
+                new CardLimit(Money.of("12000.00", BRL)), new BillingCycle(28, 5), null, YearMonth.of(2026, 9), NOW);
     }
 }

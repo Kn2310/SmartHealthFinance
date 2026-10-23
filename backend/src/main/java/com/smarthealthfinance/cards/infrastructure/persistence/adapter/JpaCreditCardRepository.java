@@ -8,6 +8,7 @@ import com.smarthealthfinance.cards.infrastructure.persistence.repository.Credit
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import org.springframework.stereotype.Repository;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.Optional;
 
@@ -42,5 +43,10 @@ public class JpaCreditCardRepository implements CreditCardRepository {
     @Override
     public void save(CreditCard card) {
         jpa.save(CreditCardJpaEntity.from(card));
+    }
+
+    @Override
+    public boolean recedeTrackingStart(WorkspaceId workspaceId, CardId cardId, YearMonth month) {
+        return jpa.recedeTrackingStart(workspaceId.value(), cardId.value(), month.atDay(1)) == 1;
     }
 }

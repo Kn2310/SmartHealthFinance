@@ -26,6 +26,7 @@ public final class IdentityTables {
 		jdbc.update("delete from import_batches");
 		jdbc.update("delete from outbox_events");
 		jdbc.update("delete from processed_events");
+		jdbc.update("delete from card_installment_confirmations");
 		jdbc.update("delete from card_installments");
 		jdbc.update("delete from card_invoices");
 		jdbc.update("delete from transaction_idempotency_keys");

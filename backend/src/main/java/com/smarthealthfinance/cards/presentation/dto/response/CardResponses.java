@@ -30,12 +30,14 @@ public final class CardResponses {
 
     public record CardResponse(UUID id, UUID workspaceId, String nickname, String institutionName, String brand,
                                String last4, MoneyDto limit, int closingDay, int dueDay,
-                               UUID defaultPaymentAccountId, String status, Instant createdAt, Instant updatedAt) {
+                               UUID defaultPaymentAccountId, String status, String trackingStartDueMonth,
+                               Instant createdAt, Instant updatedAt) {
 
         public static CardResponse from(CardView view) {
             return new CardResponse(view.id(), view.workspaceId(), view.nickname(), view.institutionName(),
                     view.brand().name(), view.last4(), money(view.limit()), view.closingDay(), view.dueDay(),
-                    view.defaultPaymentAccountId(), view.status().name(), view.createdAt(), view.updatedAt());
+                    view.defaultPaymentAccountId(), view.status().name(), view.trackingStartDueMonth().toString(),
+                    view.createdAt(), view.updatedAt());
         }
     }
 

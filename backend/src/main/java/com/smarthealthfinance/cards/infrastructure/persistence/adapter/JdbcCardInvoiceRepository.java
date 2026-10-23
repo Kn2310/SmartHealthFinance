@@ -122,6 +122,9 @@ public class JdbcCardInvoiceRepository implements CardInvoiceRepository {
         return jdbc.query("select " + COLUMNS + """
                  from card_invoices
                  where closed_notified_at is null and closing_date <= ?
+                   and closing_month >= (select c.tracking_start_month from credit_cards c
+                                         where c.id = card_invoices.card_id
+                                           and c.workspace_id = card_invoices.workspace_id)
                  order by closing_date, id
                  limit ?
                  for update skip locked""", MAPPER, Date.valueOf(today), limit);

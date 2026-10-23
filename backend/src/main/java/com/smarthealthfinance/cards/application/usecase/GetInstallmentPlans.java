@@ -104,7 +104,9 @@ public class GetInstallmentPlans {
             Charge charge = snapshot.charges().get(position);
             Money cancelled = snapshot.allocation().cancelledOf(charge);
             Money net = fact.amount().minus(cancelled);
-            InstallmentStatus status = statusOf(net, snapshot.statusOf(charge.closingMonth()));
+            InstallmentStatus status = snapshot.isBeforeTracking(charge.closingMonth())
+                    ? InstallmentStatus.BEFORE_TRACKING
+                    : statusOf(net, snapshot.statusOf(charge.closingMonth()));
 
             total = total.plus(fact.amount());
             switch (status) {
@@ -114,7 +116,7 @@ public class GetInstallmentPlans {
                 }
                 case CURRENT -> current = current == null ? fact.number() : Math.min(current, fact.number());
                 case FUTURE -> future = future.plus(net);
-                case CANCELLED -> {
+                case CANCELLED, BEFORE_TRACKING -> {
                 }
             }
             items.add(new InstallmentPlanView.Item(fact.number(),

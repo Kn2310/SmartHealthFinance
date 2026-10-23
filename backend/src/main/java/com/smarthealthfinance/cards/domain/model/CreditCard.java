@@ -13,6 +13,7 @@ import com.smarthealthfinance.cards.domain.valueobject.CardNickname;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 
 import java.time.Instant;
+import java.time.YearMonth;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -32,6 +33,7 @@ public class CreditCard {
     private BillingCycle cycle;
     private AccountId defaultPaymentAccountId;
     private CardStatus status;
+    private final YearMonth trackingStartMonth;
     private final Instant createdAt;
     private Instant updatedAt;
     private final long version;
@@ -47,6 +49,7 @@ public class CreditCard {
             BillingCycle cycle,
             AccountId defaultPaymentAccountId,
             CardStatus status,
+            YearMonth trackingStartMonth,
             Instant createdAt,
             Instant updatedAt,
             long version
@@ -61,12 +64,16 @@ public class CreditCard {
         this.cycle = Objects.requireNonNull(cycle, "cycle");
         this.defaultPaymentAccountId = defaultPaymentAccountId;
         this.status = Objects.requireNonNull(status, "status");
+        this.trackingStartMonth = Objects.requireNonNull(trackingStartMonth, "trackingStartMonth");
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
         this.updatedAt = Objects.requireNonNull(updatedAt, "updatedAt");
         this.version = version;
     }
 
-    /** @param institutionName e defaultPaymentAccountId opcionais (nulos) */
+    /**
+     * @param institutionName    e defaultPaymentAccountId opcionais (nulos)
+     * @param trackingStartMonth mês de fechamento da fatura atual, a primeira acompanhada (ADR-0025 §15)
+     */
     public static CreditCard create(
             CardId id,
             WorkspaceId workspaceId,
@@ -77,10 +84,11 @@ public class CreditCard {
             CardLimit limit,
             BillingCycle cycle,
             AccountId defaultPaymentAccountId,
+            YearMonth trackingStartMonth,
             Instant now
     ) {
         return new CreditCard(id, workspaceId, nickname, institutionName, brand, last4, limit, cycle,
-                defaultPaymentAccountId, CardStatus.ACTIVE, now, now, 0);
+                defaultPaymentAccountId, CardStatus.ACTIVE, trackingStartMonth, now, now, 0);
     }
 
     public static CreditCard restore(
@@ -94,12 +102,13 @@ public class CreditCard {
             BillingCycle cycle,
             AccountId defaultPaymentAccountId,
             CardStatus status,
+            YearMonth trackingStartMonth,
             Instant createdAt,
             Instant updatedAt,
             long version
     ) {
         return new CreditCard(id, workspaceId, nickname, institutionName, brand, last4, limit, cycle,
-                defaultPaymentAccountId, status, createdAt, updatedAt, version);
+                defaultPaymentAccountId, status, trackingStartMonth, createdAt, updatedAt, version);
     }
 
     /**
@@ -177,6 +186,8 @@ public class CreditCard {
     public BillingCycle cycle() { return cycle; }
     public Optional<AccountId> defaultPaymentAccountId() { return Optional.ofNullable(defaultPaymentAccountId); }
     public CardStatus status() { return status; }
+    /** Mês de fechamento da primeira fatura acompanhada; as anteriores ficam fora do razão (ADR-0025 §15). */
+    public YearMonth trackingStartMonth() { return trackingStartMonth; }
     public Instant createdAt() { return createdAt; }
     public Instant updatedAt() { return updatedAt; }
     public long version() { return version; }

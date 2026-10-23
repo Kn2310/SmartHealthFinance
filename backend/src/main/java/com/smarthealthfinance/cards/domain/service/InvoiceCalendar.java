@@ -28,7 +28,11 @@ import java.util.TreeMap;
  */
 public final class InvoiceCalendar {
 
-    public static final String RULES_VERSION = "invoice-v1";
+    /**
+     * {@code invoice-v2}: o mesmo ciclo do v1, mais o início do acompanhamento do cartão no razão (ADR-0025 §15). As
+     * parcelas gravadas como {@code invoice-v1} continuam válidas: a atribuição por ciclo não mudou.
+     */
+    public static final String RULES_VERSION = "invoice-v2";
 
     /** Teto de passos na busca da fatura de uma data; o ciclo anda um mês por passo. */
     private static final int MAX_STEPS = 48;

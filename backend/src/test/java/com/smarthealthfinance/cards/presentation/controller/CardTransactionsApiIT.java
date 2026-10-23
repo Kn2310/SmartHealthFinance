@@ -71,7 +71,7 @@ class CardTransactionsApiIT extends IntegrationTest {
                 .hasPathSatisfying("$.transaction.cardId", c -> assertThat(c).asString().isEqualTo(card))
                 .hasPathSatisfying("$.installments.length()", n -> assertThat(n).asNumber().isEqualTo(3))
                 .hasPathSatisfying("$.installments[0].amount.amount", a -> assertThat(a).asString().isEqualTo("100.00"))
-                .hasPathSatisfying("$.calculationVersion", v -> assertThat(v).asString().isEqualTo("invoice-v1"));
+                .hasPathSatisfying("$.calculationVersion", v -> assertThat(v).asString().isEqualTo("invoice-v2"));
         Object accountId = read(purchase, "$.transaction.accountId");
         assertThat(accountId).isNull();
         String purchaseId = read(purchase, "$.transaction.id");

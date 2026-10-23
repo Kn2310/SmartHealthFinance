@@ -58,7 +58,9 @@ class CardReadingsTest {
         ctx.invoiceWith(card, YearMonth.of(2026, 7), "2474.10");
         ctx.invoiceWith(card, YearMonth.of(2026, 8), "2532.10");
         ctx.invoiceWith(card, YearMonth.of(2026, 9), "2932.80");
-        ctx.ledger.pay(card.workspaceId(), card.id(), brl("8676.60"));
+        ctx.ledger.pay(card.workspaceId(), card.id(), LocalDate.parse("2026-09-05"), brl("8676.60"));
+        // O histórico de junho em diante veio de faturas importadas (ADR-0025 §15).
+        ctx.cards.recedeTrackingStart(card.workspaceId(), card.id(), YearMonth.of(2026, 6));
 
         ctx.invoiceWith(ctx.storedCard(horizonte.id()), YearMonth.of(2026, 10), "1020.40");
     }
@@ -73,7 +75,7 @@ class CardReadingsTest {
         assertThat(summary.openInvoices()).isEqualTo(brl("4433.20"));
         assertThat(summary.nextDueDate()).isEqualTo(LocalDate.parse("2026-10-05"));
         assertThat(summary.asOf()).isEqualTo(LocalDate.parse("2026-09-22"));
-        assertThat(summary.calculationVersion()).isEqualTo("invoice-v1");
+        assertThat(summary.calculationVersion()).isEqualTo("invoice-v2");
 
         CardsSummaryView.CardSummary auroraSummary = summary.cards().getFirst();
         assertThat(auroraSummary.currentInvoice().amount()).isEqualTo(brl("3412.80"));

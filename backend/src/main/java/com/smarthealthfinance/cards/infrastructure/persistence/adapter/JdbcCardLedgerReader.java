@@ -43,7 +43,7 @@ public class JdbcCardLedgerReader implements CardLedgerReader {
             """;
 
     private static final String PAYMENTS = """
-            select t.destination_card_id as card_id, sum(t.amount) as payments
+            select t.destination_card_id as card_id, t.occurred_on, sum(t.amount) as payments
             from transactions t
             where t.workspace_id = ? and t.status = 'POSTED' and t.type = 'TRANSFER' and t.destination_card_id is not null
             """;
@@ -57,7 +57,7 @@ public class JdbcCardLedgerReader implements CardLedgerReader {
     @Override
     public CardFacts facts(WorkspaceId workspaceId, CardId cardId) {
         Map<CardId, CardFacts> facts = query(workspaceId, cardId);
-        return facts.getOrDefault(cardId, new CardFacts(List.of(), List.of(), zero()));
+        return facts.getOrDefault(cardId, new CardFacts(List.of(), List.of(), List.of()));
     }
 
     @Override
@@ -90,16 +90,19 @@ public class JdbcCardLedgerReader implements CardLedgerReader {
                             rs.getString("merchant_name"), rs.getString("source")));
         }, args);
 
-        Map<CardId, Money> payments = new HashMap<>();
-        jdbc.query(PAYMENTS + (card == null ? "" : " and t.destination_card_id = ?") + " group by t.destination_card_id",
-                rs -> {
-                    payments.put(new CardId(rs.getObject("card_id", UUID.class)), money(rs.getBigDecimal("payments")));
+        Map<CardId, List<PaymentFact>> payments = new HashMap<>();
+        jdbc.query(PAYMENTS + (card == null ? "" : " and t.destination_card_id = ?")
+                + " group by t.destination_card_id, t.occurred_on order by t.occurred_on", rs -> {
+                    payments.computeIfAbsent(new CardId(rs.getObject("card_id", UUID.class)), ignored -> new ArrayList<>())
+                            .add(new PaymentFact(rs.getObject("occurred_on", LocalDate.class),
+                                    money(rs.getBigDecimal("payments"))));
                 }, args);
 
         Map<CardId, CardFacts> facts = new LinkedHashMap<>();
         for (CardId id : union(installments.keySet(), credits.keySet(), payments.keySet())) {
             facts.put(id, new CardFacts(List.copyOf(installments.getOrDefault(id, List.of())),
-                    List.copyOf(credits.getOrDefault(id, List.of())), payments.getOrDefault(id, zero())));
+                    List.copyOf(credits.getOrDefault(id, List.of())),
+                    List.copyOf(payments.getOrDefault(id, List.of()))));
         }
         return facts;
     }
@@ -111,10 +114,6 @@ public class JdbcCardLedgerReader implements CardLedgerReader {
             set.stream().filter(id -> !all.contains(id)).forEach(all::add);
         }
         return all;
-    }
-
-    private static Money zero() {
-        return Money.zero(Workspace.DEFAULT_BASE_CURRENCY);
     }
 
     private static Money money(BigDecimal amount) {

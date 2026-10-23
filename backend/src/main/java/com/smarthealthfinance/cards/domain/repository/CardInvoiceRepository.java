@@ -26,7 +26,8 @@ public interface CardInvoiceRepository {
 
     /**
      * Job de sistema do {@code invoice.closed} (ADR-0026 §8), em todos os Workspaces: faturas já fechadas e ainda não
-     * notificadas, bloqueadas com {@code SKIP LOCKED} para várias instâncias se repartirem.
+     * notificadas, bloqueadas com {@code SKIP LOCKED} para várias instâncias se repartirem. Faturas anteriores ao
+     * início do acompanhamento do cartão não são notificadas enquanto ele não recuar (ADR-0025 §15).
      */
     List<CardInvoice> lockPendingClosed(LocalDate today, int limit);
 

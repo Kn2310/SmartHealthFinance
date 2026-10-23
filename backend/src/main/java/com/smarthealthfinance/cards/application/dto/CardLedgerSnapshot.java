@@ -37,6 +37,11 @@ public record CardLedgerSnapshot(CreditCard card, InvoiceCalendar calendar, List
                                  List<Charge> charges, Allocation allocation, InvoiceLedger ledger,
                                  InvoiceDates current, LocalDate today) {
 
+    /** Fatura anterior ao início do acompanhamento: fora do razão (ADR-0025 §15). */
+    public boolean isBeforeTracking(YearMonth closingMonth) {
+        return closingMonth.isBefore(card.trackingStartMonth());
+    }
+
     public Optional<CardInvoice> row(YearMonth closingMonth) {
         return rows.stream().filter(row -> row.dates().closingMonth().equals(closingMonth)).findFirst();
     }

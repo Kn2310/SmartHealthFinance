@@ -4,6 +4,7 @@ import com.smarthealthfinance.cards.application.dto.CardLedgerSnapshot;
 import com.smarthealthfinance.cards.application.port.CardLedgerReader;
 import com.smarthealthfinance.cards.application.port.CardLedgerReader.CardFacts;
 import com.smarthealthfinance.cards.application.port.CardLedgerReader.InstallmentFact;
+import com.smarthealthfinance.cards.application.port.CardLedgerReader.PaymentFact;
 import com.smarthealthfinance.cards.domain.model.CardInvoice;
 import com.smarthealthfinance.cards.domain.model.CreditCard;
 import com.smarthealthfinance.cards.domain.repository.CardInvoiceRepository;
@@ -63,7 +64,7 @@ public class CardLedgerLoader {
         Map<CardId, CardLedgerSnapshot> snapshots = new LinkedHashMap<>();
         for (CreditCard card : cards) {
             snapshots.put(card.id(), snapshot(card, rowsByCard.getOrDefault(card.id(), List.of()),
-                    facts.getOrDefault(card.id(), new CardFacts(List.of(), List.of(), zero(card))), today));
+                    facts.getOrDefault(card.id(), new CardFacts(List.of(), List.of(), List.of())), today));
         }
         return snapshots;
     }
@@ -91,7 +92,10 @@ public class CardLedgerLoader {
                 .toList();
         Allocation allocation = CreditAllocator.allocate(charges, credits, calendar);
 
-        // Faturas do razão: as persistidas, as que receberam crédito e a atual; somas por mês de fechamento.
+        // Faturas do razão: as persistidas, as que receberam crédito e a atual; somas por mês de fechamento. As
+        // anteriores ao início do acompanhamento ficam de fora (ADR-0025 §15); o estorno continua aplicado a todas as
+        // parcelas, porque a compra é uma só.
+        YearMonth trackingStart = card.trackingStartMonth();
         Map<YearMonth, Money[]> sums = new TreeMap<>();
         rows.forEach(row -> sums.put(row.dates().closingMonth(), new Money[] {zero, zero}));
         sums.putIfAbsent(current.closingMonth(), new Money[] {zero, zero});
@@ -103,14 +107,28 @@ public class CardLedgerLoader {
             Money[] month = sums.computeIfAbsent(applied.closingMonth(), ignored -> new Money[] {zero, zero});
             month[1] = month[1].plus(applied.remainder());
         }
+        sums.keySet().removeIf(month -> month.isBefore(trackingStart));
 
         List<InvoiceBalance> balances = new ArrayList<>();
         sums.forEach((month, values) -> balances.add(new InvoiceBalance(calendar.datesOf(month), values[0],
                 values[1])));
 
-        InvoiceLedger ledger = InvoiceLedger.compute(balances, facts.payments(), today);
+        InvoiceLedger ledger = InvoiceLedger.compute(balances, trackedPayments(facts, calendar, trackingStart, zero),
+                today);
         return new CardLedgerSnapshot(card, calendar, List.copyOf(rows), facts, List.copyOf(charges), allocation,
                 ledger, current, today);
+    }
+
+    /**
+     * Pagamentos que entram na alocação: os posteriores ao vencimento da última fatura anterior ao início do
+     * acompanhamento. Os demais pagaram essa fatura, que está fora do razão (ADR-0025 §15).
+     */
+    static Money trackedPayments(CardFacts facts, InvoiceCalendar calendar, YearMonth trackingStart, Money zero) {
+        LocalDate cutoff = calendar.datesOf(trackingStart.minusMonths(1)).dueDate();
+        return facts.payments().stream()
+                .filter(payment -> payment.occurredOn().isAfter(cutoff))
+                .map(PaymentFact::amount)
+                .reduce(zero, Money::plus);
     }
 
     private static Money zero(CreditCard card) {
