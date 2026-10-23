@@ -63,10 +63,13 @@ export interface components {
         amount: components['schemas']['MoneyDto']
         occurredOn: string
         description: string | null
-        account: { id: string; name: string }
+        /** Nula em compra e estorno no cartão (ADR-0026 §10). */
+        account: { id: string; name: string } | null
         destinationAccount: { id: string; name: string } | null
         refundOfTransactionId: string | null
         source: 'MANUAL' | 'IMPORT'
+        /** Cartão da compra/estorno ou que recebe o pagamento de fatura; só os 4 últimos dígitos. */
+        card: { id: string; nickname: string; last4: string } | null
       }[]
     }
     AccountResponse: {
@@ -100,9 +103,14 @@ export interface components {
     TransactionResponse: {
       id: string
       workspaceId: string
-      accountId: string
-      /** Só TRANSFER. */
+      /** Nula em compra e estorno no cartão, que trazem `cardId` (ADR-0026 §10). */
+      accountId: string | null
+      /** Só TRANSFER entre contas. */
       destinationAccountId: string | null
+      /** Cartão da compra ou do estorno. */
+      cardId: string | null
+      /** Cartão que recebe o pagamento de fatura (TRANSFER conta → cartão). */
+      destinationCardId: string | null
       type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'ADJUSTMENT' | 'REFUND'
       /** Só ADJUSTMENT. */
       adjustmentDirection: 'INCREASE' | 'DECREASE' | null
@@ -707,6 +715,62 @@ export interface components {
       utilization: components['schemas']['UtilizationResponse']
       nextInvoiceCommitted: components['schemas']['MoneyDto']
     }
+    /** Compra no cartão (ADR-0026 §10): `amount` é o total; as parcelas são calculadas no backend. */
+    CardPurchaseRequest: {
+      amount: components['schemas']['MoneyDto']
+      occurredOn: string
+      description: string
+      /** 1 a 48; ausente = à vista. */
+      installmentCount?: number | null
+    }
+    /** Pagamento de fatura: transferência da conta para o cartão. */
+    CardPaymentRequest: {
+      accountId: string
+      amount: components['schemas']['MoneyDto']
+      occurredOn: string
+      /** Ausente = "Pagamento de fatura". */
+      description?: string | null
+    }
+    /** Estorno ou crédito no cartão, opcionalmente vinculado a uma compra dele. */
+    CardCreditRequest: {
+      amount: components['schemas']['MoneyDto']
+      occurredOn: string
+      description: string
+      refundOfTransactionId?: string | null
+    }
+    PurchaseInstallmentResponse: { number: number; amount: components['schemas']['MoneyDto']; dueMonth: string }
+    CardPurchaseResponse: {
+      transaction: components['schemas']['TransactionResponse']
+      installments: components['schemas']['PurchaseInstallmentResponse'][]
+      calculationVersion: string
+    }
+    CardTransactionResponse: { transaction: components['schemas']['TransactionResponse'] }
+    InstallmentItemResponse: {
+      number: number
+      dueMonth: string
+      amount: components['schemas']['MoneyDto']
+      cancelledAmount: components['schemas']['MoneyDto']
+      status: 'PAID' | 'CURRENT' | 'FUTURE' | 'CANCELLED'
+    }
+    ReservedLimitResponse: { dueMonth: string; amount: components['schemas']['MoneyDto'] }
+    /** Parcelamento de uma compra, com os estornos já aplicados (ADR-0025 §6/§8). */
+    InstallmentPlanResponse: {
+      transactionId: string
+      description: string
+      purchasedOn: string
+      total: components['schemas']['MoneyDto']
+      count: number
+      installmentAmount: components['schemas']['MoneyDto']
+      paidCount: number
+      paidAmount: components['schemas']['MoneyDto']
+      currentNumber: number | null
+      remainingAfterCurrent: components['schemas']['MoneyDto']
+      lastDueMonth: string
+      status: 'ACTIVE' | 'FINISHED' | 'CANCELLED'
+      installments: components['schemas']['InstallmentItemResponse'][]
+      reservedLimit: components['schemas']['ReservedLimitResponse'][]
+    }
+    InstallmentPlanListResponse: { items: components['schemas']['InstallmentPlanResponse'][] }
     /** Resumo dos cartões ativos (ADR-0026 §3); `nextDueDate` nulo sem fatura em aberto. */
     CardsSummaryResponse: {
       totalLimit: components['schemas']['MoneyDto']
@@ -957,6 +1021,7 @@ export interface paths {
           uncategorized?: boolean
           page?: number
           pageSize?: number
+          cardId?: string
         }
         path: { workspaceId: string }
       }
@@ -985,6 +1050,7 @@ export interface paths {
           q?: string
           categoryCode?: string
           uncategorized?: boolean
+          cardId?: string
         }
         path: { workspaceId: string }
       }
@@ -1284,6 +1350,55 @@ export interface paths {
       parameters: { query?: { page?: number; pageSize?: number }; path: CardInvoicePath }
       responses: {
         200: { content: { 'application/json': components['schemas']['InvoiceItemPageResponse'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/purchases': {
+    post: {
+      parameters: { header: { 'Idempotency-Key': string }; path: CardPath }
+      requestBody: { content: { 'application/json': components['schemas']['CardPurchaseRequest'] } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CardPurchaseResponse'] } }
+        201: { content: { 'application/json': components['schemas']['CardPurchaseResponse'] } }
+        422: { content: { 'application/json': components['schemas']['ApiError'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/payments': {
+    post: {
+      parameters: { header: { 'Idempotency-Key': string }; path: CardPath }
+      requestBody: { content: { 'application/json': components['schemas']['CardPaymentRequest'] } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CardTransactionResponse'] } }
+        201: { content: { 'application/json': components['schemas']['CardTransactionResponse'] } }
+        422: { content: { 'application/json': components['schemas']['ApiError'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/credits': {
+    post: {
+      parameters: { header: { 'Idempotency-Key': string }; path: CardPath }
+      requestBody: { content: { 'application/json': components['schemas']['CardCreditRequest'] } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CardTransactionResponse'] } }
+        201: { content: { 'application/json': components['schemas']['CardTransactionResponse'] } }
+        422: { content: { 'application/json': components['schemas']['ApiError'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/installments': {
+    get: {
+      parameters: { query?: { status?: 'ACTIVE' | 'FINISHED' | 'ALL' }; path: CardPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['InstallmentPlanListResponse'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/installments/{transactionId}': {
+    get: {
+      parameters: { path: { workspaceId: string; cardId: string; transactionId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['InstallmentPlanResponse'] } }
       } & CardErrors
     }
   }

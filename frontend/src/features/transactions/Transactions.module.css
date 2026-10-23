@@ -149,6 +149,10 @@
 /* Formulário: segmentos (radio) de tipo e direção */
 .segments { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-8); margin-top: var(--space-4); }
 .segments.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Sete tipos de lançamento (ADR-0026 §10): duas colunas no celular, quatro a partir de 640 px. */
+.segments.many { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.segments.many .segment { text-align: center; }
+@media (min-width: 640px) { .segments.many { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .segment {
   display: flex;
   align-items: center;

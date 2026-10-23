@@ -27,8 +27,11 @@ export type CreateTransactionBody = Schemas['CreateTransactionRequest']
 /** Moeda base do Workspace (BRL fixa no MVP — ADR-0004 §7). O backend recusa moeda diferente da conta. */
 export const WORKSPACE_CURRENCY = 'BRL'
 
-/** Lançamento manual pela UI: receita, despesa e ajuste. Transferência e reembolso pela UI ficam fora do escopo. */
-export const MANUAL_TYPES = ['INCOME', 'EXPENSE', 'ADJUSTMENT'] as const satisfies readonly TransactionType[]
+/**
+ * Lançamento manual pela UI: receita, despesa, ajuste, transferência entre contas e reembolso (ADR-0026 §10 fecha a
+ * pendência do M2). Lançamentos de cartão têm rotas próprias em `/api/bff/cards`.
+ */
+export const MANUAL_TYPES = ['INCOME', 'EXPENSE', 'ADJUSTMENT', 'TRANSFER', 'REFUND'] as const satisfies readonly TransactionType[]
 /** Criação aceita só PENDING ou POSTED (ADR-0005 §7). */
 const INITIAL_STATUSES = ['PENDING', 'POSTED'] as const satisfies readonly TransactionStatus[]
 
@@ -49,9 +52,9 @@ const CATEGORY_CODE = new RegExp(`^[A-Z][A-Z0-9_]{0,${CATEGORY_CODE_MAX_LENGTH -
 const includes = <T extends string>(list: readonly T[], value: unknown): value is T =>
   (list as readonly unknown[]).includes(value)
 
-type FieldIssue = { field: string; code: string }
-const validationFailed = (details: FieldIssue[]) => noStoreJson({ code: 'VALIDATION_FAILED', details }, 400)
-const invalidRequest = () => noStoreJson({ code: 'INVALID_REQUEST' }, 400)
+export type FieldIssue = { field: string; code: string }
+export const validationFailed = (details: FieldIssue[]) => noStoreJson({ code: 'VALIDATION_FAILED', details }, 400)
+export const invalidRequest = () => noStoreJson({ code: 'INVALID_REQUEST' }, 400)
 
 /** Filtros da lista aceitos na query do BFF. Valores fora do formato são descartados, nunca repassados. */
 export interface ListQuery {
@@ -65,6 +68,8 @@ export interface ListQuery {
   categoryCode?: string
   /** Só "Sem categoria"; nunca junto com `categoryCode`. */
   uncategorized?: boolean
+  /** Compras e estornos no cartão e pagamentos da fatura dele (ADR-0026 §10). */
+  cardId?: string
   page: number
   pageSize: number
 }
@@ -75,6 +80,7 @@ export function parseListQuery(search: URLSearchParams): ListQuery {
   const type = search.get('type')
   const status = search.get('status')
   const accountId = search.get('accountId')
+  const cardId = search.get('cardId')
   const q = search.get('q')?.trim().slice(0, TRANSACTION_SEARCH_MAX_LENGTH)
   const categoryCode = search.get('categoryCode')
   const category = categoryCode !== null && CATEGORY_CODE.test(categoryCode) ? categoryCode : undefined
@@ -88,7 +94,8 @@ export function parseListQuery(search: URLSearchParams): ListQuery {
     q: q && !CONTROL.test(q) ? q : undefined,
     categoryCode: category,
     uncategorized: !category && search.get('uncategorized') === 'true' ? true : undefined,
-    page: Number.isInteger(pageParam) && pageParam >= 0 && pageParam < MAX_PAGE ? pageParam : 0,
+    cardId: isUuid(cardId) ? cardId : undefined,
+    page:Number.isInteger(pageParam) && pageParam >= 0 && pageParam < MAX_PAGE ? pageParam : 0,
     pageSize: PAGE_SIZE,
   }
 }
@@ -110,7 +117,7 @@ export async function readJsonObject(request: NextRequest): Promise<Record<strin
   }
 }
 
-function description(value: unknown, issues: FieldIssue[]): string | null {
+export function description(value: unknown, issues: FieldIssue[]): string | null {
   if (value === undefined || value === null || (typeof value === 'string' && value.trim() === '')) {
     issues.push({ field: 'description', code: 'REQUIRED' })
     return null
@@ -125,7 +132,7 @@ function description(value: unknown, issues: FieldIssue[]): string | null {
   return trimmed
 }
 
-function amount(value: unknown, issues: FieldIssue[]): string | null {
+export function amount(value: unknown, issues: FieldIssue[]): string | null {
   if (value === undefined || value === null || value === '') {
     issues.push({ field: 'amount', code: 'REQUIRED' })
     return null
@@ -178,16 +185,41 @@ export async function readCreateBody(
     issues.push({ field: 'adjustmentDirection', code: 'NOT_ALLOWED' })
   }
 
+  // Transferência: uma transação, origem e destino distintos do mesmo Workspace (ADR-0005 §4).
+  let destinationAccountId: string | null = null
+  if (type === 'TRANSFER') {
+    if (!isUuid(input.destinationAccountId)) {
+      issues.push({ field: 'destinationAccountId', code: input.destinationAccountId ? 'INVALID' : 'REQUIRED' })
+    } else if (input.destinationAccountId === input.accountId) {
+      issues.push({ field: 'destinationAccountId', code: 'SAME_ACCOUNT' })
+    } else {
+      destinationAccountId = input.destinationAccountId
+    }
+  } else if (input.destinationAccountId != null) {
+    issues.push({ field: 'destinationAccountId', code: 'NOT_ALLOWED' })
+  }
+
+  // Reembolso: vínculo opcional com a despesa original (ADR-0005 §6); as regras do vínculo são do backend.
+  let refundOfTransactionId: string | null = null
+  if (type === 'REFUND' && input.refundOfTransactionId != null) {
+    if (isUuid(input.refundOfTransactionId)) refundOfTransactionId = input.refundOfTransactionId
+    else issues.push({ field: 'refundOfTransactionId', code: 'INVALID' })
+  } else if (type !== 'REFUND' && input.refundOfTransactionId != null) {
+    issues.push({ field: 'refundOfTransactionId', code: 'NOT_ALLOWED' })
+  }
+
   if (issues.length > 0) return { response: validationFailed(issues) }
   return {
     body: {
       type: type as TransactionType,
       accountId: input.accountId as string,
+      destinationAccountId,
       adjustmentDirection,
       amount: { amount: value!, currency: WORKSPACE_CURRENCY },
       occurredOn: input.occurredOn as string,
       description: text!,
       status: status as (typeof INITIAL_STATUSES)[number],
+      refundOfTransactionId,
     },
   }
 }
@@ -355,6 +387,7 @@ export async function transitionTransaction(
 const FIELDS = new Set([
   'type', 'accountId', 'adjustmentDirection', 'amount', 'currency', 'occurredOn', 'description', 'status', 'from', 'to',
   'q', 'page', 'pageSize', 'categoryCode', 'uncategorized', 'transactionId', 'refundOfTransactionId',
+  'destinationAccountId', 'cardId',
 ])
 /** Códigos da Bean Validation viram os do domínio; os do domínio passam se forem códigos estáveis. */
 const BEAN_CODES: Partial<Record<string, string>> = { NotBlank: 'REQUIRED', NotNull: 'REQUIRED', Size: 'TOO_LONG' }

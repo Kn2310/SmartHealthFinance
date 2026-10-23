@@ -1,62 +1,93 @@
 'use client'
 
-import { ChevronLeft, CircleAlert, Landmark } from 'lucide-react'
+import { ChevronLeft, CircleAlert, Landmark, Link2Off } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { TRANSACTION_DESCRIPTION_MAX_LENGTH } from '@/lib/api/contract'
+import { MAX_INSTALLMENTS, TRANSACTION_DESCRIPTION_MAX_LENGTH } from '@/lib/api/contract'
 import { parseAmountInput } from '@/lib/format/amount-input'
 import { businessToday, isIsoDate } from '@/lib/format/business-date'
+import { cardLabel } from '@/lib/format/card'
 import type { Failure } from '@/lib/bff-client'
 import {
   createTransaction,
   newIdempotencyKey,
+  recordCardPayment,
+  recordCardPurchase,
   type Account,
   type AdjustmentDirection,
+  type Card,
   type ManualType,
 } from './api'
-import { useAccounts } from './hooks'
+import { useAccounts, useCards } from './hooks'
 import { FIELD_ORDER, fieldErrorMessage, requestFailureMessage, type FormField } from './messages'
 import { backHref, backLabel, destinationAfterCreate, type ReturnTo } from './return-to'
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
 
+/** Tipos do formulário: os lançamentos de conta e os dois de cartão (ADR-0026 §10). */
+export type FormType = ManualType | 'CARD_PURCHASE' | 'CARD_PAYMENT'
+
 type Errors = Partial<Record<FormField, string>>
 
 interface Values {
-  type: ManualType
+  type: FormType
   adjustmentDirection: AdjustmentDirection | null
   accountId: string
+  destinationAccountId: string
+  cardId: string
+  installmentCount: string
   amount: string
   occurredOn: string
   description: string
   pending: boolean
 }
 
-const TYPES: [ManualType, string][] = [
-  ['INCOME', 'Receita'],
+const TYPES: [FormType, string][] = [
   ['EXPENSE', 'Despesa'],
+  ['INCOME', 'Receita'],
+  ['TRANSFER', 'Transferência'],
+  ['REFUND', 'Reembolso'],
   ['ADJUSTMENT', 'Ajuste'],
+  ['CARD_PURCHASE', 'Compra no cartão'],
+  ['CARD_PAYMENT', 'Pagamento de fatura'],
 ]
 const DIRECTIONS: [AdjustmentDirection, string][] = [
   ['INCREASE', 'Aumenta o saldo'],
   ['DECREASE', 'Diminui o saldo'],
 ]
 
+const isCardType = (type: FormType) => type === 'CARD_PURCHASE' || type === 'CARD_PAYMENT'
+
 /** Só conveniência de UX (o BFF e o domínio validam tudo de novo). O valor nunca vira `number`. */
 function validate(values: Values): { errors: Errors; amount: string | null } {
   const errors: Errors = {}
-  if (values.type === 'ADJUSTMENT' && !values.adjustmentDirection) {
+  const { type } = values
+  if (type === 'ADJUSTMENT' && !values.adjustmentDirection) {
     errors.adjustmentDirection = fieldErrorMessage('adjustmentDirection', 'REQUIRED')
   }
-  if (!values.accountId) errors.accountId = fieldErrorMessage('accountId', 'REQUIRED')
+  if (isCardType(type) && !values.cardId) errors.cardId = fieldErrorMessage('cardId', 'REQUIRED')
+  if (type !== 'CARD_PURCHASE' && !values.accountId) errors.accountId = fieldErrorMessage('accountId', 'REQUIRED')
+  if (type === 'TRANSFER') {
+    if (!values.destinationAccountId) errors.destinationAccountId = fieldErrorMessage('destinationAccountId', 'REQUIRED')
+    else if (values.destinationAccountId === values.accountId) {
+      errors.destinationAccountId = fieldErrorMessage('destinationAccountId', 'SAME_ACCOUNT')
+    }
+  }
+  if (type === 'CARD_PURCHASE') {
+    const count = Number(values.installmentCount)
+    if (!Number.isInteger(count) || count < 1 || count > MAX_INSTALLMENTS) {
+      errors.installmentCount = fieldErrorMessage('installmentCount', 'OUT_OF_RANGE')
+    }
+  }
   const amount = parseAmountInput(values.amount)
   if (!amount.ok) errors.amount = fieldErrorMessage('amount', amount.error)
   if (!isIsoDate(values.occurredOn)) errors.occurredOn = fieldErrorMessage('occurredOn', values.occurredOn ? 'INVALID' : 'REQUIRED')
   const description = values.description.trim()
-  if (!description) errors.description = fieldErrorMessage('description', 'REQUIRED')
+  // No pagamento de fatura a descrição é opcional ("Pagamento de fatura").
+  if (!description && type !== 'CARD_PAYMENT') errors.description = fieldErrorMessage('description', 'REQUIRED')
   else if (description.length > TRANSACTION_DESCRIPTION_MAX_LENGTH) errors.description = fieldErrorMessage('description', 'TOO_LONG')
   return { errors, amount: amount.ok ? amount.value : null }
 }
@@ -69,14 +100,25 @@ function fromFailure(failure: Failure): Errors {
   return errors
 }
 
+interface Props {
+  initialAccountId: string | null
+  returnTo: ReturnTo
+  /** `?type=` pré-seleciona o tipo (ex.: reembolso a partir do detalhe de uma despesa). */
+  initialType?: FormType | null
+  /** `?refundOf=`: a despesa que este reembolso devolve (ADR-0005 §6). */
+  refundOf?: string | null
+}
+
 /**
- * Lançamento manual de receita, despesa ou ajuste (página, não drawer — adendo do ADR-0005). Padrões: lançada
- * (POSTED) e data de hoje no fuso de negócio. Cada abertura do formulário é UMA intenção com uma
- * `Idempotency-Key` estável: duplo clique e "tentar de novo" depois de uma falha de rede reenviam a mesma chave,
- * e o backend devolve a transação já criada em vez de duplicar.
+ * Lançamento manual (página, não drawer — adendo do ADR-0005): receita, despesa, ajuste, transferência entre contas,
+ * reembolso, compra no cartão (à vista ou parcelada) e pagamento de fatura (ADR-0026 §10). Cada abertura do
+ * formulário é UMA intenção com uma `Idempotency-Key` estável: duplo clique e "tentar de novo" reenviam a mesma
+ * chave, e o backend devolve o lançamento já criado em vez de duplicar. Nenhum cálculo financeiro aqui: parcelas,
+ * faturas e saldos são do servidor.
  */
-export function NewTransactionView({ initialAccountId, returnTo }: { initialAccountId: string | null; returnTo: ReturnTo }) {
+export function NewTransactionView({ initialAccountId, returnTo, initialType = null, refundOf = null }: Props) {
   const accounts = useAccounts()
+  const cards = useCards()
   const back = (
     <Link href={backHref(returnTo)} className={accountStyles.back}>
       <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
@@ -125,7 +167,14 @@ export function NewTransactionView({ initialAccountId, returnTo }: { initialAcco
           <h2 id="new-transaction-title" className={accountStyles.sectionTitle}>
             Dados da transação
           </h2>
-          <TransactionForm accounts={active} initialAccountId={initialAccountId} returnTo={returnTo} />
+          <TransactionForm
+            accounts={active}
+            cards={cards}
+            initialAccountId={initialAccountId}
+            returnTo={returnTo}
+            initialType={initialType}
+            refundOf={refundOf}
+          />
         </section>
       )
   }
@@ -136,7 +185,8 @@ export function NewTransactionView({ initialAccountId, returnTo }: { initialAcco
       <header className={accountStyles.pageHeader}>
         <h1 className={accountStyles.pageTitle}>Nova transação</h1>
         <p className={accountStyles.pageSubtitle}>
-          Registre uma receita, uma despesa ou um ajuste de saldo. O saldo é recalculado pelo servidor.
+          Registre uma movimentação de conta, uma compra no cartão ou o pagamento de uma fatura. Saldos e faturas são
+          calculados pelo servidor.
         </p>
       </header>
       {body}
@@ -146,25 +196,35 @@ export function NewTransactionView({ initialAccountId, returnTo }: { initialAcco
 
 function TransactionForm({
   accounts,
+  cards,
   initialAccountId,
   returnTo,
+  initialType,
+  refundOf,
 }: {
   accounts: Account[]
+  cards: ReturnType<typeof useCards>
   initialAccountId: string | null
   returnTo: ReturnTo
+  initialType: FormType | null
+  refundOf: string | null
 }) {
   const router = useRouter()
   const id = useId()
   const preselected = accounts.find((account) => account.id === initialAccountId)?.id ?? (accounts.length === 1 ? accounts[0]!.id : '')
   const [values, setValues] = useState<Values>(() => ({
-    type: 'EXPENSE',
+    type: initialType ?? 'EXPENSE',
     adjustmentDirection: null,
     accountId: preselected,
+    destinationAccountId: '',
+    cardId: '',
+    installmentCount: '1',
     amount: '',
     occurredOn: businessToday(),
     description: '',
     pending: false,
   }))
+  const [link, setLink] = useState<string | null>(initialType === 'REFUND' ? refundOf : null)
   const [errors, setErrors] = useState<Errors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
@@ -175,6 +235,9 @@ function TransactionForm({
   const fields = useRef<Partial<Record<FormField, HTMLElement | null>>>({})
   const focusFirstError = useRef(false)
 
+  const activeCards: Card[] = cards.status === 'success' ? cards.data.filter((card) => card.status === 'ACTIVE') : []
+  const cardType = isCardType(values.type)
+
   useEffect(() => {
     if (!focusFirstError.current) return
     focusFirstError.current = false
@@ -183,9 +246,52 @@ function TransactionForm({
   }, [errors])
 
   const set = <K extends keyof Values>(key: K, value: Values[K]) => {
-    setValues((current) => ({ ...current, [key]: value }))
+    setValues((current) => {
+      const next = { ...current, [key]: value }
+      // Pagamento: a conta padrão do cartão é só sugestão (ADR-0025 §1); o usuário pode trocar.
+      if (key === 'cardId' && current.type === 'CARD_PAYMENT') {
+        const card = activeCards.find((item) => item.id === value)
+        if (card?.defaultPaymentAccountId && accounts.some((a) => a.id === card.defaultPaymentAccountId)) {
+          next.accountId = card.defaultPaymentAccountId
+        }
+      }
+      return next
+    })
     const field = (key === 'pending' ? 'status' : key) as FormField
     if (errors[field]) setErrors((current) => ({ ...current, [field]: undefined }))
+  }
+
+  async function send(amount: string) {
+    const { type } = values
+    const description = values.description.trim()
+    if (type === 'CARD_PURCHASE') {
+      return recordCardPurchase(
+        values.cardId,
+        { amount, occurredOn: values.occurredOn, description, installmentCount: Number(values.installmentCount) },
+        idempotencyKey,
+      )
+    }
+    if (type === 'CARD_PAYMENT') {
+      return recordCardPayment(
+        values.cardId,
+        { accountId: values.accountId, amount, occurredOn: values.occurredOn, description: description || null },
+        idempotencyKey,
+      )
+    }
+    return createTransaction(
+      {
+        type,
+        accountId: values.accountId,
+        destinationAccountId: type === 'TRANSFER' ? values.destinationAccountId : null,
+        adjustmentDirection: type === 'ADJUSTMENT' ? values.adjustmentDirection : null,
+        amount,
+        occurredOn: values.occurredOn,
+        description,
+        status: values.pending ? 'PENDING' : 'POSTED',
+        refundOfTransactionId: type === 'REFUND' ? link : null,
+      },
+      idempotencyKey,
+    )
   }
 
   async function submit(event: React.FormEvent) {
@@ -200,22 +306,10 @@ function TransactionForm({
     }
     inFlight.current = true
     setSending(true)
-    const status = values.pending ? 'PENDING' : 'POSTED'
-    const result = await createTransaction(
-      {
-        type: values.type,
-        accountId: values.accountId,
-        adjustmentDirection: values.type === 'ADJUSTMENT' ? values.adjustmentDirection : null,
-        amount,
-        occurredOn: values.occurredOn,
-        description: values.description.trim(),
-        status,
-      },
-      idempotencyKey,
-    )
+    const result = await send(amount)
     if (result.ok) {
       // O botão continua ocupado até a navegação: nada de segundo envio.
-      router.push(destinationAfterCreate(returnTo, status))
+      router.push(destinationAfterCreate(returnTo, !cardType && values.pending ? 'PENDING' : 'POSTED'))
       return
     }
     inFlight.current = false
@@ -229,6 +323,9 @@ function TransactionForm({
     const byField = fromFailure(result)
     if (result.code === 'ACCOUNT_ARCHIVED' || result.code === 'ACCOUNT_NOT_FOUND') {
       byField.accountId = requestFailureMessage(result.code)
+    }
+    if (result.code === 'CARD_ARCHIVED' || result.code === 'CARD_NOT_FOUND') {
+      byField.cardId = requestFailureMessage(result.code)
     }
     if (Object.keys(byField).length > 0) {
       focusFirstError.current = true
@@ -249,12 +346,119 @@ function TransactionForm({
       </p>
     ) : null
 
+  const accountSelect = (field: 'accountId' | 'destinationAccountId', label: string, hint?: string) => (
+    <div className={accountStyles.field}>
+      <label htmlFor={`${id}-${field}`} className={accountStyles.label}>
+        {label}
+      </label>
+      <select
+        ref={(element) => {
+          fields.current[field] = element
+        }}
+        id={`${id}-${field}`}
+        name={field}
+        className={accountStyles.select}
+        value={values[field]}
+        onChange={(event) => set(field, event.target.value)}
+        aria-invalid={errors[field] ? true : undefined}
+        aria-describedby={describedBy(field, Boolean(hint))}
+      >
+        {values[field] === '' ? <option value="">Escolha a conta</option> : null}
+        {accounts.map((account) => (
+          <option key={account.id} value={account.id}>
+            {account.name}
+          </option>
+        ))}
+      </select>
+      {hint ? (
+        <p id={`${id}-${field}-hint`} className={accountStyles.fieldHint}>
+          {hint}
+        </p>
+      ) : null}
+      {fieldError(field)}
+    </div>
+  )
+
+  let cardField = null
+  if (cardType) {
+    if (cards.status === 'loading') {
+      cardField = (
+        <div role="status" aria-busy="true">
+          <span className="sr-only">Carregando seus cartões…</span>
+          <Skeleton height="row" />
+        </div>
+      )
+    } else if (cards.status === 'error') {
+      cardField = (
+        <div className={accountStyles.error} role="alert">
+          <CircleAlert size={18} strokeWidth={1.75} aria-hidden="true" />
+          <span>Não foi possível carregar seus cartões. {requestFailureMessage(cards.failure.code)}</span>
+          <Button variant="secondary" onClick={cards.retry}>
+            Tentar novamente
+          </Button>
+        </div>
+      )
+    } else if (activeCards.length === 0) {
+      cardField = (
+        <div className={accountStyles.field}>
+          <p className={accountStyles.muted}>Você ainda não tem cartão ativo. Cadastre um para registrar compras e pagamentos.</p>
+          <div>
+            <Button href="/cards/new" variant="secondary">
+              Adicionar cartão
+            </Button>
+          </div>
+        </div>
+      )
+    } else {
+      cardField = (
+        <div className={accountStyles.field}>
+          <label htmlFor={`${id}-cardId`} className={accountStyles.label}>
+            Cartão
+          </label>
+          <select
+            ref={(element) => {
+              fields.current.cardId = element
+            }}
+            id={`${id}-cardId`}
+            name="cardId"
+            className={accountStyles.select}
+            value={values.cardId}
+            onChange={(event) => set('cardId', event.target.value)}
+            aria-invalid={errors.cardId ? true : undefined}
+            aria-describedby={describedBy('cardId')}
+          >
+            {values.cardId === '' ? <option value="">Escolha o cartão</option> : null}
+            {activeCards.map((card) => (
+              <option key={card.id} value={card.id}>
+                {cardLabel(card)}
+              </option>
+            ))}
+          </select>
+          {fieldError('cardId')}
+          <p className={accountStyles.fieldHint}>
+            <Link href="/cards/new" className={styles.link}>
+              Adicionar outro cartão
+            </Link>
+          </p>
+        </div>
+      )
+    }
+  }
+
+  const amountLabel = values.type === 'CARD_PURCHASE' ? 'Valor total da compra' : 'Valor'
+  const amountHint =
+    values.type === 'CARD_PURCHASE'
+      ? 'O total da compra. A compra entra nos gastos uma vez, na data dela; as parcelas só dividem o valor entre as faturas.'
+      : values.type === 'CARD_PAYMENT'
+        ? 'Quanto você pagou da fatura. É uma transferência da conta para o cartão: sai do saldo, mas não conta como gasto de novo.'
+        : 'Em reais, sempre positivo: o tipo diz se entra ou sai. Ex.: 1.234,56.'
+
   return (
     <form className={accountStyles.form} onSubmit={submit} aria-busy={sending} noValidate>
       <fieldset className={accountStyles.fields} disabled={sending}>
         <fieldset className={styles.fieldset}>
           <legend className={styles.legend}>Tipo</legend>
-          <div className={styles.segments}>
+          <div className={`${styles.segments} ${styles.many}`}>
             {TYPES.map(([value, label], index) => (
               <label key={value} className={styles.segment}>
                 <input
@@ -287,8 +491,8 @@ function TransactionForm({
                 <label key={value} className={styles.segment}>
                   <input
                     ref={(element) => {
-                    if (index === 0) fields.current.adjustmentDirection = element
-                  }}
+                      if (index === 0) fields.current.adjustmentDirection = element
+                    }}
                     type="radio"
                     name="adjustmentDirection"
                     value={value}
@@ -304,35 +508,41 @@ function TransactionForm({
           </fieldset>
         ) : null}
 
-        <div className={accountStyles.field}>
-          <label htmlFor={`${id}-accountId`} className={accountStyles.label}>
-            Conta
-          </label>
-          <select
-            ref={(element) => {
-              fields.current.accountId = element
-            }}
-            id={`${id}-accountId`}
-            name="accountId"
-            className={accountStyles.select}
-            value={values.accountId}
-            onChange={(event) => set('accountId', event.target.value)}
-            aria-invalid={errors.accountId ? true : undefined}
-            aria-describedby={describedBy('accountId')}
-          >
-            {values.accountId === '' ? <option value="">Escolha a conta</option> : null}
-            {accounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.name}
-              </option>
-            ))}
-          </select>
-          {fieldError('accountId')}
-        </div>
+        {cardField}
+
+        {values.type === 'TRANSFER'
+          ? accountSelect('accountId', 'Conta de origem')
+          : values.type === 'CARD_PAYMENT'
+            ? accountSelect('accountId', 'Pagar com a conta')
+            : values.type === 'CARD_PURCHASE'
+              ? null
+              : accountSelect('accountId', 'Conta')}
+        {values.type === 'TRANSFER'
+          ? accountSelect(
+              'destinationAccountId',
+              'Conta de destino',
+              'Transferência entre suas contas não é receita nem despesa: só move o saldo de uma conta para outra.',
+            )
+          : null}
+
+        {values.type === 'REFUND' && link ? (
+          <div className={accountStyles.field}>
+            <p className={accountStyles.fieldHint} id={`${id}-refundOfTransactionId-hint`}>
+              Este reembolso fica vinculado à despesa original. Ele reduz o gasto, não é contado como receita.
+            </p>
+            <div>
+              <Button variant="secondary" onClick={() => setLink(null)}>
+                <Link2Off size={16} strokeWidth={1.75} aria-hidden="true" />
+                Remover vínculo com a despesa
+              </Button>
+            </div>
+            {fieldError('refundOfTransactionId')}
+          </div>
+        ) : null}
 
         <div className={accountStyles.field}>
           <label htmlFor={`${id}-amount`} className={accountStyles.label}>
-            Valor
+            {amountLabel}
           </label>
           <div className={styles.money}>
             <span className={styles.currency} aria-hidden="true">
@@ -340,8 +550,8 @@ function TransactionForm({
             </span>
             <input
               ref={(element) => {
-              fields.current.amount = element
-            }}
+                fields.current.amount = element
+              }}
               id={`${id}-amount`}
               name="amount"
               className={`${accountStyles.input} ${styles.moneyInput}`}
@@ -355,14 +565,43 @@ function TransactionForm({
             />
           </div>
           <p id={`${id}-amount-hint`} className={accountStyles.fieldHint}>
-            Em reais, sempre positivo: o tipo diz se entra ou sai. Ex.: 1.234,56.
+            {amountHint}
           </p>
           {fieldError('amount')}
         </div>
 
+        {values.type === 'CARD_PURCHASE' ? (
+          <div className={accountStyles.field}>
+            <label htmlFor={`${id}-installmentCount`} className={accountStyles.label}>
+              Parcelas
+            </label>
+            <input
+              ref={(element) => {
+                fields.current.installmentCount = element
+              }}
+              id={`${id}-installmentCount`}
+              name="installmentCount"
+              type="number"
+              min={1}
+              max={MAX_INSTALLMENTS}
+              step={1}
+              inputMode="numeric"
+              className={accountStyles.input}
+              value={values.installmentCount}
+              onChange={(event) => set('installmentCount', event.target.value)}
+              aria-invalid={errors.installmentCount ? true : undefined}
+              aria-describedby={describedBy('installmentCount', true)}
+            />
+            <p id={`${id}-installmentCount-hint`} className={accountStyles.fieldHint}>
+              1 = à vista. Até {MAX_INSTALLMENTS} parcelas; os centavos que sobram vão para a primeira.
+            </p>
+            {fieldError('installmentCount')}
+          </div>
+        ) : null}
+
         <div className={accountStyles.field}>
           <label htmlFor={`${id}-occurredOn`} className={accountStyles.label}>
-            Data
+            {values.type === 'CARD_PURCHASE' ? 'Data da compra' : 'Data'}
           </label>
           <input
             ref={(element) => {
@@ -382,7 +621,7 @@ function TransactionForm({
 
         <div className={accountStyles.field}>
           <label htmlFor={`${id}-description`} className={accountStyles.label}>
-            Descrição
+            {values.type === 'CARD_PAYMENT' ? 'Descrição (opcional)' : 'Descrição'}
           </label>
           <input
             ref={(element) => {
@@ -392,6 +631,7 @@ function TransactionForm({
             name="description"
             className={accountStyles.input}
             autoComplete="off"
+            placeholder={values.type === 'CARD_PAYMENT' ? 'Pagamento de fatura' : undefined}
             value={values.description}
             onChange={(event) => set('description', event.target.value)}
             aria-invalid={errors.description ? true : undefined}
@@ -403,29 +643,34 @@ function TransactionForm({
           {fieldError('description')}
         </div>
 
-        <div className={styles.checkRow}>
-          <input
-            ref={(element) => {
-              fields.current.status = element
-            }}
-            id={`${id}-pending`}
-            name="pending"
-            type="checkbox"
-            className={styles.checkbox}
-            checked={values.pending}
-            onChange={(event) => set('pending', event.target.checked)}
-            aria-describedby={`${id}-status-hint`}
-          />
-          <div className={styles.checkText}>
-            <label htmlFor={`${id}-pending`} className={styles.checkLabel}>
-              Ainda pendente
-            </label>
-            <p id={`${id}-status-hint`} className={accountStyles.fieldHint}>
-              Marque se ainda não aconteceu ou não foi confirmada. Pendentes não entram no saldo até serem efetivadas.
-            </p>
-          </div>
-        </div>
-        {fieldError('status')}
+        {cardType ? null : (
+          <>
+            <div className={styles.checkRow}>
+              <input
+                ref={(element) => {
+                  fields.current.status = element
+                }}
+                id={`${id}-pending`}
+                name="pending"
+                type="checkbox"
+                className={styles.checkbox}
+                checked={values.pending}
+                onChange={(event) => set('pending', event.target.checked)}
+                aria-describedby={`${id}-status-hint`}
+              />
+              <div className={styles.checkText}>
+                <label htmlFor={`${id}-pending`} className={styles.checkLabel}>
+                  Ainda pendente
+                </label>
+                <p id={`${id}-status-hint`} className={accountStyles.fieldHint}>
+                  Marque se ainda não aconteceu ou não foi confirmada. Pendentes não entram no saldo até serem
+                  efetivadas.
+                </p>
+              </div>
+            </div>
+            {fieldError('status')}
+          </>
+        )}
       </fieldset>
 
       {formError ? (
@@ -439,7 +684,7 @@ function TransactionForm({
         <Button href={backHref(returnTo)} variant="secondary">
           Cancelar
         </Button>
-        <Button type="submit" disabled={sending}>
+        <Button type="submit" disabled={sending || (cardType && activeCards.length === 0)}>
           {sending ? 'Registrando…' : 'Registrar transação'}
         </Button>
       </div>

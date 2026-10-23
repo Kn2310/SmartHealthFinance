@@ -2,14 +2,17 @@
 
 import { useState } from 'react'
 import type { Failure } from '@/lib/bff-client'
+import { cardLabel } from '@/lib/format/card'
 import { useKeyed } from '@/lib/use-keyed'
 import {
   fetchAllAccounts,
+  fetchAllCards,
   fetchCategories,
   fetchTransaction,
   fetchTransactions,
   listSearch,
   type Account,
+  type Card,
   type Category,
   type ListParams,
   type Transaction,
@@ -86,6 +89,24 @@ export function useAccounts() {
 
 export function accountNames(accounts: { status: string; data?: Account[] }): Map<string, string> {
   return new Map(accounts.status === 'success' && accounts.data ? accounts.data.map((a) => [a.id, a.name]) : [])
+}
+
+/**
+ * Cartões do Workspace (inclusive arquivados) para os rótulos de compras e pagamentos de fatura. Falhar aqui não
+ * derruba a lista: o lançamento aparece com "Cartão" genérico (estado parcial).
+ */
+export function useCards() {
+  const [attempt, setAttempt] = useState(0)
+  const { value } = useKeyed<Card[]>(`cards#${attempt}`, async () => {
+    const result = await fetchAllCards()
+    return result.ok ? { status: 'success', data: result.data.items } : { status: 'error', failure: result }
+  })
+  return { ...value, retry: () => setAttempt((n) => n + 1) }
+}
+
+/** Rótulos dos cartões por id ("Aurora Platinum •••• 4821"), só com os 4 últimos dígitos. */
+export function cardNames(cards: { status: string; data?: Card[] }): Map<string, string> {
+  return new Map(cards.status === 'success' && cards.data ? cards.data.map((c) => [c.id, cardLabel(c)]) : [])
 }
 
 /**

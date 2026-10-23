@@ -50,6 +50,7 @@ export function readyOverview(overrides: Partial<Overview> = {}): Overview {
         destinationAccount: null,
         refundOfTransactionId: null,
         source: 'MANUAL',
+        card: null,
       },
       {
         id: 't2',
@@ -64,6 +65,7 @@ export function readyOverview(overrides: Partial<Overview> = {}): Overview {
         destinationAccount: null,
         refundOfTransactionId: null,
         source: 'MANUAL',
+        card: null,
       },
       {
         id: 't3',
@@ -78,6 +80,7 @@ export function readyOverview(overrides: Partial<Overview> = {}): Overview {
         destinationAccount: { id: 'a2', name: 'Reserva' },
         refundOfTransactionId: null,
         source: 'MANUAL',
+        card: null,
       },
       {
         id: 't4',
@@ -92,6 +95,7 @@ export function readyOverview(overrides: Partial<Overview> = {}): Overview {
         destinationAccount: null,
         refundOfTransactionId: 't2',
         source: 'MANUAL',
+        card: null,
       },
     ],
     ...overrides,

@@ -8,21 +8,60 @@ export type TransactionType = Transaction['type']
 export type TransactionStatus = Transaction['status']
 export type AdjustmentDirection = NonNullable<Transaction['adjustmentDirection']>
 export type Account = Schemas['AccountResponse']
+export type Card = Schemas['CardResponse']
 export type Category = Schemas['CategoryResponse']
 
-/** Tipos que a UI lança (transferência e reembolso pela UI ficam fora do escopo; se existirem, só são exibidos). */
-export type ManualType = 'INCOME' | 'EXPENSE' | 'ADJUSTMENT'
+/** Tipos que a UI lança em `/transactions` (transferência e reembolso fecham a pendência do M2 — ADR-0026 §10). */
+export type ManualType = 'INCOME' | 'EXPENSE' | 'ADJUSTMENT' | 'TRANSFER' | 'REFUND'
 
 /** Lançamento manual como o BFF espera: valor como string decimal ("1234.56"), nunca `number`. */
 export interface NewTransaction {
   type: ManualType
   accountId: string
+  /** Só TRANSFER. */
+  destinationAccountId: string | null
   adjustmentDirection: AdjustmentDirection | null
   amount: string
   occurredOn: string
   description: string
   status: 'POSTED' | 'PENDING'
+  /** Só REFUND, opcional: a despesa original. */
+  refundOfTransactionId: string | null
 }
+
+/** Compra no cartão: o total; as parcelas são calculadas no backend (centavos na 1ª — ADR-0025 §6). */
+export interface NewCardPurchase {
+  amount: string
+  occurredOn: string
+  description: string
+  installmentCount: number
+}
+
+/** Pagamento de fatura: transferência da conta para o cartão (ADR-0025 §7). */
+export interface NewCardPayment {
+  accountId: string
+  amount: string
+  occurredOn: string
+  description: string | null
+}
+
+const cardPath = (cardId: string, operation: 'purchases' | 'payments') =>
+  `/api/bff/cards/${encodeURIComponent(cardId)}/${operation}`
+
+/** A mesma `idempotencyKey` em todo reenvio da mesma intenção (ADR-0026 §10). */
+export const recordCardPurchase = (cardId: string, fields: NewCardPurchase, idempotencyKey: string) =>
+  bffCall<Schemas['CardPurchaseResponse']>(cardPath(cardId, 'purchases'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(fields),
+  })
+
+export const recordCardPayment = (cardId: string, fields: NewCardPayment, idempotencyKey: string) =>
+  bffCall<Schemas['CardTransactionResponse']>(cardPath(cardId, 'payments'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(fields),
+  })
 
 /** Filtros enviados ao BFF (todos opcionais; o Workspace vem sempre da sessão). */
 export interface ListParams {
@@ -83,6 +122,9 @@ export const transitionTransaction = (id: string, action: TransitionAction) =>
 /** Todas as contas (inclusive arquivadas): os nomes aparecem no histórico mesmo depois de arquivar. */
 export const fetchAllAccounts = () =>
   bffCall<Schemas['AccountListResponse']>('/api/bff/accounts?includeArchived=true')
+
+/** Todos os cartões (inclusive arquivados): os rótulos aparecem no histórico mesmo depois de arquivar. */
+export const fetchAllCards = () => bffCall<Schemas['CardListResponse']>('/api/bff/cards?includeArchived=true')
 
 /** Catálogo de categorias (inclusive inativas, para os nomes de transações antigas), na ordem de exibição. */
 export const fetchCategories = () => bffCall<Schemas['CategoryListResponse']>('/api/bff/categories')

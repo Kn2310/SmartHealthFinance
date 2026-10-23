@@ -1,5 +1,6 @@
 import { Download } from 'lucide-react'
 import type { OverviewTransaction } from '@/lib/api/types'
+import { cardLabel } from '@/lib/format/card'
 import { formatShortDate } from '@/lib/format/date'
 import { Money } from '@/components/ui/Money'
 import {
@@ -17,9 +18,11 @@ export function TransactionItem({ transaction }: { transaction: OverviewTransact
   const typeLabel = transactionTypeLabel(transaction)
   const badge = statusLabel(transaction.status)
   const imported = transaction.source === 'IMPORT'
-  const accounts = transaction.destinationAccount
-    ? `${transaction.account.name} → ${transaction.destinationAccount.name}`
-    : transaction.account.name
+  // Compra e estorno no cartão não têm conta; o pagamento de fatura vai da conta para o cartão (ADR-0026 §10).
+  const card = transaction.card ? cardLabel(transaction.card) : null
+  const origin = transaction.account?.name ?? card ?? 'Cartão'
+  const destination = transaction.destinationAccount?.name ?? (transaction.account && card ? card : null)
+  const accounts = destination ? `${origin} → ${destination}` : origin
   const title = transaction.description?.trim() || typeLabel
 
   return (

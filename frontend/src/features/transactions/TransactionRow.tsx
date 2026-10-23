@@ -24,8 +24,14 @@ interface Props {
 export function TransactionRow({ transaction, names, categories, perspectiveAccountId }: Props) {
   const Icon = TRANSACTION_TYPE_ICON[transaction.type] ?? FallbackTransactionIcon
   const typeLabel = rowCategoryLabel(transaction, categories) ?? transactionTypeLabel(transaction)
-  const account = names.get(transaction.accountId) ?? 'Conta'
-  const destination = transaction.destinationAccountId ? (names.get(transaction.destinationAccountId) ?? 'Conta') : null
+  // `names` tem contas e cartões: compra e estorno no cartão não têm conta (ADR-0026 §10).
+  const account = transaction.accountId
+    ? (names.get(transaction.accountId) ?? 'Conta')
+    : (names.get(transaction.cardId ?? '') ?? 'Cartão')
+  const destinationId = transaction.destinationAccountId ?? transaction.destinationCardId
+  const destination = destinationId
+    ? (names.get(destinationId) ?? (transaction.destinationCardId ? 'Cartão' : 'Conta'))
+    : null
   const where = destination ? `${account} → ${destination}` : perspectiveAccountId ? null : account
   const status = transaction.status === 'POSTED' ? null : statusBadge(transaction.status)
   const voided = transaction.status === 'CANCELLED' || transaction.status === 'REVERSED'

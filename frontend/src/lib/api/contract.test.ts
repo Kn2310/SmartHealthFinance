@@ -7,8 +7,11 @@ import {
   CARD_BRANDS,
   CARD_NICKNAME_MAX_LENGTH,
   CARD_STATUSES,
+  INSTALLMENT_PLAN_STATUSES,
+  INSTALLMENT_STATUSES,
   INVOICE_DATES_SOURCES,
   INVOICE_ITEM_KINDS,
+  MAX_INSTALLMENTS,
   INVOICE_STATUSES,
   CATEGORY_CODE_MAX_LENGTH,
   CATEGORY_NATURES,
@@ -82,6 +85,7 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     const records = javaRecords('overview/presentation/dto/response/OverviewResponse.java')
     for (const name of [
       'OverviewResponse', 'Period', 'Summary', 'CashFlow', 'Transfers', 'AccountSummary', 'AccountRef', 'RecentTransaction',
+      'CardRef',
     ] as const) {
       expect(sorted(records[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
     }
@@ -175,6 +179,8 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     ['cards/domain/enums/InvoiceStatus.java', INVOICE_STATUSES],
     ['cards/domain/enums/InvoiceDatesSource.java', INVOICE_DATES_SOURCES],
     ['cards/domain/enums/InvoiceItemKind.java', INVOICE_ITEM_KINDS],
+    ['cards/domain/enums/InstallmentStatus.java', INSTALLMENT_STATUSES],
+    ['cards/domain/enums/InstallmentPlanStatus.java', INSTALLMENT_PLAN_STATUSES],
   ])('enum %s', (path, frontend) => {
     expect(sorted(frontend)).toEqual(sorted(javaEnum(path)))
   })
@@ -185,10 +191,18 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
       'CardResponse', 'CardListResponse', 'InvoiceSummaryResponse', 'InvoiceListResponse', 'InvoiceResponse',
       'InvoiceItemResponse', 'InstallmentRef', 'InvoiceItemPageResponse', 'FutureInstallmentResponse',
       'FutureInvoiceMonthResponse', 'FutureInvoicesResponse', 'UtilizationCompositionResponse', 'UtilizationResponse',
-      'CardSummaryResponse', 'CardsSummaryResponse',
+      'CardSummaryResponse', 'CardsSummaryResponse', 'PurchaseInstallmentResponse', 'CardPurchaseResponse',
+      'CardTransactionResponse', 'InstallmentItemResponse', 'ReservedLimitResponse', 'InstallmentPlanResponse',
+      'InstallmentPlanListResponse',
     ] as const) {
       expect(sorted(responses[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
     }
+    for (const name of ['CardPurchaseRequest', 'CardPaymentRequest', 'CardCreditRequest'] as const) {
+      const records = javaRecords(`cards/presentation/dto/request/${name}.java`)
+      expect(sorted(records[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
+    }
+    expect(Number(/MAX_INSTALLMENTS\s*=\s*(\d+)/.exec(read('cards/domain/service/InstallmentSplitter.java'))?.[1]))
+      .toBe(MAX_INSTALLMENTS)
     // O último componente do request (campos desconhecidos → 400) não faz parte do contrato.
     const request = (javaRecords('cards/presentation/dto/request/CardRequest.java').CardRequest ?? []).filter(
       (field) => /^\w+$/.test(field) && field !== 'unknownFields',
