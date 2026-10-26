@@ -210,8 +210,8 @@ ainda não existe (ADR-0003/0004/0005 adiaram eventos por isso).
 >   conta é conciliado por uma ação explícita (ADR-0025 §7, adendo).
 
 19. **Destino cartão.**
-    - O upload recebe `accountId` **ou** `cardId`, nunca os dois e nunca nenhum
-      (`400 VALIDATION_FAILED destination EXACTLY_ONE`).
+    - O upload recebe `accountId` **ou** `cardId`. Os dois juntos → `400 VALIDATION_FAILED destination EXACTLY_ONE`.
+      Nenhum → `400 VALIDATION_FAILED accountId REQUIRED`, como antes, para o contrato existente não mudar.
     - O cartão precisa estar ativo e no mesmo Workspace: `404 CARD_NOT_FOUND` ou `409 CARD_ARCHIVED`.
     - O hash da `Idempotency-Key` com cartão é `sha256("v1|card|" + cardId + "|" + hashDoArquivo)`. O formato da conta
       não muda.

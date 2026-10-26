@@ -83,6 +83,7 @@
 - [x] import UI (`/import`: conta + arquivo → preview → confirmação → acompanhamento → resultado; selo "Importado" na Home — ADR-0009 §18)
 - [x] E2E da importação: CSV fictício → preview → confirmação → resultado → selo "Importado", com somas exatas do
   fixture (`frontend/e2e/import.spec.ts` — ADR-0011)
+- [x] faturas de cartão (`CCSTMTRS` e CSV de fatura) entram no M8 (adendo ADR-0009 §19–§30)
 
 ## M5 Analytics
 
@@ -193,6 +194,19 @@
   sugerida) em `/transactions/new`; `/cards/new` só com os 4 últimos dígitos; cartão na lista, no detalhe ("Pago com",
   "Fatura do cartão") e na Home; BFF `/api/bff/cards[/{id}/purchases|payments|credits]`; E2E
   `card-transactions.spec.ts` (cartão → compra parcelada → pagamento → Home sem dupla contagem)
+
+- [x] importação de fatura (Sessão 6.2 parte D; adendos ADR-0009 §19–§30 e ADR-0025 §7/§15):
+  - destino conta **ou** cartão no upload; Ingestion → Cards na mesma transação tudo-ou-nada (ArchUnit);
+  - OFX `CCSTMTRS` (o `UNSUPPORTED_STATEMENT_TYPE` vira `STATEMENT_TYPE_MISMATCH`) e CSV de fatura com o sinal das
+    exportações (positivo = compra) e coluna opcional `parcela`; vencimento e mínimo só do `CCCLOSING`;
+  - crédito de pagamento fica `SKIPPED` (a conta é a fonte); outro crédito vira `REFUND`; parcela k/n é conciliada com
+    um parcelamento compatível (`RECONCILED`) ou reconstruída pelo total na data da compra;
+  - dedupe por cartão; início do acompanhamento do cartão (`invoice-v2`, parcelas `BEFORE_TRACKING`) recuado pela
+    evidência do arquivo;
+  - `POST /cards/{id}/payments/reconcile` ("Marcar como pagamento de fatura"), vinculando a um pagamento manual da
+    mesma conta, valor e ±5 dias; V18; suíte de isolamento; `CardStatementImportApiIT`;
+  - UI: cartões como destino em `/import`, modelo `/modelo-fatura.csv`, parcela e pagamento no preview, ação no
+    detalhe da despesa importada; E2E `card-import.spec.ts` com a fatura fictícia do Aurora.
 
 ### Handoff da Sessão 6.1 para a 6.2
 

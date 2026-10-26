@@ -368,7 +368,11 @@ Nenhum documento define:
   - A utilização fica em (3.412,80 + 3.360,00) ÷ 12.000 = **56%**, como no design.
 - **Versão:** as leituras passam a devolver `calculationVersion = invoice-v2`.
   - A regra de atribuição por ciclo não muda. As parcelas gravadas como `invoice-v1` continuam válidas sem recálculo.
-  - Com o backfill, `invoice-v2` dá o mesmo resultado que `invoice-v1` em todos os dados existentes.
+  - Com o backfill, `invoice-v2` dá o mesmo resultado que `invoice-v1` nos dados existentes. Única exceção: um
+    pagamento lançado com data até o vencimento da fatura anterior ao início do acompanhamento passa a ser dela e sai
+    da alocação.
+  - A API expõe o início do acompanhamento como `Card.trackingStartDueMonth`, o mês de vencimento da primeira fatura
+    acompanhada (campo aditivo).
 - **Alternativas:**
   - "Saldo devedor inicial" informado à mão no cadastro: rejeitado, porque é um número sem transações que o
     expliquem;
