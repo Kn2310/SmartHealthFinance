@@ -51,7 +51,7 @@ test('fatura importada e pagamento conciliado não contam nada duas vezes', asyn
 
   const main = page.getByRole('main')
   await expect(definition(main, 'Novas para importar')).toHaveText('3')
-  await expect(definition(main, 'Pagamentos (pela conta)')).toHaveText('1')
+  await expect(definition(main, 'Pagamentos')).toHaveText('1')
   await expect(main).toContainText(`Parcela 3 de 10`)
   await expect(main).toContainText('Pagamento: registre pela conta')
   await page.getByRole('button', { name: 'Importar 3 movimentações' }).click()
