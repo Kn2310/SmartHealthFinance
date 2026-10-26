@@ -179,6 +179,7 @@ export async function readCreditBody(
 const FIELDS = new Set([
   'nickname', 'institutionName', 'brand', 'last4', 'limit', 'closingDay', 'dueDay', 'defaultPaymentAccountId',
   'amount', 'currency', 'occurredOn', 'description', 'installmentCount', 'accountId', 'refundOfTransactionId',
+  'transactionId',
 ])
 /** Códigos da Bean Validation viram os do domínio; os do domínio passam se forem códigos estáveis. */
 const BEAN_CODES: Partial<Record<string, string>> = { NotBlank: 'REQUIRED', NotNull: 'REQUIRED', Size: 'TOO_LONG' }
@@ -202,7 +203,8 @@ export function cardFailure(label: string, status: number, error: ApiError | und
   if (status === 404 && (code === 'CARD_NOT_FOUND' || code === 'ACCOUNT_NOT_FOUND' || code === 'TRANSACTION_NOT_FOUND')) {
     return noStoreJson({ code }, 404)
   }
-  if (status === 409 && (code === 'CARD_ARCHIVED' || code === 'ACCOUNT_ARCHIVED' || code === 'CONFLICT')) {
+  if (status === 409 && (code === 'CARD_ARCHIVED' || code === 'ACCOUNT_ARCHIVED' || code === 'CONFLICT'
+    || code === 'TRANSACTION_STATUS_CONFLICT')) {
     return noStoreJson({ code }, 409)
   }
   if (status === 422 && code === 'IDEMPOTENCY_KEY_REUSED') return noStoreJson({ code }, 422)
@@ -246,5 +248,36 @@ export async function recordCardOperation(
     })
     if (data) return noStoreJson(data, response.status === 201 ? 201 : 200)
     return cardFailure(label, response.status, error)
+  })
+}
+
+/**
+ * "Marcar como pagamento de fatura" (ADR-0025 §7, adendo): o débito importado na conta vira o pagamento do cartão.
+ * Idempotente pelo estado no backend, então não exige `Idempotency-Key`; só o id da despesa passa adiante.
+ */
+export async function reconcileCardPayment(
+  request: NextRequest,
+  params: Promise<{ cardId: string }>,
+): Promise<NextResponse> {
+  const forbidden = rejectCrossOrigin(request)
+  if (forbidden) return forbidden
+  const { cardId } = await params
+  if (!isUuid(cardId)) return noStoreJson({ code: 'CARD_NOT_FOUND' }, 404)
+
+  return withSession('card payment reconcile', async (session) => {
+    const input = await readJsonObject(request)
+    if (!input) return invalidRequest()
+    if (!isUuid(input.transactionId)) {
+      return validationFailed([{ field: 'transactionId', code: input.transactionId ? 'INVALID' : 'REQUIRED' }])
+    }
+    const { data, error, response } = await backendClient(session.accessToken).POST(
+      '/api/v1/workspaces/{workspaceId}/cards/{cardId}/payments/reconcile',
+      {
+        params: { path: { workspaceId: session.workspaceId, cardId } },
+        body: { transactionId: input.transactionId },
+      },
+    )
+    if (data) return noStoreJson(data, response.status === 201 ? 201 : 200)
+    return cardFailure('card payment reconcile', response.status, error)
   })
 }

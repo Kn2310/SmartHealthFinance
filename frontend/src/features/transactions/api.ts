@@ -142,3 +142,13 @@ export const markAsRefund = (id: string, refundOfTransactionId: string | null) =
     headers: JSON_BODY,
     body: JSON.stringify(refundOfTransactionId ? { refundOfTransactionId } : {}),
   })
+
+/**
+ * "Marcar como pagamento de fatura" (ADR-0025 §7, adendo): o débito importado vira a transferência para o cartão, ou
+ * se vincula a um pagamento já registrado (`matchedExisting`). Idempotente pelo estado no backend.
+ */
+export const reconcileCardPayment = (cardId: string, transactionId: string) =>
+  bffCall<Schemas['CardPaymentReconciliationResponse']>(
+    `/api/bff/cards/${encodeURIComponent(cardId)}/payments/reconcile`,
+    { method: 'POST', headers: JSON_BODY, body: JSON.stringify({ transactionId }) },
+  )

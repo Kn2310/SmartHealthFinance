@@ -11,8 +11,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Fatos {@code POSTED} de cartão (ADR-0026 §7 e §10): parcelas das compras, estornos e a soma dos pagamentos. O SQL só
- * filtra (status, Workspace, cartão) e soma os pagamentos; estornos nas parcelas, valores por fatura, estados e
+ * Fatos {@code POSTED} de cartão (ADR-0026 §7 e §10): parcelas das compras, estornos e os pagamentos por dia. O SQL só
+ * filtra (status, Workspace, cartão) e soma os pagamentos de cada dia; estornos nas parcelas, valores por fatura, estados e
  * utilização ficam no domínio ({@code CreditAllocator}, {@code InvoiceLedger}).
  */
 public interface CardLedgerReader {
@@ -26,8 +26,14 @@ public interface CardLedgerReader {
     record CreditFact(UUID transactionId, LocalDate occurredOn, Money amount, UUID refundOfTransactionId,
                       String description, String categoryCode, String merchantName, String source) {}
 
-    /** @param payments soma dos pagamentos de fatura {@code POSTED} (TRANSFER conta → cartão) */
-    record CardFacts(List<InstallmentFact> installments, List<CreditFact> credits, Money payments) {}
+    /** Pagamentos de fatura {@code POSTED} (TRANSFER conta → cartão) de um dia, somados. */
+    record PaymentFact(LocalDate occurredOn, Money amount) {}
+
+    /**
+     * @param payments pagamentos por dia, em ordem de data; o início do acompanhamento descarta os que pagaram faturas
+     *                 anteriores a ele (ADR-0025 §15)
+     */
+    record CardFacts(List<InstallmentFact> installments, List<CreditFact> credits, List<PaymentFact> payments) {}
 
     CardFacts facts(WorkspaceId workspaceId, CardId cardId);
 

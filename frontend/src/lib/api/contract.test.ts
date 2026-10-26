@@ -117,6 +117,12 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     expect(sorted(javaRecords('ingestion/presentation/dto/response/ImportResponse.java').Period ?? [])).toEqual(
       sorted(RECORD_FIELDS.ImportPeriod),
     )
+    // Idem para Statement (ImportStatement) e Installment (ImportInstallment).
+    expect(sorted(javaRecords('ingestion/presentation/dto/response/ImportResponse.java').Statement ?? [])).toEqual(
+      sorted(RECORD_FIELDS.ImportStatement),
+    )
+    expect(sorted(javaRecords('ingestion/presentation/dto/response/ImportRecordResponse.java').Installment ?? []))
+      .toEqual(sorted(RECORD_FIELDS.ImportInstallment))
   })
 
   it('requests de Accounts têm exatamente os campos do contrato manual', () => {
@@ -193,11 +199,13 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
       'FutureInvoiceMonthResponse', 'FutureInvoicesResponse', 'UtilizationCompositionResponse', 'UtilizationResponse',
       'CardSummaryResponse', 'CardsSummaryResponse', 'PurchaseInstallmentResponse', 'CardPurchaseResponse',
       'CardTransactionResponse', 'InstallmentItemResponse', 'ReservedLimitResponse', 'InstallmentPlanResponse',
-      'InstallmentPlanListResponse',
+      'InstallmentPlanListResponse', 'CardPaymentReconciliationResponse',
     ] as const) {
       expect(sorted(responses[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
     }
-    for (const name of ['CardPurchaseRequest', 'CardPaymentRequest', 'CardCreditRequest'] as const) {
+    for (const name of [
+      'CardPurchaseRequest', 'CardPaymentRequest', 'CardCreditRequest', 'CardPaymentReconciliationRequest',
+    ] as const) {
       const records = javaRecords(`cards/presentation/dto/request/${name}.java`)
       expect(sorted(records[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
     }

@@ -5,6 +5,7 @@ import com.smarthealthfinance.cards.domain.repository.CreditCardRepository;
 import com.smarthealthfinance.cards.domain.valueobject.CardId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 
+import java.time.YearMonth;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,9 +58,23 @@ public final class InMemoryCreditCardRepository implements CreditCardRepository 
         cards.put(card.id(), copy(card, card.version() + 1));
     }
 
+    /** Como o adapter: só recua e não muda a versão. */
+    @Override
+    public boolean recedeTrackingStart(WorkspaceId workspaceId, CardId cardId, YearMonth month) {
+        CreditCard card = cards.get(cardId);
+        if (card == null || !card.workspaceId().equals(workspaceId) || !card.trackingStartMonth().isAfter(month)) {
+            return false;
+        }
+        cards.put(cardId, CreditCard.restore(card.id(), card.workspaceId(), card.nickname(),
+                card.institutionName().orElse(null), card.brand(), card.last4(), card.limit(), card.cycle(),
+                card.defaultPaymentAccountId().orElse(null), card.status(), month, card.createdAt(),
+                card.updatedAt(), card.version()));
+        return true;
+    }
+
     private static CreditCard copy(CreditCard card, long version) {
         return CreditCard.restore(card.id(), card.workspaceId(), card.nickname(), card.institutionName().orElse(null),
                 card.brand(), card.last4(), card.limit(), card.cycle(), card.defaultPaymentAccountId().orElse(null),
-                card.status(), card.createdAt(), card.updatedAt(), version);
+                card.status(), card.trackingStartMonth(), card.createdAt(), card.updatedAt(), version);
     }
 }

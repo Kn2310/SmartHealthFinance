@@ -118,6 +118,8 @@
 .accountText { display: flex; flex-direction: column; min-width: 0; }
 .accountName { font-weight: 600; overflow-wrap: anywhere; }
 .accountMeta { color: var(--color-neutral-muted); font: var(--type-caption); }
+.destinationGroup { margin-top: var(--space-16); }
+.groupTitle { color: var(--color-neutral-text-secondary); font: var(--type-caption); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 
 /* Dropzone */
 .dropzone {

@@ -27,6 +27,7 @@ import { accountNames, cardNames, categoryNames, useAccounts, useCards, useCateg
 import { acceptedNature, CATEGORY_SOURCE_LABEL, NO_CATEGORY_LABEL, SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
 import { categoryErrorMessage, fieldErrorMessage, requestFailureMessage } from './messages'
 import { RelatedInsight } from '@/features/insights/RelatedInsight'
+import { canMarkAsCardPayment, CardPaymentMarkSection } from './CardPaymentMarkSection'
 import { canMarkAsRefund, RefundMarkSection } from './RefundMarkSection'
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
@@ -210,7 +211,9 @@ function Loaded({
         </div>
         <p className={accountStyles.muted}>
           {transaction.reclassifiedAsTransactionId
-            ? 'Marcada como reembolso: foi substituída por um reembolso de mesmo valor, e o saldo não mudou. O registro fica guardado no histórico.'
+            ? transaction.type === 'EXPENSE'
+              ? 'Marcada como pagamento de fatura: deixou de contar como despesa e agora abate a fatura do cartão. O registro fica guardado no histórico.'
+              : 'Marcada como reembolso: foi substituída por um reembolso de mesmo valor, e o saldo não mudou. O registro fica guardado no histórico.'
             : statusEffect(transaction.status)}
         </p>
       </section>
@@ -308,20 +311,20 @@ function Loaded({
           </div>
           {transaction.reclassifiedAsTransactionId ? (
             <div className={styles.fact}>
-              <dt>Marcada como reembolso</dt>
+              <dt>{transaction.type === 'EXPENSE' ? 'Marcada como pagamento de fatura' : 'Marcada como reembolso'}</dt>
               <dd>
                 <Link href={`/transactions/${transaction.reclassifiedAsTransactionId}`} className={styles.link}>
-                  Ver reembolso
+                  {transaction.type === 'EXPENSE' ? 'Ver pagamento' : 'Ver reembolso'}
                 </Link>
               </dd>
             </div>
           ) : null}
           {transaction.reclassifiedFromTransactionId ? (
             <div className={styles.fact}>
-              <dt>Substitui a receita importada</dt>
+              <dt>{transaction.type === 'TRANSFER' ? 'Substitui a despesa importada' : 'Substitui a receita importada'}</dt>
               <dd>
                 <Link href={`/transactions/${transaction.reclassifiedFromTransactionId}`} className={styles.link}>
-                  Ver receita original
+                  {transaction.type === 'TRANSFER' ? 'Ver despesa original' : 'Ver receita original'}
                 </Link>
               </dd>
             </div>
@@ -407,6 +410,14 @@ function Loaded({
             </Button>
           </div>
         </section>
+      ) : null}
+
+      {canMarkAsCardPayment(transaction) ? (
+        <CardPaymentMarkSection
+          transaction={transaction}
+          onMarked={(payment) => router.push(`/transactions/${payment.id}`)}
+          onConflict={onReload}
+        />
       ) : null}
 
       {canMarkAsRefund(transaction) ? (

@@ -1,8 +1,11 @@
 package com.smarthealthfinance.ingestion.domain.model;
 
 import com.smarthealthfinance.ingestion.domain.enums.RecordStatus;
+import com.smarthealthfinance.ingestion.domain.enums.StatementKind;
+import com.smarthealthfinance.ingestion.domain.service.CardStatementRules;
 import com.smarthealthfinance.ingestion.domain.valueobject.DedupeKey;
 import com.smarthealthfinance.ingestion.domain.valueobject.ImportBatchId;
+import com.smarthealthfinance.ingestion.domain.valueobject.InstallmentMark;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 
@@ -33,26 +36,41 @@ public record ImportPreview(List<ImportRecord> records) {
         return assignKeys(statement.lines()).values().stream().distinct().toList();
     }
 
-    /**
-     * @param alreadyImported chaves já importadas nesta conta e a transação de cada uma
-     */
+    /** Extrato de conta. */
     public static ImportPreview of(ImportBatchId batchId, ParsedStatement statement,
                                    Map<DedupeKey, TransactionId> alreadyImported) {
+        return of(batchId, statement, alreadyImported, StatementKind.ACCOUNT);
+    }
+
+    /**
+     * Na fatura de cartão, pagamentos viram {@code SKIPPED} e as parcelas são reconhecidas (ADR-0009 §23–§24).
+     *
+     * @param alreadyImported chaves já importadas nesta conta ou neste cartão e a transação de cada uma
+     */
+    public static ImportPreview of(ImportBatchId batchId, ParsedStatement statement,
+                                   Map<DedupeKey, TransactionId> alreadyImported, StatementKind kind) {
         Objects.requireNonNull(alreadyImported, "alreadyImported");
+        Objects.requireNonNull(kind, "kind");
         Map<StatementLine, DedupeKey> keys = assignKeys(statement.lines());
 
         List<ImportRecord> records = new ArrayList<>(statement.totalLines());
         Set<DedupeKey> seenInFile = new HashSet<>();
         for (StatementLine line : statement.lines()) {
             DedupeKey key = keys.get(line);
+            boolean card = kind == StatementKind.CARD;
+            if (card && CardStatementRules.isPayment(line)) {
+                records.add(ImportRecord.skipped(batchId, line, key, CardStatementRules.CARD_PAYMENT));
+                continue;
+            }
+            InstallmentMark installment = card ? CardStatementRules.installmentOf(line).orElse(null) : null;
             if (alreadyImported.containsKey(key)) {
-                records.add(ImportRecord.duplicate(batchId, line, key, alreadyImported.get(key)));
+                records.add(ImportRecord.duplicate(batchId, line, key, alreadyImported.get(key), installment));
             }
             else if (!seenInFile.add(key)) {
-                records.add(ImportRecord.duplicate(batchId, line, key, null));
+                records.add(ImportRecord.duplicate(batchId, line, key, null, installment));
             }
             else {
-                records.add(ImportRecord.valid(batchId, line, key));
+                records.add(ImportRecord.valid(batchId, line, key, installment));
             }
         }
         statement.issues().forEach(issue -> records.add(ImportRecord.invalid(batchId, issue)));

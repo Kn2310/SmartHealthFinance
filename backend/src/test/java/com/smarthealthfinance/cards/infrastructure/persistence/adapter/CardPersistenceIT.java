@@ -6,6 +6,7 @@ import com.smarthealthfinance.cards.application.port.CardLedgerReader;
 import com.smarthealthfinance.cards.application.port.CardLedgerReader.CardFacts;
 import com.smarthealthfinance.cards.application.port.CardLedgerReader.CreditFact;
 import com.smarthealthfinance.cards.application.port.CardLedgerReader.InstallmentFact;
+import com.smarthealthfinance.cards.application.port.CardLedgerReader.PaymentFact;
 import com.smarthealthfinance.cards.domain.enums.CardBrand;
 import com.smarthealthfinance.cards.domain.model.CardInstallment;
 import com.smarthealthfinance.cards.domain.model.CardInvoice;
@@ -47,6 +48,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.UUID;
 
 import static com.smarthealthfinance.identity.IdentityFixtures.ISSUER;
@@ -94,7 +96,7 @@ class CardPersistenceIT extends IntegrationTest {
 
     record Credit(CardId card, String status, CreditFact fact) {}
 
-    record Payment(CardId card, String status, BigDecimal amount) {}
+    record Payment(CardId card, String status, LocalDate occurredOn, BigDecimal amount) {}
 
     @BeforeEach
     void setUp() throws Exception {
@@ -129,19 +131,19 @@ class CardPersistenceIT extends IntegrationTest {
         UUID id = UUID.randomUUID();
         assertThatThrownBy(() -> jdbc.update("""
                 insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
-                  due_day, status, created_at, updated_at)
-                values (?, ?, 'X', 'VISA', '41111', 10, 'BRL', 28, 5, 'ACTIVE', now(), now())""",
+                  due_day, status, tracking_start_month, created_at, updated_at)
+                values (?, ?, 'X', 'VISA', '41111', 10, 'BRL', 28, 5, 'ACTIVE', date '2000-01-01', now(), now())""",
                 id, ana.workspace().value())).isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update("""
                 insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
-                  due_day, status, created_at, updated_at)
-                values (?, ?, 'X', 'VISA', '4821', 10, 'BRL', 28, 30, 'ACTIVE', now(), now())""",
+                  due_day, status, tracking_start_month, created_at, updated_at)
+                values (?, ?, 'X', 'VISA', '4821', 10, 'BRL', 28, 30, 'ACTIVE', date '2000-01-01', now(), now())""",
                 id, ana.workspace().value())).isInstanceOf(DataIntegrityViolationException.class);
         // Conta padrão de outro Workspace: a FK composta recusa mesmo com bug na aplicação.
         assertThatThrownBy(() -> jdbc.update("""
                 insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
-                  due_day, default_payment_account_id, status, created_at, updated_at)
-                values (?, ?, 'X', 'VISA', '4821', 10, 'BRL', 28, 5, ?, 'ACTIVE', now(), now())""",
+                  due_day, default_payment_account_id, status, tracking_start_month, created_at, updated_at)
+                values (?, ?, 'X', 'VISA', '4821', 10, 'BRL', 28, 5, ?, 'ACTIVE', date '2000-01-01', now(), now())""",
                 id, ana.workspace().value(), bob.account())).isInstanceOf(DataIntegrityViolationException.class);
 
         CreditCard anas = card(ana, "Ana");
@@ -245,9 +247,10 @@ class CardPersistenceIT extends IntegrationTest {
                 for (int k = 0; k < 4; k++) {
                     String status = ACCOUNT_STATUSES[random.nextInt(ACCOUNT_STATUSES.length)];
                     String amount = BigDecimal.valueOf(1 + random.nextInt(90_000), 2).toPlainString();
-                    insertTransaction(owner, "TRANSFER", owner.account(), null, card.id(), status, amount,
-                            LocalDate.parse("2026-09-01").plusDays(random.nextInt(20)), null);
-                    payments.add(new Payment(card.id(), status, new BigDecimal(amount)));
+                    // Poucos dias possíveis: a soma por dia é exercitada.
+                    LocalDate date = LocalDate.parse("2026-09-01").plusDays(random.nextInt(5));
+                    insertTransaction(owner, "TRANSFER", owner.account(), null, card.id(), status, amount, date, null);
+                    payments.add(new Payment(card.id(), status, date, new BigDecimal(amount)));
                 }
             }
         }
@@ -290,11 +293,14 @@ class CardPersistenceIT extends IntegrationTest {
                 .toList();
     }
 
-    private static Money expectedPayments(List<Payment> payments, CardId card) {
-        return new Money(payments.stream()
+    /** Referência: pagamentos POSTED somados por dia, em ordem de data. */
+    private static List<PaymentFact> expectedPayments(List<Payment> payments, CardId card) {
+        Map<LocalDate, BigDecimal> byDay = new TreeMap<>();
+        payments.stream()
                 .filter(p -> p.card().equals(card) && p.status().equals("POSTED"))
-                .map(Payment::amount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add), BRL);
+                .forEach(p -> byDay.merge(p.occurredOn(), p.amount(), BigDecimal::add));
+        return byDay.entrySet().stream().map(day -> new PaymentFact(day.getKey(), new Money(day.getValue(), BRL)))
+                .toList();
     }
 
     private List<Purchase> randomPurchases(Owner owner, CreditCard card, Random random) {
@@ -330,7 +336,7 @@ class CardPersistenceIT extends IntegrationTest {
     private CreditCard card(Owner owner, String nickname) {
         return CreditCard.create(CardId.generate(NOW), owner.workspace(), new CardNickname(nickname), null,
                 CardBrand.VISA, new CardLast4("4821"), new CardLimit(Money.of("12000.00", BRL)),
-                new BillingCycle(28, 5), new AccountId(owner.account()), NOW);
+                new BillingCycle(28, 5), new AccountId(owner.account()), YearMonth.of(2020, 1), NOW);
     }
 
     private CardInvoice invoice(CreditCard card, YearMonth closingMonth) {

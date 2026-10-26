@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { formatShortDate } from '@/lib/format/date'
 import type { ImportBatch, ImportRecord, RecordStatus } from './api'
 import { useImportRecords } from './hooks'
-import { lineIssueMessage, recordStatusLabel, requestFailureMessage } from './messages'
+import { lineIssueMessage, recordStatusLabel, requestFailureMessage, skipReasonMessage } from './messages'
 import styles from './Import.module.css'
 
 const PAGE_SIZE = 50
@@ -24,9 +24,18 @@ function filters(batch: ImportBatch): Filter[] {
     batch.status === 'COMPLETED'
       ? { status: 'IMPORTED', label: 'Importadas', count: (b) => b.lines.imported }
       : { status: 'VALID', label: 'Novas', count: (b) => b.lines.valid }
+  // Fatura de cartão: parcelas de compras já lançadas e pagamentos que ficam de fora (ADR-0009 §23/§26).
+  const card: Filter[] = []
+  if (batch.cardId) {
+    if (batch.status === 'COMPLETED') {
+      card.push({ status: 'RECONCILED', label: 'Já lançadas', count: (b) => b.lines.reconciled })
+    }
+    card.push({ status: 'SKIPPED', label: 'Pagamentos', count: (b) => b.lines.skipped })
+  }
   return [
     { status: null, label: 'Todas', count: (b) => b.lines.total },
     main,
+    ...card,
     { status: 'DUPLICATE', label: 'Já importadas', count: (b) => b.lines.duplicate },
     { status: 'INVALID', label: 'Com problema', count: (b) => b.lines.invalid },
   ]
@@ -111,6 +120,8 @@ const BADGE_TONE: Partial<Record<string, string>> = {
   IMPORTED: 'success',
   DUPLICATE: 'neutral',
   INVALID: 'warning',
+  SKIPPED: 'neutral',
+  RECONCILED: 'success',
 }
 
 function RecordItem({ record }: { record: ImportRecord }) {
@@ -123,6 +134,8 @@ function RecordItem({ record }: { record: ImportRecord }) {
         </span>
         <span className={styles.recordMeta}>
           Linha {record.lineNumber}
+          {record.installment ? ` · Parcela ${record.installment.number} de ${record.installment.count}` : null}
+          {record.status === 'SKIPPED' ? ` · ${skipReasonMessage(record.skipReason)}` : null}
           {record.occurredOn ? (
             <>
               {' · '}

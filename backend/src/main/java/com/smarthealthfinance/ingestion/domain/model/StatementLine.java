@@ -1,5 +1,6 @@
 package com.smarthealthfinance.ingestion.domain.model;
 
+import com.smarthealthfinance.ingestion.domain.valueobject.InstallmentMark;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
 
@@ -14,11 +15,16 @@ import java.util.regex.Pattern;
  * A descrição é normalizada, não rejeitada: espaços colapsados, controles removidos e corte no limite de
  * {@code TransactionDescription}. Descrição e valor são dados financeiros e nunca vão para logs.
  *
- * @param lineNumber posição no arquivo (CSV: linha física; OFX: ordem do STMTTRN)
- * @param externalId identificador do banco (FITID / coluna id), ou {@code null}
+ * Numa fatura de cartão o sinal já vem normalizado pelo parser: negativo = compra, positivo = crédito, qualquer que
+ * seja o formato (ADR-0009 §22).
+ *
+ * @param lineNumber  posição no arquivo (CSV: linha física; OFX: ordem do STMTTRN)
+ * @param externalId  identificador do banco (FITID / coluna id), ou {@code null}
+ * @param installment parcela informada na coluna {@code parcela} do CSV de fatura, ou {@code null}
+ * @param bankType    {@code TRNTYPE} do OFX de cartão, só para reconhecer pagamentos, ou {@code null}
  */
 public record StatementLine(int lineNumber, LocalDate occurredOn, Money signedAmount, String description,
-                            String externalId) {
+                            String externalId, InstallmentMark installment, String bankType) {
 
     /** Mesmo limite de {@code TransactionDescription}: a descrição importada precisa caber na transação. */
     public static final int MAX_DESCRIPTION_LENGTH = 200;
@@ -31,6 +37,16 @@ public record StatementLine(int lineNumber, LocalDate occurredOn, Money signedAm
         Objects.requireNonNull(occurredOn, "occurredOn");
         Objects.requireNonNull(signedAmount, "signedAmount");
         Objects.requireNonNull(description, "description");
+    }
+
+    public StatementLine(int lineNumber, LocalDate occurredOn, Money signedAmount, String description,
+                         String externalId) {
+        this(lineNumber, occurredOn, signedAmount, description, externalId, null, null);
+    }
+
+    /** A mesma linha com os dados de fatura de cartão. */
+    public StatementLine withCardData(InstallmentMark mark, String type) {
+        return new StatementLine(lineNumber, occurredOn, signedAmount, description, externalId, mark, type);
     }
 
     /**

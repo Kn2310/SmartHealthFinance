@@ -2,6 +2,7 @@ package com.smarthealthfinance.ingestion.application.service;
 
 import com.smarthealthfinance.ingestion.application.port.StatementParser;
 import com.smarthealthfinance.ingestion.domain.enums.ImportFormat;
+import com.smarthealthfinance.ingestion.domain.enums.StatementKind;
 import com.smarthealthfinance.ingestion.domain.exception.StatementRejectedException;
 import com.smarthealthfinance.ingestion.domain.model.ParsedStatement;
 import org.springframework.stereotype.Service;
@@ -34,7 +35,7 @@ public class StatementFiles {
     }
 
     /** @throws StatementRejectedException arquivo vazio, de outro tipo ou inválido como um todo */
-    public ReadFile read(String fileName, byte[] content) {
+    public ReadFile read(String fileName, byte[] content, StatementKind kind) {
         if (content == null || content.length == 0) {
             throw new StatementRejectedException("EMPTY_FILE");
         }
@@ -46,7 +47,7 @@ public class StatementFiles {
         if (parser == null) {
             throw new IllegalStateException("Sem parser para " + format);
         }
-        return new ReadFile(format, parser.parse(content));
+        return new ReadFile(format, parser.parse(content, kind));
     }
 
     public static String sha256(byte[] content) {

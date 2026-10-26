@@ -1,10 +1,10 @@
 package com.smarthealthfinance.ingestion.infrastructure.persistence.adapter;
 
-import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.ingestion.application.port.ImportedTransactionKeys;
 import com.smarthealthfinance.ingestion.domain.valueobject.DedupeKey;
 import com.smarthealthfinance.ingestion.domain.valueobject.ImportBatchId;
+import com.smarthealthfinance.ingestion.domain.valueobject.ImportDestination;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -24,11 +24,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-/** {@code imported_transaction_keys}: a PK (workspace, conta, chave) é a garantia de deduplicação. */
+/**
+ * {@code imported_transaction_keys}: os índices únicos parciais (workspace, conta, chave) e (workspace, cartão,
+ * chave) são a garantia de deduplicação (V8, V18).
+ */
 @Repository
 public class JdbcImportedTransactionKeys implements ImportedTransactionKeys {
 
-    /** Lista de parâmetros por consulta: o PK continua usado e o limite de parâmetros do driver fica longe. */
+    /** Lista de parâmetros por consulta: o índice continua usado e o limite de parâmetros do driver fica longe. */
     private static final int LOOKUP_CHUNK = 1_000;
 
     private final JdbcTemplate jdbc;
@@ -40,7 +43,7 @@ public class JdbcImportedTransactionKeys implements ImportedTransactionKeys {
     }
 
     @Override
-    public Map<DedupeKey, TransactionId> findExisting(WorkspaceId workspaceId, AccountId accountId,
+    public Map<DedupeKey, TransactionId> findExisting(WorkspaceId workspaceId, ImportDestination destination,
                                                       Collection<DedupeKey> keys) {
         Map<DedupeKey, TransactionId> existing = new HashMap<>();
         List<DedupeKey> all = new ArrayList<>(keys);
@@ -48,11 +51,11 @@ public class JdbcImportedTransactionKeys implements ImportedTransactionKeys {
             List<DedupeKey> chunk = all.subList(from, Math.min(all.size(), from + LOOKUP_CHUNK));
             List<Object> args = new ArrayList<>(chunk.size() + 2);
             args.add(workspaceId.value());
-            args.add(accountId.value());
+            args.add(destination.id());
             chunk.forEach(key -> args.add(key.value()));
 
             jdbc.query("select dedupe_key, transaction_id from imported_transaction_keys"
-                            + " where workspace_id = ? and account_id = ? and dedupe_key in ("
+                            + " where workspace_id = ? and " + column(destination) + " = ? and dedupe_key in ("
                             + String.join(", ", Collections.nCopies(chunk.size(), "?")) + ")",
                     rs -> {
                         existing.put(new DedupeKey(rs.getString("dedupe_key")),
@@ -69,21 +72,22 @@ public class JdbcImportedTransactionKeys implements ImportedTransactionKeys {
      */
     @Override
     @Transactional(propagation = Propagation.MANDATORY)
-    public Set<DedupeKey> claim(WorkspaceId workspaceId, AccountId accountId, ImportBatchId batchId,
+    public Set<DedupeKey> claim(WorkspaceId workspaceId, ImportDestination destination, ImportBatchId batchId,
                                 List<Claim> claims) {
         if (claims.isEmpty()) {
             return Set.of();
         }
+        String column = column(destination);
         Timestamp now = Timestamp.from(clock.instant());
         int[][] results = jdbc.batchUpdate("""
                         insert into imported_transaction_keys
-                          (workspace_id, account_id, dedupe_key, transaction_id, batch_id, created_at)
+                          (workspace_id, %1$s, dedupe_key, transaction_id, batch_id, created_at)
                         values (?, ?, ?, ?, ?, ?)
-                        on conflict (workspace_id, account_id, dedupe_key) do nothing
-                        """,
+                        on conflict (workspace_id, %1$s, dedupe_key) where %1$s is not null do nothing
+                        """.formatted(column),
                 claims, claims.size(), (ps, claim) -> {
                     ps.setObject(1, workspaceId.value());
-                    ps.setObject(2, accountId.value());
+                    ps.setObject(2, destination.id());
                     ps.setString(3, claim.key().value());
                     ps.setObject(4, claim.transactionId().value());
                     ps.setObject(5, batchId.value());
@@ -102,5 +106,27 @@ public class JdbcImportedTransactionKeys implements ImportedTransactionKeys {
             }
         }
         return claimed;
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void reassign(WorkspaceId workspaceId, ImportDestination destination,
+                         Map<DedupeKey, TransactionId> targets) {
+        if (targets.isEmpty()) {
+            return;
+        }
+        List<Map.Entry<DedupeKey, TransactionId>> entries = List.copyOf(targets.entrySet());
+        jdbc.batchUpdate("update imported_transaction_keys set transaction_id = ?"
+                        + " where workspace_id = ? and " + column(destination) + " = ? and dedupe_key = ?",
+                entries, entries.size(), (ps, entry) -> {
+                    ps.setObject(1, entry.getValue().value());
+                    ps.setObject(2, workspaceId.value());
+                    ps.setObject(3, destination.id());
+                    ps.setString(4, entry.getKey().value());
+                });
+    }
+
+    private static String column(ImportDestination destination) {
+        return destination.isCard() ? "card_id" : "account_id";
     }
 }

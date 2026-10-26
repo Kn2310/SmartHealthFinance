@@ -340,8 +340,8 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
         UUID id = UUID.randomUUID();
         jdbc.update("""
                 insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
-                  due_day, status, created_at, updated_at)
-                values (?, ?, 'Cartão', 'VISA', '4821', 10000, 'BRL', 28, 5, ?, now(), now())""",
+                  due_day, status, tracking_start_month, created_at, updated_at)
+                values (?, ?, 'Cartão', 'VISA', '4821', 10000, 'BRL', 28, 5, ?, date '2000-01-01', now(), now())""",
                 id, workspace.value(), status);
         return id;
     }

@@ -1,9 +1,9 @@
 package com.smarthealthfinance.ingestion.domain.repository;
 
-import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.ingestion.domain.model.ImportBatch;
 import com.smarthealthfinance.ingestion.domain.valueobject.ImportBatchId;
+import com.smarthealthfinance.ingestion.domain.valueobject.ImportDestination;
 import com.smarthealthfinance.transactions.domain.valueobject.IdempotencyKey;
 
 import java.time.Instant;
@@ -36,8 +36,8 @@ public interface ImportBatchRepository {
     /** Previews criados até {@code createdUpTo} (inclusive), de qualquer Workspace (job de expiração). */
     List<ImportBatch> findPreviewsCreatedUpTo(Instant createdUpTo, int limit);
 
-    /** O mesmo arquivo (hash) já foi importado com sucesso nesta conta por outro batch. */
-    boolean existsCompletedWithFile(WorkspaceId workspaceId, AccountId accountId, String fileSha256,
+    /** O mesmo arquivo (hash) já foi importado com sucesso nesta conta ou neste cartão por outro batch. */
+    boolean existsCompletedWithFile(WorkspaceId workspaceId, ImportDestination destination, String fileSha256,
                                     ImportBatchId except);
 
     record ImportBatchPage(List<ImportBatch> items, long totalItems) {

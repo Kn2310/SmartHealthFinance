@@ -16,6 +16,8 @@ import jakarta.persistence.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.Currency;
 import java.util.UUID;
 
@@ -61,6 +63,10 @@ public class CreditCardJpaEntity {
     @Column(nullable = false)
     private CardStatus status;
 
+    /** Gravado na criação; depois só o recuo por SQL o altera (ADR-0025 §15), nunca o merge do agregado. */
+    @Column(name = "tracking_start_month", nullable = false, updatable = false)
+    private LocalDate trackingStartMonth;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
@@ -88,6 +94,7 @@ public class CreditCardJpaEntity {
         entity.dueDay = (short) card.cycle().dueDay();
         entity.defaultPaymentAccountId = card.defaultPaymentAccountId().map(AccountId::value).orElse(null);
         entity.status = card.status();
+        entity.trackingStartMonth = card.trackingStartMonth().atDay(1);
         entity.createdAt = card.createdAt();
         entity.updatedAt = card.updatedAt();
         entity.version = card.version();
@@ -100,7 +107,7 @@ public class CreditCardJpaEntity {
                 institutionName == null ? null : new InstitutionName(institutionName), brand, new CardLast4(last4),
                 new CardLimit(new Money(creditLimit, Currency.getInstance(currency))),
                 new BillingCycle(closingDay, dueDay),
-                defaultPaymentAccountId == null ? null : new AccountId(defaultPaymentAccountId), status, createdAt,
-                updatedAt, version);
+                defaultPaymentAccountId == null ? null : new AccountId(defaultPaymentAccountId), status,
+                YearMonth.from(trackingStartMonth), createdAt, updatedAt, version);
     }
 }

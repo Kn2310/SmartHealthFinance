@@ -4,6 +4,7 @@ import com.smarthealthfinance.accounts.application.exception.AccountNotFoundExce
 import com.smarthealthfinance.accounts.domain.model.Account;
 import com.smarthealthfinance.accounts.domain.repository.AccountRepository;
 import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
+import com.smarthealthfinance.cards.application.usecase.RecordImportedCardTransactions;
 import com.smarthealthfinance.identity.application.service.CurrentUserService;
 import com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard;
 import com.smarthealthfinance.identity.domain.valueobject.UserId;
@@ -12,6 +13,7 @@ import com.smarthealthfinance.ingestion.application.exception.ImportNotFoundExce
 import com.smarthealthfinance.ingestion.domain.model.ImportBatch;
 import com.smarthealthfinance.ingestion.domain.repository.ImportBatchRepository;
 import com.smarthealthfinance.ingestion.domain.valueobject.ImportBatchId;
+import com.smarthealthfinance.ingestion.domain.valueobject.ImportDestination;
 import org.springframework.stereotype.Service;
 
 import java.util.UUID;
@@ -27,13 +29,16 @@ public class ImportAccess {
     private final WorkspaceAccessGuard accessGuard;
     private final ImportBatchRepository batches;
     private final AccountRepository accounts;
+    private final RecordImportedCardTransactions cardImports;
 
     public ImportAccess(CurrentUserService currentUser, WorkspaceAccessGuard accessGuard,
-                        ImportBatchRepository batches, AccountRepository accounts) {
+                        ImportBatchRepository batches, AccountRepository accounts,
+                        RecordImportedCardTransactions cardImports) {
         this.currentUser = currentUser;
         this.accessGuard = accessGuard;
         this.batches = batches;
         this.accounts = accounts;
+        this.cardImports = cardImports;
     }
 
     public record Actor(UserId userId, WorkspaceId workspaceId) {
@@ -70,5 +75,20 @@ public class ImportAccess {
         Account account = accounts.findById(workspace, accountId).orElseThrow(AccountNotFoundException::new);
         account.ensureActive();
         return account;
+    }
+
+    /**
+     * A conta ou o cartão do batch aceita movimento (ADR-0009 §4 e §19). O cartão é verificado por Cards.
+     *
+     * @throws com.smarthealthfinance.cards.application.exception.CardNotFoundException cartão de outro Workspace
+     * @throws com.smarthealthfinance.cards.domain.exception.CreditCardArchivedException cartão arquivado
+     */
+    public void requireAvailable(WorkspaceId workspace, ImportDestination destination) {
+        if (destination.isCard()) {
+            cardImports.requireImportable(workspace, destination.id());
+        }
+        else {
+            requireActiveAccount(workspace, destination.requireAccount());
+        }
     }
 }

@@ -1,14 +1,20 @@
 package com.smarthealthfinance.transactions.application;
 
+import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.enums.CategorySource;
+import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
+import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionCriteria;
 import com.smarthealthfinance.transactions.domain.repository.TransactionPage;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -60,6 +66,21 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
     public List<Transaction> findRefundsOf(WorkspaceId workspaceId, TransactionId originalId) {
         return inWorkspace(workspaceId)
                 .filter(transaction -> transaction.refundOfTransactionId().filter(originalId::equals).isPresent())
+                .toList();
+    }
+
+    @Override
+    public List<Transaction> findUnmatchedCardPayments(WorkspaceId workspaceId, AccountId accountId,
+                                                       CardReference card, Money amount, LocalDate from,
+                                                       LocalDate to) {
+        List<Transaction> all = inWorkspace(workspaceId).toList();
+        return all.stream()
+                .filter(t -> t.type() == TransactionType.TRANSFER && t.status() == TransactionStatus.POSTED)
+                .filter(t -> accountId.equals(t.accountId()) && t.destinationCardId().filter(card::equals).isPresent())
+                .filter(t -> t.amount().equals(amount))
+                .filter(t -> !t.occurredOn().isBefore(from) && !t.occurredOn().isAfter(to))
+                .filter(t -> all.stream().noneMatch(other -> other.reclassifiedAsTransactionId()
+                        .filter(t.id()::equals).isPresent()))
                 .toList();
     }
 
@@ -170,7 +191,8 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
 
     private static Transaction copy(Transaction t, long version) {
         return Transaction.restore(t.id(), t.workspaceId(), t.type(), t.accountId(),
-                t.destinationAccountId().orElse(null), t.adjustmentDirection().orElse(null), t.amount(),
+                t.destinationAccountId().orElse(null), t.cardId().orElse(null), t.destinationCardId().orElse(null),
+                t.adjustmentDirection().orElse(null), t.amount(),
                 t.occurredOn(), t.description(), t.status(), t.source(), t.refundOfTransactionId().orElse(null),
                 t.category().orElse(null), t.categoryOrigin().orElse(null), t.merchant().orElse(null),
                 t.reclassifiedFromTransactionId().orElse(null), t.reclassifiedAsTransactionId().orElse(null), t.createdAt(),

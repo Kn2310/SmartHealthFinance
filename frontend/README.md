@@ -69,6 +69,8 @@ pnpm e2e                                # E2E_BASE_URL muda o alvo (padrão http
   - [Home vazia](e2e/home-empty.spec.ts);
   - [Financial Health](e2e/health.spec.ts): extrato gerado com datas relativas a hoje, valores exatos do `health-v1`
     na Home, em `/home/health` e na Evolução, drawer "Como calculamos?" e 5 larguras.
+  - [fatura de cartão importada](e2e/card-import.spec.ts): fatura fictícia do Aurora com datas relativas a hoje, parcela
+    reconstruída, pagamento da fatura ignorado e débito da conta conciliado, sem dupla contagem na Home.
 - **Primeira compilação:** o `globalSetup` visita cada rota antes dos testes, para o `next dev` do container
   compilar fora dos cenários.
 - **Artefatos de falha** (`test-results/`): screenshot, `error-context.md` e um trace que começa só **depois** do

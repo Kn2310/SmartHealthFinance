@@ -94,7 +94,7 @@ public final class CardsTestContext {
     public final InMemoryCardInstallmentRepository installments = new InMemoryCardInstallmentRepository();
     public final InvoiceAssignments assignments = new InvoiceAssignments(invoices, installments, clock);
 
-    public final CreateCard createCard = new CreateCard(access, cards, paymentAccounts, clock, events);
+    public final CreateCard createCard = new CreateCard(access, cards, paymentAccounts, clock, calendar, events);
     public final UpdateCard updateCard = new UpdateCard(access, cards, invoices, paymentAccounts, assignments,
             calendar, clock, events);
     public final ArchiveCard archiveCard = new ArchiveCard(access, cards, clock, events);

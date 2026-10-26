@@ -59,6 +59,9 @@ class CardTransactionsApiIT extends IntegrationTest {
                  "limit": {"amount": "12000.00", "currency": "BRL"}, "closingDay": 25, "dueDay": 5,
                  "defaultPaymentAccountId": "%s"}
                 """.formatted(account), null, workspace), "$.id");
+        // Histórico acompanhado desde muito antes (como depois de importar faturas antigas): um pagamento de hoje nunca
+        // cai no corte dos pagamentos anteriores ao acompanhamento (ADR-0025 §15), qualquer que seja a data do teste.
+        jdbc.update("update credit_cards set tracking_start_month = date '2000-01-01' where id = ?::uuid", card);
     }
 
     @Test
@@ -71,7 +74,7 @@ class CardTransactionsApiIT extends IntegrationTest {
                 .hasPathSatisfying("$.transaction.cardId", c -> assertThat(c).asString().isEqualTo(card))
                 .hasPathSatisfying("$.installments.length()", n -> assertThat(n).asNumber().isEqualTo(3))
                 .hasPathSatisfying("$.installments[0].amount.amount", a -> assertThat(a).asString().isEqualTo("100.00"))
-                .hasPathSatisfying("$.calculationVersion", v -> assertThat(v).asString().isEqualTo("invoice-v1"));
+                .hasPathSatisfying("$.calculationVersion", v -> assertThat(v).asString().isEqualTo("invoice-v2"));
         Object accountId = read(purchase, "$.transaction.accountId");
         assertThat(accountId).isNull();
         String purchaseId = read(purchase, "$.transaction.id");

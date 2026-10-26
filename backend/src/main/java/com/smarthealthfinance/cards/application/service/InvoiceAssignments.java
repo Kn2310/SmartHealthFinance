@@ -38,15 +38,28 @@ public class InvoiceAssignments {
         this.clock = clock;
     }
 
+    /** Compra a distribuir nas faturas. */
+    public record Purchase(UUID transactionId, LocalDate purchasedOn, List<Money> parts) {
+    }
+
     /** A parcela {@code k} cai na fatura do ciclo da compra deslocada {@code k − 1} meses. */
     public List<CardInstallment> assignPurchase(CreditCard card, UUID transactionId, LocalDate purchasedOn,
                                                 List<Money> parts) {
+        return assignPurchases(card, List.of(new Purchase(transactionId, purchasedOn, parts)));
+    }
+
+    /** Várias compras com uma só leitura das faturas (importação de fatura, ADR-0009 §26). */
+    public List<CardInstallment> assignPurchases(CreditCard card, List<Purchase> purchases) {
         Rows rows = new Rows(card);
         List<CardInstallment> created = new ArrayList<>();
-        for (int number = 1; number <= parts.size(); number++) {
-            YearMonth month = rows.calendar().installmentClosingMonth(purchasedOn, number);
-            created.add(new CardInstallment(card.workspaceId(), card.id(), transactionId, number, parts.size(),
-                    purchasedOn, parts.get(number - 1), rows.ensure(month), InvoiceCalendar.RULES_VERSION));
+        for (Purchase purchase : purchases) {
+            List<Money> parts = purchase.parts();
+            for (int number = 1; number <= parts.size(); number++) {
+                YearMonth month = rows.calendar().installmentClosingMonth(purchase.purchasedOn(), number);
+                created.add(new CardInstallment(card.workspaceId(), card.id(), purchase.transactionId(), number,
+                        parts.size(), purchase.purchasedOn(), parts.get(number - 1), rows.ensure(month),
+                        InvoiceCalendar.RULES_VERSION));
+            }
         }
         installments.addAll(created);
         return created;

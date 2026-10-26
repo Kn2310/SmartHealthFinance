@@ -1,11 +1,11 @@
 package com.smarthealthfinance.ingestion.application;
 
-import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.ingestion.domain.enums.ImportStatus;
 import com.smarthealthfinance.ingestion.domain.model.ImportBatch;
 import com.smarthealthfinance.ingestion.domain.repository.ImportBatchRepository;
 import com.smarthealthfinance.ingestion.domain.valueobject.ImportBatchId;
+import com.smarthealthfinance.ingestion.domain.valueobject.ImportDestination;
 import com.smarthealthfinance.transactions.domain.valueobject.IdempotencyKey;
 import org.springframework.dao.OptimisticLockingFailureException;
 
@@ -84,19 +84,18 @@ public final class InMemoryImportBatchRepository implements ImportBatchRepositor
     }
 
     @Override
-    public boolean existsCompletedWithFile(WorkspaceId workspaceId, AccountId accountId, String fileSha256,
+    public boolean existsCompletedWithFile(WorkspaceId workspaceId, ImportDestination destination, String fileSha256,
                                            ImportBatchId except) {
         return batches.values().stream().anyMatch(batch -> batch.workspaceId().equals(workspaceId)
-                && batch.accountId().equals(accountId) && batch.fileSha256().equals(fileSha256)
+                && batch.destination().equals(destination) && batch.fileSha256().equals(fileSha256)
                 && batch.status() == ImportStatus.COMPLETED && !batch.id().equals(except));
     }
 
     private static ImportBatch copy(ImportBatch b, long version) {
-        return ImportBatch.restore(b.id(), b.workspaceId(), b.accountId(), b.createdBy(), b.format(), b.status(),
-                b.fileName(), b.fileSize(), b.fileSha256(), b.idempotencyKey(), b.requestHash(), b.totalLines(),
-                b.validLines(), b.invalidLines(), b.duplicateLines(), b.importedLines(), b.categorizedLines(),
-                b.firstDate().orElse(null),
-                b.lastDate().orElse(null), b.failureReason().orElse(null), b.createdAt(), b.updatedAt(),
-                b.confirmedAt().orElse(null), b.completedAt().orElse(null), version);
+        return ImportBatch.restore(b.id(), b.workspaceId(), b.destination(), b.createdBy(), b.format(), b.status(),
+                b.fileName(), b.fileSize(), b.fileSha256(), b.idempotencyKey(), b.requestHash(), b.counts(),
+                b.firstDate().orElse(null), b.lastDate().orElse(null), b.closing().orElse(null),
+                b.failureReason().orElse(null), b.createdAt(), b.updatedAt(), b.confirmedAt().orElse(null),
+                b.completedAt().orElse(null), version);
     }
 }

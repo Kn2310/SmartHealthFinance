@@ -120,7 +120,7 @@ class ImportFlowTest {
         @Test
         void rejectedFileCreatesNothing() {
             assertThatThrownBy(() -> ctx.upload.execute(ctx.workspaceId(), new UploadStatement.Command("k-1",
-                    id(ctx.core.aurora), "extrato.xlsx", new byte[] { 1, 2, 3 })))
+                    id(ctx.core.aurora), null, "extrato.xlsx", new byte[] { 1, 2, 3 })))
                     .isInstanceOfSatisfying(StatementRejectedException.class,
                             ex -> assertThat(ex.reason()).isEqualTo("UNSUPPORTED_FILE_TYPE"));
             assertThatThrownBy(() -> upload("k-2", "data;descricao\n01/09/2026;X\n"))

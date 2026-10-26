@@ -14,7 +14,8 @@ Referência: ADR-0009 §14–§16, spec 05.7 (DLQ, replay controlado e auditado)
 1. Logs do worker pelo `importId` (os logs só têm IDs, contagens e códigos — nunca linhas do arquivo):
    `Import failed importId=... reason=...` e `Execution of Rabbit message listener failed`.
 2. Motivos:
-   - `ACCOUNT_ARCHIVED` / `ACCOUNT_NOT_FOUND`: não vai para a DLQ; o usuário precisa reativar a conta e reenviar
+   - `ACCOUNT_ARCHIVED` / `ACCOUNT_NOT_FOUND` (ou `CARD_ARCHIVED` / `CARD_NOT_FOUND` numa fatura de cartão, ADR-0009 §19):
+     não vai para a DLQ; o usuário precisa reativar a conta ou o cartão e reenviar
      o arquivo. Não há replay.
    - `PROCESSING_ERROR`: tentativas esgotadas ou erro não retentável. Ver a exceção no log.
    - Mensagem ilegível (`Unreadable import message sent to DLQ`): bug de produtor; não reprocessar.

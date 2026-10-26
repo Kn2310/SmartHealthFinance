@@ -19,6 +19,7 @@ import { POST as cancel } from './[importId]/cancel/route'
 const ORIGIN = 'http://app.test'
 const ACCOUNT = '01922f5e-0000-7000-8000-0000000000aa'
 const IMPORT = '01922f5e-0000-7000-8000-0000000000bb'
+const CARD = '01922f5e-0000-7000-8000-0000000000cc'
 const session = { accessToken: 'tok', workspaceId: 'ws-da-sessao', displayName: 'Ana', refreshToken: 'r', expiresAt: 0 }
 const ok = { status: 'ok', session }
 const params = (importId = IMPORT) => ({ params: Promise.resolve({ importId }) })
@@ -73,6 +74,37 @@ describe('POST /api/bff/imports (upload)', () => {
     expect(options.body).toBeInstanceOf(FormData)
     expect((options.body as FormData).get('file')).toBeInstanceOf(File)
     expect(((options.body as FormData).get('file') as File).name).toBe('extrato.csv')
+  })
+
+  it('fatura de cartão: repassa só o cartão como destino', async () => {
+    POST_BACKEND.mockResolvedValue({ data: batch, response: { status: 201 } })
+    const form = new FormData()
+    form.append('file', new File(['data;descricao;valor\n'], 'fatura.csv', { type: 'text/csv' }))
+    form.append('cardId', CARD)
+    const request = new NextRequest(`${ORIGIN}/api/bff/imports`, {
+      method: 'POST',
+      body: form,
+      headers: { origin: ORIGIN, 'idempotency-key': 'web:k-2' },
+    })
+
+    expect((await upload(request)).status).toBe(201)
+    expect(POST_BACKEND.mock.calls[0]![1].params.query).toEqual({ cardId: CARD })
+  })
+
+  it.each([
+    ['conta e cartão juntos', (form: FormData) => form.append('cardId', CARD)],
+    ['cartão que não é UUID', (form: FormData) => {
+      form.delete('accountId')
+      form.append('cardId', 'nope')
+    }],
+  ])('%s: 400 INVALID_REQUEST', async (_label, change) => {
+    const base = uploadRequest()
+    const form = await base.formData()
+    change(form)
+    const request = new NextRequest(`${ORIGIN}/api/bff/imports`, { method: 'POST', body: form, headers: base.headers })
+
+    expect((await upload(request)).status).toBe(400)
+    expect(POST_BACKEND).not.toHaveBeenCalled()
   })
 
   it('replay do backend (200) continua 200', async () => {

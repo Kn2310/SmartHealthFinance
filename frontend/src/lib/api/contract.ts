@@ -26,7 +26,7 @@ export const TRANSACTION_SOURCES = ['MANUAL', 'IMPORT'] as const
 export const ACCOUNT_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
 export const IMPORT_FORMATS = ['CSV', 'OFX'] as const
 export const IMPORT_STATUSES = ['PREVIEW', 'CONFIRMED', 'PROCESSING', 'COMPLETED', 'FAILED', 'CANCELLED', 'EXPIRED'] as const
-export const RECORD_STATUSES = ['VALID', 'INVALID', 'DUPLICATE', 'IMPORTED'] as const
+export const RECORD_STATUSES = ['VALID', 'INVALID', 'DUPLICATE', 'SKIPPED', 'IMPORTED', 'RECONCILED'] as const
 /** Direção de uma linha importada (ImportRecordResponse): só entrada ou saída, nunca transferência. */
 export const RECORD_DIRECTIONS = ['INFLOW', 'OUTFLOW'] as const
 /** Natureza da categoria (ADR-0012 §2): EXPENSE serve a despesa e reembolso; INCOME, a receita. */
@@ -36,7 +36,7 @@ export const CARD_STATUSES = ['ACTIVE', 'ARCHIVED'] as const
 export const INVOICE_STATUSES = ['FUTURE', 'OPEN', 'CLOSED', 'PARTIALLY_PAID', 'PAID', 'OVERDUE'] as const
 export const INVOICE_DATES_SOURCES = ['CALCULATED', 'IMPORTED'] as const
 export const INVOICE_ITEM_KINDS = ['CHARGE', 'CREDIT'] as const
-export const INSTALLMENT_STATUSES = ['PAID', 'CURRENT', 'FUTURE', 'CANCELLED'] as const
+export const INSTALLMENT_STATUSES = ['PAID', 'CURRENT', 'FUTURE', 'CANCELLED', 'BEFORE_TRACKING'] as const
 export const INSTALLMENT_PLAN_STATUSES = ['ACTIVE', 'FINISHED', 'CANCELLED'] as const
 /** Parcelas de uma compra no cartão (InstallmentSplitter.MAX_INSTALLMENTS). */
 export const MAX_INSTALLMENTS = 48
@@ -122,15 +122,18 @@ export const RECORD_FIELDS = {
   CreateAccountRequest: ['name', 'type', 'institutionName', 'includedInTotal'],
   UpdateAccountRequest: ['name', 'type', 'institutionName', 'includedInTotal'],
   ImportResponse: [
-    'id', 'workspaceId', 'accountId', 'format', 'status', 'fileName', 'fileSize', 'lines', 'period',
-    'sameFileImportedBefore', 'failureReason', 'createdAt', 'previewExpiresAt', 'confirmedAt', 'completedAt',
+    'id', 'workspaceId', 'accountId', 'cardId', 'format', 'status', 'fileName', 'fileSize', 'lines', 'period',
+    'statement', 'sameFileImportedBefore', 'failureReason', 'createdAt', 'previewExpiresAt', 'confirmedAt', 'completedAt',
   ],
-  Lines: ['total', 'valid', 'invalid', 'duplicate', 'imported', 'categorized'],
+  Lines: ['total', 'valid', 'invalid', 'duplicate', 'skipped', 'imported', 'reconciled', 'categorized'],
   ImportPeriod: ['from', 'to'],
+  ImportStatement: ['dueDate', 'minimumPayment'],
   ImportRecordResponse: [
-    'lineNumber', 'status', 'occurredOn', 'amount', 'direction', 'description', 'issue', 'transactionId',
+    'lineNumber', 'status', 'occurredOn', 'amount', 'direction', 'description', 'issue', 'transactionId', 'skipReason',
+    'installment',
   ],
   Issue: ['field', 'code'],
+  ImportInstallment: ['number', 'count'],
   ImportPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   ImportRecordPageResponse: ['items', 'page', 'pageSize', 'totalItems'],
   TransactionResponse: [
@@ -153,7 +156,7 @@ export const RECORD_FIELDS = {
   ],
   CardResponse: [
     'id', 'workspaceId', 'nickname', 'institutionName', 'brand', 'last4', 'limit', 'closingDay', 'dueDay',
-    'defaultPaymentAccountId', 'status', 'createdAt', 'updatedAt',
+    'defaultPaymentAccountId', 'status', 'trackingStartDueMonth', 'createdAt', 'updatedAt',
   ],
   CardListResponse: ['items'],
   InvoiceSummaryResponse: [
@@ -183,6 +186,8 @@ export const RECORD_FIELDS = {
   PurchaseInstallmentResponse: ['number', 'amount', 'dueMonth'],
   CardPurchaseResponse: ['transaction', 'installments', 'calculationVersion'],
   CardTransactionResponse: ['transaction'],
+  CardPaymentReconciliationResponse: ['payment', 'matchedExisting'],
+  CardPaymentReconciliationRequest: ['transactionId'],
   InstallmentItemResponse: ['number', 'dueMonth', 'amount', 'cancelledAmount', 'status'],
   ReservedLimitResponse: ['dueMonth', 'amount'],
   InstallmentPlanResponse: [
@@ -248,6 +253,10 @@ export type FieldChecks = [
   Assert<Equals<Values<F['PurchaseInstallmentResponse']>, keyof S['PurchaseInstallmentResponse']>>,
   Assert<Equals<Values<F['CardPurchaseResponse']>, keyof S['CardPurchaseResponse']>>,
   Assert<Equals<Values<F['CardTransactionResponse']>, keyof S['CardTransactionResponse']>>,
+  Assert<Equals<Values<F['CardPaymentReconciliationResponse']>, keyof S['CardPaymentReconciliationResponse']>>,
+  Assert<Equals<Values<F['CardPaymentReconciliationRequest']>, keyof S['CardPaymentReconciliationRequest']>>,
+  Assert<Equals<Values<F['ImportStatement']>, keyof NonNullable<Imp['statement']>>>,
+  Assert<Equals<Values<F['ImportInstallment']>, keyof NonNullable<Rec['installment']>>>,
   Assert<Equals<Values<F['InstallmentItemResponse']>, keyof S['InstallmentItemResponse']>>,
   Assert<Equals<Values<F['ReservedLimitResponse']>, keyof S['ReservedLimitResponse']>>,
   Assert<Equals<Values<F['InstallmentPlanResponse']>, keyof S['InstallmentPlanResponse']>>,

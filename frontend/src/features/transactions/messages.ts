@@ -125,3 +125,15 @@ const REFUND_MARK_ERROR: Partial<Record<string, string>> = {
 /** Erros do "marcar como reembolso" (campos `transactionId` e `refundOfTransactionId`, ou `amount` do vínculo). */
 export const refundMarkErrorMessage = (code: string) =>
   lookup(REFUND_MARK_ERROR, code, 'Não foi possível marcar como reembolso. Confira a compra escolhida.')
+
+const CARD_PAYMENT_MARK_ERROR: Partial<Record<string, string>> = {
+  NOT_RECLASSIFIABLE: 'Só despesas importadas de extrato podem ser marcadas como pagamento de fatura.',
+  ALREADY_RECLASSIFIED: 'Esta despesa já foi marcada para outro cartão. Recarregue para ver o pagamento.',
+  CARD_ARCHIVED: 'Este cartão está arquivado. Reative o cartão ou escolha outro.',
+  CARD_NOT_FOUND: 'Este cartão não está mais disponível. Escolha outro.',
+  ACCOUNT_ARCHIVED: 'A conta desta despesa está arquivada. Reative a conta para registrar o pagamento.',
+}
+
+/** Erros do "marcar como pagamento de fatura" (código da chamada ou do campo `transactionId`). */
+export const cardPaymentMarkErrorMessage = (code: string) =>
+  lookup(CARD_PAYMENT_MARK_ERROR, code, 'Não foi possível marcar como pagamento de fatura. Tente de novo.')

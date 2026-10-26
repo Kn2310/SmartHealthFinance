@@ -7,6 +7,7 @@ import com.smarthealthfinance.ingestion.domain.enums.ImportFormat;
 import com.smarthealthfinance.ingestion.domain.enums.ImportStatus;
 import com.smarthealthfinance.ingestion.domain.exception.InvalidImportStatusTransitionException;
 import com.smarthealthfinance.ingestion.domain.valueobject.ImportBatchId;
+import com.smarthealthfinance.ingestion.domain.valueobject.ImportDestination;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.valueobject.IdempotencyKey;
 import org.junit.jupiter.api.Test;
@@ -143,8 +144,9 @@ class ImportBatchTest {
                 StatementLine.of(2, LocalDate.of(2026, 9, 1), Money.of("-5", BRL), "Café", null),
                 StatementLine.of(3, LocalDate.of(2026, 9, 2), Money.of("100", BRL), "Pix", null)),
                 List.of(new LineIssue(4, "amount", "INVALID_AMOUNT")));
-        return ImportBatch.preview(id, new WorkspaceId(UUID.randomUUID()), new AccountId(UUID.randomUUID()),
+        return ImportBatch.preview(id, new WorkspaceId(UUID.randomUUID()),
+                ImportDestination.account(new AccountId(UUID.randomUUID())),
                 new UserId(UUID.randomUUID()), ImportFormat.CSV, new ImportBatch.SourceFile("extrato.csv", 10, "a".repeat(64)),
-                new IdempotencyKey("k-1"), "b".repeat(64), ImportPreview.of(id, statement, Map.of()), NOW);
+                new IdempotencyKey("k-1"), "b".repeat(64), ImportPreview.of(id, statement, Map.of()), null, NOW);
     }
 }

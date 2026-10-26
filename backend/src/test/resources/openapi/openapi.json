@@ -871,6 +871,27 @@
         },
         "type" : "object"
       },
+      "CardPaymentReconciliationRequest" : {
+        "properties" : {
+          "transactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "transactionId" ],
+        "type" : "object"
+      },
+      "CardPaymentReconciliationResponse" : {
+        "properties" : {
+          "matchedExisting" : {
+            "type" : "boolean"
+          },
+          "payment" : {
+            "$ref" : "#/components/schemas/TransactionResponse"
+          }
+        },
+        "type" : "object"
+      },
       "CardPaymentRequest" : {
         "properties" : {
           "accountId" : {
@@ -1032,6 +1053,9 @@
             "type" : "string"
           },
           "status" : {
+            "type" : "string"
+          },
+          "trackingStartDueMonth" : {
             "type" : "string"
           },
           "updatedAt" : {
@@ -1767,6 +1791,10 @@
             "format" : "uuid",
             "type" : "string"
           },
+          "cardId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
           "completedAt" : {
             "format" : "date-time",
             "type" : "string"
@@ -1808,6 +1836,9 @@
           },
           "sameFileImportedBefore" : {
             "type" : "boolean"
+          },
+          "statement" : {
+            "$ref" : "#/components/schemas/Statement"
           },
           "status" : {
             "type" : "string"
@@ -2569,6 +2600,14 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "reconciled" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "skipped" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "total" : {
             "format" : "int32",
             "type" : "integer"
@@ -2744,6 +2783,18 @@
           },
           "dueMonth" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "Statement" : {
+        "properties" : {
+          "dueDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "minimumPayment" : {
+            "$ref" : "#/components/schemas/MoneyDto"
           }
         },
         "type" : "object"
@@ -5028,6 +5079,92 @@
         "tags" : [ "Cards" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/payments/reconcile" : {
+      "post" : {
+        "operationId" : "reconcilePayment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CardPaymentReconciliationRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardPaymentReconciliationResponse"
+                }
+              }
+            },
+            "description" : "Despesa vinculada a um pagamento já registrado (matchedExisting) ou replay"
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CardPaymentReconciliationResponse"
+                }
+              }
+            },
+            "description" : "Despesa estornada e transferência para o cartão criada"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (transactionId NOT_RECLASSIFIABLE ou ALREADY_RECLASSIFIED)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou TRANSACTION_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "CARD_ARCHIVED, ACCOUNT_ARCHIVED ou TRANSACTION_STATUS_CONFLICT (despesa não lançada)"
+          }
+        },
+        "summary" : "Marca um débito importado na conta como pagamento da fatura deste cartão (idempotente)",
+        "tags" : [ "Cards" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/cards/{cardId}/purchases" : {
       "post" : {
         "operationId" : "recordPurchase",
@@ -5522,10 +5659,19 @@
             "type" : "string"
           }
         }, {
-          "description" : "Conta que recebe os lançamentos",
+          "description" : "Conta que recebe os lançamentos (extrato de conta)",
           "in" : "query",
           "name" : "accountId",
-          "required" : true,
+          "required" : false,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Cartão que recebe os lançamentos (fatura, ADR-0009 §19); exclusivo com accountId",
+          "in" : "query",
+          "name" : "cardId",
+          "required" : false,
           "schema" : {
             "format" : "uuid",
             "type" : "string"
@@ -5576,7 +5722,7 @@
                 }
               }
             },
-            "description" : "VALIDATION_FAILED (inclui Idempotency-Key ausente)"
+            "description" : "VALIDATION_FAILED (inclui Idempotency-Key ausente, accountId REQUIRED sem destino e destination EXACTLY_ONE com conta e cartão)"
           },
           "404" : {
             "content" : {
@@ -5586,7 +5732,7 @@
                 }
               }
             },
-            "description" : "WORKSPACE_NOT_FOUND ou ACCOUNT_NOT_FOUND"
+            "description" : "WORKSPACE_NOT_FOUND, ACCOUNT_NOT_FOUND ou CARD_NOT_FOUND"
           },
           "409" : {
             "content" : {
@@ -5596,7 +5742,7 @@
                 }
               }
             },
-            "description" : "ACCOUNT_ARCHIVED"
+            "description" : "ACCOUNT_ARCHIVED ou CARD_ARCHIVED"
           },
           "413" : {
             "content" : {
@@ -5619,7 +5765,7 @@
             "description" : "IMPORT_FILE_REJECTED (motivo em details[0].code) ou IDEMPOTENCY_KEY_REUSED"
           }
         },
-        "summary" : "Envia um extrato (.csv ou .ofx, até 10 MB) e devolve o preview, sem criar transações",
+        "summary" : "Envia um extrato de conta ou uma fatura de cartão (.csv ou .ofx, até 10 MB) e devolve o preview, sem criar transações",
         "tags" : [ "Imports" ]
       }
     },

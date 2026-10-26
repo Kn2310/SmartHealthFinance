@@ -9,5 +9,7 @@ public enum InstallmentStatus {
     /** Numa fatura que ainda não começou. */
     FUTURE,
     /** Consumida inteira por estorno. */
-    CANCELLED
+    CANCELLED,
+    /** Numa fatura anterior ao início do acompanhamento do cartão: fora da fatura e da utilização (ADR-0025 §15). */
+    BEFORE_TRACKING
 }

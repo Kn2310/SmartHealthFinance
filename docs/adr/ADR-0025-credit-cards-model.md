@@ -197,6 +197,40 @@ Nenhum documento define:
     a `TRANSFER` para o cartão.
   - O casamento com um pagamento manual já registrado depende de decisão (§14).
 
+- **Adendo (2026-10-23, aprovado; Sessão 6.2 parte D): conciliação do pagamento importado. A conta é a fonte.**
+  - **O crédito de pagamento no arquivo do cartão não vira transação** (ADR-0009 §23). Só a conta sabe de onde saiu
+    o dinheiro.
+  - **A ação:** `POST /cards/{cardId}/payments/reconcile` com `{transactionId}`, sobre um débito da conta.
+  - **Elegível:**
+    - `EXPENSE` `POSTED` com `source = IMPORT`, em conta ativa do mesmo Workspace;
+    - o cartão precisa estar ativo.
+  - **Erros:**
+    - débito inelegível → `400 transactionId NOT_RECLASSIFIABLE`;
+    - despesa já estornada à mão → `409 TRANSACTION_STATUS_CONFLICT`;
+    - débito já conciliado com outro cartão → `400 transactionId ALREADY_RECLASSIFIED`.
+  - **Idempotente:** repetir com o mesmo cartão devolve o mesmo pagamento (`200`). A despesa fica bloqueada
+    (`FOR UPDATE`) durante a operação.
+  - **Casamento com um pagamento manual:** procura uma `TRANSFER` `POSTED` da **mesma conta** para o mesmo cartão, com
+    o mesmo valor, a até 5 dias da data do débito e que ainda não tenha absorvido outro débito.
+    - Desempate: a menor distância em dias, depois a data mais antiga, depois o id.
+    - **Encontrou:** a despesa é estornada e vinculada ao pagamento existente (`reclassified_as_transaction_id`). Nada
+      novo é lançado. O saldo deixa de ter o débito em dobro.
+    - **Não encontrou:** a despesa é estornada e substituída por uma `TRANSFER` conta → cartão.
+      - A nova transferência tem a mesma conta, valor, data, descrição e origem (`IMPORT`).
+      - Ela guarda o vínculo no campo `reclassified_from_transaction_id`.
+  - **Mesmo padrão do "marcar como reembolso"** (ADR-0009 §9), nas mesmas colunas. Os `check` da `V13` passam a
+    aceitar a despesa estornada e a transferência substituta. Os índices únicos parciais continuam garantindo no
+    máximo um substituto por despesa e no máximo uma despesa por pagamento manual.
+  - **Onde fica:**
+    - o caso de uso `ReconcileCardPayment` (Cards) valida o cartão;
+    - o caso de uso `ReclassifyAsCardPayment` (Transactions, `MANDATORY`) aplica as regras da transação.
+  - **Efeitos:**
+    - o saldo não muda quando a transferência é criada;
+    - no fluxo de caixa a saída passa de `expense` para `transfers`;
+    - eventos `transaction.reversed` e, quando há transferência nova, `transaction.created`;
+    - a chave de dedupe continua na despesa estornada, então reimportar o extrato não recria o débito.
+  - Sem desfazer nesta versão, como o reembolso.
+
 ### 8. Estornos, créditos e correções
 
 - **Estorno do banco** = `REFUND` com `card_id`.
@@ -297,6 +331,61 @@ Nenhum documento define:
 - detectores de cartão nos Insights (fatura acima do padrão, utilização alta, parcelamento novo);
 - histórico de utilização (snapshot mensal) para "era 49% em agosto";
 - `INCOME`/`ADJUSTMENT` no cartão (anuidade, IOF, juros importados) e `PENDING` no cartão.
+
+> **Atualização (2026-10-23):** CSV/OFX de fatura, parcelas no extrato, conciliação do pagamento e saldo devedor
+> inicial foram decididos (ADR-0009 §19–§30, §7 adendo e §15). Os demais itens continuam pendentes.
+
+### 15. Início do acompanhamento (adendo de 2026-10-23, aprovado; Sessão 6.2 parte D)
+
+- **Problema:**
+  - Uma compra parcelada anterior ao cadastro do cartão, lançada à mão ou reconstruída da fatura importada (ADR-0009
+    §26), põe as parcelas 1 … k − 1 em faturas antigas.
+  - Nessas faturas não há pagamento registrado, então elas apareceriam `CLOSED` ou `OVERDUE` e inflariam a
+    utilização. No Aurora, a utilização iria a R$ 7.732,80 em vez de R$ 6.772,80.
+  - É também o caso do "saldo devedor inicial" (§14).
+- **`credit_cards.tracking_start_month`:** o mês de fechamento da primeira fatura acompanhada pelo sistema.
+  - **Na criação do cartão:** a fatura atual.
+  - **Cartões existentes (backfill):** o mais antigo entre a fatura atual na data de criação e a fatura persistida
+    mais antiga. Nenhum resultado existente muda.
+  - **Só a importação o recua**, até a fatura mais antiga com evidência no arquivo (ADR-0009 §28). Ele nunca avança.
+  - Não é editável no MVP.
+  - É gravado com `least(...)` no SQL, sem a versão do agregado, então não conflita com um `PUT` concorrente.
+  - Quando muda, grava `card.updated`.
+- **Faturas anteriores ao início do acompanhamento ficam fora do razão:**
+  - fora do valor da fatura, da alocação de pagamentos, da utilização, da lista de faturas (`404 INVOICE_NOT_FOUND`)
+    e do `invoice.closed`;
+  - a parcela atribuída a elas tem o status **`BEFORE_TRACKING`**, um valor aditivo no enum da API;
+  - um crédito atribuído a elas também fica fora.
+- **Pagamentos antigos:** pagamentos com data até o **vencimento da última fatura anterior** ao início do
+  acompanhamento são considerados dela e não entram na alocação (§7).
+  - Exemplo: o início do acompanhamento é a fatura que fecha em 28 set. Um pagamento em 05 set quitou a fatura
+    anterior.
+  - **Confirmado em 2026-10-26:** vale também para um cartão cadastrado entre o fechamento e o vencimento. Exemplo:
+    o cartão fecha 25 e vence 05 e é cadastrado em 26/10. Um pagamento de 26/10 a 05/11 é da fatura que fechou em
+    25/10, que não é acompanhada, e não abate a atual.
+    - Na prática, um pagamento nesse intervalo quase sempre é da fatura que acabou de fechar.
+    - Um pagamento antecipado da fatura atual feito nesse intervalo também fica fora.
+    - A tela da fatura explica o caso (Parte F).
+    - Alternativas rejeitadas: aplicar o corte só quando há lançamentos conhecidos antes do acompanhamento, e não ter
+      corte. Nas duas, o pagamento da fatura não acompanhada vira crédito falso na atual.
+- **A compra continua sendo a despesa** pelo total, na data da compra (§3). O Overview e o Analytics não mudam. O
+  início do acompanhamento só afeta a fatura e a utilização.
+- **Aurora:** cartão cadastrado em 22 set e notebook de 12 jul em 10×.
+  - As parcelas 1–2 ficam `BEFORE_TRACKING`.
+  - A parcela 3 cai em outubro.
+  - A utilização fica em (3.412,80 + 3.360,00) ÷ 12.000 = **56%**, como no design.
+- **Versão:** as leituras passam a devolver `calculationVersion = invoice-v2`.
+  - A regra de atribuição por ciclo não muda. As parcelas gravadas como `invoice-v1` continuam válidas sem recálculo.
+  - Com o backfill, `invoice-v2` dá o mesmo resultado que `invoice-v1` nos dados existentes. Única exceção: um
+    pagamento lançado com data até o vencimento da fatura anterior ao início do acompanhamento passa a ser dela e sai
+    da alocação.
+  - A API expõe o início do acompanhamento como `Card.trackingStartDueMonth`, o mês de vencimento da primeira fatura
+    acompanhada (campo aditivo).
+- **Alternativas:**
+  - "Saldo devedor inicial" informado à mão no cadastro: rejeitado, porque é um número sem transações que o
+    expliquem;
+  - considerar as parcelas antigas como pagas: rejeitado, porque inventaria pagamentos;
+  - incluí-las nas faturas antigas: rejeitado, porque infla a utilização.
 
 ## Alternatives
 

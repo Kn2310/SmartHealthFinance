@@ -1,6 +1,7 @@
 package com.smarthealthfinance.ingestion.infrastructure.parser;
 
 import com.smarthealthfinance.ingestion.domain.enums.ImportFormat;
+import com.smarthealthfinance.ingestion.domain.enums.StatementKind;
 import com.smarthealthfinance.ingestion.domain.exception.StatementRejectedException;
 import com.smarthealthfinance.ingestion.domain.model.LineIssue;
 import com.smarthealthfinance.ingestion.domain.model.ParsedStatement;
@@ -80,14 +81,14 @@ class CsvStatementParserTest {
     void decodesWindows1252AndUtf8WithBom() {
         String csv = "data;descricao;valor\n21/09/2026;Pão de Açúcar;-32,10\n";
 
-        ParsedStatement latin = parser.parse(csv.getBytes(StatementText.WINDOWS_1252));
+        ParsedStatement latin = parser.parse(csv.getBytes(StatementText.WINDOWS_1252), StatementKind.ACCOUNT);
         byte[] utf8 = csv.getBytes(StandardCharsets.UTF_8);
         byte[] withBom = new byte[utf8.length + 3];
         withBom[0] = (byte) 0xEF;
         withBom[1] = (byte) 0xBB;
         withBom[2] = (byte) 0xBF;
         System.arraycopy(utf8, 0, withBom, 3, utf8.length);
-        ParsedStatement bom = parser.parse(withBom);
+        ParsedStatement bom = parser.parse(withBom, StatementKind.ACCOUNT);
 
         assertThat(latin.lines().getFirst().description()).isEqualTo("Pão de Açúcar");
         assertThat(bom.lines().getFirst().description()).isEqualTo("Pão de Açúcar");
@@ -162,7 +163,7 @@ class CsvStatementParserTest {
 
     @Test
     void rejectsEmptyFile() {
-        assertThatThrownBy(() -> parser.parse(new byte[0])).isInstanceOfSatisfying(StatementRejectedException.class,
+        assertThatThrownBy(() -> parser.parse(new byte[0], StatementKind.ACCOUNT)).isInstanceOfSatisfying(StatementRejectedException.class,
                 ex -> assertThat(ex.reason()).isEqualTo("EMPTY_FILE"));
         assertRejected(" \n \n", "EMPTY_FILE");
     }
@@ -176,7 +177,7 @@ class CsvStatementParserTest {
     void rejectsBinaryContent() {
         byte[] zip = { 'P', 'K', 3, 4, 0, 0, 0, 1 };
 
-        assertThatThrownBy(() -> parser.parse(zip)).isInstanceOfSatisfying(StatementRejectedException.class,
+        assertThatThrownBy(() -> parser.parse(zip, StatementKind.ACCOUNT)).isInstanceOfSatisfying(StatementRejectedException.class,
                 ex -> assertThat(ex.reason()).isEqualTo("UNREADABLE_FILE"));
     }
 
@@ -197,7 +198,7 @@ class CsvStatementParserTest {
     }
 
     private ParsedStatement parse(String csv) {
-        return parser.parse(csv.getBytes(StandardCharsets.UTF_8));
+        return parser.parse(csv.getBytes(StandardCharsets.UTF_8), StatementKind.ACCOUNT);
     }
 
     private void assertRejected(String csv, String reason) {

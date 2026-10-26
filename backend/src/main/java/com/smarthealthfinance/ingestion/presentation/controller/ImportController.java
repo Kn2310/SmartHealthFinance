@@ -60,14 +60,16 @@ public class ImportController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Envia um extrato (.csv ou .ofx, até 10 MB) e devolve o preview, sem criar transações")
+    @Operation(summary = "Envia um extrato de conta ou uma fatura de cartão (.csv ou .ofx, até 10 MB) e devolve o "
+            + "preview, sem criar transações")
     @ApiResponse(responseCode = "201", description = "Preview criado (status PREVIEW)")
     @ApiResponse(responseCode = "200", description = "Replay: a mesma chave e arquivo já foram enviados")
-    @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED (inclui Idempotency-Key ausente)",
+    @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED (inclui Idempotency-Key ausente, accountId "
+            + "REQUIRED sem destino e destination EXACTLY_ONE com conta e cartão)",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
-    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND ou ACCOUNT_NOT_FOUND",
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND, ACCOUNT_NOT_FOUND ou CARD_NOT_FOUND",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
-    @ApiResponse(responseCode = "409", description = "ACCOUNT_ARCHIVED",
+    @ApiResponse(responseCode = "409", description = "ACCOUNT_ARCHIVED ou CARD_ARCHIVED",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "413", description = "PAYLOAD_TOO_LARGE",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
@@ -78,10 +80,13 @@ public class ImportController {
             @PathVariable UUID workspaceId,
             @Parameter(description = "Chave única por envio (ex.: UUID gerado pelo cliente)", required = true)
             @RequestHeader(name = IDEMPOTENCY_KEY, required = false) String idempotencyKey,
-            @Parameter(description = "Conta que recebe os lançamentos") @RequestParam UUID accountId,
+            @Parameter(description = "Conta que recebe os lançamentos (extrato de conta)")
+            @RequestParam(required = false) UUID accountId,
+            @Parameter(description = "Cartão que recebe os lançamentos (fatura, ADR-0009 §19); exclusivo com accountId")
+            @RequestParam(required = false) UUID cardId,
             @RequestPart("file") MultipartFile file) throws IOException {
         UploadStatement.Result result = uploadStatement.execute(workspaceId, new UploadStatement.Command(
-                idempotencyKey, accountId, file.getOriginalFilename(), file.getBytes()));
+                idempotencyKey, accountId, cardId, file.getOriginalFilename(), file.getBytes()));
 
         ImportResponse body = ImportResponse.from(result.batch());
         if (result.replayed()) {
