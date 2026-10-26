@@ -59,6 +59,9 @@ class CardTransactionsApiIT extends IntegrationTest {
                  "limit": {"amount": "12000.00", "currency": "BRL"}, "closingDay": 25, "dueDay": 5,
                  "defaultPaymentAccountId": "%s"}
                 """.formatted(account), null, workspace), "$.id");
+        // Histórico acompanhado desde muito antes (como depois de importar faturas antigas): um pagamento de hoje nunca
+        // cai no corte dos pagamentos anteriores ao acompanhamento (ADR-0025 §15), qualquer que seja a data do teste.
+        jdbc.update("update credit_cards set tracking_start_month = date '2000-01-01' where id = ?::uuid", card);
     }
 
     @Test

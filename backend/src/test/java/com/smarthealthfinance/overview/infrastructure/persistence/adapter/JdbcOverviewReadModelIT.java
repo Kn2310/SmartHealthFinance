@@ -409,8 +409,8 @@ class JdbcOverviewReadModelIT extends IntegrationTest {
         UUID id = UUID.randomUUID();
         jdbc.update("""
                 insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
-                  due_day, status, created_at, updated_at)
-                values (?, ?, ?, 'VISA', ?, 10000, 'BRL', 28, 5, ?, now(), now())""",
+                  due_day, status, tracking_start_month, created_at, updated_at)
+                values (?, ?, ?, 'VISA', ?, 10000, 'BRL', 28, 5, ?, date '2000-01-01', now(), now())""",
                 id, workspace.value(), nickname, last4, status);
         return id;
     }

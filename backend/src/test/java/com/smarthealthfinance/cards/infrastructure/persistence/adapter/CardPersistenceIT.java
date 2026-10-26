@@ -131,19 +131,19 @@ class CardPersistenceIT extends IntegrationTest {
         UUID id = UUID.randomUUID();
         assertThatThrownBy(() -> jdbc.update("""
                 insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
-                  due_day, status, created_at, updated_at)
-                values (?, ?, 'X', 'VISA', '41111', 10, 'BRL', 28, 5, 'ACTIVE', now(), now())""",
+                  due_day, status, tracking_start_month, created_at, updated_at)
+                values (?, ?, 'X', 'VISA', '41111', 10, 'BRL', 28, 5, 'ACTIVE', date '2000-01-01', now(), now())""",
                 id, ana.workspace().value())).isInstanceOf(DataIntegrityViolationException.class);
         assertThatThrownBy(() -> jdbc.update("""
                 insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
-                  due_day, status, created_at, updated_at)
-                values (?, ?, 'X', 'VISA', '4821', 10, 'BRL', 28, 30, 'ACTIVE', now(), now())""",
+                  due_day, status, tracking_start_month, created_at, updated_at)
+                values (?, ?, 'X', 'VISA', '4821', 10, 'BRL', 28, 30, 'ACTIVE', date '2000-01-01', now(), now())""",
                 id, ana.workspace().value())).isInstanceOf(DataIntegrityViolationException.class);
         // Conta padrão de outro Workspace: a FK composta recusa mesmo com bug na aplicação.
         assertThatThrownBy(() -> jdbc.update("""
                 insert into credit_cards (id, workspace_id, nickname, brand, last4, credit_limit, currency, closing_day,
-                  due_day, default_payment_account_id, status, created_at, updated_at)
-                values (?, ?, 'X', 'VISA', '4821', 10, 'BRL', 28, 5, ?, 'ACTIVE', now(), now())""",
+                  due_day, default_payment_account_id, status, tracking_start_month, created_at, updated_at)
+                values (?, ?, 'X', 'VISA', '4821', 10, 'BRL', 28, 5, ?, 'ACTIVE', date '2000-01-01', now(), now())""",
                 id, ana.workspace().value(), bob.account())).isInstanceOf(DataIntegrityViolationException.class);
 
         CreditCard anas = card(ana, "Ana");

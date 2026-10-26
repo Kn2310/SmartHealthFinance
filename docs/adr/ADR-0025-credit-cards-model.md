@@ -360,6 +360,14 @@ Nenhum documento define:
   acompanhamento são considerados dela e não entram na alocação (§7).
   - Exemplo: o início do acompanhamento é a fatura que fecha em 28 set. Um pagamento em 05 set quitou a fatura
     anterior.
+  - **Confirmado em 2026-10-26:** vale também para um cartão cadastrado entre o fechamento e o vencimento. Exemplo:
+    o cartão fecha 25 e vence 05 e é cadastrado em 26/10. Um pagamento de 26/10 a 05/11 é da fatura que fechou em
+    25/10, que não é acompanhada, e não abate a atual.
+    - Na prática, um pagamento nesse intervalo quase sempre é da fatura que acabou de fechar.
+    - Um pagamento antecipado da fatura atual feito nesse intervalo também fica fora.
+    - A tela da fatura explica o caso (Parte F).
+    - Alternativas rejeitadas: aplicar o corte só quando há lançamentos conhecidos antes do acompanhamento, e não ter
+      corte. Nas duas, o pagamento da fatura não acompanhada vira crédito falso na atual.
 - **A compra continua sendo a despesa** pelo total, na data da compra (§3). O Overview e o Analytics não mudam. O
   início do acompanhamento só afeta a fatura e a utilização.
 - **Aurora:** cartão cadastrado em 22 set e notebook de 12 jul em 10×.
