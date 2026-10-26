@@ -23,7 +23,7 @@ public final class HealthMethod {
     public record Curve(String name, String input, List<CurvePoint> points) {}
 
     /**
-     * @param applicable {@code false} até existir no produto (Credit e Debt até o M8)
+     * @param applicable {@code false} até existir no produto (Credit e Debt até o {@code health-v2})
      */
     public record Dimension(HealthDimension dimension, String label, int weight, boolean applicable,
                             String observes, String formula, String minimum, List<Curve> curves) {}
@@ -58,12 +58,24 @@ public final class HealthMethod {
                                     curve("Excesso por categoria", "excesso ÷ média total",
                                             SpendingDimension.EXCESS_CURVE))),
                     new Dimension(HealthDimension.CREDIT, HealthDimension.CREDIT.label(),
-                            HealthDimension.CREDIT.weight(), false,
+                            HealthDimension.CREDIT.weight(), true,
                             "Utilização do limite e pagamento das faturas.",
-                            "Disponível quando houver cartões.", "—", List.of()),
+                            "0,7 × nota da utilização (utilizado ÷ limite dos cartões ativos, incluindo as parcelas "
+                                    + "futuras) + 0,3 × % das faturas dos últimos " + CreditDimension.PUNCTUALITY_MONTHS
+                                    + " meses pagas integralmente até o vencimento. Sem fatura vencida, só a nota da "
+                                    + "utilização. Nos meses anteriores, a utilização usa o limite atual dos cartões.",
+                            "Um cartão ativo.",
+                            List.of(curve("Utilização", "utilizado ÷ limite", CreditDimension.CURVE))),
                     new Dimension(HealthDimension.DEBT, HealthDimension.DEBT.label(), HealthDimension.DEBT.weight(),
-                            false, "Parcelamentos e compromissos futuros.",
-                            "Disponível quando houver parcelamentos.", "—", List.of()),
+                            true, "Parcelamentos e compromissos futuros.",
+                            "0,7 × nota do peso mensal (parcelas da próxima fatura ÷ renda média) + 0,3 × nota do "
+                                    + "horizonte (parcelas futuras em meses de renda). Sem parcelamento, 100; sem "
+                                    + "receitas, 0.",
+                            "Um cartão ativo; com parcelamentos, 1 mês fechado.",
+                            List.of(curve("Peso mensal", "parcelas da próxima fatura ÷ renda média",
+                                            DebtDimension.MONTHLY_CURVE),
+                                    curve("Horizonte", "parcelas futuras ÷ renda média (meses)",
+                                            DebtDimension.HORIZON_CURVE))),
                     new Dimension(HealthDimension.RESERVE, HealthDimension.RESERVE.label(),
                             HealthDimension.RESERVE.weight(), true,
                             "Quantos meses de despesas sua reserva cobre (referência: "
@@ -93,9 +105,10 @@ public final class HealthMethod {
                     new ConfidenceRule(Confidence.LOW, "Os demais casos.")),
             "O mês corrente é parcial e é comparado com os mesmos dias dos meses anteriores.",
             "Notas inteiras de 0 a 100; o score é calculado a partir das notas exibidas.",
-            List.of("Investimentos", "Seguros", "Empréstimos complexos", "Cartões e parcelamentos (por enquanto)",
-                    "Lançamentos pendentes", "Transferências entre suas contas", "Ajustes de saldo",
-                    "Contas arquivadas"));
+            List.of("Investimentos", "Seguros", "Empréstimos complexos", "Lançamentos pendentes",
+                    "Transferências entre suas contas", "Pagamentos de fatura (a compra já conta como gasto)",
+                    "Ajustes de saldo", "Contas e cartões arquivados",
+                    "Parcelas de antes do início do acompanhamento do cartão"));
 
     private HealthMethod() {
     }

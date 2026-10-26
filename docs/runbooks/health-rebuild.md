@@ -1,15 +1,19 @@
 # Runbook — Health: DLQ, freshness, recálculo e rebuild do snapshot
 
-Referência: ADR-0017 (modelo `health-v1`), ADR-0018 (snapshot por eventos), spec 05.7 (DLQ, replay controlado e
-auditado), 05.9 (Health freshness ≤ 5 min).
+Referência: ADR-0017 (modelo `health-v1`), ADR-0027 (`health-v2`: Credit e Debt com cartões), ADR-0018 (snapshot
+por eventos), spec 05.7 (DLQ, replay controlado e auditado), 05.9 (Health freshness ≤ 5 min).
 
-O snapshot (`health_snapshots`, `health_workspaces`) é **derivado** da projeção de Analytics e dos saldos do
-Overview. Apagar e reconstruir nunca perde fato financeiro.
+O snapshot (`health_snapshots`, `health_workspaces`) é **derivado** da projeção de Analytics, dos saldos do Overview
+e da posição dos cartões (porta `CardPortfolio`, ADR-0027 §1). Apagar e reconstruir nunca perde fato financeiro nem
+estado do usuário.
 
 ## Como o snapshot se atualiza
 
 1. Um fato muda (`transaction.*`, `import.completed`) → o Analytics recalcula a projeção e grava
    `analytics.projection-updated` na outbox. Editar, criar, arquivar ou reativar conta grava `account.changed`.
+   Compras, estornos e pagamentos de cartão são `transaction.*` e seguem o mesmo caminho. Criar, editar (limite,
+   dias, início do acompanhamento), arquivar ou reativar cartão grava `card.*`, e o job diário de Cards grava
+   `invoice.closed`: os cinco também estão ligados à fila do Health (ADR-0027 §6).
 2. O consumidor `health.snapshot` (fila `shf.health.snapshot`) só marca o Workspace em `health_workspaces`
    (`dirty_since`, `due_at`): debounce de 10 s, teto de 60 s desde o primeiro evento pendente.
 3. O job (a cada 5 s) pega os vencidos com `FOR UPDATE SKIP LOCKED` e recalcula o mês corrente + os 12 fechados na
@@ -69,6 +73,18 @@ Passos para `all`:
 4. Voltar a variável para `missing`.
 
 Para forçar só o recálculo (sem reiniciar), basta qualquer evento do Workspace ou esperar o job diário.
+
+## `health-v2` (Sessão 6.2 parte E)
+
+- No primeiro deploy com a v2, o modo `missing` reconstrói **todos** os Workspaces com transações (nenhum tem
+  snapshot `health-v2`). Em seguida o Health grava `health.snapshot-updated` e os Insights geram a `insights-v2`
+  (`insights-rebuild.md`). Ordem dos runners: Analytics → Health → Insights.
+- As linhas `health-v1` continuam em `health_snapshots`. A API e a evolução passam a ler a v2, calculada para os 13
+  meses com a regra nova (a utilização dos meses anteriores usa o limite atual dos cartões).
+- Conferir depois do deploy: `GET .../health/status` = `UP_TO_DATE`, `select algorithm_version, count(*) from
+  health_snapshots group by 1` com as duas versões, e Credit/Debt `NOT_APPLICABLE` em Workspace sem cartão ativo.
+- Rollback para um build da v1: as linhas v1 ainda estão lá e a API volta a lê-las; elas ficaram paradas desde o
+  deploy da v2, então rode `HEALTH_REBUILD=all` (ou espere o job diário) para atualizá-las.
 
 ## Nova versão do algoritmo
 

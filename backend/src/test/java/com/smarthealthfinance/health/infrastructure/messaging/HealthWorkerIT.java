@@ -61,6 +61,7 @@ class HealthWorkerIT extends IntegrationTest {
     private static final String ACCOUNTS = "/api/v1/workspaces/{workspaceId}/accounts";
     private static final String TRANSACTIONS = "/api/v1/workspaces/{workspaceId}/transactions";
     private static final String STATUS = "/api/v1/workspaces/{workspaceId}/health/status";
+    private static final String CARDS = "/api/v1/workspaces/{workspaceId}/cards";
 
     @Autowired
     JdbcTemplate jdbc;
@@ -105,7 +106,7 @@ class HealthWorkerIT extends IntegrationTest {
         HealthResult now = awaitSnapshot(r -> r.score() != null && r.dimensions().stream()
                 .filter(d -> d.dimension() == HealthDimension.CONSISTENCY).anyMatch(DimensionResult::isOk));
 
-        assertThat(now.algorithmVersion()).isEqualTo("health-v1");
+        assertThat(now.algorithmVersion()).isEqualTo("health-v2");
         assertThat(now.state()).isEqualTo(HealthState.READY);
         assertThat(score(now, HealthDimension.CASH_FLOW)).isEqualTo(100);
         assertThat(score(now, HealthDimension.SPENDING)).isEqualTo(100);
@@ -155,6 +156,44 @@ class HealthWorkerIT extends IntegrationTest {
         assertThat(jdbc.queryForObject("""
                 select count(*) from outbox_events where workspace_id = ?::uuid and event_type = 'account.changed'
                 """, Integer.class, workspace)).isEqualTo(3);
+    }
+
+    /**
+     * ADR-0027 §6: criar o cartão e mudar o limite recalculam Credit e Debt sem nenhuma transação; a compra chega pelo
+     * Analytics. Paridade com o cálculo direto sobre as portas, agora com Cards.
+     */
+    @Test
+    void cardChangesRecalculateCreditAndDebt() throws Exception {
+        seedHistory();
+        IdentityTables.awaitQuiescence(jdbc);
+        awaitSnapshot(r -> r.score() != null
+                && dimension(r, HealthDimension.CONSISTENCY).isOk()
+                && dimension(r, HealthDimension.CREDIT).status() == DimensionStatus.NOT_APPLICABLE);
+
+        String card = read(mvc.post().uri(CARDS, workspace).with(ana()).contentType(MediaType.APPLICATION_JSON)
+                .content(cardJson("1000.00")).exchange(), "$.id").toString();
+        HealthResult withCard = awaitSnapshot(r -> dimension(r, HealthDimension.CREDIT).isOk());
+        assertThat(score(withCard, HealthDimension.CREDIT)).isEqualTo(100);
+        assertThat(score(withCard, HealthDimension.DEBT)).isEqualTo(100);
+        assertThat(withCard.activeCards()).isEqualTo(1);
+
+        // 600 em 3 vezes hoje: U = 600 ÷ 1.000 = 0,60 → 55 (nenhuma fatura vencida ainda).
+        assertThat(mvc.post().uri(CARDS + "/{cardId}/purchases", workspace, card).with(ana())
+                .header("Idempotency-Key", "h-" + ++keys).contentType(MediaType.APPLICATION_JSON).content("""
+                        {"amount": {"amount": "600.00", "currency": "BRL"}, "occurredOn": "%s",
+                         "description": "Compra parcelada", "installmentCount": 3}
+                        """.formatted(loader.today()))).hasStatus(HttpStatus.CREATED);
+        awaitSnapshot(r -> Integer.valueOf(55).equals(score(r, HealthDimension.CREDIT)));
+
+        // Só o limite muda (card.updated): U = 600 ÷ 2.000 = 0,30 → 80.
+        assertThat(mvc.put().uri(CARDS + "/{cardId}", workspace, card).with(ana())
+                .contentType(MediaType.APPLICATION_JSON).content(cardJson("2000.00"))).hasStatus(HttpStatus.OK);
+        awaitSnapshot(r -> Integer.valueOf(80).equals(score(r, HealthDimension.CREDIT)));
+        IdentityTables.awaitQuiescence(jdbc);
+
+        List<HealthResult> direct = new TransactionTemplate(transactionManager).execute(status ->
+                HealthSnapshotCalculator.calculate(loader.load(id())));
+        assertThat(store(current.minusMonths(3), current)).isEqualTo(direct);
     }
 
     @Test
@@ -266,6 +305,14 @@ class HealthWorkerIT extends IntegrationTest {
                          "occurredOn": "%s", "description": "%s"}
                         """.formatted(type, account, amount, day, description)).exchange();
         assertThat(result).hasStatus(HttpStatus.CREATED);
+    }
+
+    private String cardJson(String limit) {
+        return """
+                {"nickname": "Aurora Platinum", "brand": "MASTERCARD", "last4": "4821",
+                 "limit": {"amount": "%s", "currency": "BRL"}, "closingDay": 25, "dueDay": 5,
+                 "defaultPaymentAccountId": "%s"}
+                """.formatted(limit, checking);
     }
 
     private String computedAt() {

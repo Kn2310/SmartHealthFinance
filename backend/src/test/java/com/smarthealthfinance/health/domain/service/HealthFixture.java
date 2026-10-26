@@ -1,5 +1,6 @@
 package com.smarthealthfinance.health.domain.service;
 
+import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
 import com.smarthealthfinance.analytics.domain.model.FlowEntry;
 import com.smarthealthfinance.analytics.domain.service.FlowLedger;
 import com.smarthealthfinance.analytics.domain.valueobject.AnalysisPeriod;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 /**
  * Montagem de entradas do Health para os testes. {@link #example()} reproduz design/specs/09-dados-de-exemplo.md:
@@ -32,6 +34,7 @@ final class HealthFixture {
     private final List<FlowEntry> entries = new ArrayList<>();
     private final List<HealthInput.ReserveBalance> reserves = new ArrayList<>();
     private LocalDate firstActivity;
+    private Function<LocalDate, List<CardPosition>> cards = date -> List.of();
 
     static HealthFixture example() {
         HealthFixture fixture = new HealthFixture();
@@ -85,6 +88,12 @@ final class HealthFixture {
         return this;
     }
 
+    /** Cartões ativos lidos pela porta de Cards na data-base de cada mês (ADR-0027 §1). */
+    HealthFixture cards(AuroraCards aurora) {
+        cards = aurora::on;
+        return this;
+    }
+
     HealthFixture noReserves() {
         reserves.clear();
         return this;
@@ -103,6 +112,6 @@ final class HealthFixture {
     private HealthInput input(AnalysisPeriod period) {
         List<FlowEntry> visible = entries.stream().filter(e -> !e.day().isAfter(period.to())).toList();
         return new HealthInput(period, Optional.ofNullable(firstActivity), new FlowLedger(visible, BRL), reserves, 3,
-                NAMES);
+                NAMES, cards.apply(period.to()));
     }
 }

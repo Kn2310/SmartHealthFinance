@@ -42,7 +42,7 @@ class HealthCalculatorTest {
 
         @Test
         void windowIsTheFiveClosedMonthsBeforeThePartialMonth() {
-            assertThat(result.algorithmVersion()).isEqualTo("health-v1");
+            assertThat(result.algorithmVersion()).isEqualTo("health-v2");
             assertThat(result.month()).isEqualTo(YearMonth.of(2026, 9));
             assertThat(result.asOf()).isEqualTo(LocalDate.parse("2026-09-22"));
             assertThat(result.partial()).isTrue();

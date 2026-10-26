@@ -1,5 +1,6 @@
 package com.smarthealthfinance.health.domain.model;
 
+import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
 import com.smarthealthfinance.analytics.domain.service.FlowLedger;
 import com.smarthealthfinance.analytics.domain.valueobject.AnalysisPeriod;
 import com.smarthealthfinance.shared.domain.Money;
@@ -20,9 +21,16 @@ import java.util.UUID;
  * @param reserves       contas {@code SAVINGS} ativas com o saldo na data-base
  * @param activeAccounts contas ativas do Workspace (só contexto)
  * @param categoryNames  nome de cada categoria do catálogo, para os textos
+ * @param cards          cartões ativos acompanhados, com a posição na data-base (ADR-0027 §1)
  */
 public record HealthInput(AnalysisPeriod period, Optional<LocalDate> firstActivity, FlowLedger ledger,
-                          List<ReserveBalance> reserves, int activeAccounts, Map<String, String> categoryNames) {
+                          List<ReserveBalance> reserves, int activeAccounts, Map<String, String> categoryNames,
+                          List<CardPosition> cards) {
+
+    public HealthInput(AnalysisPeriod period, Optional<LocalDate> firstActivity, FlowLedger ledger,
+                       List<ReserveBalance> reserves, int activeAccounts, Map<String, String> categoryNames) {
+        this(period, firstActivity, ledger, reserves, activeAccounts, categoryNames, List.of());
+    }
 
     public record ReserveBalance(UUID accountId, Money balance) {
 
@@ -38,6 +46,7 @@ public record HealthInput(AnalysisPeriod period, Optional<LocalDate> firstActivi
         Objects.requireNonNull(ledger, "ledger");
         reserves = List.copyOf(reserves);
         categoryNames = Map.copyOf(categoryNames);
+        cards = List.copyOf(cards);
     }
 
     public YearMonth month() {

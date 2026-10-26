@@ -28,7 +28,7 @@ import static org.awaitility.Awaitility.await;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 
 /**
- * API do Health (ADR-0019) sobre o snapshot real: valores exatos do {@code health-v1}, estados, validação, evolução,
+ * API do Health (ADR-0019) sobre o snapshot real: valores exatos do {@code health-v2} sem cartões, estados, validação, evolução,
  * método, fontes e autorização.
  * <p>
  * Mesmo cenário do {@code HealthWorkerIT}: 3 meses fechados e o corrente com salário de 5.000 e despesa de 3.000 no
@@ -71,7 +71,7 @@ class HealthApiIT extends IntegrationTest {
         MvcTestResult health = awaitReady(null);
 
         assertThat(health).hasStatus(HttpStatus.OK).bodyJson().isLenientlyEqualTo("""
-                {"workspaceId": "%s", "state": "READY", "algorithmVersion": "health-v1", "currency": "BRL",
+                {"workspaceId": "%s", "state": "READY", "algorithmVersion": "health-v2", "currency": "BRL",
                  "period": {"month": "%s", "monthsUsed": %d},
                  "score": 94, "variation": 0, "estimated": false,
                  "coverage": {"available": 4, "total": 6, "weightPercent": 70},
@@ -190,13 +190,13 @@ class HealthApiIT extends IntegrationTest {
         MvcTestResult method = get(HEALTH + "/method", null);
 
         assertThat(method).hasStatus(HttpStatus.OK);
-        assertThat(read(method, "$.algorithmVersion")).isEqualTo("health-v1");
+        assertThat(read(method, "$.algorithmVersion")).isEqualTo("health-v2");
         List<Integer> weights = JsonPath.read(body(method), "$.dimensions[*].weight");
         assertThat(weights).containsExactly(25, 15, 15, 15, 20, 10);
         assertThat(read(method, "$.dimensions[0].curves[0].points")).isEqualTo(List.of(
                 Map.of("x", "-0.1", "score", "0"), Map.of("x", "0", "score", "30"), Map.of("x", "0.1", "score", "60"),
                 Map.of("x", "0.2", "score", "80"), Map.of("x", "0.4", "score", "100")));
-        assertThat(read(method, "$.dimensions[2].applicable")).isEqualTo(false);
+        assertThat(read(method, "$.dimensions[2].applicable")).isEqualTo(true);
         assertThat(read(method, "$.confidence[*].level")).isEqualTo(List.of("HIGH", "MEDIUM", "LOW"));
         assertThat((List<String>) JsonPath.read(body(method), "$.exclusions")).contains("Investimentos", "Seguros",
                 "Empréstimos complexos");

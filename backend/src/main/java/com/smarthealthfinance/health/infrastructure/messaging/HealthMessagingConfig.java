@@ -1,9 +1,12 @@
 package com.smarthealthfinance.health.infrastructure.messaging;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.BindingBuilder;
+import org.springframework.amqp.core.Declarable;
 import org.springframework.amqp.core.Declarables;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.core.QueueBuilder;
@@ -34,9 +37,12 @@ public class HealthMessagingConfig {
     public static final String DEAD_LETTER_QUEUE = QUEUE + ".dlq";
     public static final String CONTAINER_FACTORY = "healthListenerContainerFactory";
 
-    /** O Health conhece os eventos de Analytics e Accounts só pelo nome. */
+    /** O Health conhece os eventos de Analytics, Accounts e Cards só pelo nome. */
     public static final String PROJECTION_UPDATED = "analytics.projection-updated";
     public static final String ACCOUNT_CHANGED = "account.changed";
+    /** Limite, arquivamento e início do acompanhamento mudam Credit e Debt sem transação (ADR-0027 §6). */
+    public static final List<String> CARD_EVENTS = List.of("card.created", "card.updated", "card.archived",
+            "card.reactivated", "invoice.closed");
 
     @Bean
     Declarables healthTopology(TopicExchange eventsExchange) {
@@ -45,9 +51,11 @@ public class HealthMessagingConfig {
                 .deadLetterRoutingKey(DEAD_LETTER_QUEUE)
                 .build();
         Queue deadLetters = QueueBuilder.durable(DEAD_LETTER_QUEUE).build();
-        return new Declarables(queue, deadLetters,
+        List<Declarable> declarables = new ArrayList<>(List.of(queue, deadLetters,
                 BindingBuilder.bind(queue).to(eventsExchange).with(PROJECTION_UPDATED),
-                BindingBuilder.bind(queue).to(eventsExchange).with(ACCOUNT_CHANGED));
+                BindingBuilder.bind(queue).to(eventsExchange).with(ACCOUNT_CHANGED)));
+        CARD_EVENTS.forEach(event -> declarables.add(BindingBuilder.bind(queue).to(eventsExchange).with(event)));
+        return new Declarables(declarables);
     }
 
     @Bean(CONTAINER_FACTORY)

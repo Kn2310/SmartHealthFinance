@@ -193,6 +193,8 @@ class CardTransactionsApiIT extends IntegrationTest {
         String closingDate = read(current, "$.closingDate");
         String dueDate = read(current, "$.dueDate");
         MvcTestResult summary = mvc.get().uri(WS + "/cards/summary", workspace).with(ana()).exchange();
+        String summaryOpen = read(summary, "$.openInvoices.amount").toString();
+        String summaryNextDue = read(summary, "$.nextDueDate").toString();
 
         // ADR-0006 §18: a dívida fica em "cards", o saldo total continua só das contas, e o bloco não depende do
         // período pedido.
@@ -203,9 +205,9 @@ class CardTransactionsApiIT extends IntegrationTest {
                             .isEqualTo("5000.00"))
                     .hasPathSatisfying("$.cards.activeCards", n -> assertThat(n).asNumber().isEqualTo(1))
                     .hasPathSatisfying("$.cards.openInvoices.amount", a -> assertThat(a).asString()
-                            .isEqualTo(read(summary, "$.openInvoices.amount").toString()).isEqualTo("100.00"))
+                            .isEqualTo(summaryOpen).isEqualTo("100.00"))
                     .hasPathSatisfying("$.cards.nextDue.date", d -> assertThat(d).asString()
-                            .isEqualTo(read(summary, "$.nextDueDate").toString()).isEqualTo(dueDate))
+                            .isEqualTo(summaryNextDue).isEqualTo(dueDate))
                     .hasPathSatisfying("$.cards.upcomingEvents[0].kind", k -> assertThat(k).asString()
                             .isEqualTo("INVOICE_CLOSING"))
                     .hasPathSatisfying("$.cards.upcomingEvents[0].date", d -> assertThat(d).asString()
