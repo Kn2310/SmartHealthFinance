@@ -14,6 +14,7 @@ import { GET as list, POST as create } from './route'
 import { POST as purchase } from './[cardId]/purchases/route'
 import { POST as payment } from './[cardId]/payments/route'
 import { POST as credit } from './[cardId]/credits/route'
+import { POST as reconcile } from './[cardId]/payments/reconcile/route'
 
 const ORIGIN = 'http://app.test'
 const CARD = '01922f5e-0000-7000-8000-0000000000c1'
@@ -214,6 +215,57 @@ describe('POST compras, pagamentos e estornos no cartão', () => {
     expect(await (await credit(jsonRequest(`/api/bff/cards/${CARD}/credits`, body), params())).json()).toEqual({
       code: 'VALIDATION_FAILED',
       details: [{ field: 'refundOfTransactionId', code: 'NOT_SAME_CARD' }],
+    })
+  })
+})
+
+describe('POST /api/bff/cards/{id}/payments/reconcile', () => {
+  const path = `/api/bff/cards/${CARD}/payments/reconcile`
+
+  it('repassa só o id do débito, sem Idempotency-Key, e mantém 201/200', async () => {
+    const payment = { payment: { id: TXN, type: 'TRANSFER' }, matchedExisting: false }
+    POST_BACKEND.mockResolvedValueOnce({ data: payment, response: { status: 201 } })
+
+    const response = await reconcile(jsonRequest(path, { transactionId: TXN, extra: 'x' }, { key: null }), params())
+
+    expect(response.status).toBe(201)
+    expect(await response.json()).toEqual(payment)
+    const [url, options] = POST_BACKEND.mock.calls[0]!
+    expect(url).toBe('/api/v1/workspaces/{workspaceId}/cards/{cardId}/payments/reconcile')
+    expect(options).toEqual({
+      params: { path: { workspaceId: 'ws-da-sessao', cardId: CARD } },
+      body: { transactionId: TXN },
+    })
+
+    POST_BACKEND.mockResolvedValueOnce({ data: { ...payment, matchedExisting: true }, response: { status: 200 } })
+    expect((await reconcile(jsonRequest(path, { transactionId: TXN }), params())).status).toBe(200)
+  })
+
+  it('recusa sem chamar o backend: id malformado, cartão malformado e Origin de fora', async () => {
+    expect(await (await reconcile(jsonRequest(path, { transactionId: 'x' }), params())).json()).toEqual({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'transactionId', code: 'INVALID' }],
+    })
+    expect((await reconcile(jsonRequest(path, { transactionId: TXN }), params('nope'))).status).toBe(404)
+    expect((await reconcile(jsonRequest(path, { transactionId: TXN }, { origin: 'https://evil.test' }), params()))
+      .status).toBe(403)
+    expect(POST_BACKEND).not.toHaveBeenCalled()
+  })
+
+  it('débito inelegível, já estornado ou de outro Workspace passam com o código estável', async () => {
+    POST_BACKEND.mockResolvedValueOnce({
+      error: apiError('VALIDATION_FAILED', [{ field: 'transactionId', code: 'NOT_RECLASSIFIABLE' }]),
+      response: { status: 400 },
+    })
+    expect(await (await reconcile(jsonRequest(path, { transactionId: TXN }), params())).json()).toEqual({
+      code: 'VALIDATION_FAILED',
+      details: [{ field: 'transactionId', code: 'NOT_RECLASSIFIABLE' }],
+    })
+    POST_BACKEND.mockResolvedValueOnce({ error: apiError('TRANSACTION_STATUS_CONFLICT'), response: { status: 409 } })
+    expect((await reconcile(jsonRequest(path, { transactionId: TXN }), params())).status).toBe(409)
+    POST_BACKEND.mockResolvedValueOnce({ error: apiError('TRANSACTION_NOT_FOUND'), response: { status: 404 } })
+    expect(await (await reconcile(jsonRequest(path, { transactionId: TXN }), params())).json()).toEqual({
+      code: 'TRANSACTION_NOT_FOUND',
     })
   })
 })

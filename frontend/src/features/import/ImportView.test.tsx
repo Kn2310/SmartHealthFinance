@@ -17,6 +17,25 @@ vi.mock('next/navigation', () => ({
 const AURORA = '01922f5e-0000-7000-8000-0000000000a1'
 const NORTE = '01922f5e-0000-7000-8000-0000000000a2'
 const IMPORT = '01922f5e-0000-7000-8000-0000000000b1'
+const AURORA_CARD = '01922f5e-0000-7000-8000-0000000000c1'
+const ARCHIVED_CARD = '01922f5e-0000-7000-8000-0000000000c2'
+
+const card = (id: string, status: 'ACTIVE' | 'ARCHIVED') => ({
+  id,
+  workspaceId: 'ws',
+  nickname: status === 'ACTIVE' ? 'Aurora Platinum' : 'Cartão antigo',
+  institutionName: null,
+  brand: 'MASTERCARD' as const,
+  last4: status === 'ACTIVE' ? '4821' : '0001',
+  limit: { amount: '12000.00', currency: 'BRL' },
+  closingDay: 28,
+  dueDay: 5,
+  defaultPaymentAccountId: null,
+  status,
+  trackingStartDueMonth: '2026-10',
+  createdAt: '2026-09-22T00:00:00Z',
+  updatedAt: '2026-09-22T00:00:00Z',
+})
 
 const account = (id: string, name: string) => ({
   id,
@@ -35,12 +54,14 @@ const batch = (overrides: Partial<ImportBatch> = {}): ImportBatch => ({
   id: IMPORT,
   workspaceId: 'ws',
   accountId: AURORA,
+  cardId: null,
   format: 'CSV',
   status: 'PREVIEW',
   fileName: 'extrato.csv',
   fileSize: 2048,
-  lines: { total: 3, valid: 2, invalid: 1, duplicate: 0, imported: 0, categorized: 0 },
+  lines: { total: 3, valid: 2, invalid: 1, duplicate: 0, skipped: 0, imported: 0, reconciled: 0, categorized: 0 },
   period: { from: '2026-09-01', to: '2026-09-03' },
+  statement: null,
   sameFileImportedBefore: false,
   failureReason: null,
   createdAt: '2026-09-27T12:00:00Z',
@@ -60,6 +81,8 @@ const RECORDS: ImportRecord[] = [
     description: 'Salário',
     issue: null,
     transactionId: null,
+    skipReason: null,
+    installment: null,
   },
   {
     lineNumber: 3,
@@ -70,6 +93,8 @@ const RECORDS: ImportRecord[] = [
     description: 'Bistrô Lume',
     issue: null,
     transactionId: null,
+    skipReason: null,
+    installment: null,
   },
   {
     lineNumber: 4,
@@ -80,6 +105,8 @@ const RECORDS: ImportRecord[] = [
     description: null,
     issue: { field: 'amount', code: 'INVALID_AMOUNT' },
     transactionId: null,
+    skipReason: null,
+    installment: null,
   },
 ]
 
@@ -88,8 +115,9 @@ const json = (body: unknown, status = 200) =>
 
 type Route = (init: RequestInit | undefined, url: string) => Response | Promise<Response>
 
-/** fetch falso roteado por método + prefixo de URL; registra cada chamada. */
-function stubBff(routes: Record<string, Route>) {
+/** fetch falso roteado por método + prefixo de URL; registra cada chamada. Sem cartões, salvo rota própria. */
+function stubBff(given: Record<string, Route>) {
+  const routes: Record<string, Route> = { 'GET /api/bff/cards': () => json({ items: [] }), ...given }
   const calls: { method: string; url: string; init?: RequestInit }[] = []
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -138,6 +166,42 @@ describe('ImportView — envio', () => {
     expect(form.get('accountId')).toBe(NORTE)
     expect((form.get('file') as File).name).toBe('extrato.csv')
     expect((upload.init!.headers as Record<string, string>)['Idempotency-Key']).toMatch(/^web:[0-9a-f-]{36}$/)
+  })
+
+  it('fatura: o cartão é o destino, com o aviso do sinal e o modelo de fatura', async () => {
+    const calls = stubBff({
+      'GET /api/bff/accounts': () => json({ items: [account(AURORA, 'Banco Aurora')] }),
+      'GET /api/bff/cards': () => json({ items: [card(AURORA_CARD, 'ACTIVE'), card(ARCHIVED_CARD, 'ARCHIVED')] }),
+      'POST /api/bff/imports': () => json(batch({ accountId: null, cardId: AURORA_CARD }), 201),
+    })
+    const user = userEvent.setup()
+    const { container } = render(<ImportView />)
+
+    expect(await screen.findByRole('group', { name: 'Cartões' })).toBeInTheDocument()
+    // Cartão arquivado não recebe lançamentos.
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+    await user.click(screen.getByRole('radio', { name: /Aurora Platinum/ }))
+    expect(screen.getByRole('note')).toHaveTextContent('valores positivos são compras')
+    expect(screen.getByRole('link', { name: 'Baixar modelo de fatura' })).toHaveAttribute('href', '/modelo-fatura.csv')
+    expect(await axeViolations(container)).toEqual([])
+
+    await user.upload(screen.getByLabelText('Selecionar arquivo'), csv('fatura.csv'))
+    await user.click(screen.getByRole('button', { name: 'Continuar' }))
+
+    await waitFor(() => expect(replace).toHaveBeenCalled())
+    const form = calls.find((c) => c.method === 'POST')!.init!.body as FormData
+    expect(form.get('cardId')).toBe(AURORA_CARD)
+    expect(form.get('accountId')).toBeNull()
+  })
+
+  it('?cardId= pré-seleciona o cartão', async () => {
+    search = `cardId=${AURORA_CARD}`
+    stubBff({
+      'GET /api/bff/accounts': () => json({ items: [account(AURORA, 'Banco Aurora')] }),
+      'GET /api/bff/cards': () => json({ items: [card(AURORA_CARD, 'ACTIVE')] }),
+    })
+    render(<ImportView />)
+    expect(await screen.findByRole('radio', { name: /Aurora Platinum/ })).toBeChecked()
   })
 
   it('com uma única conta, ela já vem escolhida; ?accountId= também pré-seleciona', async () => {
@@ -223,7 +287,7 @@ describe('ImportView — preview, confirmação e resultado', () => {
         json(
           polls++ === 0
             ? batch()
-            : batch({ status: 'COMPLETED', lines: { total: 3, valid: 2, invalid: 1, duplicate: 0, imported: 2, categorized: 1 } }),
+            : batch({ status: 'COMPLETED', lines: { total: 3, valid: 2, invalid: 1, duplicate: 0, skipped: 0, imported: 2, reconciled: 0, categorized: 1 } }),
         ),
       [`POST /api/bff/imports/${IMPORT}/confirm`]: () => json(batch({ status: 'CONFIRMED' }), 202),
     })
@@ -249,11 +313,38 @@ describe('ImportView — preview, confirmação e resultado', () => {
     expect(calls.filter((c) => c.method === 'POST')).toHaveLength(1)
   })
 
+  it('fatura: mostra a parcela reconhecida e o pagamento que fica de fora', async () => {
+    const lines = { total: 3, valid: 2, invalid: 0, duplicate: 0, skipped: 1, imported: 0, reconciled: 0, categorized: 0 }
+    const cardRecords: ImportRecord[] = [
+      { ...RECORDS[1]!, lineNumber: 2, description: 'Loja Tech [exemplo] · Notebook', installment: { number: 3, count: 10 } },
+      {
+        ...RECORDS[0]!,
+        lineNumber: 3,
+        status: 'SKIPPED',
+        description: 'PAGAMENTO RECEBIDO',
+        skipReason: 'CARD_PAYMENT',
+      },
+    ]
+    stubBff({
+      [`GET /api/bff/imports/${IMPORT}/records`]: () => json({ items: cardRecords, page: 0, pageSize: 50, totalItems: 2 }),
+      [`GET /api/bff/imports/${IMPORT}`]: () => json(batch({ accountId: null, cardId: AURORA_CARD, lines })),
+    })
+    const { container } = render(<ImportView />)
+
+    expect(await screen.findByText(/Parcela 3 de 10/)).toBeInTheDocument()
+    expect(screen.getByText(/Pagamento: registre pela conta/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Pagamentos/ })).toBeInTheDocument()
+    expect(screen.getByText(/1 pagamento da fatura fica de fora/)).toBeInTheDocument()
+    const counts = screen.getByRole('region', { name: 'extrato.csv' })
+    expect(within(counts).getByText('Pagamentos (pela conta)').nextSibling).toHaveTextContent('1')
+    expect(await axeViolations(container)).toEqual([])
+  })
+
   it('sem linhas novas: confirmação desabilitada e aviso de arquivo já importado', async () => {
     stubBff({
       [`GET /api/bff/imports/${IMPORT}/records`]: () => json({ items: [], page: 0, pageSize: 50, totalItems: 0 }),
       [`GET /api/bff/imports/${IMPORT}`]: () =>
-        json(batch({ sameFileImportedBefore: true, lines: { total: 2, valid: 0, invalid: 0, duplicate: 2, imported: 0, categorized: 0 } })),
+        json(batch({ sameFileImportedBefore: true, lines: { total: 2, valid: 0, invalid: 0, duplicate: 2, skipped: 0, imported: 0, reconciled: 0, categorized: 0 } })),
     })
     render(<ImportView />)
 

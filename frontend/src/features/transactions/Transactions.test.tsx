@@ -629,6 +629,75 @@ describe('/transactions/{id} — detalhe e ações', () => {
     expect(screen.queryByRole('button', { name: /Efetivar|Estornar|Cancelar transação/ })).not.toBeInTheDocument()
   })
 
+  describe('marcar como pagamento de fatura (ADR-0025 §7)', () => {
+    const CARD = '01922f5e-0000-7000-8000-0000000000c1'
+    const PAYMENT = '01922f5e-0000-7000-8000-0000000000b7'
+    const debit = txn({ type: 'EXPENSE', source: 'IMPORT', description: 'PAG FATURA AURORA', accountId: AURORA })
+    const aurora = {
+      id: CARD, workspaceId: 'ws', nickname: 'Aurora Platinum', institutionName: null, brand: 'MASTERCARD',
+      last4: '4821', limit: { amount: '12000.00', currency: 'BRL' }, closingDay: 28, dueDay: 5,
+      defaultPaymentAccountId: AURORA, status: 'ACTIVE', trackingStartDueMonth: '2026-10',
+      createdAt: '2026-10-01T00:00:00Z', updatedAt: '2026-10-01T00:00:00Z',
+    }
+
+    it('débito importado: sugere o cartão da conta, confirma e vai para o pagamento', async () => {
+      const calls = stub({
+        ...accounts,
+        'GET /api/bff/transactions/': () => json(debit),
+        'GET /api/bff/cards': () => json({ items: [aurora, { ...aurora, id: NORTE, status: 'ARCHIVED' }] }),
+        'POST /api/bff/cards/': () =>
+          json({ payment: txn({ id: PAYMENT, type: 'TRANSFER', destinationCardId: CARD }), matchedExisting: false }, 201),
+      })
+      const user = userEvent.setup()
+      const { container } = render(<TransactionDetailView id={TXN} />)
+
+      await user.click(await screen.findByRole('button', { name: 'Marcar como pagamento de fatura' }))
+      expect(await screen.findByRole('radio', { name: /Aurora Platinum/ })).toBeChecked()
+      expect(screen.getAllByRole('radio')).toHaveLength(1)
+      expect(await axeViolations(container)).toEqual([])
+
+      await user.click(screen.getByRole('button', { name: 'Confirmar: marcar como pagamento de fatura' }))
+      await waitFor(() => expect(push).toHaveBeenCalledWith(`/transactions/${PAYMENT}`))
+      const mark = calls.find((c) => c.method === 'POST')!
+      expect(mark.url).toBe(`/api/bff/cards/${CARD}/payments/reconcile`)
+      expect(body(mark.init)).toEqual({ transactionId: TXN })
+    })
+
+    it('regra do domínio vira mensagem clara', async () => {
+      stub({
+        ...accounts,
+        'GET /api/bff/transactions/': () => json(debit),
+        'GET /api/bff/cards': () => json({ items: [aurora] }),
+        'POST /api/bff/cards/': () =>
+          json({ code: 'VALIDATION_FAILED', details: [{ field: 'transactionId', code: 'ALREADY_RECLASSIFIED' }] }, 400),
+      })
+      const user = userEvent.setup()
+      render(<TransactionDetailView id={TXN} />)
+
+      await user.click(await screen.findByRole('button', { name: 'Marcar como pagamento de fatura' }))
+      await user.click(await screen.findByRole('button', { name: 'Confirmar: marcar como pagamento de fatura' }))
+      expect(await screen.findByRole('alert')).toHaveTextContent('já foi marcada para outro cartão')
+      expect(push).not.toHaveBeenCalled()
+    })
+
+    it('só despesa importada e lançada oferece a ação; a marcada aponta para o pagamento', async () => {
+      stub({ ...accounts, 'GET /api/bff/transactions/': () => json(txn({ type: 'EXPENSE' })) })
+      const { unmount } = render(<TransactionDetailView id={TXN} />)
+      expect(await screen.findByRole('heading', { level: 1, name: 'Bistrô Lume' })).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Marcar como pagamento de fatura' })).not.toBeInTheDocument()
+      unmount()
+
+      stub({
+        ...accounts,
+        'GET /api/bff/transactions/': () =>
+          json({ ...debit, status: 'REVERSED', reclassifiedAsTransactionId: PAYMENT }),
+      })
+      render(<TransactionDetailView id={TXN} />)
+      expect(await screen.findByRole('link', { name: 'Ver pagamento' })).toHaveAttribute('href', `/transactions/${PAYMENT}`)
+      expect(screen.getByText(/Marcada como pagamento de fatura: deixou de contar como despesa/)).toBeInTheDocument()
+    })
+  })
+
   describe('marcar como reembolso', () => {
     const REFUND = '01922f5e-0000-7000-8000-0000000000b9'
     const PURCHASE = '01922f5e-0000-7000-8000-0000000000b8'

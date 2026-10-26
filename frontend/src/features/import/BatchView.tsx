@@ -83,7 +83,13 @@ function Summary({ batch }: { batch: ImportBatch }) {
         ) : (
           <Count tone="teal" label="Novas para importar" value={batch.lines.valid} />
         )}
+        {batch.cardId && batch.status === 'COMPLETED' && batch.lines.reconciled > 0 ? (
+          <Count tone="success" label="Parcelas já lançadas" value={batch.lines.reconciled} />
+        ) : null}
         <Count tone="neutral" label="Já importadas antes" value={batch.lines.duplicate} />
+        {batch.cardId && batch.lines.skipped > 0 ? (
+          <Count tone="neutral" label="Pagamentos (pela conta)" value={batch.lines.skipped} />
+        ) : null}
         <Count tone="warning" label="Com problema" value={batch.lines.invalid} />
       </dl>
     </section>
@@ -120,7 +126,18 @@ function Preview({ batch, onChange }: { batch: ImportBatch; onChange: (batch: Im
 
       {batch.sameFileImportedBefore ? (
         <p className={styles.info} role="note">
-          Este arquivo já foi importado nesta conta. As movimentações repetidas são reconhecidas e não entram de novo.
+          Este arquivo já foi importado {batch.cardId ? 'neste cartão' : 'nesta conta'}. As movimentações repetidas são
+          reconhecidas e não entram de novo.
+        </p>
+      ) : null}
+      {batch.cardId ? (
+        <p className={styles.info} role="note">
+          Compras parceladas entram pelo valor total, na data da compra, e cada parcela vai para a sua fatura. Se a compra
+          já foi lançada, a parcela é reconhecida e nada é duplicado.
+          {batch.lines.skipped > 0
+            ? ` ${plural(batch.lines.skipped, 'pagamento da fatura fica', 'pagamentos da fatura ficam')} de fora: registre-os pela conta, em “Marcar como pagamento de fatura”.`
+            : ''}
+          {batch.statement?.minimumPayment ? ' O pagamento mínimo informado no arquivo vai para a fatura.' : ''}
         </p>
       ) : null}
       {nothingNew ? (
@@ -196,8 +213,13 @@ function Completed({ batch }: { batch: ImportBatch }) {
         </h2>
         <p className={styles.noticeText}>
           {batch.lines.imported === 0
-            ? 'Tudo o que o arquivo traz já estava na sua conta.'
-            : 'Elas já aparecem no seu saldo e nas movimentações, marcadas como “Importado”.'}
+            ? `Tudo o que o arquivo traz já estava ${batch.cardId ? 'no seu cartão' : 'na sua conta'}.`
+            : batch.cardId
+              ? 'Elas já aparecem na fatura do cartão e nas movimentações, marcadas como “Importado”. Compras no cartão não mudam o saldo das contas.'
+              : 'Elas já aparecem no seu saldo e nas movimentações, marcadas como “Importado”.'}
+          {batch.cardId && batch.lines.reconciled > 0
+            ? ` ${plural(batch.lines.reconciled, 'parcela já estava lançada', 'parcelas já estavam lançadas')} e não ${batch.lines.reconciled === 1 ? 'foi duplicada' : 'foram duplicadas'}.`
+            : ''}
           {batch.lines.duplicate > 0 ? ` ${plural(batch.lines.duplicate, 'repetida foi ignorada', 'repetidas foram ignoradas')}.` : ''}
         </p>
         {batch.lines.imported > 0 ? (

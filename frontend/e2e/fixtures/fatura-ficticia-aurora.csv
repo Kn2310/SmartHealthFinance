@@ -1,0 +1,5 @@
+﻿data;descricao;valor;parcela;id
+{COMPRA-NOTEBOOK};Loja Tech Fictícia [exemplo] · Notebook;480,00;3/10;FIC-2026-0101
+{HOJE};Bistrô Fictício [exemplo];86,40;;FIC-2026-0102
+{HOJE};Estorno Mercado Fictício [exemplo];-20,00;;FIC-2026-0103
+{HOJE};PAGAMENTO RECEBIDO;-3012,10;;FIC-2026-0104

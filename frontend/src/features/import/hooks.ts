@@ -4,9 +4,11 @@ import { useEffect, useState } from 'react'
 import { useKeyed, type Loadable } from '@/lib/use-keyed'
 import {
   fetchAccounts,
+  fetchCards,
   fetchImport,
   fetchRecords,
   type Account,
+  type Card,
   type ImportBatch,
   type ImportRecordPage,
   type RecordStatus,
@@ -25,6 +27,18 @@ export function useAccounts() {
   const { value } = useKeyed<Account[]>(`accounts#${attempt}`, async () => {
     const result = await fetchAccounts()
     return result.ok ? { status: 'success', data: result.data.items } : { status: 'error', failure: result }
+  })
+  return { ...value, retry: () => setAttempt((n) => n + 1) }
+}
+
+/** Cartões ativos: destino de uma fatura (ADR-0009 §19). Arquivados não recebem lançamentos. */
+export function useCards() {
+  const [attempt, setAttempt] = useState(0)
+  const { value } = useKeyed<Card[]>(`cards#${attempt}`, async () => {
+    const result = await fetchCards()
+    return result.ok
+      ? { status: 'success', data: result.data.items.filter((card) => card.status === 'ACTIVE') }
+      : { status: 'error', failure: result }
   })
   return { ...value, retry: () => setAttempt((n) => n + 1) }
 }

@@ -556,16 +556,30 @@ export interface components {
       freshness: AnalysisFreshness
       months: AnalysisMonth[]
     }
+    /** Destino: conta ou cartão (ADR-0009 §19); exatamente um dos dois. */
     ImportResponse: {
       id: string
       workspaceId: string
-      accountId: string
+      accountId: string | null
+      cardId: string | null
       format: 'CSV' | 'OFX'
       status: 'PREVIEW' | 'CONFIRMED' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | 'EXPIRED'
       fileName: string
       fileSize: number
-      lines: { total: number; valid: number; invalid: number; duplicate: number; imported: number; categorized: number }
+      /** `skipped`: pagamentos no arquivo do cartão; `reconciled`: parcelas de compras já lançadas (§23/§26). */
+      lines: {
+        total: number
+        valid: number
+        invalid: number
+        duplicate: number
+        skipped: number
+        imported: number
+        reconciled: number
+        categorized: number
+      }
       period: { from: string; to: string } | null
+      /** Só o que o arquivo trouxe explicitamente (OFX `CCCLOSING`, §21). */
+      statement: { dueDate: string | null; minimumPayment: components['schemas']['MoneyDto'] | null } | null
       sameFileImportedBefore: boolean
       failureReason: string | null
       createdAt: string
@@ -582,13 +596,17 @@ export interface components {
     /** Linha do arquivo. Em INVALID só `lineNumber`, `status` e `issue` vêm preenchidos. */
     ImportRecordResponse: {
       lineNumber: number
-      status: 'VALID' | 'INVALID' | 'DUPLICATE' | 'IMPORTED'
+      status: 'VALID' | 'INVALID' | 'DUPLICATE' | 'SKIPPED' | 'IMPORTED' | 'RECONCILED'
       occurredOn: string | null
       amount: components['schemas']['MoneyDto'] | null
+      /** No cartão, INFLOW = crédito e OUTFLOW = compra. */
       direction: 'INFLOW' | 'OUTFLOW' | null
       description: string | null
       issue: { field: string; code: string } | null
       transactionId: string | null
+      /** Só em SKIPPED: `CARD_PAYMENT` (o pagamento é registrado pela conta). */
+      skipReason: string | null
+      installment: { number: number; count: number } | null
     }
     ImportRecordPageResponse: {
       items: components['schemas']['ImportRecordResponse'][]
@@ -622,6 +640,8 @@ export interface components {
       dueDay: number
       defaultPaymentAccountId: string | null
       status: 'ACTIVE' | 'ARCHIVED'
+      /** Vencimento (`YYYY-MM`) da primeira fatura acompanhada (ADR-0025 §15). */
+      trackingStartDueMonth: string
       createdAt: string
       updatedAt: string
     }
@@ -745,12 +765,20 @@ export interface components {
       calculationVersion: string
     }
     CardTransactionResponse: { transaction: components['schemas']['TransactionResponse'] }
+    /** "Marcar como pagamento de fatura" (ADR-0025 §7, adendo). */
+    CardPaymentReconciliationRequest: { transactionId: string }
+    CardPaymentReconciliationResponse: {
+      payment: components['schemas']['TransactionResponse']
+      /** true: vinculado a um pagamento já registrado, nada novo lançado. */
+      matchedExisting: boolean
+    }
     InstallmentItemResponse: {
       number: number
       dueMonth: string
       amount: components['schemas']['MoneyDto']
       cancelledAmount: components['schemas']['MoneyDto']
-      status: 'PAID' | 'CURRENT' | 'FUTURE' | 'CANCELLED'
+      /** BEFORE_TRACKING: fatura anterior ao início do acompanhamento (ADR-0025 §15). */
+      status: 'PAID' | 'CURRENT' | 'FUTURE' | 'CANCELLED' | 'BEFORE_TRACKING'
     }
     ReservedLimitResponse: { dueMonth: string; amount: components['schemas']['MoneyDto'] }
     /** Parcelamento de uma compra, com os estornos já aplicados (ADR-0025 §6/§8). */
@@ -1235,7 +1263,8 @@ export interface paths {
     }
     post: {
       parameters: {
-        query: { accountId: string }
+        /** Exatamente um: conta (extrato) ou cartão (fatura). */
+        query: { accountId?: string; cardId?: string }
         header: { 'Idempotency-Key': string }
         path: { workspaceId: string }
       }
@@ -1260,7 +1289,11 @@ export interface paths {
   '/api/v1/workspaces/{workspaceId}/imports/{importId}/records': {
     get: {
       parameters: {
-        query?: { status?: 'VALID' | 'INVALID' | 'DUPLICATE' | 'IMPORTED'; page?: number; pageSize?: number }
+        query?: {
+          status?: 'VALID' | 'INVALID' | 'DUPLICATE' | 'SKIPPED' | 'IMPORTED' | 'RECONCILED'
+          page?: number
+          pageSize?: number
+        }
         path: ImportPath
       }
       responses: {
@@ -1372,6 +1405,16 @@ export interface paths {
         200: { content: { 'application/json': components['schemas']['CardTransactionResponse'] } }
         201: { content: { 'application/json': components['schemas']['CardTransactionResponse'] } }
         422: { content: { 'application/json': components['schemas']['ApiError'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/payments/reconcile': {
+    post: {
+      parameters: { path: CardPath }
+      requestBody: { content: { 'application/json': components['schemas']['CardPaymentReconciliationRequest'] } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CardPaymentReconciliationResponse'] } }
+        201: { content: { 'application/json': components['schemas']['CardPaymentReconciliationResponse'] } }
       } & CardErrors
     }
   }

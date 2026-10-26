@@ -20,8 +20,10 @@ const FILE_REJECTION: Partial<Record<string, string>> = {
   MALFORMED_CSV: 'O CSV está malformado (há aspas sem fechamento).',
   INCONSISTENT_DECIMAL_SEPARATOR: 'Os valores misturam vírgula e ponto como separador decimal.',
   MALFORMED_OFX: 'O OFX está incompleto ou malformado.',
-  MULTIPLE_STATEMENTS: 'O OFX traz mais de uma conta. Exporte um arquivo por conta.',
-  UNSUPPORTED_STATEMENT_TYPE: 'Faturas de cartão ainda não podem ser importadas. Use o extrato da conta.',
+  MULTIPLE_STATEMENTS: 'O OFX traz mais de uma conta ou cartão. Exporte um arquivo por vez.',
+  UNSUPPORTED_STATEMENT_TYPE: 'Este tipo de extrato não pode ser importado.',
+  STATEMENT_TYPE_MISMATCH:
+    'O arquivo não combina com o destino: escolha um cartão para importar uma fatura e uma conta para um extrato.',
   UNSUPPORTED_CURRENCY: 'Só extratos em reais (BRL) podem ser importados.',
   FILE_TOO_LARGE: 'O arquivo passa de 10 MB.',
 }
@@ -33,6 +35,8 @@ export const fileRejectionMessage = (reason: string | undefined) =>
 const REQUEST_FAILURE: Partial<Record<string, string>> = {
   ACCOUNT_ARCHIVED: 'Esta conta está arquivada e não recebe movimentações.',
   ACCOUNT_NOT_FOUND: 'Esta conta não está mais disponível.',
+  CARD_ARCHIVED: 'Este cartão está arquivado e não recebe lançamentos.',
+  CARD_NOT_FOUND: 'Este cartão não está mais disponível.',
   IMPORT_NOT_FOUND: 'Não encontramos esta importação.',
   IMPORT_STATUS_CONFLICT: 'Esta importação não pode mais ser alterada. Atualize a página para ver o status.',
   IDEMPOTENCY_KEY_REUSED: 'Este envio já foi usado com outro arquivo. Selecione o arquivo de novo.',
@@ -54,6 +58,7 @@ const LINE_ISSUE: Partial<Record<string, string>> = {
   DESCRIPTION_REQUIRED: 'Sem descrição',
   INVALID_EXTERNAL_ID: 'Identificador inválido',
   COLUMN_COUNT_MISMATCH: 'Número de colunas diferente do cabeçalho',
+  INVALID_INSTALLMENT: 'Parcela inválida (use k/n, como 3/10)',
 }
 
 export const lineIssueMessage = (code: string | undefined) => lookup(LINE_ISSUE, code, 'Linha não reconhecida')
@@ -62,6 +67,8 @@ export const lineIssueMessage = (code: string | undefined) => lookup(LINE_ISSUE,
 const FAILURE_REASON: Partial<Record<string, string>> = {
   ACCOUNT_ARCHIVED: 'A conta foi arquivada antes do fim da importação. Reative a conta e envie o arquivo de novo.',
   ACCOUNT_NOT_FOUND: 'A conta não está mais disponível.',
+  CARD_ARCHIVED: 'O cartão foi arquivado antes do fim da importação. Reative o cartão e envie o arquivo de novo.',
+  CARD_NOT_FOUND: 'O cartão não está mais disponível.',
   PROCESSING_ERROR: 'Tivemos um problema ao gravar as movimentações. Nada foi importado; nossa equipe foi avisada.',
 }
 
@@ -73,9 +80,18 @@ const RECORD_STATUS_LABEL: Partial<Record<string, string>> = {
   IMPORTED: 'Importada',
   DUPLICATE: 'Já importada',
   INVALID: 'Com problema',
+  SKIPPED: 'Não importada',
+  RECONCILED: 'Já lançada',
 }
 
 export const recordStatusLabel = (status: string) => lookup(RECORD_STATUS_LABEL, status, 'Linha')
+
+/** Por que uma linha lida não vira transação (ADR-0009 §23). */
+const SKIP_REASON: Partial<Record<string, string>> = {
+  CARD_PAYMENT: 'Pagamento: registre pela conta',
+}
+
+export const skipReasonMessage = (reason: string | null | undefined) => lookup(SKIP_REASON, reason, 'Não importada')
 
 export const plural = (n: number, one: string, many: string) =>
   `${n.toLocaleString('pt-BR')} ${n === 1 ? one : many}`
