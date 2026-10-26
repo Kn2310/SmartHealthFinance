@@ -1,6 +1,7 @@
 package com.smarthealthfinance.ingestion.application.port;
 
 import com.smarthealthfinance.ingestion.domain.enums.ImportFormat;
+import com.smarthealthfinance.ingestion.domain.enums.StatementKind;
 import com.smarthealthfinance.ingestion.domain.model.ParsedStatement;
 
 /**
@@ -12,8 +13,9 @@ public interface StatementParser {
 
     /**
      * @param content bytes do arquivo enviado (já limitado em tamanho pela API)
+     * @param kind    conta ou cartão, pelo destino escolhido no upload (ADR-0009 §19)
      * @throws com.smarthealthfinance.ingestion.domain.exception.StatementRejectedException se o arquivo inteiro
      *         for inválido
      */
-    ParsedStatement parse(byte[] content);
+    ParsedStatement parse(byte[] content, StatementKind kind);
 }

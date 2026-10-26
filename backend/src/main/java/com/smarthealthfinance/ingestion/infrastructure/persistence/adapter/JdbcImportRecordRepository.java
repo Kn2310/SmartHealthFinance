@@ -8,6 +8,7 @@ import com.smarthealthfinance.ingestion.domain.model.StatementLine;
 import com.smarthealthfinance.ingestion.domain.repository.ImportRecordRepository;
 import com.smarthealthfinance.ingestion.domain.valueobject.DedupeKey;
 import com.smarthealthfinance.ingestion.domain.valueobject.ImportBatchId;
+import com.smarthealthfinance.ingestion.domain.valueobject.InstallmentMark;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -31,7 +32,7 @@ public class JdbcImportRecordRepository implements ImportRecordRepository {
 
     private static final String COLUMNS = """
             batch_id, line_number, status, occurred_on, amount, currency, description, external_id, dedupe_key,
-            issue_field, issue_code, transaction_id
+            issue_field, issue_code, transaction_id, skip_reason, installment_number, installment_count
             """;
 
     private static final RowMapper<ImportRecord> MAPPER = JdbcImportRecordRepository::map;
@@ -47,8 +48,9 @@ public class JdbcImportRecordRepository implements ImportRecordRepository {
         jdbc.batchUpdate("""
                         insert into import_records
                           (batch_id, workspace_id, line_number, status, occurred_on, amount, currency, description,
-                           external_id, dedupe_key, issue_field, issue_code, transaction_id)
-                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           external_id, dedupe_key, issue_field, issue_code, transaction_id, skip_reason,
+                           installment_number, installment_count)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                 records, JDBC_BATCH, (ps, record) -> {
                     StatementLine line = record.line();
@@ -66,6 +68,10 @@ public class JdbcImportRecordRepository implements ImportRecordRepository {
                     ps.setString(12, record.issue() == null ? null : record.issue().code());
                     ps.setObject(13, record.transactionId() == null ? null : record.transactionId().value(),
                             Types.OTHER);
+                    ps.setString(14, record.skipReason());
+                    InstallmentMark installment = record.installment();
+                    ps.setObject(15, installment == null ? null : installment.number(), Types.SMALLINT);
+                    ps.setObject(16, installment == null ? null : installment.count(), Types.SMALLINT);
                 });
     }
 
@@ -134,7 +140,11 @@ public class JdbcImportRecordRepository implements ImportRecordRepository {
         StatementLine line = new StatementLine(lineNumber, rs.getDate("occurred_on").toLocalDate(),
                 new Money(rs.getBigDecimal("amount"), Currency.getInstance(rs.getString("currency"))),
                 rs.getString("description"), rs.getString("external_id"));
+        int installmentNumber = rs.getInt("installment_number");
+        InstallmentMark installment = rs.wasNull() ? null
+                : new InstallmentMark(installmentNumber, rs.getInt("installment_count"));
         return new ImportRecord(batchId, lineNumber, status, line, new DedupeKey(rs.getString("dedupe_key")), null,
-                transactionId == null ? null : new TransactionId(transactionId));
+                transactionId == null ? null : new TransactionId(transactionId), rs.getString("skip_reason"),
+                installment);
     }
 }

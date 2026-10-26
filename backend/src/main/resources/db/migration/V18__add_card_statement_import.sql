@@ -27,6 +27,13 @@ alter table import_batches
   add column card_id uuid,
   add column skipped_lines integer not null default 0,
   add column reconciled_lines integer not null default 0,
+-- Dados da fatura só quando o OFX os traz explícitos (CCCLOSING, ADR-0009 §21); o arquivo não é guardado.
+  add column statement_due_date date,
+  add column statement_minimum_payment numeric(19, 4),
+  add constraint ck_import_batches_statement_closing check (
+    (statement_due_date is null and statement_minimum_payment is null) or card_id is not null),
+  add constraint ck_import_batches_statement_minimum check (
+    statement_minimum_payment is null or statement_minimum_payment >= 0),
   add constraint fk_import_batches_card foreign key (card_id, workspace_id) references credit_cards (id, workspace_id),
   add constraint ck_import_batches_destination check ((account_id is null) <> (card_id is null));
 

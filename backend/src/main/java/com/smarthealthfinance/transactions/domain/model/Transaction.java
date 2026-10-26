@@ -117,12 +117,14 @@ public class Transaction {
         if (category != null && categoryOrigin == null) {
             throw new IllegalArgumentException("Categoria sem origem");
         }
-        if (reclassifiedFromTransactionId != null && type != TransactionType.REFUND) {
-            throw new IllegalArgumentException("Só um reembolso substitui uma receita reclassificada");
+        // Reembolso no lugar de receita (ADR-0009 §9) ou pagamento de fatura no lugar de despesa (ADR-0025 §7).
+        if (reclassifiedFromTransactionId != null && type != TransactionType.REFUND
+                && type != TransactionType.TRANSFER) {
+            throw new IllegalArgumentException("Só um reembolso ou um pagamento de fatura substitui outro lançamento");
         }
-        if (reclassifiedAsTransactionId != null
-                && (type != TransactionType.INCOME || status != TransactionStatus.REVERSED)) {
-            throw new IllegalArgumentException("Só uma receita estornada é substituída por reembolso");
+        if (reclassifiedAsTransactionId != null && (status != TransactionStatus.REVERSED
+                || (type != TransactionType.INCOME && type != TransactionType.EXPENSE))) {
+            throw new IllegalArgumentException("Só uma receita ou despesa estornada é substituída");
         }
         this.reclassifiedFromTransactionId = reclassifiedFromTransactionId;
         this.reclassifiedAsTransactionId = reclassifiedAsTransactionId;
@@ -225,6 +227,44 @@ public class Transaction {
         return newFact(id, workspaceId, inflow ? TransactionType.INCOME : TransactionType.EXPENSE, accountId, null,
                 null, null, null, amount, occurredOn, description, TransactionStatus.POSTED, TransactionSource.IMPORT,
                 null, null, now);
+    }
+
+    /**
+     * Linha importada de uma fatura de cartão (ADR-0009 §23): compra ({@code EXPENSE}) ou crédito ({@code REFUND},
+     * sem vínculo), sempre POSTED. O cartão é validado pelo módulo Cards antes da criação.
+     *
+     * @param amount valor positivo da transação
+     * @param credit true para crédito na fatura
+     */
+    public static Transaction createImportedOnCard(
+            TransactionId id,
+            WorkspaceId workspaceId,
+            CardReference cardId,
+            boolean credit,
+            Money amount,
+            LocalDate occurredOn,
+            TransactionDescription description,
+            Instant now
+    ) {
+        Objects.requireNonNull(cardId, "cardId");
+        return newFact(id, workspaceId, credit ? TransactionType.REFUND : TransactionType.EXPENSE, null, null, cardId,
+                null, null, amount, occurredOn, description, TransactionStatus.POSTED, TransactionSource.IMPORT, null,
+                null, now);
+    }
+
+    /**
+     * Pagamento de fatura que substitui um débito importado na conta ("marcar como pagamento de fatura", ADR-0025 §7,
+     * adendo). Copia conta, valor, data, descrição e origem do fato do extrato; nasce POSTED. A despesa é estornada
+     * por {@link #reclassifyAsCardPayment} na mesma transação de banco.
+     */
+    public static Transaction cardPaymentReplacing(TransactionId id, Transaction expense, CardReference card,
+                                                   Instant now) {
+        Objects.requireNonNull(expense, "expense");
+        Objects.requireNonNull(card, "card");
+        expense.ensureCardPaymentReclassifiable();
+        return newFact(id, expense.workspaceId, TransactionType.TRANSFER, expense.accountId, null, null, card, null,
+                expense.amount, expense.occurredOn, expense.description, TransactionStatus.POSTED, expense.source,
+                null, expense.id, now);
     }
 
     /**
@@ -469,6 +509,33 @@ public class Transaction {
         }
         transition(TransactionStatus.POSTED, TransactionStatus.REVERSED, now);
         reclassifiedAsTransactionId = refund.id;
+    }
+
+    /**
+     * Estorna esta despesa importada porque ela era o pagamento da fatura de um cartão, apontando para a transferência
+     * que a substitui: a criada por {@link #cardPaymentReplacing} ou um pagamento manual já registrado (ADR-0025 §7,
+     * adendo). POSTED → REVERSED; o fato do extrato permanece para auditoria e para a deduplicação de reimportações.
+     */
+    public void reclassifyAsCardPayment(Transaction payment, Instant now) {
+        Objects.requireNonNull(payment, "payment");
+        ensureCardPaymentReclassifiable();
+        if (payment.type != TransactionType.TRANSFER || payment.destinationCardId == null
+                || payment.status != TransactionStatus.POSTED || !Objects.equals(accountId, payment.accountId)
+                || !amount.equals(payment.amount)) {
+            throw new IllegalArgumentException("O pagamento não corresponde a esta despesa");
+        }
+        transition(TransactionStatus.POSTED, TransactionStatus.REVERSED, now);
+        reclassifiedAsTransactionId = payment.id;
+    }
+
+    /** Só despesa importada e lançada numa conta pode virar pagamento de fatura (ADR-0025 §7, adendo). */
+    public void ensureCardPaymentReclassifiable() {
+        if (type != TransactionType.EXPENSE || source != TransactionSource.IMPORT || accountId == null) {
+            throw new InvalidValueException("transactionId", "NOT_RECLASSIFIABLE");
+        }
+        if (status != TransactionStatus.POSTED) {
+            throw new InvalidTransactionStatusTransitionException(id, status, TransactionStatus.REVERSED);
+        }
     }
 
     /**

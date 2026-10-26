@@ -1,13 +1,17 @@
 package com.smarthealthfinance.transactions.infrastructure.persistence.adapter;
 
+import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.CategoryNature;
 import com.smarthealthfinance.transactions.domain.enums.CategorySource;
+import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionCriteria;
 import com.smarthealthfinance.transactions.domain.repository.TransactionPage;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 import com.smarthealthfinance.transactions.infrastructure.persistence.entity.TransactionJpaEntity;
 import com.smarthealthfinance.transactions.infrastructure.persistence.repository.TransactionJpaRepository;
@@ -62,6 +66,16 @@ public class JpaTransactionRepository implements TransactionRepository {
     @Override
     public List<Transaction> findRefundsOf(WorkspaceId workspaceId, TransactionId originalId) {
         return jpa.findAllByWorkspaceIdAndRefundOfTransactionId(workspaceId.value(), originalId.value()).stream()
+                .map(TransactionJpaEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Transaction> findUnmatchedCardPayments(WorkspaceId workspaceId, AccountId accountId,
+                                                       CardReference card, Money amount, LocalDate from,
+                                                       LocalDate to) {
+        return jpa.findUnmatchedCardPayments(workspaceId.value(), accountId.value(), card.value(), amount.amount(),
+                        from, to, TransactionType.TRANSFER, TransactionStatus.POSTED).stream()
                 .map(TransactionJpaEntity::toDomain)
                 .toList();
     }

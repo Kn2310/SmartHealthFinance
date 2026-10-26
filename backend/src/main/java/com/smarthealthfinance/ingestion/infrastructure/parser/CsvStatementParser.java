@@ -2,10 +2,12 @@ package com.smarthealthfinance.ingestion.infrastructure.parser;
 
 import com.smarthealthfinance.ingestion.application.port.StatementParser;
 import com.smarthealthfinance.ingestion.domain.enums.ImportFormat;
+import com.smarthealthfinance.ingestion.domain.enums.StatementKind;
 import com.smarthealthfinance.ingestion.domain.exception.StatementRejectedException;
 import com.smarthealthfinance.ingestion.domain.model.LineIssue;
 import com.smarthealthfinance.ingestion.domain.model.ParsedStatement;
 import com.smarthealthfinance.ingestion.domain.model.StatementLine;
+import com.smarthealthfinance.ingestion.domain.valueobject.InstallmentMark;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
 import org.springframework.stereotype.Component;
@@ -29,7 +31,8 @@ import java.util.Optional;
  * <p>
  * Cabeçalho obrigatório com {@code data}, {@code descricao}, {@code valor} e, opcional, {@code id} (com sinônimos,
  * sem diferenciar maiúsculas/acentos, em qualquer ordem). Separador {@code ;}, {@code ,} ou tab detectado no
- * cabeçalho; aspas RFC 4180; valores na moeda da conta (BRL no MVP).
+ * cabeçalho; aspas RFC 4180; valores na moeda da conta (BRL no MVP). Na fatura de cartão o sinal é o das
+ * exportações de fatura (positivo = compra) e há a coluna opcional {@code parcela} (ADR-0009 §22).
  */
 @Component
 public class CsvStatementParser implements StatementParser {
@@ -44,7 +47,9 @@ public class CsvStatementParser implements StatementParser {
         DATE(true, "data", "date"),
         DESCRIPTION(true, "descricao", "description", "historico"),
         AMOUNT(true, "valor", "amount"),
-        ID(false, "id", "identificador", "fitid");
+        ID(false, "id", "identificador", "fitid"),
+        /** Só na fatura de cartão (ADR-0009 §22); no extrato de conta é uma coluna extra, ignorada. */
+        INSTALLMENT(false, "parcela", "parcelas", "installment");
 
         private final boolean required;
         private final List<String> names;
@@ -71,7 +76,7 @@ public class CsvStatementParser implements StatementParser {
     }
 
     @Override
-    public ParsedStatement parse(byte[] content) {
+    public ParsedStatement parse(byte[] content, StatementKind kind) {
         String text = StatementText.decode(content, null);
         char delimiter = detectDelimiter(firstNonBlankLine(text));
         List<CsvRecord> records = CsvRecord.read(text, delimiter);
@@ -97,7 +102,7 @@ public class CsvStatementParser implements StatementParser {
         List<LineIssue> issues = new ArrayList<>();
         for (CsvRecord row : rows) {
             try {
-                lines.add(toLine(row, header.fields().size(), columns, decimalStyle));
+                lines.add(toLine(row, header.fields().size(), columns, decimalStyle, kind));
             }
             catch (InvalidValueException invalid) {
                 issues.add(new LineIssue(row.lineNumber(), invalid.field(), invalid.reason()));
@@ -107,7 +112,7 @@ public class CsvStatementParser implements StatementParser {
     }
 
     private static StatementLine toLine(CsvRecord row, int headerSize, Map<Column, Integer> columns,
-                                        Optional<AmountText.DecimalStyle> decimalStyle) {
+                                        Optional<AmountText.DecimalStyle> decimalStyle, StatementKind kind) {
         List<String> fields = row.fields();
         // Separador sobrando no fim da linha é comum em exportações; campo extra com conteúdo não é.
         if (fields.size() < headerSize
@@ -119,8 +124,15 @@ public class CsvStatementParser implements StatementParser {
         BigDecimal amount = AmountText.parse(fields.get(columns.get(Column.AMOUNT)), decimalStyle);
         String externalId = Optional.ofNullable(columns.get(Column.ID)).map(fields::get).orElse(null);
 
-        return StatementLine.of(row.lineNumber(), occurredOn, new Money(amount, BRL),
-                fields.get(columns.get(Column.DESCRIPTION)), externalId);
+        if (kind == StatementKind.ACCOUNT) {
+            return StatementLine.of(row.lineNumber(), occurredOn, new Money(amount, BRL),
+                    fields.get(columns.get(Column.DESCRIPTION)), externalId);
+        }
+        // Fatura: positivo = compra no arquivo; por dentro, negativo = compra em qualquer formato (ADR-0009 §22).
+        InstallmentMark installment = Optional.ofNullable(columns.get(Column.INSTALLMENT)).map(fields::get)
+                .flatMap(InstallmentMark::parseColumn).orElse(null);
+        return StatementLine.of(row.lineNumber(), occurredOn, new Money(amount.negate(), BRL),
+                fields.get(columns.get(Column.DESCRIPTION)), externalId).withCardData(installment, null);
     }
 
     private static LocalDate parseDate(String raw) {

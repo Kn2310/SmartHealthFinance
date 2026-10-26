@@ -110,6 +110,16 @@ public class JdbcCardInvoiceRepository implements CardInvoiceRepository {
     }
 
     @Override
+    public void updateStatement(CardInvoice invoice) {
+        jdbc.update("""
+                update card_invoices set due_date = ?, dates_source = ?, minimum_payment = ?, updated_at = ?
+                where id = ? and workspace_id = ?""",
+                Date.valueOf(invoice.dates().dueDate()), invoice.dates().source().name(),
+                invoice.minimumPayment() == null ? null : invoice.minimumPayment().amount(),
+                Timestamp.from(clock.instant()), invoice.id().value(), invoice.workspaceId().value());
+    }
+
+    @Override
     public void deleteAll(List<CardInvoice> invoices) {
         for (CardInvoice invoice : invoices) {
             jdbc.update("delete from card_invoices where id = ? and workspace_id = ?", invoice.id().value(),

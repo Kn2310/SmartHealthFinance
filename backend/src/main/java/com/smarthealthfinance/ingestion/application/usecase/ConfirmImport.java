@@ -51,17 +51,18 @@ public class ConfirmImport {
         ImportBatch batch = access.requireBatchForUpdate(workspace, importId);
 
         if (!batch.status().wasConfirmed()) {
-            access.requireActiveAccount(workspace, batch.accountId());
+            access.requireAvailable(workspace, batch.destination());
         }
         if (batch.confirm(clock.instant())) {
             batches.save(batch);
             outbox.append(new IntegrationEvent(EVENT_TYPE, 1, workspace.value(), "ImportBatch", batch.id().value(),
                     null, Map.of("importId", batch.id().value().toString(),
-                            "accountId", batch.accountId().value().toString())));
+                            batch.destination().isCard() ? "cardId" : "accountId",
+                            batch.destination().id().toString())));
             log.info("Import confirmed importId={} workspaceId={} validLines={}", batch.id(), workspace,
                     batch.validLines());
         }
-        return ImportBatchView.from(batch, batches.existsCompletedWithFile(workspace, batch.accountId(),
+        return ImportBatchView.from(batch, batches.existsCompletedWithFile(workspace, batch.destination(),
                 batch.fileSha256(), batch.id()));
     }
 }

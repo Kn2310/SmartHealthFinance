@@ -26,7 +26,7 @@ public class GetImport {
     public ImportBatchView execute(UUID workspaceId, UUID importId) {
         WorkspaceId workspace = access.requireWorkspace(workspaceId);
         ImportBatch batch = access.requireBatch(workspace, importId);
-        return ImportBatchView.from(batch, batches.existsCompletedWithFile(workspace, batch.accountId(),
+        return ImportBatchView.from(batch, batches.existsCompletedWithFile(workspace, batch.destination(),
                 batch.fileSha256(), batch.id()));
     }
 }

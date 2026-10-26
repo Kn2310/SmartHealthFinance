@@ -193,6 +193,12 @@ public final class CardResponses {
     /** Pagamento de fatura (TRANSFER conta → cartão) ou estorno (REFUND no cartão). */
     public record CardTransactionResponse(TransactionResponse transaction) {}
 
+    /**
+     * @param payment         a transferência conta → cartão que agora representa o débito importado
+     * @param matchedExisting true quando o débito foi vinculado a um pagamento já registrado (nada novo foi lançado)
+     */
+    public record CardPaymentReconciliationResponse(TransactionResponse payment, boolean matchedExisting) {}
+
     /** @param amount parcela contratada; o que fica na fatura é {@code amount − cancelledAmount} */
     public record InstallmentItemResponse(int number, String dueMonth, MoneyDto amount, MoneyDto cancelledAmount,
                                           String status) {}

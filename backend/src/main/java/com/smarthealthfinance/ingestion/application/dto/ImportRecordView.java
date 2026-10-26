@@ -13,22 +13,29 @@ import java.util.UUID;
  * Linha do preview/resultado. Linhas INVALID trazem só a posição e o motivo.
  *
  * @param amount valor positivo, na escala de exibição da moeda (86.40)
- * @param inflow true para entrada (vira INCOME), false para saída (vira EXPENSE)
+ * @param inflow            true para entrada (vira INCOME; no cartão, crédito), false para saída (vira EXPENSE; no
+ *                          cartão, compra)
+ * @param skipReason        motivo de uma linha SKIPPED (ex.: {@code CARD_PAYMENT}, ADR-0009 §23)
+ * @param installmentNumber parcela k reconhecida numa fatura (§24), ou nulo
+ * @param installmentCount  total n de parcelas, ou nulo
  */
 public record ImportRecordView(int lineNumber, RecordStatus status, LocalDate occurredOn, BigDecimal amount,
                                String currency, Boolean inflow, String description, String issueField,
-                               String issueCode, UUID transactionId) {
+                               String issueCode, UUID transactionId, String skipReason,
+                               Integer installmentNumber, Integer installmentCount) {
 
     public static ImportRecordView from(ImportRecord record) {
         UUID transactionId = Optional.ofNullable(record.transactionId()).map(TransactionId::value).orElse(null);
         if (record.line() == null) {
             return new ImportRecordView(record.lineNumber(), record.status(), null, null, null, null, null,
-                    record.issue().field(), record.issue().code(), transactionId);
+                    record.issue().field(), record.issue().code(), transactionId, null, null, null);
         }
         var line = record.line();
         return new ImportRecordView(record.lineNumber(), record.status(), line.occurredOn(),
                 new BigDecimal(line.absoluteAmount().toPlainString()),
                 line.signedAmount().currency().getCurrencyCode(), line.isInflow(), line.description(), null, null,
-                transactionId);
+                transactionId, record.skipReason(),
+                record.installment() == null ? null : record.installment().number(),
+                record.installment() == null ? null : record.installment().count());
     }
 }

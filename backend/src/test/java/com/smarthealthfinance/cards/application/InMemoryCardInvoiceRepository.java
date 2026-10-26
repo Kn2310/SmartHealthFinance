@@ -53,6 +53,11 @@ public final class InMemoryCardInvoiceRepository implements CardInvoiceRepositor
     }
 
     @Override
+    public void updateStatement(CardInvoice invoice) {
+        invoices.computeIfPresent(invoice.id(), (id, current) -> invoice);
+    }
+
+    @Override
     public void deleteAll(List<CardInvoice> deleted) {
         deleted.forEach(invoice -> invoices.remove(invoice.id()));
     }

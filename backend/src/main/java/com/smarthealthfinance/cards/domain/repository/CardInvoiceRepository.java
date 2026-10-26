@@ -21,6 +21,9 @@ public interface CardInvoiceRepository {
     /** Atualiza só as datas (recálculo do ciclo das faturas não fechadas). */
     void updateDates(List<CardInvoice> invoices);
 
+    /** Vencimento, origem das datas e pagamento mínimo informados no arquivo (ADR-0009 §21). */
+    void updateStatement(CardInvoice invoice);
+
     /** Remove faturas não fechadas que ficaram sem parcelas depois de uma reatribuição. */
     void deleteAll(List<CardInvoice> invoices);
 

@@ -180,6 +180,20 @@ class ArchitectureTest {
 		.allowEmptyShould(true)
 		.because("Ingestion cria transações só pelo caso de uso de Transactions, nunca escrevendo na tabela (ADR-0009)");
 
+	// Fatura de cartão (adendo de 2026-10-23 ao ADR-0009 §20): identity → accounts → transactions → cards → ingestion.
+
+	@ArchTest
+	static final ArchRule ingestionUsesOnlyCardsUseCases = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.ingestion..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.cards.infrastructure..", "com.smarthealthfinance.cards.presentation..",
+				"com.smarthealthfinance.cards.application.service..", "com.smarthealthfinance.cards.application.port..",
+				"com.smarthealthfinance.cards.domain.repository..", "com.smarthealthfinance.cards.domain.model..")
+		.allowEmptyShould(true)
+		.because("a fatura importada vira compras e parcelas só pelo caso de uso de Cards, na mesma transação do batch; "
+				+ "o Ingestion conhece o cartão pelo id (ADR-0009 §20)");
+
 	// Analytics (ADR-0014) é read model downstream de tudo: lê Transactions/Accounts e consome eventos pelo nome.
 
 	@ArchTest
@@ -283,15 +297,16 @@ class ArchitectureTest {
 	@ArchTest
 	static final ArchRule nothingUpstreamDependsOnCards = noClasses().that()
 		.resideInAnyPackage("com.smarthealthfinance.identity..", "com.smarthealthfinance.accounts..",
-				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.ingestion..",
-				"com.smarthealthfinance.overview..", "com.smarthealthfinance.analytics..",
+				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.overview..",
+				"com.smarthealthfinance.analytics..",
 				"com.smarthealthfinance.health..", "com.smarthealthfinance.shared..")
 		.should()
 		.dependOnClassesThat()
 		.resideInAPackage("com.smarthealthfinance.cards..")
 		.allowEmptyShould(true)
 		.because("Cards conhece o cartão como referência; o núcleo não depende de Cards, e Overview, Analytics e "
-				+ "Health só passam a ler as portas de Cards na Sessão 6.2 (ADR-0025 §1, ADR-0026 §9)");
+				+ "Health só passam a ler as portas de Cards na Sessão 6.2 (ADR-0025 §1, ADR-0026 §9); a importação de "
+				+ "fatura usa Cards por regra própria (ADR-0009 §20)");
 
 	@ArchTest
 	static final ArchRule cardsOnlyUsesCorePortsAndDomain = noClasses().that()

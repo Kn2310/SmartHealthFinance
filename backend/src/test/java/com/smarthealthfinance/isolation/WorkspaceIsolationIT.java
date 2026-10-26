@@ -237,6 +237,13 @@ class WorkspaceIsolationIT extends IntegrationTest {
                     {"amount": {"amount": "1.00", "currency": "BRL"}, "occurredOn": "2026-09-22",
                      "description": "Invasora"}
                     """))),
+            op("cards: conciliar pagamento", HttpMethod.POST, CARD + "/payments/reconcile", f -> ids(f.card()),
+                    json(f -> """
+                            {"transactionId": "%s"}
+                            """.formatted(f.posted()))),
+            op("imports: upload de fatura", HttpMethod.POST, IMPORTS, f -> new Object[0],
+                    (request, f) -> request.multipart().file(statement()).param("cardId", f.card())
+                            .header("Idempotency-Key", newKey())),
             op("cards: parcelamentos", HttpMethod.GET, CARD + "/installments", f -> ids(f.card()), NONE),
             op("cards: parcelamento", HttpMethod.GET, CARD + "/installments/{transactionId}",
                     f -> ids(f.card(), f.purchase()), NONE));
@@ -354,6 +361,10 @@ class WorkspaceIsolationIT extends IntegrationTest {
             cross("imports: upload na conta alheia", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
                     (mvc, own, id) -> mvc.post().uri(IMPORTS, own.workspace()).multipart().file(statement())
                             .param("accountId", id).header("Idempotency-Key", newKey())),
+            // ADR-0009 §19: fatura num cartão alheio = cartão inexistente.
+            cross("imports: upload no cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.post().uri(IMPORTS, own.workspace()).multipart().file(statement())
+                            .param("cardId", id).header("Idempotency-Key", newKey())),
             cross("imports: consultar importação alheia", HttpStatus.NOT_FOUND, "IMPORT_NOT_FOUND", Fixture::importId,
                     (mvc, own, id) -> mvc.get().uri(IMPORT, own.workspace(), id)),
             cross("imports: linhas de importação alheia", HttpStatus.NOT_FOUND, "IMPORT_NOT_FOUND", Fixture::importId,
@@ -416,6 +427,17 @@ class WorkspaceIsolationIT extends IntegrationTest {
                             .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
                                     {"accountId": "%s", "amount": {"amount": "1.00", "currency": "BRL"},
                                      "occurredOn": "2026-09-22"}
+                                    """.formatted(id))),
+            // ADR-0025 §7 (adendo): conciliar em cartão alheio ou um débito alheio = inexistente.
+            cross("cards: conciliar pagamento no cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND",
+                    Fixture::card, (mvc, own, id) -> mvc.post().uri(CARD + "/payments/reconcile", own.workspace(), id)
+                            .contentType(MediaType.APPLICATION_JSON).content("""
+                                    {"transactionId": "%s"}
+                                    """.formatted(own.posted()))),
+            cross("cards: conciliar débito alheio", HttpStatus.NOT_FOUND, "TRANSACTION_NOT_FOUND", Fixture::posted,
+                    (mvc, own, id) -> mvc.post().uri(CARD + "/payments/reconcile", own.workspace(), own.card())
+                            .contentType(MediaType.APPLICATION_JSON).content("""
+                                    {"transactionId": "%s"}
                                     """.formatted(id))),
             cross("cards: estorno de compra alheia", HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", Fixture::purchase,
                     (mvc, own, id) -> mvc.post().uri(CARD + "/credits", own.workspace(), own.card())

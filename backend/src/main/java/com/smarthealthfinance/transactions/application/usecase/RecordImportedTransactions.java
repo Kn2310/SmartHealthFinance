@@ -9,6 +9,7 @@ import com.smarthealthfinance.transactions.application.service.AutoCategorizer;
 import com.smarthealthfinance.transactions.application.service.TransactionAccess;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
 import com.smarthealthfinance.transactions.domain.repository.TransactionRepository;
+import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionDescription;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 import org.slf4j.Logger;
@@ -21,6 +22,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Grava lançamentos lidos de extrato (ADR-0009 §1/§10/§12). É a única porta de escrita do Ingestion no
@@ -87,6 +89,39 @@ public class RecordImportedTransactions {
 
         log.info("Imported transactions recorded workspaceId={} accountId={} count={} categorized={}", workspace,
                 accountId, imported.size(), categorized);
+
+        return new Result(imported.size(), (int) categorized);
+    }
+
+    /**
+     * Linha de fatura de cartão já classificada pelo Ingestion e pelo Cards (ADR-0009 §23–§26).
+     *
+     * @param credit true para crédito (REFUND sem vínculo), false para compra (EXPENSE pelo total)
+     * @param amount valor positivo da transação
+     */
+    public record CardLine(TransactionId id, boolean credit, Money amount, LocalDate occurredOn, String description) {
+    }
+
+    /**
+     * Grava compras e créditos importados de uma fatura. O cartão é uma referência opaca: Cards já verificou que está
+     * ativo e no Workspace, e gera as parcelas na mesma transação de banco.
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Result executeOnCard(WorkspaceId workspace, UUID cardId, List<CardLine> lines) {
+        CardReference card = new CardReference(cardId);
+        Instant now = clock.instant();
+
+        AutoCategorizer.Session rules = categorizer.forWorkspace(workspace);
+        List<Transaction> imported = lines.stream().map(line -> Transaction.createImportedOnCard(line.id(), workspace,
+                card, line.credit(), line.amount(), line.occurredOn(), new TransactionDescription(line.description()),
+                now)).toList();
+
+        long categorized = imported.stream().filter(transaction -> rules.apply(transaction, now)).count();
+
+        transactions.addAll(imported);
+
+        log.info("Imported card transactions recorded workspaceId={} cardId={} count={} categorized={}", workspace,
+                cardId, imported.size(), categorized);
 
         return new Result(imported.size(), (int) categorized);
     }

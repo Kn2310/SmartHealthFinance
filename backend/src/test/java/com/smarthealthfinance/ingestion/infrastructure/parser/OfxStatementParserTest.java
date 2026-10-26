@@ -1,6 +1,7 @@
 package com.smarthealthfinance.ingestion.infrastructure.parser;
 
 import com.smarthealthfinance.ingestion.domain.enums.ImportFormat;
+import com.smarthealthfinance.ingestion.domain.enums.StatementKind;
 import com.smarthealthfinance.ingestion.domain.exception.StatementRejectedException;
 import com.smarthealthfinance.ingestion.domain.model.LineIssue;
 import com.smarthealthfinance.ingestion.domain.model.ParsedStatement;
@@ -55,7 +56,7 @@ class OfxStatementParserTest {
                 </STMTTRN>
                 """);
 
-        ParsedStatement statement = parser.parse(ofx.getBytes(StatementText.WINDOWS_1252));
+        ParsedStatement statement = parser.parse(ofx.getBytes(StatementText.WINDOWS_1252), StatementKind.ACCOUNT);
 
         assertThat(statement.format()).isEqualTo(ImportFormat.OFX);
         assertThat(statement.issues()).isEmpty();
@@ -78,7 +79,7 @@ class OfxStatementParserTest {
                 </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>
                 """;
 
-        ParsedStatement statement = parser.parse(ofx.getBytes(StandardCharsets.UTF_8));
+        ParsedStatement statement = parser.parse(ofx.getBytes(StandardCharsets.UTF_8), StatementKind.ACCOUNT);
 
         // NAME e MEMO iguais não se repetem; entidades XML são decodificadas.
         assertThat(statement.lines()).singleElement().satisfies(line -> {
@@ -93,7 +94,7 @@ class OfxStatementParserTest {
                 <STMTTRN><DTPOSTED>20260921<TRNAMT>-12,90<FITID>t1<MEMO>Tarifa pacote serviços</STMTTRN>
                 """);
 
-        ParsedStatement statement = parser.parse(ofx.getBytes(StandardCharsets.UTF_8));
+        ParsedStatement statement = parser.parse(ofx.getBytes(StandardCharsets.UTF_8), StatementKind.ACCOUNT);
 
         assertThat(statement.lines()).singleElement().satisfies(line -> {
             assertThat(line.signedAmount()).isEqualTo(Money.of("-12.90", BRL));
@@ -133,14 +134,15 @@ class OfxStatementParserTest {
     }
 
     @Test
-    void rejectsCreditCardStatement() {
+    void rejectsCreditCardStatementForAnAccount() {
         String ofx = SGML_HEADER + """
                 <OFX><CREDITCARDMSGSRSV1><CCSTMTTRNRS><CCSTMTRS><CURDEF>BRL
                 <BANKTRANLIST><STMTTRN><DTPOSTED>20260921<TRNAMT>-1.00<MEMO>Loja</STMTTRN></BANKTRANLIST>
                 </CCSTMTRS></CCSTMTTRNRS></CREDITCARDMSGSRSV1></OFX>
                 """;
 
-        assertRejected(ofx, "UNSUPPORTED_STATEMENT_TYPE");
+        // Fatura de cartão só com destino cartão (ADR-0009 §21).
+        assertRejected(ofx, "STATEMENT_TYPE_MISMATCH");
     }
 
     @Test
@@ -216,7 +218,7 @@ class OfxStatementParserTest {
     }
 
     private ParsedStatement parse(String ofx) {
-        return parser.parse(ofx.getBytes(StandardCharsets.UTF_8));
+        return parser.parse(ofx.getBytes(StandardCharsets.UTF_8), StatementKind.ACCOUNT);
     }
 
     private void assertRejected(String ofx, String reason) {

@@ -57,8 +57,9 @@ public final class IngestionTestContext {
     public final ProcessedEvents inbox = (consumer, eventId) -> processedEvents.add(consumer + "/" + eventId);
     public final TransactionTemplate transactions = new TransactionTemplate(new NoOpTransactionManager());
 
+    // Sem Cards: a fatura de cartão depende do razão real e é coberta pelos ITs (CardStatementImportIT).
     public final ImportAccess access = new ImportAccess(core.currentUserService,
-            new WorkspaceAccessGuard(core.workspaces), batches, core.accounts);
+            new WorkspaceAccessGuard(core.workspaces), batches, core.accounts, null);
     public final StatementFiles files = new StatementFiles(List.of(new CsvStatementParser(),
             new OfxStatementParser()));
 
@@ -68,8 +69,8 @@ public final class IngestionTestContext {
     public final ListImports list = new ListImports(access, batches);
     public final ListImportRecords listRecords = new ListImportRecords(access, records);
     public final ProcessImport process = new ProcessImport(access, batches, records, keys,
-            new RecordImportedTransactions(core.access, core.transactions, core.categorizer, clock), inbox, outbox, transactions,
-            clock);
+            new RecordImportedTransactions(core.access, core.transactions, core.categorizer, clock), null, inbox, outbox,
+            transactions, clock);
     public final FailImport fail = new FailImport(batches, clock);
     public final ExpireImportPreviews expire = new ExpireImportPreviews(batches, records, clock);
 
@@ -78,7 +79,7 @@ public final class IngestionTestContext {
     }
 
     public UploadStatement.Command csv(String key, UUID accountId, String content) {
-        return new UploadStatement.Command(key, accountId, "extrato.csv", content.getBytes(StandardCharsets.UTF_8));
+        return new UploadStatement.Command(key, accountId, null, "extrato.csv", content.getBytes(StandardCharsets.UTF_8));
     }
 
     public void advance(Duration duration) {

@@ -1,19 +1,24 @@
 package com.smarthealthfinance.ingestion.infrastructure.persistence.adapter;
 
-import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
+import com.smarthealthfinance.identity.domain.model.Workspace;
 import com.smarthealthfinance.identity.domain.valueobject.UserId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.ingestion.domain.enums.ImportFormat;
 import com.smarthealthfinance.ingestion.domain.enums.ImportStatus;
+import com.smarthealthfinance.ingestion.domain.enums.StatementKind;
 import com.smarthealthfinance.ingestion.domain.model.ImportBatch;
+import com.smarthealthfinance.ingestion.domain.model.ParsedStatement.StatementClosing;
 import com.smarthealthfinance.ingestion.domain.repository.ImportBatchRepository;
 import com.smarthealthfinance.ingestion.domain.valueobject.ImportBatchId;
+import com.smarthealthfinance.ingestion.domain.valueobject.ImportDestination;
+import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.valueobject.IdempotencyKey;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -33,9 +38,10 @@ import java.util.UUID;
 public class JdbcImportBatchRepository implements ImportBatchRepository {
 
     private static final String COLUMNS = """
-            id, workspace_id, account_id, created_by, format, status, file_name, file_size, file_sha256,
-            idempotency_key, request_hash, total_lines, valid_lines, invalid_lines, duplicate_lines, imported_lines,
-            categorized_lines, first_date, last_date, failure_reason, created_at, updated_at, confirmed_at, completed_at, version
+            id, workspace_id, account_id, card_id, created_by, format, status, file_name, file_size, file_sha256,
+            idempotency_key, request_hash, total_lines, valid_lines, invalid_lines, duplicate_lines, skipped_lines,
+            imported_lines, reconciled_lines, categorized_lines, first_date, last_date, statement_due_date,
+            statement_minimum_payment, failure_reason, created_at, updated_at, confirmed_at, completed_at, version
             """;
 
     private static final RowMapper<ImportBatch> MAPPER = JdbcImportBatchRepository::map;
@@ -66,16 +72,21 @@ public class JdbcImportBatchRepository implements ImportBatchRepository {
 
     @Override
     public boolean add(ImportBatch batch) {
+        ImportDestination destination = batch.destination();
+        Optional<StatementClosing> closing = batch.closing();
         return jdbc.update("insert into import_batches (" + COLUMNS + """
-                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         on conflict (workspace_id, idempotency_key) do nothing
                         """,
-                batch.id().value(), batch.workspaceId().value(), batch.accountId().value(), batch.createdBy().value(),
-                batch.format().name(), batch.status().name(), batch.fileName(), batch.fileSize(), batch.fileSha256(),
+                batch.id().value(), batch.workspaceId().value(), destination.isCard() ? null : destination.id(),
+                destination.isCard() ? destination.id() : null, batch.createdBy().value(), batch.format().name(),
+                batch.status().name(), batch.fileName(), batch.fileSize(), batch.fileSha256(),
                 batch.idempotencyKey().value(), batch.requestHash(), batch.totalLines(), batch.validLines(),
-                batch.invalidLines(), batch.duplicateLines(), batch.importedLines(), batch.categorizedLines(),
-                date(batch.firstDate()),
-                date(batch.lastDate()), batch.failureReason().orElse(null), Timestamp.from(batch.createdAt()),
+                batch.invalidLines(), batch.duplicateLines(), batch.skippedLines(), batch.importedLines(),
+                batch.reconciledLines(), batch.categorizedLines(), date(batch.firstDate()), date(batch.lastDate()),
+                date(closing.map(StatementClosing::dueDate)),
+                closing.map(StatementClosing::minimumPayment).map(Money::amount).orElse(null),
+                batch.failureReason().orElse(null), Timestamp.from(batch.createdAt()),
                 Timestamp.from(batch.updatedAt()), timestamp(batch.confirmedAt()), timestamp(batch.completedAt()),
                 batch.version()) == 1;
     }
@@ -84,13 +95,15 @@ public class JdbcImportBatchRepository implements ImportBatchRepository {
     public void save(ImportBatch batch) {
         int updated = jdbc.update("""
                         update import_batches
-                        set status = ?, valid_lines = ?, duplicate_lines = ?, imported_lines = ?, categorized_lines = ?, failure_reason = ?,
-                            updated_at = ?, confirmed_at = ?, completed_at = ?, version = version + 1
+                        set status = ?, valid_lines = ?, duplicate_lines = ?, imported_lines = ?, reconciled_lines = ?,
+                            categorized_lines = ?, failure_reason = ?, updated_at = ?, confirmed_at = ?,
+                            completed_at = ?, version = version + 1
                         where id = ? and workspace_id = ? and version = ?
                         """,
                 batch.status().name(), batch.validLines(), batch.duplicateLines(), batch.importedLines(),
-                batch.categorizedLines(), batch.failureReason().orElse(null), Timestamp.from(batch.updatedAt()), timestamp(batch.confirmedAt()),
-                timestamp(batch.completedAt()), batch.id().value(), batch.workspaceId().value(), batch.version());
+                batch.reconciledLines(), batch.categorizedLines(), batch.failureReason().orElse(null),
+                Timestamp.from(batch.updatedAt()), timestamp(batch.confirmedAt()), timestamp(batch.completedAt()),
+                batch.id().value(), batch.workspaceId().value(), batch.version());
         if (updated != 1) {
             throw new OptimisticLockingFailureException("Import batch changed concurrently: " + batch.id());
         }
@@ -120,22 +133,30 @@ public class JdbcImportBatchRepository implements ImportBatchRepository {
     }
 
     @Override
-    public boolean existsCompletedWithFile(WorkspaceId workspaceId, AccountId accountId, String fileSha256,
+    public boolean existsCompletedWithFile(WorkspaceId workspaceId, ImportDestination destination, String fileSha256,
                                            ImportBatchId except) {
+        String column = destination.isCard() ? "card_id" : "account_id";
         return Boolean.TRUE.equals(jdbc.queryForObject("""
                         select exists (
                           select 1 from import_batches
-                          where workspace_id = ? and account_id = ? and file_sha256 = ? and status = 'COMPLETED'
+                          where workspace_id = ? and %s = ? and file_sha256 = ? and status = 'COMPLETED'
                             and id <> ?)
-                        """,
-                Boolean.class, workspaceId.value(), accountId.value(), fileSha256, except.value()));
+                        """.formatted(column),
+                Boolean.class, workspaceId.value(), destination.id(), fileSha256, except.value()));
     }
 
     private static ImportBatch map(ResultSet rs, int row) throws SQLException {
+        UUID cardId = rs.getObject("card_id", UUID.class);
+        ImportDestination destination = cardId != null ? ImportDestination.card(cardId)
+                : new ImportDestination(StatementKind.ACCOUNT, rs.getObject("account_id", UUID.class));
+        LocalDate dueDate = localDate(rs.getDate("statement_due_date"));
+        BigDecimal minimum = rs.getBigDecimal("statement_minimum_payment");
+        StatementClosing closing = dueDate == null && minimum == null ? null : new StatementClosing(dueDate,
+                minimum == null ? null : new Money(minimum, Workspace.DEFAULT_BASE_CURRENCY));
         return ImportBatch.restore(
                 new ImportBatchId(rs.getObject("id", UUID.class)),
                 new WorkspaceId(rs.getObject("workspace_id", UUID.class)),
-                new AccountId(rs.getObject("account_id", UUID.class)),
+                destination,
                 new UserId(rs.getObject("created_by", UUID.class)),
                 ImportFormat.valueOf(rs.getString("format")),
                 ImportStatus.valueOf(rs.getString("status")),
@@ -144,14 +165,12 @@ public class JdbcImportBatchRepository implements ImportBatchRepository {
                 rs.getString("file_sha256"),
                 new IdempotencyKey(rs.getString("idempotency_key")),
                 rs.getString("request_hash"),
-                rs.getInt("total_lines"),
-                rs.getInt("valid_lines"),
-                rs.getInt("invalid_lines"),
-                rs.getInt("duplicate_lines"),
-                rs.getInt("imported_lines"),
-                rs.getInt("categorized_lines"),
+                new ImportBatch.Counts(rs.getInt("total_lines"), rs.getInt("valid_lines"),
+                        rs.getInt("invalid_lines"), rs.getInt("duplicate_lines"), rs.getInt("skipped_lines"),
+                        rs.getInt("imported_lines"), rs.getInt("reconciled_lines"), rs.getInt("categorized_lines")),
                 localDate(rs.getDate("first_date")),
                 localDate(rs.getDate("last_date")),
+                closing,
                 rs.getString("failure_reason"),
                 rs.getTimestamp("created_at").toInstant(),
                 rs.getTimestamp("updated_at").toInstant(),

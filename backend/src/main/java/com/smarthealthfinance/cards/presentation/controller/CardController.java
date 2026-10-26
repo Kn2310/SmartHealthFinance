@@ -17,12 +17,15 @@ import com.smarthealthfinance.cards.application.usecase.ReactivateCard;
 import com.smarthealthfinance.cards.application.usecase.RecordCardCredit;
 import com.smarthealthfinance.cards.application.usecase.RecordCardPayment;
 import com.smarthealthfinance.cards.application.usecase.RecordCardPurchase;
+import com.smarthealthfinance.cards.application.usecase.ReconcileCardPayment;
 import com.smarthealthfinance.cards.application.usecase.UpdateCard;
 import com.smarthealthfinance.cards.presentation.dto.request.CardCreditRequest;
+import com.smarthealthfinance.cards.presentation.dto.request.CardPaymentReconciliationRequest;
 import com.smarthealthfinance.cards.presentation.dto.request.CardPaymentRequest;
 import com.smarthealthfinance.cards.presentation.dto.request.CardPurchaseRequest;
 import com.smarthealthfinance.cards.presentation.dto.request.CardRequest;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardListResponse;
+import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardPaymentReconciliationResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardPurchaseResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.CardTransactionResponse;
@@ -36,6 +39,7 @@ import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.Invo
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.UtilizationResponse;
 import com.smarthealthfinance.shared.presentation.error.ApiError;
 import com.smarthealthfinance.transactions.application.usecase.CreateTransaction;
+import com.smarthealthfinance.transactions.application.usecase.ReclassifyAsCardPayment;
 import com.smarthealthfinance.transactions.presentation.dto.response.TransactionResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -75,13 +79,16 @@ public class CardController {
     private final RecordCardPayment recordPayment;
     private final RecordCardCredit recordCredit;
     private final GetInstallmentPlans installmentPlans;
+    private final ReconcileCardPayment reconcilePayment;
 
     public CardController(ListCards listCards, GetCard getCard, CreateCard createCard, UpdateCard updateCard,
                           ArchiveCard archiveCard, ReactivateCard reactivateCard, GetCardsSummary getSummary,
                           ListInvoices listInvoices, GetInvoice getInvoice, ListInvoiceItems listItems,
                           GetFutureInvoices getFuture, GetCardUtilization getUtilization,
                           RecordCardPurchase recordPurchase, RecordCardPayment recordPayment,
-                          RecordCardCredit recordCredit, GetInstallmentPlans installmentPlans) {
+                          RecordCardCredit recordCredit, GetInstallmentPlans installmentPlans,
+                          ReconcileCardPayment reconcilePayment) {
+        this.reconcilePayment = reconcilePayment;
         this.recordPurchase = recordPurchase;
         this.recordPayment = recordPayment;
         this.recordCredit = recordCredit;
@@ -315,6 +322,30 @@ public class CardController {
                 idempotencyKey, request.amount().amount(), request.amount().currency(), request.occurredOn(),
                 request.description(), request.refundOfTransactionId()));
         return transactionResult(workspaceId, result);
+    }
+
+    @PostMapping("/{cardId}/payments/reconcile")
+    @Operation(summary = "Marca um débito importado na conta como pagamento da fatura deste cartão (idempotente)")
+    @ApiResponse(responseCode = "201", description = "Despesa estornada e transferência para o cartão criada")
+    @ApiResponse(responseCode = "200",
+            description = "Despesa vinculada a um pagamento já registrado (matchedExisting) ou replay")
+    @ApiResponse(responseCode = "400",
+            description = "VALIDATION_FAILED (transactionId NOT_RECLASSIFIABLE ou ALREADY_RECLASSIFIED)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND, CARD_NOT_FOUND ou TRANSACTION_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "409",
+            description = "CARD_ARCHIVED, ACCOUNT_ARCHIVED ou TRANSACTION_STATUS_CONFLICT (despesa não lançada)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public ResponseEntity<CardPaymentReconciliationResponse> reconcilePayment(
+            @PathVariable UUID workspaceId, @PathVariable UUID cardId,
+            @Valid @RequestBody CardPaymentReconciliationRequest request) {
+        ReclassifyAsCardPayment.Result result = reconcilePayment.execute(workspaceId, cardId,
+                request.transactionId());
+        CardPaymentReconciliationResponse body = new CardPaymentReconciliationResponse(
+                TransactionResponse.from(result.payment()), result.matchedExisting());
+        return result.replayed() || result.matchedExisting() ? ResponseEntity.ok(body)
+                : created(workspaceId, result.payment().id(), body);
     }
 
     @GetMapping("/{cardId}/installments")
