@@ -186,6 +186,42 @@ class CardTransactionsApiIT extends IntegrationTest {
         assertThat(output).contains("Card purchase recorded").doesNotContain("987.65", "Compra secreta");
     }
 
+    @Test
+    void overviewShowsTheInvoicesToPayApartFromTheBalance() throws Exception {
+        assertThat(purchase(key(), "300.00", 3)).hasStatus(HttpStatus.CREATED);
+        MvcTestResult current = get(CARD + "/invoices/current");
+        String closingDate = read(current, "$.closingDate");
+        String dueDate = read(current, "$.dueDate");
+        MvcTestResult summary = mvc.get().uri(WS + "/cards/summary", workspace).with(ana()).exchange();
+
+        // ADR-0006 §18: a dívida fica em "cards", o saldo total continua só das contas, e o bloco não depende do
+        // período pedido.
+        for (String period : new String[] {"", "?period=PREVIOUS_MONTH"}) {
+            assertThat(mvc.get().uri(WS + "/overview" + period, workspace).with(ana())).hasStatus(HttpStatus.OK)
+                    .bodyJson()
+                    .hasPathSatisfying("$.summary.totalBalance.amount", a -> assertThat(a).asString()
+                            .isEqualTo("5000.00"))
+                    .hasPathSatisfying("$.cards.activeCards", n -> assertThat(n).asNumber().isEqualTo(1))
+                    .hasPathSatisfying("$.cards.openInvoices.amount", a -> assertThat(a).asString()
+                            .isEqualTo(read(summary, "$.openInvoices.amount").toString()).isEqualTo("100.00"))
+                    .hasPathSatisfying("$.cards.nextDue.date", d -> assertThat(d).asString()
+                            .isEqualTo(read(summary, "$.nextDueDate").toString()).isEqualTo(dueDate))
+                    .hasPathSatisfying("$.cards.upcomingEvents[0].kind", k -> assertThat(k).asString()
+                            .isEqualTo("INVOICE_CLOSING"))
+                    .hasPathSatisfying("$.cards.upcomingEvents[0].date", d -> assertThat(d).asString()
+                            .isEqualTo(closingDate))
+                    .hasPathSatisfying("$.cards.upcomingEvents[0].status", s -> assertThat(s).asString()
+                            .isEqualTo("PARTIAL"))
+                    .hasPathSatisfying("$.cards.upcomingEvents[0].amount.amount", a -> assertThat(a).asString()
+                            .isEqualTo("100.00"))
+                    .hasPathSatisfying("$.cards.upcomingEvents[0].card.last4", l -> assertThat(l).asString()
+                            .isEqualTo("4821"))
+                    .hasPathSatisfying("$.cards.asOf", d -> assertThat(d).asString().isEqualTo(today))
+                    .hasPathSatisfying("$.cards.calculationVersion", v -> assertThat(v).asString()
+                            .isEqualTo("invoice-v2"));
+        }
+    }
+
     private void assertOverview(String balance, String expense, int transfers) {
         assertThat(mvc.get().uri(WS + "/overview", workspace).with(ana())).hasStatus(HttpStatus.OK).bodyJson()
                 .hasPathSatisfying("$.summary.totalBalance.amount", a -> assertThat(a).asString().isEqualTo(balance))

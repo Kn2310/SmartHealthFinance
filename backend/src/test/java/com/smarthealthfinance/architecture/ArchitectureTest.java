@@ -297,16 +297,28 @@ class ArchitectureTest {
 	@ArchTest
 	static final ArchRule nothingUpstreamDependsOnCards = noClasses().that()
 		.resideInAnyPackage("com.smarthealthfinance.identity..", "com.smarthealthfinance.accounts..",
-				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.overview..",
-				"com.smarthealthfinance.analytics..",
-				"com.smarthealthfinance.health..", "com.smarthealthfinance.shared..")
+				"com.smarthealthfinance.transactions..", "com.smarthealthfinance.analytics..",
+				"com.smarthealthfinance.shared..")
 		.should()
 		.dependOnClassesThat()
 		.resideInAPackage("com.smarthealthfinance.cards..")
 		.allowEmptyShould(true)
-		.because("Cards conhece o cartão como referência; o núcleo não depende de Cards, e Overview, Analytics e "
-				+ "Health só passam a ler as portas de Cards na Sessão 6.2 (ADR-0025 §1, ADR-0026 §9); a importação de "
-				+ "fatura usa Cards por regra própria (ADR-0009 §20)");
+		.because("Cards conhece o cartão como referência; o núcleo e o Analytics não dependem de Cards (ADR-0025 §1, "
+				+ "ADR-0026 §9); a importação de fatura usa Cards por regra própria (ADR-0009 §20)");
+
+	@ArchTest
+	static final ArchRule readModelsOnlyReadTheCardPortfolio = noClasses().that()
+		.resideInAnyPackage("com.smarthealthfinance.overview..", "com.smarthealthfinance.health..",
+				"com.smarthealthfinance.insights..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.cards.application.usecase..",
+				"com.smarthealthfinance.cards.application.service..", "com.smarthealthfinance.cards.application.dto..",
+				"com.smarthealthfinance.cards.application.exception..", "com.smarthealthfinance.cards.infrastructure..",
+				"com.smarthealthfinance.cards.presentation..")
+		.allowEmptyShould(true)
+		.because("Overview, Health e Insights leem os cartões só pela porta CardPortfolio e pelos modelos de "
+				+ "domínio de Cards, nunca por casos de uso, serviços ou adapters (ADR-0006 §18, ADR-0027 §1)");
 
 	@ArchTest
 	static final ArchRule cardsOnlyUsesCorePortsAndDomain = noClasses().that()
