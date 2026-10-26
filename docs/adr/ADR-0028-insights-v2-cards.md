@@ -123,7 +123,7 @@ Home. O ADR-0027 criou a porta `CardPortfolio`, que dá a posição dos cartões
   muda (o campo já existia).
 - `typeLabel` "Cartões".
 - "O que mudou?" inclui D11 e D12 (adendo ao ADR-0023 §5).
-- Frontend: chip habilitado. `RECORD_CARD_PAYMENT` leva a `/transactions/new?kind=card-payment&cardId=`.
+- Frontend: chip habilitado. `RECORD_CARD_PAYMENT` leva a `/transactions/new?type=CARD_PAYMENT&cardId=`.
   `VIEW_CARD` e `VIEW_INVOICE` aparecem desabilitados com "Em breve" até as rotas `/cards/...` da Parte F (adendo ao
   ADR-0024).
 

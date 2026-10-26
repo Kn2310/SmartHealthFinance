@@ -1370,6 +1370,10 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "activeCards" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
           "sources" : {
             "items" : {
               "type" : "string"
@@ -1658,6 +1662,10 @@
         "properties" : {
           "amount" : {
             "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "cardId" : {
+            "format" : "uuid",
+            "type" : "string"
           },
           "categoryCode" : {
             "type" : "string"
@@ -2582,6 +2590,46 @@
         },
         "type" : "object"
       },
+      "InvoicesNextDue" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "InvoicesToPay" : {
+        "properties" : {
+          "activeCards" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "calculationVersion" : {
+            "type" : "string"
+          },
+          "nextDue" : {
+            "$ref" : "#/components/schemas/InvoicesNextDue"
+          },
+          "openInvoices" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "upcomingEvents" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UpcomingInvoiceEvent"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "Lines" : {
         "properties" : {
           "categorized" : {
@@ -2649,6 +2697,9 @@
               "$ref" : "#/components/schemas/AccountSummary"
             },
             "type" : "array"
+          },
+          "cards" : {
+            "$ref" : "#/components/schemas/InvoicesToPay"
           },
           "cashFlow" : {
             "$ref" : "#/components/schemas/CashFlow"
@@ -2970,6 +3021,30 @@
           },
           "volume" : {
             "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "UpcomingInvoiceEvent" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "card" : {
+            "$ref" : "#/components/schemas/CardRef"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "dueMonth" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "status" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -5968,7 +6043,7 @@
             "type" : "string"
           }
         }, {
-          "description" : "SPENDING, INCOME, HEALTH ou CARDS (vazio até o M8)",
+          "description" : "SPENDING, INCOME, HEALTH ou CARDS",
           "in" : "query",
           "name" : "type",
           "required" : false,

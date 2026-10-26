@@ -190,19 +190,19 @@ class CardTransactionsApiIT extends IntegrationTest {
     void overviewShowsTheInvoicesToPayApartFromTheBalance() throws Exception {
         assertThat(purchase(key(), "300.00", 3)).hasStatus(HttpStatus.CREATED);
         MvcTestResult current = get(CARD + "/invoices/current");
-        String closingDate = read(current, "$.closingDate");
-        String dueDate = read(current, "$.dueDate");
+        String closingDate = read(current, "$.invoice.closingDate");
+        String dueDate = read(current, "$.invoice.dueDate");
         MvcTestResult summary = mvc.get().uri(WS + "/cards/summary", workspace).with(ana()).exchange();
         String summaryOpen = read(summary, "$.openInvoices.amount").toString();
         String summaryNextDue = read(summary, "$.nextDueDate").toString();
 
         // ADR-0006 §18: a dívida fica em "cards", o saldo total continua só das contas, e o bloco não depende do
         // período pedido.
+        assertThat(mvc.get().uri(WS + "/overview", workspace).with(ana())).hasStatus(HttpStatus.OK).bodyJson()
+                .hasPathSatisfying("$.summary.totalBalance.amount", a -> assertThat(a).asString().isEqualTo("5000.00"));
         for (String period : new String[] {"", "?period=PREVIOUS_MONTH"}) {
             assertThat(mvc.get().uri(WS + "/overview" + period, workspace).with(ana())).hasStatus(HttpStatus.OK)
                     .bodyJson()
-                    .hasPathSatisfying("$.summary.totalBalance.amount", a -> assertThat(a).asString()
-                            .isEqualTo("5000.00"))
                     .hasPathSatisfying("$.cards.activeCards", n -> assertThat(n).asNumber().isEqualTo(1))
                     .hasPathSatisfying("$.cards.openInvoices.amount", a -> assertThat(a).asString()
                             .isEqualTo(summaryOpen).isEqualTo("100.00"))

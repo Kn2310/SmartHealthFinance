@@ -16,7 +16,7 @@ import java.util.UUID;
  */
 public record OverviewResponse(UUID workspaceId, Period period, String state, Summary summary, CashFlow cashFlow,
                                List<AccountSummary> accounts, List<RecentTransaction> recentTransactions,
-                               Cards cards) {
+                               InvoicesToPay cards) {
 
     public record Period(String type, LocalDate from, LocalDate to) {}
 
@@ -50,18 +50,19 @@ public record OverviewResponse(UUID workspaceId, Period period, String state, Su
      * @param openInvoices o que falta pagar nas faturas já iniciadas, inclusive a atual (parcial)
      * @param nextDue      vencimento mais próximo com saldo em aberto (pode ter passado); nulo sem saldo
      */
-    public record Cards(int activeCards, MoneyDto openInvoices, NextDue nextDue, List<UpcomingEvent> upcomingEvents,
-                        LocalDate asOf, String calculationVersion) {}
+    public record InvoicesToPay(int activeCards, MoneyDto openInvoices, InvoicesNextDue nextDue,
+                                List<UpcomingInvoiceEvent> upcomingEvents, LocalDate asOf,
+                                String calculationVersion) {}
 
-    public record NextDue(LocalDate date, MoneyDto amount) {}
+    public record InvoicesNextDue(LocalDate date, MoneyDto amount) {}
 
     /**
      * @param kind   {@code INVOICE_CLOSING} ou {@code INVOICE_DUE}
      * @param status {@code PARTIAL} (fatura aberta: valor até agora), {@code CLOSED} (saldo em aberto) ou
      *               {@code OVERDUE}
      */
-    public record UpcomingEvent(LocalDate date, String kind, String status, String dueMonth, MoneyDto amount,
-                                CardRef card) {}
+    public record UpcomingInvoiceEvent(LocalDate date, String kind, String status, String dueMonth,
+                                       MoneyDto amount, CardRef card) {}
 
     public static OverviewResponse from(OverviewView view) {
         return new OverviewResponse(view.workspaceId(),
@@ -79,15 +80,16 @@ public record OverviewResponse(UUID workspaceId, Period period, String state, Su
                 cards(view.cards()));
     }
 
-    private static Cards cards(CardDebts debts) {
+    private static InvoicesToPay cards(CardDebts debts) {
         if (debts == null) {
             return null;
         }
-        return new Cards(debts.activeCards(), money(debts.openInvoices()),
-                debts.nextDue() == null ? null : new NextDue(debts.nextDue().date(), money(debts.nextDue().amount())),
+        return new InvoicesToPay(debts.activeCards(), money(debts.openInvoices()),
+                debts.nextDue() == null ? null
+                        : new InvoicesNextDue(debts.nextDue().date(), money(debts.nextDue().amount())),
                 debts.upcomingEvents().stream()
-                        .map(event -> new UpcomingEvent(event.date(), event.kind().name(), event.status().name(),
-                                event.dueMonth().toString(), money(event.amount()),
+                        .map(event -> new UpcomingInvoiceEvent(event.date(), event.kind().name(),
+                                event.status().name(), event.dueMonth().toString(), money(event.amount()),
                                 new CardRef(event.card().id(), event.card().nickname(), event.card().last4())))
                         .toList(),
                 debts.asOf(), InvoiceCalendar.RULES_VERSION);
