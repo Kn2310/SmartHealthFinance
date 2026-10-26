@@ -15,6 +15,12 @@ public enum ActionKind {
     VIEW_HEALTH,
     VIEW_ACCOUNTS,
     CATEGORIZE,
+    /** Fatura do cartão ({@code cardId}, {@code dueMonth}); a tela chega na Parte F (ADR-0028 §7). */
+    VIEW_INVOICE,
+    /** Cartão ({@code cardId}); a tela chega na Parte F. */
+    VIEW_CARD,
+    /** Registrar o pagamento da fatura ({@code cardId}) em {@code /transactions/new}. */
+    RECORD_CARD_PAYMENT,
     CREATE_SAVINGS_GOAL,
     ASK_COPILOT
 }

@@ -2,6 +2,7 @@ package com.smarthealthfinance.insights.domain.service;
 
 import com.smarthealthfinance.health.domain.enums.Confidence;
 import com.smarthealthfinance.insights.domain.enums.Importance;
+import com.smarthealthfinance.insights.domain.enums.InsightFeedback;
 import com.smarthealthfinance.insights.domain.enums.InsightDetector;
 import com.smarthealthfinance.insights.domain.enums.InsightStatus;
 import com.smarthealthfinance.insights.domain.enums.StatusReason;
@@ -64,7 +65,7 @@ class InsightReconcilerTest {
         assertThat(created).singleElement().satisfies(i -> {
             assertThat(i.status()).isEqualTo(InsightStatus.ACTIVE);
             assertThat(i.revision()).isEqualTo(1);
-            assertThat(i.algorithmVersion()).isEqualTo("insights-v1");
+            assertThat(i.algorithmVersion()).isEqualTo("insights-v2");
             assertThat(i.seenAt()).isNull();
         });
         assertThat(reconcile(created, LATER, spike("40.00"))).isEmpty();
@@ -151,9 +152,48 @@ class InsightReconcilerTest {
         List<Insight> changes = reconcile(List.of(old), LATER, spike("400.00"));
         assertThat(changes).extracting(Insight::algorithmVersion, Insight::status, Insight::statusReason)
                 .containsExactlyInAnyOrder(
-                        org.assertj.core.groups.Tuple.tuple("insights-v1", InsightStatus.ACTIVE, null),
+                        org.assertj.core.groups.Tuple.tuple("insights-v2", InsightStatus.ACTIVE, null),
                         org.assertj.core.groups.Tuple.tuple("insights-v0", InsightStatus.EXPIRED,
                                 StatusReason.VERSION_SUPERSEDED));
+    }
+
+    /** ADR-0028 §6: a troca de versão não faz o insight voltar como "Novo" nem perde o "útil / não útil". */
+    @Test
+    void aNewVersionInheritsSeenAndFeedbackByFingerprint() {
+        Insight active = reconcile(List.of(), NOW, spike("400.00")).getFirst();
+        Instant seen = NOW.minus(Duration.ofDays(2));
+        Instant rated = NOW.minus(Duration.ofDays(1));
+        Insight old = new Insight(UUID.randomUUID(), WORKSPACE, active.fingerprint(), "insights-v1",
+                active.detector(), active.periodKey(), active.subject(), InsightStatus.ACTIVE, null,
+                active.importance(), active.impact(), active.relevance(), active.confidence(), active.priority(),
+                active.impactAmount(), null, true, active.content(), seen, null, InsightFeedback.NOT_USEFUL, rated,
+                1, NOW, NOW, NOW);
+
+        Insight created = reconcile(List.of(old), LATER, spike("400.00")).stream()
+                .filter(i -> i.algorithmVersion().equals(V1)).findFirst().orElseThrow();
+
+        assertThat(created.id()).isNotEqualTo(old.id());
+        assertThat(created.seenAt()).isEqualTo(seen);
+        assertThat(created.feedback()).isEqualTo(InsightFeedback.NOT_USEFUL);
+        assertThat(created.feedbackAt()).isEqualTo(rated);
+    }
+
+    /** ADR-0028 §5: insight de fatura não detectado resolve enquanto a fatura está em avaliação, depois expira. */
+    @Test
+    void invoiceInsightsResolveWhileTheInvoiceIsEvaluatedAndExpireAfter() {
+        String card = UUID.randomUUID().toString();
+        ScoredCandidate due = scored(InsightDetector.INVOICE_DUE, "2026-10", card + "|DUE_SOON", "3412.80",
+                "vence");
+        Insight active = reconcile(List.of(), NOW, due).getFirst();
+
+        List<Insight> stillOpen = InsightReconciler.reconcile(WORKSPACE, V1, "2026-09", List.of(active), List.of(),
+                java.util.Set.of(card + "|2026-10"), LATER, ids);
+        List<Insight> gone = InsightReconciler.reconcile(WORKSPACE, V1, "2026-09", List.of(active), List.of(),
+                java.util.Set.of(), LATER, ids);
+
+        assertThat(stillOpen).singleElement().extracting(Insight::status).isEqualTo(InsightStatus.RESOLVED);
+        assertThat(gone).singleElement().extracting(Insight::status, Insight::statusReason)
+                .containsExactly(InsightStatus.EXPIRED, StatusReason.PERIOD_ENDED);
     }
 
     @Test

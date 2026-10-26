@@ -9,7 +9,7 @@ import java.math.BigDecimal;
  */
 public final class InsightRules {
 
-    public static final String ALGORITHM_VERSION = "insights-v1";
+    public static final String ALGORITHM_VERSION = "insights-v2";
 
     /** Meses da média de comparação (ADR-0015 §2) e mínimo de meses usados pelos detectores comparativos. */
     public static final int AVERAGE_MONTHS = 5;
@@ -65,6 +65,24 @@ public final class InsightRules {
     // D10 — gastos sem categoria.
     public static final BigDecimal UNCATEGORIZED_MIN_PERCENT = new BigDecimal("15");
     public static final BigDecimal UNCATEGORIZED_MIN_AMOUNT = new BigDecimal("200");
+
+    // D11 — fatura acima do padrão (ADR-0028 §2).
+    public static final BigDecimal INVOICE_MIN_DELTA = new BigDecimal("100");
+    public static final BigDecimal INVOICE_MIN_PERCENT = new BigDecimal("15");
+    public static final int INVOICE_BASE = 3;
+    public static final int INVOICE_MIN_BASE = 2;
+    /** A fatura aberta só é avaliada a partir deste dia do ciclo (regra dos 7 dias, ADR-0021 §1). */
+    public static final int INVOICE_OPEN_FROM_DAY = 7;
+    /** Fatura aberta há menos dias que isto: confiança baixa. */
+    public static final int INVOICE_MEDIUM_FROM_DAY = 15;
+    public static final int INVOICE_FACTORS = 3;
+
+    // D12 — utilização alta (ADR-0028 §3), em percentual do limite.
+    public static final BigDecimal UTILIZATION_MIN_PERCENT = new BigDecimal("50");
+    public static final BigDecimal UTILIZATION_IMPORTANT_PERCENT = new BigDecimal("80");
+
+    // D14 — fatura vencendo ou vencida (ADR-0028 §4).
+    public static final int INVOICE_DUE_SOON_DAYS = 5;
 
     // Pontuação (§3).
     public static final BigDecimal FLOOR_AMOUNT = new BigDecimal("50");

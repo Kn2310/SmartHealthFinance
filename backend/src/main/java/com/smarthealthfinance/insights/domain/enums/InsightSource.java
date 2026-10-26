@@ -9,7 +9,11 @@ public enum InsightSource {
     ANALYTICS_MERCHANTS("analytics.merchants"),
     TRANSACTIONS_LARGEST_EXPENSES("transactions.largest-expenses"),
     HEALTH_SNAPSHOT("health.snapshot"),
-    OVERVIEW_ACCOUNT_BALANCES("overview.account-balances");
+    OVERVIEW_ACCOUNT_BALANCES("overview.account-balances"),
+    /** Faturas dos cartões (razão do ADR-0025, porta {@code CardPortfolio}). */
+    CARDS_INVOICES("cards.invoices"),
+    /** Utilização dos cartões. */
+    CARDS_UTILIZATION("cards.utilization");
 
     private final String code;
 

@@ -1,8 +1,9 @@
 package com.smarthealthfinance.insights.domain.enums;
 
 /**
- * Catálogo {@code insights-v1} (ADR-0021 §2), com o tipo (filtro), se o detector pode gerar insight Importante
- * (§3) e se o insight é preso a um período avaliado (D3 usa o mês de início da série; D9 não tem período, §5).
+ * Catálogo (ADR-0021 §2; D11, D12 e D14 de Cartões na {@code insights-v2}, ADR-0028), com o tipo (filtro), se o
+ * detector pode gerar insight Importante (§3) e se o insight é preso a um período avaliado (D3 usa o mês de início da
+ * série; D9 e D12 não têm período, §5) ou a uma fatura (D11, D14: o período é o mês de vencimento).
  */
 public enum InsightDetector {
 
@@ -16,16 +17,25 @@ public enum InsightDetector {
     HEALTH_SCORE_CHANGE(InsightType.HEALTH, true, true),
     HEALTH_DIMENSION_CHANGE(InsightType.HEALTH, false, true),
     LOW_RESERVE(InsightType.HEALTH, true, false),
-    UNCATEGORIZED_SHARE(InsightType.SPENDING, false, true);
+    UNCATEGORIZED_SHARE(InsightType.SPENDING, false, true),
+    INVOICE_ABOVE_PATTERN(InsightType.CARDS, true, false, true),
+    CARD_UTILIZATION_HIGH(InsightType.CARDS, true, false),
+    INVOICE_DUE(InsightType.CARDS, true, false, true);
 
     private final InsightType type;
     private final boolean canBeImportant;
     private final boolean periodBound;
+    private final boolean invoiceBound;
 
     InsightDetector(InsightType type, boolean canBeImportant, boolean periodBound) {
+        this(type, canBeImportant, periodBound, false);
+    }
+
+    InsightDetector(InsightType type, boolean canBeImportant, boolean periodBound, boolean invoiceBound) {
         this.type = type;
         this.canBeImportant = canBeImportant;
         this.periodBound = periodBound;
+        this.invoiceBound = invoiceBound;
     }
 
     public InsightType type() {
@@ -37,8 +47,16 @@ public enum InsightDetector {
         return canBeImportant;
     }
 
-    /** Expira quando o período avaliado muda; D3 e D9 resolvem quando a condição deixa de valer. */
+    /** Expira quando o período avaliado muda; D3, D9 e D12 resolvem quando a condição deixa de valer. */
     public boolean periodBound() {
         return periodBound;
+    }
+
+    /**
+     * Preso a uma fatura (D11, D14): o período é o mês de vencimento e o sujeito começa pelo cartão. Não detectado,
+     * resolve enquanto a fatura está em avaliação e expira depois (ADR-0028 §5).
+     */
+    public boolean invoiceBound() {
+        return invoiceBound;
     }
 }

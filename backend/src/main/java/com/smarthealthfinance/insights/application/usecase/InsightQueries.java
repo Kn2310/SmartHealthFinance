@@ -88,15 +88,13 @@ public class InsightQueries {
         this.loader = loader;
     }
 
-    /** Filtro de tipo da lista: os do catálogo ou {@code CARDS}, aceito e sempre vazio até o M8. */
-    public record TypeFilter(InsightType type, boolean cards) {}
 
     @Transactional
     public InsightViews.Page list(UUID workspaceId, String importance, String type, String state, Integer page,
                                   Integer pageSize) {
         WorkspaceId id = authorize(workspaceId);
         Importance importanceFilter = parse(Importance.class, "importance", importance);
-        TypeFilter typeFilter = type(type);
+        InsightType typeFilter = parse(InsightType.class, "type", type);
         InsightStatus statusFilter = state == null || state.isBlank() ? InsightStatus.ACTIVE : status(state);
         int pageNumber = page == null ? 0 : page;
         int size = pageSize == null ? DEFAULT_PAGE_SIZE : pageSize;
@@ -110,11 +108,9 @@ public class InsightQueries {
         InsightsFreshness freshness = status.freshness(id);
         EvaluationPeriod period = EvaluationPeriod.of(loader.today());
         InsightStore.ChipCounts counts = store.activeCounts(id, InsightRules.ALGORITHM_VERSION);
-        List<Insight> items = typeFilter.cards() ? List.of()
-                : store.findPage(id, InsightRules.ALGORITHM_VERSION, statusFilter, importanceFilter,
-                        typeFilter.type(), Math.multiplyExact(pageNumber, size), size);
-        long total = typeFilter.cards() ? 0 : store.count(id, InsightRules.ALGORITHM_VERSION, statusFilter,
-                importanceFilter, typeFilter.type());
+        List<Insight> items = store.findPage(id, InsightRules.ALGORITHM_VERSION, statusFilter, importanceFilter,
+                typeFilter, Math.multiplyExact(pageNumber, size), size);
+        long total = store.count(id, InsightRules.ALGORITHM_VERSION, statusFilter, importanceFilter, typeFilter);
         return new InsightViews.Page(dataState(id, period, counts.all()), freshness, period(period), counts, items,
                 pageNumber, size, total);
     }
@@ -251,16 +247,6 @@ public class InsightQueries {
         WorkspaceId id = new WorkspaceId(workspaceId);
         accessGuard.requireMember(currentUser.requireCurrentUserId(), id);
         return id;
-    }
-
-    private static TypeFilter type(String value) {
-        if (value == null || value.isBlank()) {
-            return new TypeFilter(null, false);
-        }
-        if ("CARDS".equals(value.strip())) {
-            return new TypeFilter(null, true);
-        }
-        return new TypeFilter(parse(InsightType.class, "type", value), false);
     }
 
     private static InsightStatus status(String value) {

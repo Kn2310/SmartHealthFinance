@@ -55,7 +55,8 @@ public class InsightGenerator {
         List<Insight> existing = store.findAll(workspaceId);
         List<ScoredCandidate> scored = score(workspaceId.value(), input, existing, now);
         List<Insight> changed = InsightReconciler.reconcile(workspaceId.value(), InsightRules.ALGORITHM_VERSION,
-                input.period().key(), existing, scored, now, () -> UuidV7.generate(now));
+                input.period().key(), existing, scored, InsightEngine.evaluatedInvoices(input), now,
+                () -> UuidV7.generate(now));
         store.save(changed);
         store.finishGeneration(workspaceId, InsightRules.ALGORITHM_VERSION, now, input.period().today());
 

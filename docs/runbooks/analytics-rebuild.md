@@ -57,3 +57,11 @@ Passos para `all`:
 Um Workspace também se reconstrói sozinho no primeiro evento que chega sem projeção na versão atual.
 
 Nunca editar `analytics_*` à mão para "corrigir" números: corrija a causa e reconstrua.
+
+## Cadeia de rebuilds com cartões (Sessão 6.2 parte E)
+
+A integração dos cartões (ADR-0006 §18, ADR-0027, ADR-0028) **não muda** o que a projeção grava:
+`RebuildAnalyticsProjection.VERSION` continua 3 (compras de cartão em `expense`, pagamento de fatura só em
+`transfers`, cartão arquivado fora na leitura). O deploy dispara, em ordem, só os rebuilds que mudaram de versão:
+Health `health-v2` (`health-rebuild.md`) e Insights `insights-v2` (`insights-rebuild.md`). Nenhum deles apaga estado do
+usuário (categorias manuais, dispensas, visto, feedback).

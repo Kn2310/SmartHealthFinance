@@ -77,7 +77,7 @@ public interface InsightStore {
     /** Contagens dos chips, sobre os ativos da versão. */
     ChipCounts activeCounts(WorkspaceId workspaceId, String algorithmVersion);
 
-    record ChipCounts(long all, long important, long spending, long income, long health) {}
+    record ChipCounts(long all, long important, long spending, long income, long health, long cards) {}
 
     /**
      * @param dirty           marcado para geração
