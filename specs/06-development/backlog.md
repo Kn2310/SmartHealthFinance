@@ -65,6 +65,9 @@
 - [x] overview query (`GetFinancialOverview`, ADR-0006)
 - [x] Home API — bloco Overview em `GET /api/v1/workspaces/{id}/overview` (o composto `/api/v1/home` entra com Health/Insights)
 - [x] Health na Home: card "Como estou?" (M6, ADR-0020)
+- [x] Home com cartões (M8, ADR-0006 §18): "Faturas a pagar" logo abaixo do saldo, separado do saldo total e sem saldo
+  líquido; "Próximos eventos" com fechamento e vencimento das faturas nos próximos 30 dias e as vencidas, **só fatos**
+  ("Parcial", "Em aberto", "Vencida"). Receitas e despesas recorrentes estimadas continuam para o Forecast (M9)
 - [x] Home UI — Overview: saldo, fluxo do período, contas, movimentações recentes, seletor de período (ADR-0007/0008; critérios da etapa validados em 2026-10-07; Health/Insights ficam para M6/M7)
 - [x] responsive states — READY, NO_ACCOUNTS, NO_TRANSACTIONS (com PENDING), NO_ACTIVITY_IN_PERIOD, loading, erro; 375/768/1024/1280/1440 sem overflow
 - [x] E2E (Playwright) do First Financial Loop (saldo inicial → receita → despesa → saldo e fluxo exatos na Home) e da
@@ -136,6 +139,11 @@
 - [x] Health UI (ADR-0020): card "Como estou?" na Home (sempre visível, mês corrente), `/home/health` (resumo, fontes,
   dimensões com evidências, fatores, próximos passos, evolução), drawer "Como calculamos?" acessível, score na Análise ›
   Evolução; tokens `on-dark` no DS; E2E com valores exatos do `health-v1`
+- [x] `health-v2` (M8, ADR-0027): Credit = 0,7 · S(utilização agregada com parcelas futuras) + 0,3 · faturas pagas
+  até o vencimento; Debt = 0,7 · S(parcelas da próxima fatura ÷ renda) + 0,3 · S(parcelas futuras em meses de renda);
+  sem cartão continuam `NOT_APPLICABLE`; o Aurora reproduz Credit 71 e Debt 88; porta `CardPortfolio` (posição dos
+  cartões em qualquer data); bindings `card.*`/`invoice.closed` na fila do Health; passos "Ver fatura"/"Ver cartão"
+  (Em breve até a Parte F); linhas `health-v1` preservadas; runbook atualizado
 
 ## M7 Insights
 
@@ -159,6 +167,9 @@
   (resumo, evidências com gráfico do DS e tabela, explicação, limitações, fontes, ação recomendada, confiança, feedback,
   dispensar com confirmação, relacionados), Home "O que mudou?" e "Merece atenção", "Ver insight relacionado" na
   transação, próximo passo do Health → insight, contagem de Importantes na sidebar e no M-More; E2E com valores exatos
+- [x] `insights-v2` (M8, ADR-0028): D11 fatura acima do padrão (fatores que somam a diferença), D12 utilização alta e
+  D14 fatura vencendo/vencida; tipo `CARDS` e chip Cartões habilitado; "Registrar pagamento" leva a
+  `/transactions/new`; "Ver cartão"/"Ver fatura" Em breve até a Parte F; troca de versão herda visto e feedback; V19
 
 ## M8 Cards
 
@@ -208,6 +219,16 @@
   - UI: cartões como destino em `/import`, modelo `/modelo-fatura.csv`, parcela e pagamento no preview, ação no
     detalhe da despesa importada; E2E `card-import.spec.ts` com a fatura fictícia do Aurora.
 
+- [x] integrações dos cartões (Sessão 6.2 parte E; ADR-0027, ADR-0028, adendos ADR-0006 §18, 0017, 0018, 0020–0026):
+  - Overview: bloco aditivo `cards` ("Faturas a pagar" e "Próximos eventos", sempre em hoje, só fatos); saldo total
+    continua só das contas;
+  - Analytics: sem mudança (compra em gastos pelo total, pagamento só em transferências; `VERSION` 3; paridade já
+    cobria cartões);
+  - Health `health-v2` (Credit e Debt) e Insights `insights-v2` (D11, D12, D14), rebuilds encadeados
+    Analytics → Health → Insights sem apagar estado do usuário;
+  - porta `CardPortfolio` (posição em qualquer data, utilização histórica recalculada pelos fatos); ArchUnit;
+  - suíte de isolamento e paridade; E2E `cards-integration.spec.ts`.
+
 ### Handoff da Sessão 6.1 para a 6.2
 
 **Decisões em vigor** (não reabrir sem ADR): ADR-0025 (modelo, com adendo de estornos) e ADR-0026 (API, com o adendo
@@ -232,8 +253,8 @@ os consome e relê a fonte.
 **Lacunas conhecidas (fora do escopo da 6.1):**
 - estorno no cartão pela UI (a rota e o BFF existem; o detalhe só oferece "Registrar reembolso" para despesa em conta);
 - edição/arquivamento do cartão pela UI e o filtro "Conta ou cartão" na lista de transações;
-- telas `/cards`, fatura, faturas futuras e parcelamento; bloco "Faturas a pagar" no Overview; chip "Cartões" nos
-  Insights;
+- telas `/cards`, fatura, faturas futuras e parcelamento (Parte F); ~~bloco "Faturas a pagar" no Overview; chip "Cartões" nos
+  Insights~~ (feitos na parte E);
 - o item "Cartões" da navegação aponta para `/cards`, que ainda não existe (só `/cards/new`).
 
 **Pendências que precisam de decisão:** as listadas no ADR-0025 §14 (CSV/OFX de fatura, parcelas no extrato,
