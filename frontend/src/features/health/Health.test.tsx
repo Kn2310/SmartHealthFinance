@@ -200,6 +200,9 @@ describe('formatação do Health', () => {
     expect(updatedAgo(null, now)).toBeNull()
     expect(curvePoint('CASH_FLOW', '-0.1')).toBe('-10%')
     expect(curvePoint('RESERVE', '1')).toBe('1 mês')
+    // Horizonte do Debt (health-v2): o eixo é em meses de renda.
+    expect(curvePoint('DEBT', '3', 'parcelas futuras ÷ renda média (meses)')).toBe('3 meses')
+    expect(curvePoint('DEBT', '0.2', 'parcelas da próxima fatura ÷ renda média')).toBe('20%')
   })
 
   it('geometria do ring e do eixo da linha', () => {

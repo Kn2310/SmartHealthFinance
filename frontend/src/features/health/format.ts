@@ -160,10 +160,13 @@ export function nextStepLink(step: HealthNextStep, insights: InsightItem[] = [])
   }
 }
 
-/** Eixo x das curvas do método: meses na Reserve, percentual nas demais (0.1 → "10%"). Só exibição. */
-export function curvePoint(dimension: HealthDimensionCode, x: string): string {
+/**
+ * Eixo x das curvas do método: meses na Reserve e no horizonte do Debt (o eixo diz "meses"), percentual nas demais
+ * (0.1 → "10%"). Só exibição.
+ */
+export function curvePoint(dimension: HealthDimensionCode, x: string, input = ''): string {
   const n = Number(x)
   if (!Number.isFinite(n)) return x
-  if (dimension === 'RESERVE') return `${n.toLocaleString('pt-BR')} ${n === 1 ? 'mês' : 'meses'}`
+  if (dimension === 'RESERVE' || /meses/.test(input)) return `${n.toLocaleString('pt-BR')} ${n === 1 ? 'mês' : 'meses'}`
   return `${(Math.round(n * 1000) / 10).toLocaleString('pt-BR')}%`
 }
