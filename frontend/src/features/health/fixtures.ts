@@ -17,7 +17,7 @@ export function readyHealth(overrides: Partial<Health> = {}): Health {
     confidence: 'MEDIUM',
     coverage: { available: 4, total: 6, weightPercent: 70 },
     summary: 'Seu resultado combina 4 de 6 dimensões. Consistência (100) e fluxo de caixa (97) sustentam o score; reserva (69) é o ponto que mais pesa.',
-    context: { activeAccounts: 3, uncategorizedShare: '0.0', sources: ['CSV', 'MANUAL', 'OFX'] },
+    context: { activeAccounts: 3, uncategorizedShare: '0.0', sources: ['CSV', 'MANUAL', 'OFX'], activeCards: 0 },
     freshness: { state: 'UP_TO_DATE', computedAt: '2026-09-22T12:00:00Z', analyticsRefreshedAt: '2026-09-22T11:59:58Z' },
     dimensions: [
       {
@@ -54,8 +54,8 @@ export function readyHealth(overrides: Partial<Health> = {}): Health {
       { dimension: 'RESERVE', direction: 'WEIGHING', text: 'Sua reserva cobre ≈ 2,4 meses da média de despesas.' },
     ],
     nextSteps: [
-      { kind: 'BUILD_RESERVE', text: 'Fortalecer a reserva', evidence: 'Faltam R$ 15.152,00 para 6 meses de despesas.', categoryCode: null, month: null, amount: { amount: '15152.00', currency: 'BRL' } },
-      { kind: 'REVIEW_CATEGORY', text: 'Alimentação fora 32,0% acima da média', evidence: '+R$ 311,00 em relação à sua média (1 a 22 de set/2026).', categoryCode: 'DINING_OUT', month: '2026-09', amount: null },
+      { kind: 'BUILD_RESERVE', text: 'Fortalecer a reserva', evidence: 'Faltam R$ 15.152,00 para 6 meses de despesas.', categoryCode: null, month: null, amount: { amount: '15152.00', currency: 'BRL' }, cardId: null },
+      { kind: 'REVIEW_CATEGORY', text: 'Alimentação fora 32,0% acima da média', evidence: '+R$ 311,00 em relação à sua média (1 a 22 de set/2026).', categoryCode: 'DINING_OUT', month: '2026-09', amount: null, cardId: null },
     ],
     ...overrides,
   }

@@ -32,6 +32,8 @@ import {
   OVERVIEW_STATES,
   PERIOD_TYPES,
   RECORD_FIELDS,
+  UPCOMING_INVOICE_EVENT_KINDS,
+  UPCOMING_INVOICE_EVENT_STATUSES,
   TRANSACTION_STATUSES,
   TRANSACTION_TYPES,
 } from './contract'
@@ -70,6 +72,8 @@ const sorted = (values: readonly string[]) => [...values].sort()
 describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
   it.each([
     ['overview/domain/enums/OverviewState.java', OVERVIEW_STATES],
+    ['overview/domain/enums/UpcomingEventKind.java', UPCOMING_INVOICE_EVENT_KINDS],
+    ['overview/domain/enums/UpcomingEventStatus.java', UPCOMING_INVOICE_EVENT_STATUSES],
     ['overview/domain/enums/PeriodType.java', PERIOD_TYPES],
     ['overview/domain/enums/MovementFlow.java', MOVEMENT_FLOWS],
     ['accounts/domain/enums/AccountType.java', ACCOUNT_TYPES],
@@ -85,7 +89,7 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     const records = javaRecords('overview/presentation/dto/response/OverviewResponse.java')
     for (const name of [
       'OverviewResponse', 'Period', 'Summary', 'CashFlow', 'Transfers', 'AccountSummary', 'AccountRef', 'RecentTransaction',
-      'CardRef',
+      'CardRef', 'InvoicesToPay', 'InvoicesNextDue', 'UpcomingInvoiceEvent',
     ] as const) {
       expect(sorted(records[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
     }

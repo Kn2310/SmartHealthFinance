@@ -30,7 +30,7 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('Insights (D-Insights / M-Insights)', () => {
-  it('chips com contagem (grupo com estado selecionado), Cartões "Em breve" e seções Importantes / Outros', async () => {
+  it('chips com contagem (grupo com estado selecionado), Cartões habilitado e seções Importantes / Outros', async () => {
     const calls = stubBff({ 'GET /api/bff/insights': () => json(readyList()) })
     const { container } = render(<InsightsView />)
 
@@ -39,7 +39,7 @@ describe('Insights (D-Insights / M-Insights)', () => {
     const chips = screen.getByRole('group', { name: 'Filtrar insights' })
     expect(within(chips).getByRole('button', { name: 'Todos 3' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(chips).getByRole('button', { name: 'Importantes 1' })).toHaveAttribute('aria-pressed', 'false')
-    expect(within(chips).getByRole('button', { name: 'Cartões Em breve' })).toBeDisabled()
+    expect(within(chips).getByRole('button', { name: 'Cartões 1' })).toBeEnabled()
     expect(within(chips).getByRole('button', { name: 'Saúde 2' })).toBeInTheDocument()
 
     const section = important.closest('section')!
@@ -65,6 +65,11 @@ describe('Insights (D-Insights / M-Insights)', () => {
     render(<InsightsView />)
     expect(await screen.findByRole('heading', { name: 'Insights' , level: 2 })).toBeInTheDocument()
     expect(calls[0]?.url).toBe('/api/bff/insights?pageSize=50&type=HEALTH')
+
+    search = new URLSearchParams('filter=CARDS')
+    const cardCalls = stubBff({ 'GET /api/bff/insights': () => json(readyList({ items: [] })) })
+    render(<InsightsView />)
+    await waitFor(() => expect(cardCalls[0]?.url).toBe('/api/bff/insights?pageSize=50&type=CARDS'))
   })
 
   it('estados: sem dados, histórico curto, vazio e erro com nova tentativa', async () => {
@@ -121,6 +126,38 @@ describe('Detalhe do insight (D-InsightDetail / M-InsightDetail)', () => {
     expect(screen.getByRole('link', { name: /Gastos · 71 na saúde financeira/ })).toHaveAttribute('href', '/home/health')
     // Abrir marca como visto (POST explícito; o GET não escreve).
     await waitFor(() => expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/seen'))).toBe(true))
+    expect(await axeViolations(container)).toEqual([])
+  })
+
+  it('fatura acima do padrão: fatores que somam a diferença e "Ver fatura" em breve (ADR-0028)', async () => {
+    const brl = (amount: string) => ({ amount, currency: 'BRL' })
+    const insight = spikeItem({
+      seen: true, detector: 'INVOICE_ABOVE_PATTERN', type: 'CARDS', typeLabel: 'Cartões', subjectLabel: 'Aurora Platinum',
+      title: 'Sua fatura do Aurora Platinum está 18% acima do seu padrão até agora, cerca de R$ 520 a mais.',
+    })
+    stubBff({
+      [`GET /api/bff/insights/${SPIKE_ID}`]: () => json(spikeDetail({
+        insight,
+        contributors: [
+          { kind: 'FACTOR', key: 'category:DINING_OUT', name: 'Alimentação fora', amount: brl('311.00'), count: null, share: null, day: null },
+          { kind: 'FACTOR', key: 'plan:x', name: 'Parcela de Loja Tech (3/10)', amount: brl('160.00'), count: null, share: null, day: null },
+          { kind: 'FACTOR', key: 'category:TRANSPORT', name: 'Transporte', amount: brl('49.60'), count: null, share: null, day: null },
+        ],
+        actions: [
+          { kind: 'VIEW_INVOICE', label: 'Ver fatura', primary: true, available: true, params: { cardId: 'c1', dueMonth: '2026-10' } },
+          { kind: 'VIEW_CARD', label: 'Ver cartão', primary: false, available: true, params: { cardId: 'c1' } },
+        ],
+      })),
+    })
+    const { container } = render(<InsightDetailView id={SPIKE_ID} />)
+
+    const factors = await screen.findByRole('list', { name: 'Fatores da diferença' })
+    const items = within(factors).getAllByRole('listitem')
+    expect(items).toHaveLength(3)
+    expect(items[1]).toHaveTextContent('Parcela de Loja Tech (3/10)')
+    expect(items[1]).toHaveTextContent(/\+\sR\$\s160,00/)
+    expect(screen.getByRole('button', { name: 'Ver fatura · Em breve' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Ver cartão · Em breve' })).toBeDisabled()
     expect(await axeViolations(container)).toEqual([])
   })
 
@@ -251,6 +288,10 @@ describe('format', () => {
     expect(actionHref(action('VIEW_MERCHANTS', { month: '2026-09' }))).toBe('/analysis/merchants?month=2026-09')
     expect(actionHref(action('VIEW_INCOME', { month: '2026-09' }))).toBe('/analysis/income?month=2026-09')
     expect(actionHref(action('VIEW_TRANSACTION', { transactionId: 'abc' }))).toBe('/transactions/abc')
+    expect(actionHref(action('RECORD_CARD_PAYMENT', { cardId: 'c1' }))).toBe('/transactions/new?type=CARD_PAYMENT&cardId=c1')
+    // Telas de cartão e fatura chegam na Parte F (adendo ao ADR-0024): até lá, sem rota.
+    expect(actionHref(action('VIEW_CARD', { cardId: 'c1' }))).toBeNull()
+    expect(actionHref(action('VIEW_INVOICE', { cardId: 'c1', dueMonth: '2026-10' }))).toBeNull()
     expect(actionHref(action('IMPORT_STATEMENT'))).toBe('/import')
     expect(actionHref(action('VIEW_HEALTH'))).toBe('/home/health')
     expect(actionHref(action('VIEW_ACCOUNTS'))).toBe('/accounts')

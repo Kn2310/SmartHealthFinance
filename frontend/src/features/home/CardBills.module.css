@@ -1,0 +1,37 @@
+/*
+ * "Faturas a pagar" e "Próximos eventos" da Home (D-Home, M-Home; ADR-0006 §18). Só tokens do DS. Estados dos valores:
+ * Parcial (fatura aberta), Em aberto (fechada) e Vencida (laranja só com o motivo explícito, 07-design-decisions §3).
+ */
+.value { font: var(--type-h2); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.caption { margin-top: var(--space-4); color: var(--color-neutral-text-secondary); font: var(--type-body-s); }
+.note { margin-top: var(--space-8); color: var(--color-neutral-muted); font: var(--type-caption); }
+.empty { color: var(--color-neutral-muted); font: var(--type-body-s); }
+
+.events { display: flex; flex-direction: column; gap: var(--space-4); margin: 0 calc(var(--space-8) * -1); }
+.event {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--size-touch-min-mobile);
+  padding: var(--space-8);
+  border-radius: var(--radius-md);
+}
+.tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--size-button-md);
+  height: var(--size-button-md);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-subtle);
+  color: var(--color-neutral-text-secondary);
+}
+.text { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.title { font: var(--type-body-s); font-weight: 600; overflow-wrap: anywhere; }
+.meta { color: var(--color-neutral-muted); font: var(--type-caption); overflow-wrap: anywhere; }
+.side { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-4); }
+.amount { font: var(--type-body-s); font-weight: 600; font-variant-numeric: tabular-nums; }
+.tag { padding: 0 var(--space-8); border-radius: var(--radius-xs); font: var(--type-caption); }
+.tagPartial { background: var(--color-semantic-bg-info); color: var(--color-semantic-text-info); }
+.tagClosed { background: var(--color-neutral-subtle); color: var(--color-neutral-text-secondary); }
+.tagOverdue { background: var(--color-semantic-bg-warning); color: var(--color-semantic-text-warning); }

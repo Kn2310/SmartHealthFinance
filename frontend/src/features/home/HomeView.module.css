@@ -27,6 +27,8 @@
 .grid.withHealth { grid-template-areas: 'health' 'hero' 'cash' 'accounts' 'recent'; }
 .health { grid-area: health; }
 .hero { grid-area: hero; }
+/* Saldo e "Faturas a pagar" empilhados na mesma área: blocos separados, a dívida não entra no saldo (ADR-0006 §18). */
+.heroStack { display: flex; flex-direction: column; gap: var(--grid-gutter-mobile); }
 .cashflow { grid-area: cash; }
 .accounts { grid-area: accounts; }
 .recent { grid-area: recent; }
@@ -47,7 +49,7 @@
 @media (min-width: 640px) {
   .header { margin-bottom: var(--space-32); }
   .greeting { font: var(--type-h1); }
-  .grid, .stack { gap: var(--grid-gutter-tablet); }
+  .grid, .stack, .heroStack { gap: var(--grid-gutter-tablet); }
 }
 
 @media (min-width: 1024px) {
@@ -58,7 +60,7 @@
     grid-template-areas: 'hero hero' 'cash accounts' 'recent recent';
     gap: var(--grid-gutter-desktop);
   }
-  .stack { gap: var(--grid-gutter-desktop); }
+  .stack, .heroStack { gap: var(--grid-gutter-desktop); }
   .accounts { align-self: start; }
   .grid.withHealth {
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
@@ -79,6 +81,7 @@
   .grid.withHealth .hero > *, .grid.withHealth .cashflow > * { height: auto; }
   /* Pares da mesma linha com a mesma altura. */
   .hero > *, .cashflow > * { height: 100%; }
+  .heroStack > :first-child { flex: 1 1 auto; }
 }
 
 /*

@@ -77,7 +77,7 @@ export function readyList(overrides: Partial<InsightList> = {}): InsightList {
     state: 'READY',
     freshness,
     period: { month: '2026-09', partial: true },
-    counts: { all: 3, important: 1, spending: 1, income: 0, health: 2, cards: { count: 0, available: false } },
+    counts: { all: 3, important: 1, spending: 1, income: 0, health: 2, cards: { count: 1, available: true } },
     items: [spikeItem(), scoreItem(), reserveItem()],
     page: 0,
     pageSize: 50,

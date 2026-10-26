@@ -107,6 +107,8 @@ interface Props {
   initialType?: FormType | null
   /** `?refundOf=`: a despesa que este reembolso devolve (ADR-0005 §6). */
   refundOf?: string | null
+  /** `?cardId=`: o cartão já escolhido (ex.: "Registrar pagamento" de um insight de fatura, ADR-0028 §4). */
+  initialCardId?: string | null
 }
 
 /**
@@ -116,7 +118,13 @@ interface Props {
  * chave, e o backend devolve o lançamento já criado em vez de duplicar. Nenhum cálculo financeiro aqui: parcelas,
  * faturas e saldos são do servidor.
  */
-export function NewTransactionView({ initialAccountId, returnTo, initialType = null, refundOf = null }: Props) {
+export function NewTransactionView({
+  initialAccountId,
+  returnTo,
+  initialType = null,
+  refundOf = null,
+  initialCardId = null,
+}: Props) {
   const accounts = useAccounts()
   const cards = useCards()
   const back = (
@@ -174,6 +182,7 @@ export function NewTransactionView({ initialAccountId, returnTo, initialType = n
             returnTo={returnTo}
             initialType={initialType}
             refundOf={refundOf}
+            initialCardId={initialCardId}
           />
         </section>
       )
@@ -201,6 +210,7 @@ function TransactionForm({
   returnTo,
   initialType,
   refundOf,
+  initialCardId,
 }: {
   accounts: Account[]
   cards: ReturnType<typeof useCards>
@@ -208,6 +218,7 @@ function TransactionForm({
   returnTo: ReturnTo
   initialType: FormType | null
   refundOf: string | null
+  initialCardId: string | null
 }) {
   const router = useRouter()
   const id = useId()
@@ -217,7 +228,7 @@ function TransactionForm({
     adjustmentDirection: null,
     accountId: preselected,
     destinationAccountId: '',
-    cardId: '',
+    cardId: initialType !== null && isCardType(initialType) ? initialCardId ?? '' : '',
     installmentCount: '1',
     amount: '',
     occurredOn: businessToday(),
@@ -237,6 +248,24 @@ function TransactionForm({
 
   const activeCards: Card[] = cards.status === 'success' ? cards.data.filter((card) => card.status === 'ACTIVE') : []
   const cardType = isCardType(values.type)
+
+  // O cartão vindo da URL só vale se for um cartão ativo deste Workspace; no pagamento, a conta padrão dele é sugerida.
+  // Ajuste feito uma vez, na chegada dos cartões (estado derivado no render, sem efeito): depois disso a escolha é do
+  // usuário.
+  const [initialCardChecked, setInitialCardChecked] = useState(false)
+  if (!initialCardChecked && cards.status === 'success' && initialCardId) {
+    setInitialCardChecked(true)
+    if (values.cardId === initialCardId) {
+      const card = activeCards.find((item) => item.id === initialCardId)
+      if (!card) {
+        setValues({ ...values, cardId: '' })
+      }
+      else if (values.type === 'CARD_PAYMENT' && !values.accountId && card.defaultPaymentAccountId
+        && accounts.some((a) => a.id === card.defaultPaymentAccountId)) {
+        setValues({ ...values, accountId: card.defaultPaymentAccountId })
+      }
+    }
+  }
 
   useEffect(() => {
     if (!focusFirstError.current) return

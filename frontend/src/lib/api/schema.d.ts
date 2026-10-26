@@ -71,6 +71,29 @@ export interface components {
         /** Cartão da compra/estorno ou que recebe o pagamento de fatura; só os 4 últimos dígitos. */
         card: { id: string; nickname: string; last4: string } | null
       }[]
+      /** "Faturas a pagar" e "Próximos eventos", sempre em hoje; nulo sem cartão ativo (ADR-0006 §18). */
+      cards: components['schemas']['InvoicesToPay'] | null
+    }
+    /** Dívida dos cartões, separada do saldo total e sem "saldo líquido" (ADR-0006 §18). Só fatos. */
+    InvoicesToPay: {
+      activeCards: number
+      /** O que falta pagar nas faturas já iniciadas, inclusive a atual (parcial). */
+      openInvoices: MoneyDto
+      /** Vencimento mais próximo com saldo em aberto (pode já ter passado); nulo sem saldo. */
+      nextDue: components['schemas']['InvoicesNextDue'] | null
+      upcomingEvents: components['schemas']['UpcomingInvoiceEvent'][]
+      asOf: string
+      calculationVersion: string
+    }
+    InvoicesNextDue: { date: string; amount: MoneyDto }
+    UpcomingInvoiceEvent: {
+      date: string
+      kind: UpcomingInvoiceEventKind
+      /** PARTIAL = fatura aberta (valor até agora); CLOSED = saldo em aberto; OVERDUE = vencida com saldo. */
+      status: UpcomingInvoiceEventStatus
+      dueMonth: string
+      amount: MoneyDto
+      card: { id: string; nickname: string; last4: string }
     }
     AccountResponse: {
       id: string
@@ -228,7 +251,7 @@ export interface components {
       primaryAction: components['schemas']['InsightActionDto']
     }
     CardsCountDto: { count: number; available: boolean }
-    /** Contagens dos chips, sempre sobre os ativos e sem filtro; Cartões indisponível até o M8. */
+    /** Contagens dos chips, sempre sobre os ativos e sem filtro; Cartões disponível desde a insights-v2. */
     InsightCountsDto: {
       all: number
       important: number
@@ -255,7 +278,7 @@ export interface components {
     InsightPointDto: { month: string; value: string; partial: boolean }
     InsightSeriesDto: { kind: InsightFigureKind; points: components['schemas']['InsightPointDto'][] }
     InsightContributorDto: {
-      kind: 'MERCHANT' | 'CATEGORY' | 'TRANSACTION' | 'CHARGE'
+      kind: 'MERCHANT' | 'CATEGORY' | 'TRANSACTION' | 'CHARGE' | 'FACTOR'
       key: string | null
       name: string
       amount: MoneyDto
@@ -263,7 +286,17 @@ export interface components {
       share: string | null
       day: string | null
     }
-    InsightLimitationDto: { code: 'PARTIAL_MONTH' | 'SHORT_HISTORY' | 'UNCATEGORIZED' | 'ESTIMATED_SCORE' | 'IMPORT_LAG'; text: string }
+    InsightLimitationDto: {
+      code:
+        | 'PARTIAL_MONTH'
+        | 'SHORT_HISTORY'
+        | 'UNCATEGORIZED'
+        | 'ESTIMATED_SCORE'
+        | 'IMPORT_LAG'
+        | 'PARTIAL_INVOICE'
+        | 'CARD_PAYMENTS'
+      text: string
+    }
     InsightSourceDto: { source: string; from: string; to: string }
     InsightDimensionDto: { code: HealthDimensionCode; label: string; score: number | null }
     /** Detalhe (ADR-0023 §1), em qualquer estado. */
@@ -338,7 +371,13 @@ export interface components {
       monthsUsed: number
     }
     HealthCoverageDto: { available: number; total: number; weightPercent: number }
-    HealthContextDto: { activeAccounts: number; uncategorizedShare: string; sources: ('CSV' | 'MANUAL' | 'OFX')[] }
+    HealthContextDto: {
+      activeAccounts: number
+      uncategorizedShare: string
+      sources: ('CSV' | 'MANUAL' | 'OFX')[]
+      /** Cartões ativos acompanhados (health-v2, ADR-0027). */
+      activeCards: number
+    }
     HealthFreshnessDto: { state: HealthFreshnessState; computedAt: string | null; analyticsRefreshedAt: string | null }
     HealthDimensionDto: {
       dimension: HealthDimensionCode
@@ -362,12 +401,14 @@ export interface components {
     }
     HealthFactorDto: { dimension: HealthDimensionCode; direction: 'SUSTAINING' | 'WEIGHING'; text: string }
     HealthNextStepDto: {
-      kind: 'BUILD_RESERVE' | 'ADD_RESERVE_ACCOUNT' | 'REVIEW_CATEGORY' | 'CATEGORIZE_TRANSACTIONS' | 'REVIEW_MONTH'
+      kind: HealthNextStepKind
       text: string
       evidence: string
       categoryCode: string | null
       month: string | null
       amount: components['schemas']['MoneyDto'] | null
+      /** Só PAY_OVERDUE_INVOICE e REVIEW_CARD_UTILIZATION (ADR-0027 §4). */
+      cardId: string | null
     }
     HealthEvolutionResponse: {
       workspaceId: string
@@ -820,7 +861,7 @@ export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type HealthFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
 export type InsightsFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type InsightDataState = 'NO_DATA' | 'INSUFFICIENT_HISTORY' | 'READY'
-export type InsightType = 'SPENDING' | 'INCOME' | 'HEALTH'
+export type InsightType = 'SPENDING' | 'INCOME' | 'HEALTH' | 'CARDS'
 export type InsightImportance = 'IMPORTANT' | 'INFORMATIVE'
 export type InsightStatus = 'ACTIVE' | 'RESOLVED' | 'EXPIRED' | 'DISMISSED'
 export type InsightConfidence = 'HIGH' | 'MEDIUM' | 'LOW'
@@ -838,6 +879,9 @@ export type InsightDetector =
   | 'HEALTH_DIMENSION_CHANGE'
   | 'LOW_RESERVE'
   | 'UNCATEGORIZED_SHARE'
+  | 'INVOICE_ABOVE_PATTERN'
+  | 'CARD_UTILIZATION_HIGH'
+  | 'INVOICE_DUE'
 export type InsightActionKind =
   | 'VIEW_TRANSACTIONS'
   | 'VIEW_CATEGORY'
@@ -849,9 +893,22 @@ export type InsightActionKind =
   | 'VIEW_HEALTH'
   | 'VIEW_ACCOUNTS'
   | 'CATEGORIZE'
+  | 'VIEW_INVOICE'
+  | 'VIEW_CARD'
+  | 'RECORD_CARD_PAYMENT'
   | 'CREATE_SAVINGS_GOAL'
   | 'ASK_COPILOT'
 export type HealthState = 'READY' | 'INSUFFICIENT_DATA' | 'NO_DATA'
+export type HealthNextStepKind =
+  | 'PAY_OVERDUE_INVOICE'
+  | 'BUILD_RESERVE'
+  | 'ADD_RESERVE_ACCOUNT'
+  | 'REVIEW_CATEGORY'
+  | 'REVIEW_CARD_UTILIZATION'
+  | 'CATEGORIZE_TRANSACTIONS'
+  | 'REVIEW_MONTH'
+export type UpcomingInvoiceEventKind = 'INVOICE_CLOSING' | 'INVOICE_DUE'
+export type UpcomingInvoiceEventStatus = 'PARTIAL' | 'CLOSED' | 'OVERDUE'
 export type HealthDimensionCode = 'CASH_FLOW' | 'SPENDING' | 'CREDIT' | 'DEBT' | 'RESERVE' | 'CONSISTENCY'
 export type AnalysisTrend = 'UP' | 'DOWN' | 'STABLE' | 'NEW' | 'GONE'
 /** Variação contra uma base (ADR-0015 §3): percent com 1 casa; nulo com base zero. */

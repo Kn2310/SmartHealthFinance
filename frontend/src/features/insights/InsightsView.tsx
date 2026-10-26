@@ -9,21 +9,21 @@ import { useInsightList, type InsightFilter } from './api'
 import { InsightCard } from './InsightCard'
 import styles from './Insights.module.css'
 
-const FILTERS: { value: InsightFilter | 'CARDS'; label: string; count: (c: InsightCounts) => number | null }[] = [
+const FILTERS: { value: InsightFilter; label: string; count: (c: InsightCounts) => number | null }[] = [
   { value: 'ALL', label: 'Todos', count: (c) => c.all },
   { value: 'IMPORTANT', label: 'Importantes', count: (c) => c.important },
   { value: 'SPENDING', label: 'Gastos', count: (c) => c.spending },
-  { value: 'CARDS', label: 'Cartões', count: () => null },
+  { value: 'CARDS', label: 'Cartões', count: (c) => (c.cards.available ? c.cards.count : null) },
   { value: 'HEALTH', label: 'Saúde', count: (c) => c.health },
 ]
 
 function parseFilter(value: string | null): InsightFilter {
-  return value === 'IMPORTANT' || value === 'SPENDING' || value === 'HEALTH' ? value : 'ALL'
+  return value === 'IMPORTANT' || value === 'SPENDING' || value === 'CARDS' || value === 'HEALTH' ? value : 'ALL'
 }
 
 /**
- * Insights (`/insights`, D-Insights / M-Insights): chips com contagem (grupo com estado selecionado; Cartões
- * "Em breve" até o M8), seções "Importantes" e "Outros insights". Só exibe o que a geração gravou (ADR-0023).
+ * Insights (`/insights`, D-Insights / M-Insights): chips com contagem (grupo com estado selecionado; Cartões desde a
+ * insights-v2, ADR-0028), seções "Importantes" e "Outros insights". Só exibe o que a geração gravou (ADR-0023).
  */
 export function InsightsView() {
   const router = useRouter()
@@ -50,15 +50,13 @@ export function InsightsView() {
       <div role="group" aria-label="Filtrar insights">
         <ul className={styles.chips}>
           {FILTERS.map(({ value, label, count }) => {
-            const cards = value === 'CARDS'
             const n = counts ? count(counts) : null
             return (
               <li key={value}>
-                <button type="button" className={styles.chip} aria-pressed={!cards && filter === value}
-                  disabled={cards} onClick={cards ? undefined : () => select(value as InsightFilter)}>
+                <button type="button" className={styles.chip} aria-pressed={filter === value}
+                  onClick={() => select(value)}>
                   {label}{' '}
-                  {cards ? <span className={styles.chipCount}>Em breve</span>
-                    : n !== null ? <span className={styles.chipCount}>{n}</span> : null}
+                  {n !== null ? <span className={styles.chipCount}>{n}</span> : null}
                 </button>
               </li>
             )

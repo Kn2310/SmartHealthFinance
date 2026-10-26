@@ -25,12 +25,12 @@ const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'jul
 /**
  * Financial Health ponta a ponta (ADR-0017/0018/0019): extrato com 3 meses fechados e o corrente (salário de 5.000 e
  * aluguel de 3.000 no dia 1 de cada mês) e uma poupança fora do total aberta hoje com R$ 9.000,00. Valores exatos do
- * `health-v1`, que valem em qualquer dia do mês (inclusive o último):
+ * `health-v2` (sem cartão, Credit e Debt não se aplicam), que valem em qualquer dia do mês (inclusive o último):
  *   Cash Flow 100 (sobra de 40%, 3 de 3 meses positivos) · Spending 100 (gasto igual à média) · Reserve 80
  *   (9.000 ÷ 3.000 = 3,00 meses) · Consistency 100 → (2.500 + 1.500 + 1.600 + 1.000) ÷ 70 = 94.
  *   Mês anterior: a poupança ainda não tinha saldo → Reserve 0 → 5.000 ÷ 70 = 71 → variação +23.
  */
-test('score e dimensões do health-v1 na Home, em /home/health e na Evolução', async ({ signedIn: page }, testInfo) => {
+test('score e dimensões do health-v2 na Home, em /home/health e na Evolução', async ({ signedIn: page }, testInfo) => {
   test.setTimeout(240_000)
   const today = businessToday()
   const previousMonth = MONTHS[shift(today, 1).month - 1]!
@@ -73,7 +73,7 @@ test('score e dimensões do health-v1 na Home, em /home/health e na Evolução',
     await expect(card).toContainText(`Seu score subiu 23 pontos desde ${previousMonth}`, { timeout: 1_000 })
   })
   const grid = card.getByRole('list', { name: 'Dimensões' })
-  for (const [name, value] of [['Cash Flow', '100'], ['Spending', '100'], ['Credit', 'Em breve'], ['Debt', 'Em breve'],
+  for (const [name, value] of [['Cash Flow', '100'], ['Spending', '100'], ['Credit', '—'], ['Debt', '—'],
     ['Reserve', '80'], ['Consistency', '100']] as const) {
     await expect(grid.getByRole('listitem').filter({ hasText: name })).toContainText(value)
   }

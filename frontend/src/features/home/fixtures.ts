@@ -8,6 +8,7 @@ export function readyOverview(overrides: Partial<Overview> = {}): Overview {
     workspaceId: '00000000-0000-0000-0000-000000000001',
     state: 'READY',
     period: { type: 'CURRENT_MONTH', from: '2026-09-01', to: '2026-09-27' },
+    cards: null,
     summary: { totalBalance: brl('7627.52'), balanceAsOf: '2026-09-27', accountCount: 2, pendingTransactions: 1 },
     cashFlow: {
       income: brl('6800.00'),
