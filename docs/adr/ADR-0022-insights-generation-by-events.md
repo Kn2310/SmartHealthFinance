@@ -39,6 +39,10 @@ Restrições do código atual:
   - a regra "nenhum módulo depende de `health`" (ADR-0018 §1) passa a ter **uma exceção: `insights`**.
   - **Adendo (2026-10-17, ADR-0023 §6):** `insights` também lê `overview.application.port`/`overview.domain` (origens
     dos dados no detalhe) e o `TransactionRepository` de `transactions.domain` (relacionados a uma transação).
+  - **Adendo (2026-10-26, ADR-0028 §1):** `insights` lê também a porta `cards.application.port.CardPortfolio` e
+    `cards.domain` (posição dos cartões hoje e no fim dos 6 meses anteriores). Os insights de fatura (D11, D14) ficam
+    presos à fatura: não detectados, viram `RESOLVED` se a fatura ainda está em avaliação, senão `EXPIRED`
+    (`PERIOD_ENDED`). Na troca de versão, o insight novo herda `seenAt` e feedback pelo fingerprint (ADR-0021 §6).
 
 ### 2. Gatilho: `health.snapshot-updated` v1
 

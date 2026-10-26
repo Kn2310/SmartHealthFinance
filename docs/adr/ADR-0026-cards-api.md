@@ -159,6 +159,8 @@ Uma chamada só, sem N+1.
   - `cards` não usa adapters nem casos de uso de Accounts ou Transactions, nem nada de Ingestion, Overview,
     Analytics, Health ou Insights;
   - Analytics, Health e Insights continuam sem depender de `cards` até a 6.2.
+  - **Adendo (2026-10-26):** na 6.2, Overview, Health e Insights leem a porta `CardPortfolio` e `cards.domain`, como o
+    ADR-0025 §1 previa (ADR-0006 §18, ADR-0027 §1). Analytics continua sem depender de `cards`.
 - **Logs:** `Card <ação> cardId workspaceId`, sem apelido, `last4`, limite ou valores (há teste).
 - **Timers:** `shf.cards.invoice.get`, `shf.cards.utilization.get` e `shf.cards.summary.get`.
 - **Contador:** `shf.cards.invoice.closed`.

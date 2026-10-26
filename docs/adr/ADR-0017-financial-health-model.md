@@ -102,6 +102,9 @@ Status de cada dimensão: `OK`, `INSUFFICIENT_DATA` (com motivo, ex.: "precisa d
 
 - Explicação: "Disponível quando houver cartões e parcelamentos."
 - Sem nota inventada. Quando o M8 entrar, as dimensões ganham fórmula e o algoritmo vira `health-v2` (§5).
+- **Adendo (2026-10-26):** fórmulas aprovadas no **ADR-0027** (`health-v2`): Credit = utilização agregada dos cartões +
+  pontualidade das faturas; Debt = peso mensal das parcelas na renda + horizonte. Sem cartão ativo, as duas continuam
+  `NOT_APPLICABLE`. A exclusão "cartões e parcelamentos" do §8 deixa de valer na v2.
 
 ### 3. Score geral, pesos e cobertura
 

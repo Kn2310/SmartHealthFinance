@@ -196,6 +196,9 @@ D3, D6, D8 e D10 são sempre Informativos.
 - Na troca de versão: os insights `ACTIVE` do P corrente da versão antiga viram `EXPIRED` (`VERSION_SUPERSEDED`) e a
   nova versão gera os seus; o estado `DISMISSED` é herdado pelo fingerprint; insights de períodos passados não são
   reescritos sem decisão registrada em ADR.
+- **Adendo (2026-10-26, ADR-0028 §6):** na troca de versão, o insight novo herda também `seenAt` e o feedback (com a
+  data) do mais recente de outra versão com o mesmo fingerprint. A `insights-v2` (ADR-0028) acrescenta os detectores
+  de Cartões D11, D12 e D14 e o tipo `CARDS`; D1–D10 não mudam.
 
 ### 7. Evidências e explicação
 

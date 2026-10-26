@@ -45,6 +45,9 @@ do `M-More`, até aqui "Em breve".
      `CATEGORY_SPIKE` da mesma categoria e mês, o link vira "Ver insight" (`/insights/:id`); senão, "Ver categoria".
    - Navegação: contagem de Importantes ao lado de "Insights" na sidebar/trilho e "N importantes" no `M-More` (Insights
      deixa de ser "Em breve"); some sem Importantes ou se a chamada falhar.
+   - **Adendo (2026-10-26, ADR-0028 §7):** o chip **Cartões** é habilitado, com contagem. "Registrar pagamento" leva a
+     `/transactions/new?kind=card-payment&cardId=`; "Ver cartão" e "Ver fatura" ficam desabilitados com "Em breve" até
+     as rotas `/cards/...` da Parte F.
 6. **Estilo:** só tokens do DS (teste de conformidade), sem estilo inline (CSP); larguras 375/768/1024/1280/1440 sem
    rolagem horizontal (E2E).
 
