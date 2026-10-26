@@ -69,6 +69,18 @@ public class CardLedgerLoader {
         return snapshots;
     }
 
+    /**
+     * O razão numa data (ADR-0027 §1): só os fatos até ela (compras, estornos e pagamentos), com "hoje" = a data. As
+     * datas das faturas são as gravadas, porque faturas fechadas ficam congeladas.
+     */
+    static CardLedgerSnapshot snapshotAsOf(CreditCard card, List<CardInvoice> rows, CardFacts facts, LocalDate date) {
+        CardFacts until = new CardFacts(
+                facts.installments().stream().filter(fact -> !fact.purchasedOn().isAfter(date)).toList(),
+                facts.credits().stream().filter(credit -> !credit.occurredOn().isAfter(date)).toList(),
+                facts.payments().stream().filter(payment -> !payment.occurredOn().isAfter(date)).toList());
+        return snapshot(card, rows, until, date);
+    }
+
     private static CardLedgerSnapshot snapshot(CreditCard card, List<CardInvoice> rows, CardFacts facts,
                                                LocalDate today) {
         Money zero = zero(card);
