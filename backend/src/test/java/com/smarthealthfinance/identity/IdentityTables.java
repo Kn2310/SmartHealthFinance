@@ -40,7 +40,7 @@ public final class IdentityTables {
 
 
 	/**
-	 * Espera a outbox esvaziar, os consumidores do Analytics (ADR-0014), do Health (ADR-0018) e dos Insights
+	 * Espera a outbox esvaziar, os consumidores do Analytics (ADR-0014), do Health (ADR-0018, ADR-0027 §6) e dos Insights
 	 * (ADR-0022) processarem os eventos dos testes anteriores e os jobs do Health e dos Insights tratarem os Workspaces
 	 * marcados, para que nenhum trabalho assíncrono grave em tabelas que estão sendo limpas (FK) ou mude um snapshot.
 	 * Evento que não vai ser processado (ex.: na DLQ) não trava a suíte: depois do prazo a limpeza segue.
@@ -54,7 +54,8 @@ public final class IdentityTables {
 					           or ((o.event_type like 'transaction.%' or o.event_type = 'import.completed')
 					               and not exists (select 1 from processed_events p
 					                               where p.consumer = 'analytics.projection' and p.event_id = o.id))
-					           or (o.event_type in ('analytics.projection-updated', 'account.changed')
+					           or (o.event_type in ('analytics.projection-updated', 'account.changed', 'card.created', 'card.updated',
+					                                'card.archived', 'card.reactivated', 'invoice.closed')
 					               and not exists (select 1 from processed_events p
 					                               where p.consumer = 'health.snapshot' and p.event_id = o.id))
 					           or (o.event_type = 'health.snapshot-updated'

@@ -3,6 +3,7 @@ package com.smarthealthfinance.overview.application.dto;
 import com.smarthealthfinance.accounts.domain.enums.AccountType;
 import com.smarthealthfinance.overview.domain.enums.MovementFlow;
 import com.smarthealthfinance.overview.domain.enums.OverviewState;
+import com.smarthealthfinance.overview.domain.model.CardDebts;
 import com.smarthealthfinance.overview.domain.enums.PeriodType;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
@@ -19,9 +20,15 @@ import java.util.UUID;
  * zero: ver {@link OverviewState}.
  *
  * @param cashFlow nulo em NO_ACCOUNTS e NO_TRANSACTIONS
+ * @param cards    "Faturas a pagar" e "Próximos eventos", sempre em hoje; nulo sem cartão ativo (ADR-0006 §18)
  */
 public record OverviewView(UUID workspaceId, Period period, OverviewState state, Summary summary, CashFlowView cashFlow,
-                           List<AccountSummary> accounts, List<RecentTransaction> recentTransactions) {
+                           List<AccountSummary> accounts, List<RecentTransaction> recentTransactions,
+                           CardDebts cards) {
+
+    public OverviewView withCards(CardDebts debts) {
+        return new OverviewView(workspaceId, period, state, summary, cashFlow, accounts, recentTransactions, debts);
+    }
 
     public record Period(PeriodType type, LocalDate from, LocalDate to) {}
 

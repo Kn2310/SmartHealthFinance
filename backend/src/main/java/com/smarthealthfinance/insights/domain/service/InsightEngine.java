@@ -6,10 +6,11 @@ import com.smarthealthfinance.shared.domain.Money;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 
 /**
- * Catálogo {@code insights-v1} (ADR-0021 §2): roda os 10 detectores sobre a mesma entrada e aplica o piso de impacto
- * (§3). Puro e determinístico: mesma entrada, mesmos candidatos, na mesma ordem.
+ * Catálogo (ADR-0021 §2; Cartões na {@code insights-v2}, ADR-0028): roda os detectores sobre a mesma entrada e aplica
+ * o piso de impacto (§3). Puro e determinístico: mesma entrada, mesmos candidatos, na mesma ordem.
  */
 public final class InsightEngine {
 
@@ -32,11 +33,19 @@ public final class InsightEngine {
         all.addAll(HealthDetectors.dimensionChange(ctx));
         all.addAll(HealthDetectors.lowReserve(ctx));
         all.addAll(SpendingDetectors.uncategorizedShare(ctx));
+        all.addAll(CardDetectors.invoicesAbovePattern(ctx));
+        all.addAll(CardDetectors.highUtilization(ctx));
+        all.addAll(CardDetectors.invoicesDue(ctx));
         return all.stream()
                 .filter(c -> InsightScoring.passesFloor(c, ctx.reference()))
                 .sorted(Comparator.comparing((InsightCandidate c) -> c.detector().ordinal())
                         .thenComparing(InsightCandidate::subject))
                 .toList();
+    }
+
+    /** Faturas ainda em avaliação ({@code cardId|YYYY-MM}), para o ciclo de vida dos insights de fatura. */
+    public static Set<String> evaluatedInvoices(InsightInput input) {
+        return CardDetectors.evaluatedInvoices(input, input.period().today());
     }
 
     /** R da entrada (despesa média da janela W), usado no impacto relativo. */

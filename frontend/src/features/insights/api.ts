@@ -5,13 +5,14 @@ import type { InsightDetail, InsightFeedback, InsightHighlights, InsightItem, In
 import { bffCall, type Result } from '@/lib/bff-client'
 import { useKeyed } from '@/lib/use-keyed'
 
-/** Filtros da lista na URL (chips): Todos, Importantes, Gastos e Saúde; Cartões fica desabilitado até o M8. */
-export type InsightFilter = 'ALL' | 'IMPORTANT' | 'SPENDING' | 'HEALTH'
+/** Filtros da lista na URL (chips): Todos, Importantes, Gastos, Cartões (insights-v2, ADR-0028) e Saúde. */
+export type InsightFilter = 'ALL' | 'IMPORTANT' | 'SPENDING' | 'CARDS' | 'HEALTH'
 
 const FILTER_QUERY: Record<InsightFilter, string> = {
   ALL: '',
   IMPORTANT: 'importance=IMPORTANT',
   SPENDING: 'type=SPENDING',
+  CARDS: 'type=CARDS',
   HEALTH: 'type=HEALTH',
 }
 

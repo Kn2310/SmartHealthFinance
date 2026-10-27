@@ -989,6 +989,28 @@ describe('/transactions/new — transferência, reembolso e cartão (ADR-0026 §
     expect(body(posts(calls)[0]!.init)).toMatchObject({ type: 'REFUND', accountId: AURORA, refundOfTransactionId: TXN })
   })
 
+  it('"Registrar pagamento" de um insight de fatura já chega com o cartão e a conta padrão (ADR-0028 §4)', async () => {
+    stub(routes())
+    render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} initialType="CARD_PAYMENT"
+      initialCardId={CARD} />)
+
+    expect(await screen.findByRole('radio', { name: 'Pagamento de fatura' })).toBeChecked()
+    await waitFor(() => expect(screen.getByLabelText('Cartão')).toHaveValue(CARD))
+    expect(screen.getByLabelText('Pagar com a conta')).toHaveValue(NORTE)
+  })
+
+  it('cartão da URL que não está entre os ativos não fica escolhido', async () => {
+    stub(routes({}, [
+      card({ status: 'ARCHIVED' }),
+      card({ id: '00000000-0000-7000-8000-0000000000c2', nickname: 'Horizonte' }),
+    ]))
+    render(<NewTransactionView initialAccountId={null} returnTo={{ kind: 'transactions' }} initialType="CARD_PAYMENT"
+      initialCardId={CARD} />)
+
+    expect(await screen.findByRole('radio', { name: 'Pagamento de fatura' })).toBeChecked()
+    await waitFor(() => expect(screen.getByLabelText('Cartão')).toHaveValue(''))
+  })
+
   it('remover o vínculo envia o reembolso sem a despesa original', async () => {
     const calls = stub(routes({ 'POST /api/bff/transactions': () => json(txn({ type: 'REFUND' }), 201) }))
     const user = userEvent.setup()

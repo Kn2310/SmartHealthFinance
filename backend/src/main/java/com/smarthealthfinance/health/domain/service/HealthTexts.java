@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.List;
 import java.util.Locale;
@@ -44,6 +45,11 @@ public final class HealthTexts {
     /** Meses de cobertura com 1 casa: {@code 2,4}. */
     public static String oneDecimal(BigDecimal value) {
         return decimal("0.0").format(value.setScale(1, RoundingMode.HALF_EVEN));
+    }
+
+    /** {@code 05 set}. */
+    public static String day(LocalDate date) {
+        return "%02d %s".formatted(date.getDayOfMonth(), MONTHS[date.getMonthValue() - 1]);
     }
 
     /** {@code set/2026}. */

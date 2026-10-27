@@ -233,6 +233,7 @@
 .step:last-child { border-bottom: 0; padding-bottom: 0; }
 .stepTitle { font-weight: 700; }
 .stepLink { display: inline-flex; align-items: center; gap: var(--space-4); width: fit-content; min-height: var(--size-touch-min-mobile); color: var(--color-semantic-text-info); font: var(--type-body-s); font-weight: 600; }
+.stepSoon { display: inline-flex; align-items: center; min-height: var(--size-touch-min-mobile); color: var(--color-neutral-muted); font: var(--type-body-s); }
 .inlineError { display: grid; gap: var(--space-8); }
 
 @media (min-width: 640px) {

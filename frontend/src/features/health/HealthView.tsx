@@ -262,7 +262,7 @@ function DimensionCard({ dimension: d, currency }: { dimension: HealthDimension;
             <span className={styles.muted}>/100</span>
           </p>
         ) : (
-          <span className={styles.badge}>{d.status === 'NOT_APPLICABLE' ? 'Em breve' : 'Dados insuficientes'}</span>
+          <span className={styles.badge}>{d.status === 'NOT_APPLICABLE' ? 'Não se aplica' : 'Dados insuficientes'}</span>
         )}
       </div>
       {d.status === 'OK' && d.score !== null ? (
@@ -367,10 +367,14 @@ function NextSteps({ health }: { health: Health }) {
             <li key={step.kind} className={styles.step}>
               <p className={styles.stepTitle}>{step.text}</p>
               <p>{step.evidence}</p>
-              <Link href={link.href} className={styles.stepLink}>
-                {link.label}
-                <ArrowRight size={16} aria-hidden="true" />
-              </Link>
+              {link.href ? (
+                <Link href={link.href} className={styles.stepLink}>
+                  {link.label}
+                  <ArrowRight size={16} aria-hidden="true" />
+                </Link>
+              ) : (
+                <span className={styles.stepSoon} aria-disabled="true">{link.label} · Em breve</span>
+              )}
             </li>
           )
         })}

@@ -56,7 +56,8 @@ public final class HealthResponses {
      * @param sources            {@code CSV}, {@code MANUAL}, {@code OFX} (ordem alfabética): origens dos lançamentos da
      *                           janela
      */
-    public record HealthContextDto(int activeAccounts, String uncategorizedShare, List<String> sources) {}
+    public record HealthContextDto(int activeAccounts, String uncategorizedShare, List<String> sources,
+                                   int activeCards) {}
 
     /**
      * @param kind  {@code MONEY} (na moeda da resposta), {@code PERCENT}, {@code MONTHS} ou {@code COUNT}
@@ -94,17 +95,20 @@ public final class HealthResponses {
     /**
      * @param kind         {@code BUILD_RESERVE} (Contas), {@code ADD_RESERVE_ACCOUNT} (Adicionar conta),
      *                     {@code REVIEW_CATEGORY} (Análise › Categorias), {@code CATEGORIZE_TRANSACTIONS}
-     *                     (Transações sem categoria) ou {@code REVIEW_MONTH} (Análise do mês)
+     *                     (Transações sem categoria), {@code REVIEW_MONTH} (Análise do mês),
+     *                     {@code PAY_OVERDUE_INVOICE} (fatura) ou {@code REVIEW_CARD_UTILIZATION} (cartão)
      * @param categoryCode só {@code REVIEW_CATEGORY} (nulo = sem categoria)
-     * @param month        só {@code REVIEW_CATEGORY} e {@code REVIEW_MONTH}
-     * @param amount       só {@code BUILD_RESERVE}: quanto falta para 6 meses
+     * @param month        {@code REVIEW_CATEGORY} e {@code REVIEW_MONTH}; mês de vencimento em
+     *                     {@code PAY_OVERDUE_INVOICE}
+     * @param amount       {@code BUILD_RESERVE}: quanto falta para 6 meses; {@code PAY_OVERDUE_INVOICE}: em aberto
+     * @param cardId       {@code PAY_OVERDUE_INVOICE} e {@code REVIEW_CARD_UTILIZATION} (ADR-0027 §4)
      */
     public record HealthNextStepDto(String kind, String text, String evidence, String categoryCode, String month,
-                                    MoneyDto amount) {
+                                    MoneyDto amount, UUID cardId) {
 
         static HealthNextStepDto of(NextStep s) {
             return new HealthNextStepDto(s.kind().name(), s.text(), s.evidence(), s.categoryCode(),
-                    s.month() == null ? null : s.month().toString(), money(s.amount()));
+                    s.month() == null ? null : s.month().toString(), money(s.amount()), s.cardId());
         }
     }
 
@@ -140,7 +144,7 @@ public final class HealthResponses {
                             r.coverage().weightPercent()),
                     r.summary(),
                     new HealthContextDto(r.activeAccounts(), r.uncategorizedShare().toPlainString(),
-                            view.sources().stream().map(DataSource::name).sorted().toList()),
+                            view.sources().stream().map(DataSource::name).sorted().toList(), r.activeCards()),
                     freshness, r.dimensions().stream().map(HealthDimensionDto::of).toList(),
                     r.factors().stream().map(f -> new HealthFactorDto(f.dimension().name(), f.direction().name(),
                             f.text())).toList(),

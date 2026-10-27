@@ -245,3 +245,55 @@ describe('HomeContent — NO_ACTIVITY_IN_PERIOD', () => {
     expect(within(screen.getByRole('region', { name: 'Saldo total' })).getByText('R$ 0,00')).toBeInTheDocument()
   })
 })
+
+describe('HomeContent — cartões (ADR-0006 §18)', () => {
+  const bills = (): NonNullable<Overview['cards']> => ({
+    activeCards: 2,
+    openInvoices: brl('4433.20'),
+    nextDue: { date: '2026-10-05', amount: brl('3412.80') },
+    upcomingEvents: [
+      {
+        date: '2026-09-28', kind: 'INVOICE_CLOSING', status: 'PARTIAL', dueMonth: '2026-10', amount: brl('3412.80'),
+        card: { id: 'c1', nickname: 'Aurora Platinum', last4: '4821' },
+      },
+      {
+        date: '2026-10-05', kind: 'INVOICE_DUE', status: 'PARTIAL', dueMonth: '2026-10', amount: brl('3412.80'),
+        card: { id: 'c1', nickname: 'Aurora Platinum', last4: '4821' },
+      },
+      {
+        date: '2026-09-05', kind: 'INVOICE_DUE', status: 'OVERDUE', dueMonth: '2026-09', amount: brl('120.00'),
+        card: { id: 'c2', nickname: 'Horizonte Gold', last4: '0937' },
+      },
+    ],
+    asOf: '2026-09-22',
+    calculationVersion: 'invoice-v2',
+  })
+
+  it('"Faturas a pagar" separado do saldo total e "Próximos eventos" só com fatos', async () => {
+    const { container } = render(<HomeContent overview={readyOverview({ cards: bills() })} />)
+
+    // O saldo total continua só das contas.
+    expect(within(screen.getByRole('region', { name: 'Saldo total' })).getByText('R$ 7.627,52')).toBeInTheDocument()
+    const toPay = screen.getByRole('region', { name: 'Faturas a pagar' })
+    expect(text(toPay)).toContain('Fora do saldo total · 2 cartões')
+    expect(text(toPay)).toContain('R$ 4.433,20')
+    expect(text(toPay)).toContain('Próximo vencimento: 5 out. · R$ 3.412,80')
+
+    const events = screen.getByRole('region', { name: 'Próximos eventos' })
+    const items = within(events).getAllByRole('listitem')
+    expect(items).toHaveLength(3)
+    expect(text(items[0]!)).toContain('Fechamento da fatura Aurora Platinum')
+    expect(text(items[0]!)).toContain('28 set. · Cartão •••• 4821 · Fatura de outubro')
+    expect(text(items[0]!)).toContain('Parcial')
+    expect(text(items[2]!)).toContain('Vencida')
+    // Nada de estimativa: nenhum "≈ Estimado" nos eventos.
+    expect(text(events)).not.toContain('Estimado')
+    expect(await axeViolations(container)).toEqual([])
+  })
+
+  it('sem cartão ativo, os blocos não aparecem', () => {
+    render(<HomeContent overview={readyOverview()} />)
+    expect(screen.queryByRole('region', { name: 'Faturas a pagar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Próximos eventos' })).not.toBeInTheDocument()
+  })
+})

@@ -55,6 +55,9 @@ Dois fatos do código condicionam a decisão:
   exponencial + jitter só para falhas transitórias, DLQ `shf.health.snapshot.dlq` para o resto.
 - **Adendo (2026-10-16, ADR-0022 §2):** cada recálculo do snapshot (job e rebuild) grava **`health.snapshot-updated` v1**
   na outbox, na mesma transação. Payload: só `algorithmVersion`. O consumidor é o módulo de Insights.
+- **Adendo (2026-10-26, ADR-0027 §6):** a fila ganha os bindings `card.created`, `card.updated`, `card.archived`,
+  `card.reactivated` e `invoice.closed`. O consumidor só marca o Workspace, como nos demais eventos. O `health` passa a
+  ler a porta `cards.application.port.CardPortfolio` e `cards.domain` (ArchUnit).
 
 ### 3. Debounce
 

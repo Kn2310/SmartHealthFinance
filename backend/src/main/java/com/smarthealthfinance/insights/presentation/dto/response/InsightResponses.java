@@ -57,7 +57,7 @@ public final class InsightResponses {
     /**
      * Um insight na lista, nos destaques e nos relacionados.
      *
-     * @param typeLabel    "Gastos", "Receitas" ou "Saúde"
+     * @param typeLabel    "Gastos", "Receitas", "Saúde" ou "Cartões"
      * @param subjectLabel o assunto na meta do card; sem ele, o rótulo do tipo
      * @param status       {@code ACTIVE}, {@code RESOLVED}, {@code EXPIRED} ou {@code DISMISSED}
      * @param seen         o usuário já abriu o detalhe ("Novo" = ativo e não visto)
@@ -85,13 +85,13 @@ public final class InsightResponses {
 
     public record CardsCountDto(long count, boolean available) {}
 
-    /** Contagens dos chips, sempre sobre os ativos e sem filtro; Cartões indisponível até o M8. */
+    /** Contagens dos chips, sempre sobre os ativos e sem filtro; Cartões disponível desde a insights-v2. */
     public record InsightCountsDto(long all, long important, long spending, long income, long health,
                                    CardsCountDto cards) {
 
         static InsightCountsDto of(InsightStore.ChipCounts counts) {
             return new InsightCountsDto(counts.all(), counts.important(), counts.spending(), counts.income(),
-                    counts.health(), new CardsCountDto(0, false));
+                    counts.health(), new CardsCountDto(counts.cards(), true));
         }
     }
 
@@ -240,6 +240,7 @@ public final class InsightResponses {
     static FigureKind seriesKind(InsightDetector detector) {
         return switch (detector) {
             case HEALTH_SCORE_CHANGE, HEALTH_DIMENSION_CHANGE -> FigureKind.POINTS;
+            case CARD_UTILIZATION_HIGH -> FigureKind.PERCENT;
             case LOW_RESERVE -> FigureKind.MONTHS;
             default -> FigureKind.MONEY;
         };
@@ -250,6 +251,7 @@ public final class InsightResponses {
             case SPENDING -> "Gastos";
             case INCOME -> "Receitas";
             case HEALTH -> "Saúde";
+            case CARDS -> "Cartões";
         };
     }
 }

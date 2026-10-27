@@ -9,6 +9,8 @@ import com.smarthealthfinance.identity.domain.model.User;
 import com.smarthealthfinance.identity.domain.model.Workspace;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.overview.application.ReferenceOverviewReadModel;
+import com.smarthealthfinance.cards.application.port.CardPortfolio;
+import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
 import com.smarthealthfinance.overview.application.dto.OverviewView;
 import com.smarthealthfinance.overview.application.port.OverviewReadModel;
 import com.smarthealthfinance.overview.domain.enums.MovementFlow;
@@ -31,6 +33,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Currency;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -55,12 +58,21 @@ class GetFinancialOverviewTest {
 
     private final TransactionsTestContext ctx = new TransactionsTestContext();
     private final WorkspaceId ws = ctx.anasWorkspace.id();
+    /** Datas pedidas à porta de cartões; sem cartão, ela responde vazio. */
+    private final List<LocalDate> cardDates = new ArrayList<>();
+    private final CardPortfolio cardPortfolio = (workspace, dates) -> {
+        cardDates.addAll(dates);
+        Map<LocalDate, List<CardPosition>> empty = new HashMap<>();
+        dates.forEach(date -> empty.put(date, List.of()));
+        return empty;
+    };
     private final GetFinancialOverview overview = overviewAt(ctx.clock);
 
     private GetFinancialOverview overviewAt(Clock clock) {
         return new GetFinancialOverview(ctx.currentUserService,
                 new com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard(ctx.workspaces),
-                ctx.accounts, new ReferenceOverviewReadModel(ctx.transactions, ctx.accounts), clock, SAO_PAULO,
+                ctx.accounts, new ReferenceOverviewReadModel(ctx.transactions, ctx.accounts), cardPortfolio, clock,
+                SAO_PAULO,
                 new SimpleMeterRegistry());
     }
 
@@ -126,7 +138,7 @@ class GetFinancialOverviewTest {
         RecordingReadModel readModel = new RecordingReadModel(new ReferenceOverviewReadModel(ctx.transactions, ctx.accounts));
         GetFinancialOverview recorded = new GetFinancialOverview(ctx.currentUserService,
                 new com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard(ctx.workspaces),
-                ctx.accounts, readModel, ctx.clock, SAO_PAULO, new SimpleMeterRegistry());
+                ctx.accounts, readModel, cardPortfolio, ctx.clock, SAO_PAULO, new SimpleMeterRegistry());
 
         User carol = activeUser("sub-carol");
         Workspace carolsWorkspace = personalWorkspace(carol);
@@ -399,6 +411,18 @@ class GetFinancialOverviewTest {
         assertThat(view.period().from()).isEqualTo(day("2026-09-01"));
         assertThat(view.period().to()).isEqualTo(day("2026-09-30"));
         assertThat(view.cashFlow().income()).isEqualTo(brl("10"));
+    }
+
+    @Test
+    void cardsBlockIsAlwaysReadForTodayAndAbsentWithoutCards() {
+        ctx.store(income(ws, ctx.aurora.id(), "2000", day("2026-08-05"), "Salário de agosto"));
+
+        OverviewView view = overview.execute(ctx.anasWorkspaceId(), new GetFinancialOverview.Query("PREVIOUS_MONTH",
+                null, null, null));
+
+        // ADR-0006 §18: a dívida dos cartões é sempre de hoje, qualquer que seja o período da Visão geral.
+        assertThat(cardDates).containsExactly(LocalDate.now(ctx.clock.withZone(SAO_PAULO)));
+        assertThat(view.cards()).isNull();
     }
 
     @Test

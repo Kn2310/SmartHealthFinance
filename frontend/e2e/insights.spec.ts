@@ -79,7 +79,7 @@ test('insights determinísticos: lista, detalhe, dispensa, Home e transação', 
   })
   const chips = page.getByRole('group', { name: 'Filtrar insights' })
   await expect(chips.getByRole('button', { name: /^Todos/ })).toHaveAttribute('aria-pressed', 'true')
-  await expect(chips.getByRole('button', { name: 'Cartões Em breve' })).toBeDisabled()
+  await expect(chips.getByRole('button', { name: 'Cartões 0' })).toBeEnabled()
   await expect(main.getByRole('link', { name: new RegExp(`^Gastos, importante: ${escape(spikeTitle)}`) })).toBeVisible()
   await expect(main.getByRole('link', { name: new RegExp(`^Gastos, informativo: ${escape(uncategorizedTitle)}`) }))
     .toBeVisible()

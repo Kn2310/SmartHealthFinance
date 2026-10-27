@@ -19,12 +19,24 @@ import java.util.Objects;
  * @param variation          score − score do mês anterior; nulo sem os dois scores
  * @param uncategorizedShare % do gasto da janela sem categoria, 1 casa
  * @param summary            frase do resumo; nula sem score
+ * @param activeCards        cartões ativos acompanhados na data-base (só contexto, {@code health-v2})
  */
 public record HealthResult(String algorithmVersion, YearMonth month, LocalDate asOf, boolean partial,
                            LocalDate windowFrom, LocalDate windowTo, int monthsUsed, HealthState state,
                            Integer score, Integer variation, boolean estimated, Confidence confidence,
                            BigDecimal uncategorizedShare, Coverage coverage, int activeAccounts, String summary,
-                           List<DimensionResult> dimensions, List<Factor> factors, List<NextStep> nextSteps) {
+                           List<DimensionResult> dimensions, List<Factor> factors, List<NextStep> nextSteps,
+                           int activeCards) {
+
+    public HealthResult(String algorithmVersion, YearMonth month, LocalDate asOf, boolean partial,
+                        LocalDate windowFrom, LocalDate windowTo, int monthsUsed, HealthState state,
+                        Integer score, Integer variation, boolean estimated, Confidence confidence,
+                        BigDecimal uncategorizedShare, Coverage coverage, int activeAccounts, String summary,
+                        List<DimensionResult> dimensions, List<Factor> factors, List<NextStep> nextSteps) {
+        this(algorithmVersion, month, asOf, partial, windowFrom, windowTo, monthsUsed, state, score, variation,
+                estimated, confidence, uncategorizedShare, coverage, activeAccounts, summary, dimensions, factors,
+                nextSteps, 0);
+    }
 
     /** Dimensões com nota e a fração do peso total (0–100) que elas somam. */
     public record Coverage(int available, int total, int weightPercent) {}
@@ -48,6 +60,6 @@ public record HealthResult(String algorithmVersion, YearMonth month, LocalDate a
     public HealthResult withVariation(Integer value) {
         return new HealthResult(algorithmVersion, month, asOf, partial, windowFrom, windowTo, monthsUsed, state,
                 score, value, estimated, confidence, uncategorizedShare, coverage, activeAccounts, summary,
-                dimensions, factors, nextSteps);
+                dimensions, factors, nextSteps, activeCards);
     }
 }

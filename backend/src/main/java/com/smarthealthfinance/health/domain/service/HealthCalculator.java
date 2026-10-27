@@ -26,7 +26,7 @@ import java.util.Objects;
 public final class HealthCalculator {
 
     /** Mudou curva, peso, limiar, entrada ou regra de status → nova versão (ADR-0017 §5). */
-    public static final String ALGORITHM_VERSION = "health-v1";
+    public static final String ALGORITHM_VERSION = "health-v2";
 
     public static final int ESTIMATED_BELOW_MONTHS = 3;
     static final BigDecimal HIGH_CONFIDENCE_UNCATEGORIZED = BigDecimal.valueOf(10);
@@ -45,9 +45,10 @@ public final class HealthCalculator {
         SpendingDimension.Assessment spending = SpendingDimension.assess(input);
         ReserveDimension.Assessment reserve = ReserveDimension.assess(input, window);
         DimensionResult consistency = ConsistencyDimension.assess(input, window);
+        CreditDimension.Assessment credit = CreditDimension.assess(input);
+        DimensionResult debt = DebtDimension.assess(input, window);
 
-        List<DimensionResult> dimensions = List.of(cashFlow.result(), spending.result(),
-                DimensionResult.notApplicable(HealthDimension.CREDIT), DimensionResult.notApplicable(HealthDimension.DEBT),
+        List<DimensionResult> dimensions = List.of(cashFlow.result(), spending.result(), credit.result(), debt,
                 reserve.result(), consistency);
 
         List<DimensionResult> available = dimensions.stream().filter(DimensionResult::isOk).toList();
@@ -67,7 +68,8 @@ public final class HealthCalculator {
                 n < ESTIMATED_BELOW_MONTHS, confidence, uncategorized, coverage, input.activeAccounts(),
                 ready ? HealthNarrative.summary(available, coverage) : null, dimensions,
                 HealthNarrative.factors(available),
-                HealthNarrative.nextSteps(input, window, cashFlow, spending, reserve, uncategorized));
+                HealthNarrative.nextSteps(input, window, cashFlow, spending, reserve, credit, uncategorized),
+                input.cards().size());
     }
 
     /** Variação contra o mês anterior, com a mesma versão; nula sem os dois scores. */

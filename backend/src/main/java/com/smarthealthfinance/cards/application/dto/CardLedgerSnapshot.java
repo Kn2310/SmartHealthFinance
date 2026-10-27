@@ -71,6 +71,12 @@ public record CardLedgerSnapshot(CreditCard card, InvoiceCalendar calendar, List
         return statement(calendar.datesOf(closingMonth)).map(InvoiceStatement::status).orElse(InvoiceStatus.FUTURE);
     }
 
+    /** Valor já comprometido em parcelas na fatura seguinte à atual. */
+    public Money nextInvoiceCommitted() {
+        InvoiceDates next = calendar.datesOf(current.closingMonth().plusMonths(1));
+        return statement(next).map(InvoiceStatement::remaining).orElse(zero());
+    }
+
     /** Parcelas (com o estorno já aplicado) e créditos da fatura, da data mais recente para a mais antiga. */
     public List<InvoiceItemView> items(YearMonth closingMonth) {
         List<InvoiceItemView> items = new ArrayList<>();

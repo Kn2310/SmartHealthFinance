@@ -31,9 +31,13 @@ class HealthMethodTest {
     }
 
     @Test
-    void creditAndDebtAreNotApplicableYet() {
-        assertThat(method.dimensions()).filteredOn(d -> !d.applicable()).extracting(HealthMethod.Dimension::dimension)
-                .containsExactly(HealthDimension.CREDIT, HealthDimension.DEBT);
+    void creditAndDebtApplyFromHealthV2() {
+        assertThat(method.dimensions()).allMatch(HealthMethod.Dimension::applicable);
+        assertThat(method.dimensions().get(2).curves()).singleElement().satisfies(curve -> assertThat(curve.points())
+                .extracting(p -> p.x().toPlainString() + "→" + p.score().toPlainString())
+                .containsExactly("0→100", "0.30→80", "0.60→55", "0.90→20", "1→0"));
+        assertThat(method.dimensions().get(3).curves()).hasSize(2);
+        assertThat(method.exclusions()).noneMatch(exclusion -> exclusion.startsWith("Cartões"));
         assertThat(method.algorithmVersion()).isEqualTo(HealthCalculator.ALGORITHM_VERSION);
         assertThat(method.estimated()).contains("3 meses");
     }

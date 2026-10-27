@@ -241,12 +241,14 @@ public class JdbcInsightStore implements InsightStore {
                                count(*) filter (where importance = 'IMPORTANT') as important,
                                count(*) filter (where type = 'SPENDING') as spending,
                                count(*) filter (where type = 'INCOME') as income,
-                               count(*) filter (where type = 'HEALTH') as health
+                               count(*) filter (where type = 'HEALTH') as health,
+                               count(*) filter (where type = 'CARDS') as cards
                         from insights
                         where workspace_id = ? and algorithm_version = ? and status = 'ACTIVE'
                         """,
                 (rs, row) -> new ChipCounts(rs.getLong("all_count"), rs.getLong("important"),
-                        rs.getLong("spending"), rs.getLong("income"), rs.getLong("health")),
+                        rs.getLong("spending"), rs.getLong("income"), rs.getLong("health"),
+                        rs.getLong("cards")),
                 workspaceId.value(), algorithmVersion);
     }
 

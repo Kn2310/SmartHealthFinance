@@ -154,6 +154,8 @@ function Evidence({ detail }: { detail: InsightDetail }) {
   const { series, contributors } = detail
   const moneyContributors = contributors.filter((c) => c.kind === 'MERCHANT' || c.kind === 'CATEGORY')
   const otherContributors = contributors.filter((c) => c.kind === 'TRANSACTION' || c.kind === 'CHARGE')
+  // Fatores da diferença da fatura (D11, ADR-0028 §2): somam exatamente a diferença; a UI só lista.
+  const factors = contributors.filter((c) => c.kind === 'FACTOR')
   if (series.points.length === 0 && contributors.length === 0) return null
   return (
     <section className={styles.panel} aria-labelledby="insight-evidence">
@@ -173,6 +175,21 @@ function Evidence({ detail }: { detail: InsightDetail }) {
               note: c.count !== null ? `${c.count} ${c.count === 1 ? 'compra' : 'compras'}` : undefined,
             }))}
           />
+        </div>
+      ) : null}
+      {factors.length > 0 ? (
+        <div className={styles.stack}>
+          <h3 className={styles.sectionTitle}>O que explica a diferença</h3>
+          <ul className={styles.contributors} aria-label="Fatores da diferença">
+            {factors.map((c, i) => (
+              <li key={`${c.key ?? 'none'}-${i}`} className={styles.contributor}>
+                <span className={styles.contributorName}>
+                  <span>{c.name}</span>
+                </span>
+                <Money value={c.amount} sign="always" />
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
       {otherContributors.length > 0 ? (

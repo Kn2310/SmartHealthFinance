@@ -1,5 +1,7 @@
 package com.smarthealthfinance.health.domain.service;
 
+import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
+import com.smarthealthfinance.cards.domain.valueobject.InvoiceStatement;
 import com.smarthealthfinance.health.domain.enums.FactorDirection;
 import com.smarthealthfinance.health.domain.enums.NextStepKind;
 import com.smarthealthfinance.health.domain.model.DimensionResult;
@@ -90,8 +92,17 @@ final class HealthNarrative {
 
     static List<NextStep> nextSteps(HealthInput input, HealthWindow window, CashFlowDimension.Assessment cashFlow,
                                     SpendingDimension.Assessment spending, ReserveDimension.Assessment reserve,
-                                    BigDecimal uncategorizedPercent) {
+                                    CreditDimension.Assessment credit, BigDecimal uncategorizedPercent) {
         List<NextStep> steps = new ArrayList<>();
+        if (credit.overdue() != null) {
+            CardPosition card = credit.overdue().card();
+            InvoiceStatement invoice = credit.overdue().invoice();
+            steps.add(new NextStep(NextStepKind.PAY_OVERDUE_INVOICE, "Fatura de %s do %s vencida".formatted(
+                    HealthTexts.month(invoice.dates().dueMonth()), card.nickname()),
+                    "%s em aberto desde %s.".formatted(HealthTexts.money(invoice.remaining()),
+                            HealthTexts.day(invoice.dates().dueDate())),
+                    null, invoice.dates().dueMonth(), invoice.remaining(), card.cardId().value()));
+        }
         if (reserve.gap() != null) {
             steps.add(new NextStep(NextStepKind.BUILD_RESERVE, "Fortalecer a reserva",
                     "Faltam %s para 6 meses de despesas.".formatted(HealthTexts.money(reserve.gap())), null, null,
@@ -109,6 +120,16 @@ final class HealthNarrative {
             steps.add(new NextStep(NextStepKind.REVIEW_CATEGORY, title,
                     "+%s em relação à sua média (%s).".formatted(HealthTexts.money(spending.topExcess()),
                             spending.cut()), spending.topCategory(), input.month(), null));
+        }
+        if (credit.mostUsed() != null) {
+            CardPosition card = credit.mostUsed();
+            String evidence = card.futureInstallments().isPositive()
+                    ? "Sem as parcelas futuras, a utilização seria de %d%%.".formatted(
+                            card.utilization().utilizationWithoutFuturePercent())
+                    : "%d%% do limite em uso.".formatted(card.utilization().utilizationPercent());
+            steps.add(new NextStep(NextStepKind.REVIEW_CARD_UTILIZATION,
+                    "Acompanhar a utilização do %s".formatted(card.nickname()), evidence, null, null, null,
+                    card.cardId().value()));
         }
         if (!window.isEmpty() && uncategorizedPercent.compareTo(CATEGORIZE_ABOVE_PERCENT) > 0) {
             steps.add(new NextStep(NextStepKind.CATEGORIZE_TRANSACTIONS, "Categorizar transações",

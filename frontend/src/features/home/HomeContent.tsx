@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { Overview } from '@/lib/api/types'
 import { AccountsSummary } from './AccountsSummary'
 import { BalanceHero } from './BalanceHero'
+import { InvoicesToPay, UpcomingEvents } from './CardBills'
 import { CashFlowSummary } from './CashFlowSummary'
 import { NoAccounts, NoActivityInPeriod, NoTransactions, UnsupportedState } from './HomeEmpty'
 import { RecentTransactions } from './RecentTransactions'
@@ -12,6 +13,8 @@ import styles from './HomeView.module.css'
  * e `null` (sem dados) nunca é convertido em zero. `health` é o card "Como estou?" (ADR-0019), sempre o primeiro
  * bloco e independente do período da Visão geral; `insights` são "Merece atenção" e "O que mudou?" (ADR-0023 §5),
  * logo depois da Visão geral, só nos estados com saldo (os blocos têm os próprios estados e não seguem o período).
+ * Com cartão ativo, "Faturas a pagar" fica logo abaixo do saldo, como bloco separado (a dívida não entra no saldo), e
+ * "Próximos eventos" fecha a Home (ADR-0006 §18); os dois são sempre de hoje, qualquer que seja o período.
  */
 export function HomeContent({ overview, health = null, insights = null }: {
   overview: Overview
@@ -27,7 +30,17 @@ export function HomeContent({ overview, health = null, insights = null }: {
   ) : null
   const gridClass = [styles.grid, healthBlock ? styles.withHealth : '', insightBlocks ? styles.withInsights : '']
     .filter(Boolean).join(' ')
-  const { state, summary, period, cashFlow, accounts, recentTransactions } = overview
+  const { state, summary, period, cashFlow, accounts, recentTransactions, cards } = overview
+  const bills = cards ? <InvoicesToPay bills={cards} /> : null
+  const events = cards ? <UpcomingEvents bills={cards} /> : null
+  const hero = (
+    <div className={styles.hero}>
+      <div className={styles.heroStack}>
+        <BalanceHero summary={summary} />
+        {bills}
+      </div>
+    </div>
+  )
 
   switch (state) {
     case 'NO_ACCOUNTS':
@@ -35,6 +48,8 @@ export function HomeContent({ overview, health = null, insights = null }: {
         <div className={styles.stack}>
           {healthBlock}
           <NoAccounts />
+          {bills}
+          {events}
         </div>
       )
 
@@ -54,46 +69,50 @@ export function HomeContent({ overview, health = null, insights = null }: {
             />
           ) : null}
           {accounts.length > 0 ? <AccountsSummary accounts={accounts} /> : null}
+          {bills}
+          {events}
         </div>
       )
 
     case 'NO_ACTIVITY_IN_PERIOD':
       return (
-        <div className={gridClass}>
-          {healthBlock}
-          <div className={styles.hero}>
-            <BalanceHero summary={summary} />
+        <div className={styles.stack}>
+          <div className={gridClass}>
+            {healthBlock}
+            {hero}
+            <div className={styles.cashflow}>
+              <NoActivityInPeriod balanceAsOf={summary.balanceAsOf} />
+            </div>
+            {insightBlocks}
+            <div className={styles.accounts}>
+              <AccountsSummary accounts={accounts} />
+            </div>
+            <div className={styles.recent}>
+              <RecentTransactions transactions={recentTransactions} />
+            </div>
           </div>
-          <div className={styles.cashflow}>
-            <NoActivityInPeriod balanceAsOf={summary.balanceAsOf} />
-          </div>
-          {insightBlocks}
-          <div className={styles.accounts}>
-            <AccountsSummary accounts={accounts} />
-          </div>
-          <div className={styles.recent}>
-            <RecentTransactions transactions={recentTransactions} />
-          </div>
+          {events}
         </div>
       )
 
     case 'READY':
       return (
-        <div className={gridClass}>
-          {healthBlock}
-          <div className={styles.hero}>
-            <BalanceHero summary={summary} />
+        <div className={styles.stack}>
+          <div className={gridClass}>
+            {healthBlock}
+            {hero}
+            <div className={styles.cashflow}>
+              <CashFlowSummary cashFlow={cashFlow} period={period} />
+            </div>
+            {insightBlocks}
+            <div className={styles.accounts}>
+              <AccountsSummary accounts={accounts} />
+            </div>
+            <div className={styles.recent}>
+              <RecentTransactions transactions={recentTransactions} />
+            </div>
           </div>
-          <div className={styles.cashflow}>
-            <CashFlowSummary cashFlow={cashFlow} period={period} />
-          </div>
-          {insightBlocks}
-          <div className={styles.accounts}>
-            <AccountsSummary accounts={accounts} />
-          </div>
-          <div className={styles.recent}>
-            <RecentTransactions transactions={recentTransactions} />
-          </div>
+          {events}
         </div>
       )
 

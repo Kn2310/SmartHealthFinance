@@ -4,6 +4,8 @@ import com.smarthealthfinance.health.application.usecase.MarkHealthDirty;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.infrastructure.messaging.EventEnvelope;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.slf4j.MDC;
 import org.springframework.amqp.AmqpRejectAndDontRequeueException;
 import org.springframework.amqp.core.Message;
@@ -19,8 +21,9 @@ import tools.jackson.databind.json.JsonMapper;
 public class HealthEventListener {
 
     private static final String CORRELATION_ID_MDC_KEY = "correlationId";
-    private static final Set<String> CONSUMED = Set.of(HealthMessagingConfig.PROJECTION_UPDATED,
-            HealthMessagingConfig.ACCOUNT_CHANGED);
+    private static final Set<String> CONSUMED = Stream.concat(
+            Stream.of(HealthMessagingConfig.PROJECTION_UPDATED, HealthMessagingConfig.ACCOUNT_CHANGED),
+            HealthMessagingConfig.CARD_EVENTS.stream()).collect(Collectors.toUnmodifiableSet());
 
     private final MarkHealthDirty mark;
     private final JsonMapper json;

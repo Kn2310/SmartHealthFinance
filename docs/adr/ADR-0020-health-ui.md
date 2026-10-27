@@ -37,6 +37,9 @@ card Navy usa cores sobre fundo escuro que não existiam como tokens.
    mês" (`/analysis?month`).
    - **Adendo (2026-10-19, ADR-0024 §5):** `REVIEW_CATEGORY` leva a "Ver insight" (`/insights/:id`) quando existe a alta
      daquela categoria no mesmo mês (`CATEGORY_SPIKE` ativo); senão, continua "Ver categoria".
+   - **Adendo (2026-10-26, ADR-0027 §4):** `PAY_OVERDUE_INVOICE` "Ver fatura" e `REVIEW_CARD_UTILIZATION` "Ver
+     cartão" aparecem desabilitados com "Em breve" até as telas de cartões (Parte F). Credit e Debt deixam de mostrar
+     "Em breve" no mini-grid quando estão `OK`; sem cartão, continuam com o motivo do backend.
 5. **"Como calculamos?":** `<dialog>` modal nativo, 520 px à direita (bottom sheet no mobile), montado na primeira
    abertura e mantido; abrir e fechar só chamam `showModal()`/`close()`. Foco no botão Fechar ao abrir, preso no
    diálogo, Esc e clique no fundo fecham e o foco volta ao gatilho. O conteúdo vem de `/health/method` e só carrega ao

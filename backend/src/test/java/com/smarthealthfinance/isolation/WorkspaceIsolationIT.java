@@ -478,6 +478,22 @@ class WorkspaceIsolationIT extends IntegrationTest {
     }
 
     // ---------------------------------------------------------------------------------------------------------------
+    // 3. Leituras derivadas dos cartões só com o próprio Workspace (ADR-0006 §18, ADR-0027, ADR-0028)
+    // ---------------------------------------------------------------------------------------------------------------
+
+    @Test
+    void overviewInvoicesToPayOnlyShowTheOwnCards() throws Exception {
+        MvcTestResult overview = mvc.get().uri(WORKSPACE_SCOPE + "/overview", ana.workspace()).with(ana()).exchange();
+
+        assertThat(overview).hasStatus(HttpStatus.OK).bodyJson()
+                .hasPathSatisfying("$.cards.activeCards", n -> assertThat(n).asNumber().isEqualTo(1))
+                .hasPathSatisfying("$.cards.upcomingEvents[*].card.id",
+                        ids -> assertThat(ids).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
+                                .allMatch(ana.card()::equals));
+        assertNoLeak(overview, bob, "Conta do Bob Cartão", "Compra do Bob");
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
     // helpers
     // ---------------------------------------------------------------------------------------------------------------
 

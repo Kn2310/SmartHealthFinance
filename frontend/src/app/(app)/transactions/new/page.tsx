@@ -9,14 +9,15 @@ const TYPES: readonly FormType[] = ['INCOME', 'EXPENSE', 'ADJUSTMENT', 'TRANSFER
 
 /**
  * `?accountId=` pré-seleciona a conta; `?returnTo=account` volta para ela; `?type=` escolhe o tipo (só os nomes da
- * lista); `?refundOf=` vincula o reembolso a uma despesa (só UUID). Nunca uma URL nem dado financeiro na query.
+ * lista); `?refundOf=` vincula o reembolso a uma despesa (só UUID); `?cardId=` escolhe o cartão da compra ou do pagamento
+ * (só UUID). Nunca uma URL nem dado financeiro na query.
  */
 export default async function NewTransactionPage({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const { accountId, returnTo, type, refundOf } = await searchParams
+  const { accountId, returnTo, type, refundOf, cardId } = await searchParams
   const initialType = TYPES.find((value) => value === type) ?? null
   return (
     <NewTransactionView
@@ -24,6 +25,7 @@ export default async function NewTransactionPage({
       returnTo={parseReturnTo(returnTo, accountId)}
       initialType={initialType}
       refundOf={initialType === 'REFUND' && isUuid(refundOf) ? refundOf : null}
+      initialCardId={isUuid(cardId) ? cardId : null}
     />
   )
 }

@@ -10,7 +10,9 @@ import com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard;
 import com.smarthealthfinance.identity.domain.model.Workspace;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.overview.application.dto.OverviewView;
+import com.smarthealthfinance.cards.application.port.CardPortfolio;
 import com.smarthealthfinance.overview.application.port.OverviewReadModel;
+import com.smarthealthfinance.overview.domain.model.CardDebts;
 import com.smarthealthfinance.overview.application.port.OverviewReadModel.AccountFigures;
 import com.smarthealthfinance.overview.application.port.OverviewReadModel.Activity;
 import com.smarthealthfinance.overview.application.port.OverviewReadModel.RecentMovement;
@@ -59,18 +61,21 @@ public class GetFinancialOverview {
     private final WorkspaceAccessGuard accessGuard;
     private final AccountRepository accounts;
     private final OverviewReadModel readModel;
+    private final CardPortfolio cardPortfolio;
     private final Clock clock;
     private final ZoneId businessZone;
     private final MeterRegistry meters;
 
     public GetFinancialOverview(CurrentUserService currentUser, WorkspaceAccessGuard accessGuard,
-                                AccountRepository accounts, OverviewReadModel readModel, Clock clock,
+                                AccountRepository accounts, OverviewReadModel readModel, CardPortfolio cardPortfolio,
+                                Clock clock,
                                 @Value("${shf.overview.zone:America/Sao_Paulo}") ZoneId businessZone,
                                 MeterRegistry meters) {
         this.currentUser = currentUser;
         this.accessGuard = accessGuard;
         this.accounts = accounts;
         this.readModel = readModel;
+        this.cardPortfolio = cardPortfolio;
         this.clock = clock;
         this.businessZone = businessZone;
         this.meters = meters;
@@ -87,8 +92,9 @@ public class GetFinancialOverview {
         WorkspaceId id = workspace.id();
         Currency currency = workspace.baseCurrency();
 
+        LocalDate today = LocalDate.now(clock.withZone(businessZone));
         OverviewPeriod period = OverviewPeriod.resolve(PeriodType.parseOrDefault(query.period()), query.from(),
-                query.to(), LocalDate.now(clock.withZone(businessZone)));
+                query.to(), today);
         int recentLimit = recentLimit(query.recentLimit());
 
         List<Account> all = accounts.findAllByWorkspace(id);
@@ -97,6 +103,8 @@ public class GetFinancialOverview {
         OverviewView view = active.isEmpty()
                 ? build(id, period, OverviewState.NO_ACCOUNTS, active, all, currency, null, List.of(), null, null)
                 : buildWithActivity(id, period, recentLimit, active, all, currency);
+        // Sempre em hoje, qualquer que seja o período: a dívida dos cartões não entra no saldo (ADR-0006 §18).
+        view = view.withCards(CardDebts.of(cardPortfolio.positions(id, List.of(today)).get(today), today, currency));
 
         sample.stop(Timer.builder("shf.overview.get").tag("state", view.state().name()).register(meters));
         log.info("Overview served workspaceId={} period={} state={}", id, period.type(), view.state());
@@ -148,7 +156,7 @@ public class GetFinancialOverview {
                 .toList();
 
         return new OverviewView(id.value(), new OverviewView.Period(period.type(), period.from(), period.to()), state,
-                summary, cashFlowView, accountSummaries, recentTransactions);
+                summary, cashFlowView, accountSummaries, recentTransactions, null);
     }
 
     /** Conta ativa sem nenhuma transação lançada, num Workspace com dados, tem saldo zero real. */

@@ -16,7 +16,6 @@ import com.smarthealthfinance.cards.domain.repository.CreditCardRepository;
 import com.smarthealthfinance.cards.domain.service.InvoiceCalendar;
 import com.smarthealthfinance.cards.domain.valueobject.CardId;
 import com.smarthealthfinance.cards.domain.valueobject.CardUtilization;
-import com.smarthealthfinance.cards.domain.valueobject.InvoiceDates;
 import com.smarthealthfinance.cards.domain.valueobject.InvoiceStatement;
 import com.smarthealthfinance.identity.domain.model.Workspace;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
@@ -87,19 +86,12 @@ public class GetCardsSummary {
             summaries.add(new CardSummary(CardView.from(card),
                     InvoiceSummaryView.from(current, snapshot.row(current.dates().closingMonth()).orElse(null)),
                     UtilizationView.from(utilization, today, InvoiceCalendar.RULES_VERSION),
-                    nextInvoiceCommitted(snapshot)));
+                    snapshot.nextInvoiceCommitted()));
         }
 
         CardsSummaryView view = new CardsSummaryView(totalLimit, utilized, open, nextDue, summaries, today,
                 InvoiceCalendar.RULES_VERSION);
         sample.stop(Timer.builder("shf.cards.summary.get").register(meters));
         return view;
-    }
-
-    /** Valor já comprometido em parcelas na fatura seguinte à atual. */
-    static Money nextInvoiceCommitted(CardLedgerSnapshot snapshot) {
-        InvoiceDates next = snapshot.calendar().datesOf(snapshot.current().closingMonth().plusMonths(1));
-        return snapshot.statement(next).map(InvoiceStatement::remaining)
-                .orElse(Money.zero(snapshot.card().limit().value().currency()));
     }
 }

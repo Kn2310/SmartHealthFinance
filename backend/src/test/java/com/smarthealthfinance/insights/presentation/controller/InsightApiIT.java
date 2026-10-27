@@ -66,13 +66,13 @@ class InsightApiIT extends IntegrationTest {
         seed();
         MvcTestResult all = list(Map.of());
         assertThat(read(all, "$.state")).isEqualTo("READY");
-        assertThat(read(all, "$.algorithmVersion")).isEqualTo("insights-v1");
+        assertThat(read(all, "$.algorithmVersion")).isEqualTo("insights-v2");
         assertThat(read(all, "$.period.month")).isEqualTo(period.key());
         assertThat(read(all, "$.freshness.state")).isEqualTo("UP_TO_DATE");
         int total = ((Number) read(all, "$.totalItems")).intValue();
         assertThat(total).isGreaterThanOrEqualTo(4).isEqualTo(((Number) read(all, "$.counts.all")).intValue());
         assertThat(read(all, "$.counts.cards.count")).isEqualTo(0);
-        assertThat(read(all, "$.counts.cards.available")).isEqualTo(false);
+        assertThat(read(all, "$.counts.cards.available")).isEqualTo(true);
         // Importantes primeiro (ADR-0021 §3).
         List<String> importance = JsonPath.read(body(all), "$.items[*].importance");
         assertThat(importance).isSortedAccordingTo((a, b) -> Boolean.compare(!a.equals("IMPORTANT"),
@@ -239,6 +239,48 @@ class InsightApiIT extends IntegrationTest {
         IdentityTables.awaitQuiescence(jdbc);
         await().atMost(Duration.ofSeconds(30)).untilAsserted(() ->
                 assertThat(read(list(Map.of()), "$.state")).isEqualTo("INSUFFICIENT_HISTORY"));
+    }
+
+    /**
+     * ADR-0028: uma compra de 900 (limite 1.000) lançada há 60 dias numa fatura acompanhada, sem pagamento — a fatura
+     * já venceu (D14) e a utilização é 90% (D12). Os dois aparecem no chip Cartões, com as ações de cartão.
+     */
+    @Test
+    void cardInsightsFillTheCardsChip() throws Exception {
+        checking = createAccount();
+        String card = read(mvc.post().uri(INSIGHTS.replace("/insights", "/cards"), workspace).with(ana())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"nickname": "Aurora Platinum", "brand": "MASTERCARD", "last4": "4821",
+                         "limit": {"amount": "1000.00", "currency": "BRL"}, "closingDay": 25, "dueDay": 5}
+                        """).exchange(), "$.id").toString();
+        // Histórico acompanhado desde antes da compra (como depois de importar faturas antigas, ADR-0025 §15).
+        jdbc.update("update credit_cards set tracking_start_month = date '2000-01-01' where id = ?::uuid", card);
+        assertThat(mvc.post().uri(INSIGHTS.replace("/insights", "/cards/{cardId}/purchases"), workspace, card)
+                .with(ana()).header("Idempotency-Key", "card-" + UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"amount": {"amount": "900.00", "currency": "BRL"}, "occurredOn": "%s",
+                         "description": "Compra antiga", "installmentCount": 1}
+                        """.formatted(loader.today().minusDays(60)))).hasStatus(HttpStatus.CREATED);
+        IdentityTables.awaitQuiescence(jdbc);
+        await().atMost(Duration.ofSeconds(30)).until(() -> {
+            String detectors = body(list(Map.of("type", "CARDS")));
+            return detectors.contains("INVOICE_DUE") && detectors.contains("CARD_UTILIZATION_HIGH");
+        });
+
+        MvcTestResult cards = list(Map.of("type", "CARDS"));
+        assertThat(read(cards, "$.counts.cards.count")).isEqualTo(2);
+        assertThat(read(cards, "$.counts.cards.available")).isEqualTo(true);
+        assertThat(JsonPath.<List<String>>read(body(cards), "$.items[*].typeLabel")).containsOnly("Cartões");
+        assertThat(JsonPath.<List<String>>read(body(cards), "$.items[*].subjectLabel"))
+                .containsOnly("Aurora Platinum");
+        assertThat(read(cards, "$.items[?(@.detector == 'INVOICE_DUE')].importance"))
+                .isEqualTo(List.of("IMPORTANT"));
+        assertThat(read(cards, "$.items[?(@.detector == 'INVOICE_DUE')].primaryAction.kind"))
+                .isEqualTo(List.of("RECORD_CARD_PAYMENT"));
+        assertThat(read(cards, "$.items[?(@.detector == 'INVOICE_DUE')].primaryAction.params.cardId"))
+                .isEqualTo(List.of(card));
+        assertThat(read(cards, "$.items[?(@.detector == 'CARD_UTILIZATION_HIGH')].title"))
+                .isEqualTo(List.of("A utilização do Aurora Platinum está em 90% do limite."));
     }
 
     private void seed() throws Exception {

@@ -3,7 +3,8 @@ import { formatMoney } from '@/lib/format/money'
 
 /**
  * Rota de cada ação (ADR-0021 §2): o backend manda o código e os parâmetros, a UI só monta o link para telas que já
- * existem. Placeholders "Em breve" (`available = false`) e códigos desconhecidos não têm rota.
+ * existem. Placeholders "Em breve" (`available = false`), as telas de cartão e fatura (Parte F, adendo ao ADR-0024) e
+ * códigos desconhecidos não têm rota.
  */
 export function actionHref(action: InsightAction): string | null {
   if (!action.available) return null
@@ -35,6 +36,12 @@ export function actionHref(action: InsightAction): string | null {
       return '/accounts'
     case 'CATEGORIZE':
       return `/transactions${search({ category: p.category ?? 'none' })}`
+    case 'RECORD_CARD_PAYMENT':
+      return `/transactions/new${search({ type: 'CARD_PAYMENT', cardId: p.cardId })}`
+    case 'VIEW_CARD':
+    case 'VIEW_INVOICE':
+      // As telas /cards/... chegam na Parte F: até lá, "Em breve".
+      return null
     default:
       return null
   }

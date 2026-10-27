@@ -95,7 +95,7 @@ function HeroContent({ health }: { health: Health }) {
           <li key={d.dimension} className={styles.heroCell}>
             <span className={styles.heroCellName}>{DIMENSION_SHORT[d.dimension]}</span>
             <span className={styles.heroCellValue}>
-              {d.status === 'OK' ? d.score : d.status === 'NOT_APPLICABLE' ? 'Em breve' : '—'}
+              {d.status === 'OK' ? d.score : '—'}
               {d.status === 'INSUFFICIENT_DATA' ? <span className="sr-only"> dados insuficientes</span> : null}
             </span>
           </li>

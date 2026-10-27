@@ -133,6 +133,33 @@ e o ADR-0005: **POSTED é o único status com efeito financeiro**.
     - **Na Sessão 6.2** entra o bloco "Faturas a pagar" (total em aberto dos cartões ativos e próximo vencimento),
       separado do saldo e sem "saldo líquido".
 
+18. **"Faturas a pagar" e "Próximos eventos" (adendo de 2026-10-26, aprovado; Sessão 6.2 parte E, ADR-0027 §1):**
+    - **Campo aditivo `cards`** na resposta, nulo quando o Workspace não tem cartão ativo. É sempre calculado em
+      **hoje** (fuso de negócio), qualquer que seja o `period` pedido, como o card do Health (ADR-0020 §2).
+    - **Conteúdo:**
+      - `activeCards`;
+      - `openInvoices`: soma do que falta pagar nas faturas já iniciadas dos cartões ativos, inclusive a fatura
+        atual, parcial (o `openInvoices` do resumo de cartões, ADR-0026 §3);
+      - `nextDue {date, amount}`: o vencimento mais próximo entre as faturas iniciadas com saldo em aberto, e a soma
+        do que vence nesse dia; nulo sem saldo;
+      - `upcomingEvents`: fechamentos e vencimentos dos **próximos 30 dias** (de hoje até hoje + 30), mais as faturas
+        **vencidas** com saldo, em ordem de data;
+      - `asOf` e `calculationVersion` (`invoice-v2`).
+    - **Só fatos** (estimativas são do M9):
+      - fechamento da fatura atual: valor **até agora**, `status = PARTIAL`;
+      - vencimento da fatura atual: o que falta pagar até agora, `PARTIAL`;
+      - vencimento de fatura fechada com saldo: o saldo em aberto, `CLOSED`;
+      - fatura vencida com saldo: `OVERDUE`, na data do vencimento;
+      - fatura fechada já paga não gera evento; receitas e despesas recorrentes ficam para o Forecast.
+    - Cada evento traz `date`, `kind` (`INVOICE_CLOSING`/`INVOICE_DUE`), `status`, `dueMonth`, `amount` e
+      `card {id, nickname, last4}`. Desempate: data, fechamento antes de vencimento, ordem de criação do cartão.
+    - **Saldo total não muda:** continua só das contas (§8, §17). A dívida aparece só nesse bloco, sem "saldo
+      líquido".
+    - **Arquitetura:** o Overview lê a porta `cards.application.port.CardPortfolio` (ADR-0025 §1; o texto do
+      ADR-0026 §9 que listava o Overview entre os que nunca dependem de Cards valia até a 6.2). Cards não depende do
+      Overview. O cálculo é o razão de Cards; nenhum SQL novo no Overview, e um teste confere o bloco contra o resumo de
+      cartões.
+
 ## Alternatives
 
 - **Somar em memória (carregar todas as transações):** rejeitado — O(n) em memória por request na tela mais

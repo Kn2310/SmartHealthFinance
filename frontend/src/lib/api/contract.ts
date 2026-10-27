@@ -15,6 +15,9 @@ type Equals<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B 
 type Assert<T extends true> = T
 type Values<T extends readonly unknown[]> = T[number]
 
+/** Eventos da fatura nos "Próximos eventos" (ADR-0006 §18). */
+export const UPCOMING_INVOICE_EVENT_KINDS = ['INVOICE_CLOSING', 'INVOICE_DUE'] as const
+export const UPCOMING_INVOICE_EVENT_STATUSES = ['PARTIAL', 'CLOSED', 'OVERDUE'] as const
 export const OVERVIEW_STATES = ['NO_ACCOUNTS', 'NO_TRANSACTIONS', 'NO_ACTIVITY_IN_PERIOD', 'READY'] as const
 export const PERIOD_TYPES = ['CURRENT_MONTH', 'PREVIOUS_MONTH', 'CUSTOM'] as const
 export const ACCOUNT_TYPES = ['CHECKING', 'SAVINGS', 'PAYMENT', 'OTHER'] as const
@@ -68,6 +71,8 @@ type Card = S['CardResponse']
 type Inv = S['InvoiceSummaryResponse']
 export type EnumChecks = [
   Assert<Equals<Values<typeof OVERVIEW_STATES>, O['state']>>,
+  Assert<Equals<Values<typeof UPCOMING_INVOICE_EVENT_KINDS>, S['UpcomingInvoiceEvent']['kind']>>,
+  Assert<Equals<Values<typeof UPCOMING_INVOICE_EVENT_STATUSES>, S['UpcomingInvoiceEvent']['status']>>,
   Assert<Equals<Values<typeof PERIOD_TYPES>, O['period']['type']>>,
   Assert<Equals<Values<typeof ACCOUNT_TYPES>, O['accounts'][number]['type']>>,
   Assert<Equals<Values<typeof TRANSACTION_TYPES>, Tx['type']>>,
@@ -101,7 +106,12 @@ export type EnumChecks = [
 
 /** Campos de cada record Java (nomes iguais aos do backend) ↔ chaves do tipo TS correspondente. */
 export const RECORD_FIELDS = {
-  OverviewResponse: ['workspaceId', 'period', 'state', 'summary', 'cashFlow', 'accounts', 'recentTransactions'],
+  OverviewResponse: [
+    'workspaceId', 'period', 'state', 'summary', 'cashFlow', 'accounts', 'recentTransactions', 'cards',
+  ],
+  InvoicesToPay: ['activeCards', 'openInvoices', 'nextDue', 'upcomingEvents', 'asOf', 'calculationVersion'],
+  InvoicesNextDue: ['date', 'amount'],
+  UpcomingInvoiceEvent: ['date', 'kind', 'status', 'dueMonth', 'amount', 'card'],
   Period: ['type', 'from', 'to'],
   Summary: ['totalBalance', 'balanceAsOf', 'accountCount', 'pendingTransactions'],
   CashFlow: ['income', 'expense', 'refunds', 'net', 'transfers'],
@@ -203,6 +213,9 @@ export const RECORD_FIELDS = {
 type F = typeof RECORD_FIELDS
 export type FieldChecks = [
   Assert<Equals<Values<F['OverviewResponse']>, keyof O>>,
+  Assert<Equals<Values<F['InvoicesToPay']>, keyof S['InvoicesToPay']>>,
+  Assert<Equals<Values<F['InvoicesNextDue']>, keyof S['InvoicesNextDue']>>,
+  Assert<Equals<Values<F['UpcomingInvoiceEvent']>, keyof S['UpcomingInvoiceEvent']>>,
   Assert<Equals<Values<F['Period']>, keyof O['period']>>,
   Assert<Equals<Values<F['Summary']>, keyof O['summary']>>,
   Assert<Equals<Values<F['CashFlow']>, keyof NonNullable<O['cashFlow']>>>,

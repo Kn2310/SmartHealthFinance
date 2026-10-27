@@ -1,6 +1,8 @@
 package com.smarthealthfinance.overview.presentation.dto.response;
 
+import com.smarthealthfinance.cards.domain.service.InvoiceCalendar;
 import com.smarthealthfinance.overview.application.dto.OverviewView;
+import com.smarthealthfinance.overview.domain.model.CardDebts;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.shared.presentation.money.MoneyDto;
 
@@ -13,7 +15,8 @@ import java.util.UUID;
  * {@code "0.00"} = zero real. Ver {@code state}.
  */
 public record OverviewResponse(UUID workspaceId, Period period, String state, Summary summary, CashFlow cashFlow,
-                               List<AccountSummary> accounts, List<RecentTransaction> recentTransactions) {
+                               List<AccountSummary> accounts, List<RecentTransaction> recentTransactions,
+                               InvoicesToPay cards) {
 
     public record Period(String type, LocalDate from, LocalDate to) {}
 
@@ -40,6 +43,27 @@ public record OverviewResponse(UUID workspaceId, Period period, String state, Su
                                     AccountRef destinationAccount, UUID refundOfTransactionId,
                                     String source, CardRef card) {}
 
+    /**
+     * "Faturas a pagar" e "Próximos eventos" (ADR-0006 §18): sempre em hoje, separados do saldo total, só com fatos.
+     * Nulo sem cartão ativo.
+     *
+     * @param openInvoices o que falta pagar nas faturas já iniciadas, inclusive a atual (parcial)
+     * @param nextDue      vencimento mais próximo com saldo em aberto (pode ter passado); nulo sem saldo
+     */
+    public record InvoicesToPay(int activeCards, MoneyDto openInvoices, InvoicesNextDue nextDue,
+                                List<UpcomingInvoiceEvent> upcomingEvents, LocalDate asOf,
+                                String calculationVersion) {}
+
+    public record InvoicesNextDue(LocalDate date, MoneyDto amount) {}
+
+    /**
+     * @param kind   {@code INVOICE_CLOSING} ou {@code INVOICE_DUE}
+     * @param status {@code PARTIAL} (fatura aberta: valor até agora), {@code CLOSED} (saldo em aberto) ou
+     *               {@code OVERDUE}
+     */
+    public record UpcomingInvoiceEvent(LocalDate date, String kind, String status, String dueMonth,
+                                       MoneyDto amount, CardRef card) {}
+
     public static OverviewResponse from(OverviewView view) {
         return new OverviewResponse(view.workspaceId(),
                 new Period(view.period().type().name(), view.period().from(), view.period().to()),
@@ -52,7 +76,23 @@ public record OverviewResponse(UUID workspaceId, Period period, String state, Su
                                 account.institutionName(), account.includedInTotal(), money(account.balance()),
                                 account.movementCount()))
                         .toList(),
-                view.recentTransactions().stream().map(OverviewResponse::recent).toList());
+                view.recentTransactions().stream().map(OverviewResponse::recent).toList(),
+                cards(view.cards()));
+    }
+
+    private static InvoicesToPay cards(CardDebts debts) {
+        if (debts == null) {
+            return null;
+        }
+        return new InvoicesToPay(debts.activeCards(), money(debts.openInvoices()),
+                debts.nextDue() == null ? null
+                        : new InvoicesNextDue(debts.nextDue().date(), money(debts.nextDue().amount())),
+                debts.upcomingEvents().stream()
+                        .map(event -> new UpcomingInvoiceEvent(event.date(), event.kind().name(),
+                                event.status().name(), event.dueMonth().toString(), money(event.amount()),
+                                new CardRef(event.card().id(), event.card().nickname(), event.card().last4())))
+                        .toList(),
+                debts.asOf(), InvoiceCalendar.RULES_VERSION);
     }
 
     private static CashFlow cashFlow(OverviewView.CashFlowView flow) {

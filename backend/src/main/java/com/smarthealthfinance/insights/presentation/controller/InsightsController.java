@@ -60,7 +60,7 @@ public class InsightsController {
     public InsightListResponse list(@PathVariable UUID workspaceId,
                                     @Parameter(description = "IMPORTANT ou INFORMATIVE; omitido = todas")
                                     @RequestParam(required = false) String importance,
-                                    @Parameter(description = "SPENDING, INCOME, HEALTH ou CARDS (vazio até o M8)")
+                                    @Parameter(description = "SPENDING, INCOME, HEALTH ou CARDS")
                                     @RequestParam(required = false) String type,
                                     @Parameter(description = "ACTIVE (padrão) ou DISMISSED")
                                     @RequestParam(required = false) String state,

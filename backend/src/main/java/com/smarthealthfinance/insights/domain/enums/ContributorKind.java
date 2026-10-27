@@ -6,5 +6,7 @@ public enum ContributorKind {
     CATEGORY,
     TRANSACTION,
     /** Uma cobrança mensal de um comerciante recorrente (D3). */
-    CHARGE
+    CHARGE,
+    /** Um fator da diferença da fatura: categoria, parcelamento, estornos ou outros (D11). */
+    FACTOR
 }

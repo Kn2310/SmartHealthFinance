@@ -74,6 +74,10 @@ de Insights no `M-More` e as ações dispensar, visto e "útil / não útil".
   com os mesmos números do insight (ex.: "Alimentação fora" · "R$ 1.284,00 até 22 set" · "+32% vs média de abr–ago").
   Não muda detecção, limiar, pontuação nem frase: continua `insights-v1`. Insights gravados antes ganham os campos na
   próxima geração (o job diário do Health regenera todos), com `revision + 1`.
+- **Adendo (2026-10-26, ADR-0028 §7):** na `insights-v2`, `type=CARDS` devolve os insights de Cartões, a contagem
+  `cards` vem com `available = true` e `typeLabel` "Cartões". O "O que mudou?" inclui D11 (fatura acima do padrão) e
+  D12 (utilização alta). O formato não muda; as ações ganham `VIEW_INVOICE`, `VIEW_CARD` e `RECORD_CARD_PAYMENT` com o
+  parâmetro `cardId` (e `dueMonth` na fatura).
 
 ### 6. Fronteiras (adendo ao ADR-0022 §1)
 

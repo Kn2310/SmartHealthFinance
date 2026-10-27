@@ -22,7 +22,7 @@ describe('"Como estou?" na Home (D-Home / M-Home)', () => {
     expect(screen.getByText(/Consistência \(100\) e fluxo de caixa \(97\) sustentam o score/)).toBeInTheDocument()
     const grid = screen.getByRole('list', { name: 'Dimensões' })
     expect(within(grid).getAllByRole('listitem')).toHaveLength(6)
-    expect(within(grid).getAllByText('Em breve')).toHaveLength(2)
+    expect(within(grid).queryAllByText('Em breve')).toHaveLength(0)
     expect(within(grid).getByText('Reserve').parentElement).toHaveTextContent('69')
     expect(screen.getByRole('link', { name: 'Entender meu resultado' })).toHaveAttribute('href', '/home/health')
     expect(screen.getByRole('button', { name: 'Como calculamos?' })).toBeInTheDocument()
@@ -102,7 +102,7 @@ describe('/home/health (D-Health / M-Health)', () => {
     const dimensions = screen.getByRole('heading', { name: 'Dimensões' }).closest('section')!
     expect(within(dimensions).getAllByRole('article')).toHaveLength(6)
     expect(within(dimensions).getAllByText('Ponto de atenção')).toHaveLength(2)
-    expect(within(dimensions).getAllByText('Em breve')).toHaveLength(2)
+    expect(within(dimensions).getAllByText('Não se aplica')).toHaveLength(2)
 
     expect(screen.getByText('Sustentando o resultado')).toBeInTheDocument()
     expect(screen.getByText('Pesando no resultado')).toBeInTheDocument()
@@ -185,6 +185,9 @@ describe('formatação do Health', () => {
     expect(nextStepLink({ ...step, kind: 'ADD_RESERVE_ACCOUNT' })).toEqual({ href: '/accounts/new', label: 'Adicionar conta' })
     expect(nextStepLink({ ...step, kind: 'CATEGORIZE_TRANSACTIONS' }).href).toBe('/transactions?category=none')
     expect(nextStepLink({ ...step, kind: 'REVIEW_MONTH', month: '2026-08' }).href).toBe('/analysis?month=2026-08')
+    // Fatura e cartão (ADR-0027 §4): "Em breve" até as telas de cartões.
+    expect(nextStepLink({ ...step, kind: 'PAY_OVERDUE_INVOICE', cardId: 'c1' })).toEqual({ href: null, label: 'Ver fatura' })
+    expect(nextStepLink({ ...step, kind: 'REVIEW_CARD_UTILIZATION', cardId: 'c1' })).toEqual({ href: null, label: 'Ver cartão' })
   })
 
   it('fontes, atualização e eixos das curvas', () => {
@@ -197,6 +200,9 @@ describe('formatação do Health', () => {
     expect(updatedAgo(null, now)).toBeNull()
     expect(curvePoint('CASH_FLOW', '-0.1')).toBe('-10%')
     expect(curvePoint('RESERVE', '1')).toBe('1 mês')
+    // Horizonte do Debt (health-v2): o eixo é em meses de renda.
+    expect(curvePoint('DEBT', '3', 'parcelas futuras ÷ renda média (meses)')).toBe('3 meses')
+    expect(curvePoint('DEBT', '0.2', 'parcelas da próxima fatura ÷ renda média')).toBe('20%')
   })
 
   it('geometria do ring e do eixo da linha', () => {

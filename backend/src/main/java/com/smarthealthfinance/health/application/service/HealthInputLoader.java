@@ -1,5 +1,7 @@
 package com.smarthealthfinance.health.application.service;
 
+import com.smarthealthfinance.cards.application.port.CardPortfolio;
+import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
 import com.smarthealthfinance.accounts.domain.enums.AccountStatus;
 import com.smarthealthfinance.accounts.domain.enums.AccountType;
 import com.smarthealthfinance.accounts.domain.model.Account;
@@ -35,7 +37,8 @@ import org.springframework.stereotype.Service;
  * Monta as entradas do cálculo de todos os meses de referência de um Workspace (ADR-0018 §4), só pelas portas:
  * uma leitura das linhas do fluxo de caixa ({@link AnalyticsReadModel#entries}) cobrindo todos os meses, o primeiro
  * lançamento, o catálogo de categorias, as contas {@code SAVINGS} ativas hoje e o saldo delas
- * ({@link OverviewReadModel#accountFigures}) na data-base de cada mês. Nenhuma regra de fluxo ou saldo própria.
+ * ({@link OverviewReadModel#accountFigures}) na data-base de cada mês, e a posição dos cartões ativos em cada
+ * data-base ({@link CardPortfolio}, ADR-0027 §1). Nenhuma regra de fluxo, saldo ou fatura própria.
  */
 @Service
 public class HealthInputLoader {
@@ -49,16 +52,18 @@ public class HealthInputLoader {
     private final AccountRepository accounts;
     private final AnalyticsReadModel analytics;
     private final OverviewReadModel overview;
+    private final CardPortfolio cards;
     private final Clock clock;
     private final ZoneId businessZone;
 
     public HealthInputLoader(WorkspaceRepository workspaces, AccountRepository accounts, AnalyticsReadModel analytics,
-                             OverviewReadModel overview, Clock clock,
+                             OverviewReadModel overview, CardPortfolio cards, Clock clock,
                              @Value("${shf.overview.zone:America/Sao_Paulo}") ZoneId businessZone) {
         this.workspaces = workspaces;
         this.accounts = accounts;
         this.analytics = analytics;
         this.overview = overview;
+        this.cards = cards;
         this.clock = clock;
         this.businessZone = businessZone;
     }
@@ -102,11 +107,17 @@ public class HealthInputLoader {
         List<Account> active = all.stream().filter(a -> a.status() == AccountStatus.ACTIVE).toList();
         List<Account> reserves = active.stream().filter(a -> a.type() == AccountType.SAVINGS).toList();
 
+        List<AnalysisPeriod> periods = months.stream()
+                .map(month -> AnalysisPeriod.resolve(month.toString(), today))
+                .toList();
+        Map<LocalDate, List<CardPosition>> positions = cards.positions(workspaceId,
+                periods.stream().map(AnalysisPeriod::to).toList());
+
         List<HealthInput> inputs = new ArrayList<>();
-        for (YearMonth month : months) {
-            AnalysisPeriod period = AnalysisPeriod.resolve(month.toString(), today);
+        for (AnalysisPeriod period : periods) {
             inputs.add(new HealthInput(period, firstActivity, ledger,
-                    reserveBalances(workspaceId, reserves, period.to(), currency), active.size(), names));
+                    reserveBalances(workspaceId, reserves, period.to(), currency), active.size(), names,
+                    positions.getOrDefault(period.to(), List.of())));
         }
         return inputs;
     }

@@ -263,6 +263,9 @@ Nenhum documento define:
   - Aurora: (3.412,80 + 3.360,00) ÷ 12.000 = 56,44% → **56%**.
   - Sem parcelas futuras: 3.412,80 ÷ 12.000 → **28%**.
 - A evolução histórica da utilização ("era 49% em agosto") depende de snapshot e fica para a 6.2 (§14).
+- **Adendo (2026-10-26, aprovado; ADR-0027 §1):** sem snapshot. A utilização numa data d é o mesmo razão calculado com
+  "hoje" = d e só com os fatos até d (compras, estornos e pagamentos), com o limite atual do cartão. A porta
+  `CardPortfolio` expõe essa posição para Overview, Health e Insights.
 
 ### 10. Faturas futuras
 
@@ -334,6 +337,11 @@ Nenhum documento define:
 
 > **Atualização (2026-10-23):** CSV/OFX de fatura, parcelas no extrato, conciliação do pagamento e saldo devedor
 > inicial foram decididos (ADR-0009 §19–§30, §7 adendo e §15). Os demais itens continuam pendentes.
+>
+> **Atualização (2026-10-26):** "Faturas a pagar" (ADR-0006 §18), fórmulas do `health-v2` (ADR-0027), detectores de
+> cartão (ADR-0028), histórico de utilização (§9 adendo) e consumidores de `card.*`/`invoice.closed` (bindings na fila
+> do Health, ADR-0027 §6) foram decididos. Continuam pendentes: feriados, `INCOME`/`ADJUSTMENT`/`PENDING` no cartão e o
+> filtro "Conta ou cartão" com as telas de cartões (Parte F).
 
 ### 15. Início do acompanhamento (adendo de 2026-10-23, aprovado; Sessão 6.2 parte D)
 

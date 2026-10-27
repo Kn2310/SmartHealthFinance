@@ -160,7 +160,7 @@ function MethodContent({ method }: { method: HealthMethod }) {
                   {d.curves.map((curve) => (
                     <p key={curve.name} className={styles.methodNote}>
                       {curve.name} ({curve.input}):{' '}
-                      {curve.points.map((p) => `${curvePoint(d.dimension, p.x)} → ${p.score}`).join(' · ')}
+                      {curve.points.map((p) => `${curvePoint(d.dimension, p.x, curve.input)} → ${p.score}`).join(' · ')}
                     </p>
                   ))}
                 </>
