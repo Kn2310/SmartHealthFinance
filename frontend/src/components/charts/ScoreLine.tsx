@@ -17,6 +17,10 @@ interface Props {
   /** `dark` sobre Navy (sem tabela visível), `light` nos cards. */
   tone?: 'dark' | 'light'
   caption?: string
+  /** Cabeçalho da coluna de valores na tabela "Ver dados" (padrão "Score"). */
+  valueLabel?: string
+  /** Sufixo dos valores (ex.: "%" na utilização do cartão). */
+  unit?: string
 }
 
 const WIDTH = 600
@@ -36,7 +40,7 @@ export function scoreDomain(scores: number[]): [number, number] {
  * "Evolução do score": linha mensal; mês estimado ou em andamento com traço tracejado e ponto vazado (Trust UX).
  * O SVG é decorativo; os valores ficam na tabela "Ver dados" (alternativa textual, ADR-0016 §1).
  */
-export function ScoreLine({ title, data, tone = 'light', caption }: Props) {
+export function ScoreLine({ title, data, tone = 'light', caption, valueLabel = 'Score', unit = '' }: Props) {
   const id = useId()
   const scores = data.flatMap((d) => (d.score === null ? [] : [d.score]))
   const [lo, hi] = scoreDomain(scores)
@@ -103,7 +107,7 @@ export function ScoreLine({ title, data, tone = 'light', caption }: Props) {
           <thead>
             <tr>
               <th scope="col">Mês</th>
-              <th scope="col">Score</th>
+              <th scope="col">{valueLabel}</th>
             </tr>
           </thead>
           <tbody>
@@ -111,7 +115,7 @@ export function ScoreLine({ title, data, tone = 'light', caption }: Props) {
               <tr key={d.month}>
                 <th scope="row">{monthLabel(d.month, true)}</th>
                 <td>
-                  {d.score === null ? 'Sem score' : `${d.estimated ? '≈ ' : ''}${d.score}`}
+                  {d.score === null ? `Sem ${valueLabel.toLowerCase()}` : `${d.estimated ? '≈ ' : ''}${d.score}${unit}`}
                   {d.partial ? ' (em andamento)' : d.estimated && d.score !== null ? ' (estimado)' : ''}
                 </td>
               </tr>

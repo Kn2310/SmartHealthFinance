@@ -18,7 +18,7 @@ function businessDay(): number {
  *   "Próximos eventos" com o fechamento, marcado "Parcial" (nunca "Estimado").
  * - Health v2 (ADR-0027): Credit = S(600 ÷ 1.000 = 60%) = 55, sem fatura vencida ainda; explicação com as parcelas
  *   futuras (2 × 200).
- * - Insights v2 (ADR-0028): D12 utilização de 60% no chip Cartões, com "Ver cartão" "Em breve" até a Parte F.
+ * - Insights v2 (ADR-0028): D12 utilização de 60% no chip Cartões, com "Ver cartão" levando à tela do cartão (Parte F).
  * O fechamento fica a ~10 dias de hoje, então os números valem em qualquer dia do mês.
  */
 test('cartão na Home, no Health e nos Insights, sem dupla contagem', async ({ signedIn: page }) => {
@@ -83,7 +83,7 @@ test('cartão na Home, no Health e nos Insights, sem dupla contagem', async ({ s
   await expect(chips.getByRole('button', { name: 'Cartões 1' })).toHaveAttribute('aria-pressed', 'true')
   await page.getByRole('main').getByRole('link', { name: new RegExp(escape(title)) }).click()
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Ver cartão · Em breve' })).toBeDisabled()
+  await expect(page.getByRole('link', { name: 'Ver cartão' })).toHaveAttribute('href', /^\/cards\/[0-9a-f-]{36}$/)
 
   // Sem rolagem horizontal nas larguras do DS com os blocos novos.
   for (const width of [375, 768, 1024, 1280, 1440]) {

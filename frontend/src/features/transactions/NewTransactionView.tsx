@@ -14,6 +14,7 @@ import type { Failure } from '@/lib/bff-client'
 import {
   createTransaction,
   newIdempotencyKey,
+  recordCardCredit,
   recordCardPayment,
   recordCardPurchase,
   type Account,
@@ -27,8 +28,8 @@ import { backHref, backLabel, destinationAfterCreate, type ReturnTo } from './re
 import accountStyles from '@/features/accounts/Accounts.module.css'
 import styles from './Transactions.module.css'
 
-/** Tipos do formulário: os lançamentos de conta e os dois de cartão (ADR-0026 §10). */
-export type FormType = ManualType | 'CARD_PURCHASE' | 'CARD_PAYMENT'
+/** Tipos do formulário: os lançamentos de conta e os três de cartão (ADR-0026 §10; estorno pela UI, ADR-0029 §7). */
+export type FormType = ManualType | 'CARD_PURCHASE' | 'CARD_PAYMENT' | 'CARD_CREDIT'
 
 type Errors = Partial<Record<FormField, string>>
 
@@ -53,13 +54,16 @@ const TYPES: [FormType, string][] = [
   ['ADJUSTMENT', 'Ajuste'],
   ['CARD_PURCHASE', 'Compra no cartão'],
   ['CARD_PAYMENT', 'Pagamento de fatura'],
+  ['CARD_CREDIT', 'Estorno no cartão'],
 ]
 const DIRECTIONS: [AdjustmentDirection, string][] = [
   ['INCREASE', 'Aumenta o saldo'],
   ['DECREASE', 'Diminui o saldo'],
 ]
 
-const isCardType = (type: FormType) => type === 'CARD_PURCHASE' || type === 'CARD_PAYMENT'
+const isCardType = (type: FormType) => type === 'CARD_PURCHASE' || type === 'CARD_PAYMENT' || type === 'CARD_CREDIT'
+/** Tipos que vinculam a uma compra ou despesa original (ADR-0005 §6, ADR-0025 §8). */
+const isRefundType = (type: FormType) => type === 'REFUND' || type === 'CARD_CREDIT'
 
 /** Só conveniência de UX (o BFF e o domínio validam tudo de novo). O valor nunca vira `number`. */
 function validate(values: Values): { errors: Errors; amount: string | null } {
@@ -69,7 +73,7 @@ function validate(values: Values): { errors: Errors; amount: string | null } {
     errors.adjustmentDirection = fieldErrorMessage('adjustmentDirection', 'REQUIRED')
   }
   if (isCardType(type) && !values.cardId) errors.cardId = fieldErrorMessage('cardId', 'REQUIRED')
-  if (type !== 'CARD_PURCHASE' && !values.accountId) errors.accountId = fieldErrorMessage('accountId', 'REQUIRED')
+  if (type !== 'CARD_PURCHASE' && type !== 'CARD_CREDIT' && !values.accountId) errors.accountId = fieldErrorMessage('accountId', 'REQUIRED')
   if (type === 'TRANSFER') {
     if (!values.destinationAccountId) errors.destinationAccountId = fieldErrorMessage('destinationAccountId', 'REQUIRED')
     else if (values.destinationAccountId === values.accountId) {
@@ -235,7 +239,7 @@ function TransactionForm({
     description: '',
     pending: false,
   }))
-  const [link, setLink] = useState<string | null>(initialType === 'REFUND' ? refundOf : null)
+  const [link, setLink] = useState<string | null>(initialType !== null && isRefundType(initialType) ? refundOf : null)
   const [errors, setErrors] = useState<Errors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
@@ -297,6 +301,13 @@ function TransactionForm({
       return recordCardPurchase(
         values.cardId,
         { amount, occurredOn: values.occurredOn, description, installmentCount: Number(values.installmentCount) },
+        idempotencyKey,
+      )
+    }
+    if (type === 'CARD_CREDIT') {
+      return recordCardCredit(
+        values.cardId,
+        { amount, occurredOn: values.occurredOn, description, refundOfTransactionId: link },
         idempotencyKey,
       )
     }
@@ -478,7 +489,9 @@ function TransactionForm({
   const amountHint =
     values.type === 'CARD_PURCHASE'
       ? 'O total da compra. A compra entra nos gastos uma vez, na data dela; as parcelas só dividem o valor entre as faturas.'
-      : values.type === 'CARD_PAYMENT'
+      : values.type === 'CARD_CREDIT'
+        ? 'Quanto voltou para o cartão. O estorno abate a fatura e reduz o gasto; não é receita.'
+        : values.type === 'CARD_PAYMENT'
         ? 'Quanto você pagou da fatura. É uma transferência da conta para o cartão: sai do saldo, mas não conta como gasto de novo.'
         : 'Em reais, sempre positivo: o tipo diz se entra ou sai. Ex.: 1.234,56.'
 
@@ -543,7 +556,7 @@ function TransactionForm({
           ? accountSelect('accountId', 'Conta de origem')
           : values.type === 'CARD_PAYMENT'
             ? accountSelect('accountId', 'Pagar com a conta')
-            : values.type === 'CARD_PURCHASE'
+            : values.type === 'CARD_PURCHASE' || values.type === 'CARD_CREDIT'
               ? null
               : accountSelect('accountId', 'Conta')}
         {values.type === 'TRANSFER'
@@ -554,10 +567,12 @@ function TransactionForm({
             )
           : null}
 
-        {values.type === 'REFUND' && link ? (
+        {isRefundType(values.type) && link ? (
           <div className={accountStyles.field}>
             <p className={accountStyles.fieldHint} id={`${id}-refundOfTransactionId-hint`}>
-              Este reembolso fica vinculado à despesa original. Ele reduz o gasto, não é contado como receita.
+              {values.type === 'CARD_CREDIT'
+                ? 'Este estorno fica vinculado à compra original. Numa compra parcelada, ele cancela primeiro as parcelas ainda não faturadas.'
+                : 'Este reembolso fica vinculado à despesa original. Ele reduz o gasto, não é contado como receita.'}
             </p>
             <div>
               <Button variant="secondary" onClick={() => setLink(null)}>

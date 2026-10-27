@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -51,6 +52,15 @@ public class CardLedgerLoader {
     public CardLedgerSnapshot load(CreditCard card, LocalDate today) {
         return snapshot(card, invoices.findByCard(card.workspaceId(), card.id()),
                 reader.facts(card.workspaceId(), card.id()), today);
+    }
+
+    /** O razão do cartão em cada data (ADR-0027 §1), com uma leitura de faturas e uma de fatos. */
+    public Map<LocalDate, CardLedgerSnapshot> loadAt(CreditCard card, Collection<LocalDate> dates) {
+        List<CardInvoice> rows = invoices.findByCard(card.workspaceId(), card.id());
+        CardFacts facts = reader.facts(card.workspaceId(), card.id());
+        Map<LocalDate, CardLedgerSnapshot> snapshots = new TreeMap<>();
+        dates.forEach(date -> snapshots.put(date, snapshotAsOf(card, rows, facts, date)));
+        return snapshots;
     }
 
     /** Uma consulta de faturas e três de fatos para todos os cartões (sem N+1). */

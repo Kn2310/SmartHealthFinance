@@ -26,6 +26,8 @@ export interface Filters {
   from?: string
   to?: string
   accountId?: string
+  /** Compras, estornos e pagamentos de um cartão (ADR-0026 §10); exclusivo com `accountId`. */
+  cardId?: string
   type?: TransactionType
   status?: TransactionStatus
   /** Código do catálogo ou {@link UNCATEGORIZED}. */
@@ -44,6 +46,7 @@ export function parseFilters(params: Params, defaultPeriod: PeriodPreset = 'CURR
   const from = params.get('from')
   const to = params.get('to')
   const accountId = params.get('accountId')
+  const cardId = params.get('cardId')
   const type = params.get('type')
   const status = params.get('status')
   const category = params.get('category')
@@ -53,6 +56,7 @@ export function parseFilters(params: Params, defaultPeriod: PeriodPreset = 'CURR
     else filters.period = defaultPeriod
   }
   if (isUuid(accountId)) filters.accountId = accountId
+  else if (isUuid(cardId)) filters.cardId = cardId
   if (type && TYPES.includes(type)) filters.type = type as TransactionType
   if (status && STATUSES.includes(status)) filters.status = status as TransactionStatus
   if (category === UNCATEGORIZED || (category && CATEGORY_CODE.test(category))) filters.category = category
@@ -67,6 +71,7 @@ export function filtersToSearch(filters: Filters, defaultPeriod: PeriodPreset = 
     search.set('to', filters.to)
   }
   if (filters.accountId) search.set('accountId', filters.accountId)
+  if (filters.cardId) search.set('cardId', filters.cardId)
   if (filters.type) search.set('type', filters.type)
   if (filters.status) search.set('status', filters.status)
   if (filters.category) search.set('category', filters.category)
@@ -91,6 +96,7 @@ export function toListParams(filters: Filters, q: string, today?: string): ListP
   return {
     ...periodRange(filters, today),
     accountId: filters.accountId,
+    cardId: filters.cardId,
     type: filters.type,
     status: filters.status,
     q: q.trim() || undefined,
@@ -103,6 +109,6 @@ export function toListParams(filters: Filters, q: string, today?: string): ListP
 export function isFiltered(filters: Filters, q: string, defaultPeriod: PeriodPreset, fixedAccount = false): boolean {
   return (
     filters.period !== defaultPeriod ||
-    Boolean((!fixedAccount && filters.accountId) || filters.type || filters.status || filters.category || q.trim())
+    Boolean((!fixedAccount && filters.accountId) || filters.cardId || filters.type || filters.status || filters.category || q.trim())
   )
 }

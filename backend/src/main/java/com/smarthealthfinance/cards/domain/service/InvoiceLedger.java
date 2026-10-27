@@ -142,7 +142,8 @@ public final class InvoiceLedger {
                 paid, remaining);
     }
 
-    private static int percent(Money part, Money whole) {
+    /** part ÷ whole em percentual inteiro HALF_EVEN (ADR-0025 §9). */
+    public static int percent(Money part, Money whole) {
         return part.amount().multiply(HUNDRED).divide(whole.amount(), 0, RoundingMode.HALF_EVEN).intValueExact();
     }
 

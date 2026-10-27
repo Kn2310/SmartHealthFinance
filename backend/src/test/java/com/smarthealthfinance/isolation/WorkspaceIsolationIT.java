@@ -226,6 +226,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("cards: lançamentos da fatura", HttpMethod.GET, CARD_INVOICE + "/items", f -> ids(f.card(), "2026-10"),
                     NONE),
             op("cards: utilização", HttpMethod.GET, CARD + "/utilization", f -> ids(f.card()), NONE),
+            op("cards: evolução da utilização", HttpMethod.GET, CARD + "/utilization/history", f -> ids(f.card()),
+                    NONE),
             op("cards: compra", HttpMethod.POST, CARD + "/purchases", f -> ids(f.card()), idempotent(json(f -> """
                     {"amount": {"amount": "1.00", "currency": "BRL"}, "occurredOn": "2026-09-22",
                      "description": "Invasora", "installmentCount": 1}
@@ -401,6 +403,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
                     (mvc, own, id) -> mvc.get().uri(CARD_INVOICE + "/items", own.workspace(), id, "2026-10")),
             cross("cards: utilização de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
                     (mvc, own, id) -> mvc.get().uri(CARD + "/utilization", own.workspace(), id)),
+            cross("cards: evolução da utilização de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND",
+                    Fixture::card, (mvc, own, id) -> mvc.get().uri(CARD + "/utilization/history", own.workspace(), id)),
             cross("cards: conta padrão alheia", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
                     (mvc, own, id) -> mvc.post().uri(CARDS, own.workspace()).contentType(MediaType.APPLICATION_JSON)
                             .content("""

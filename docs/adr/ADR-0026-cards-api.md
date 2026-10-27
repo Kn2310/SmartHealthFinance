@@ -224,6 +224,28 @@ mesmo conteúdo e `422 IDEMPOTENCY_KEY_REUSED` com outro conteúdo.
     padrão;
   - nunca pede número completo nem CVV.
 
+### 11. Adendo (2026-10-27, aprovado; ADR-0029 §2 e §5): telas de cartões (Sessão 6.2 parte F)
+
+Duas mudanças **aditivas**, para que as telas só exibam números do backend:
+
+| Método e rota | Resposta |
+|---|---|
+| `GET /cards/{id}/utilization/history?months=1..12` (padrão 6) | `{points: [{date, utilized, limit, utilizationPercent, current}], asOf, calculationVersion}` |
+
+- **Pontos:** o último dia de cada um dos `months` meses anteriores e hoje (`current = true`), em ordem de data.
+  - Cada ponto é o razão do ADR-0025 calculado com "hoje" = a data e só com os fatos até ela (adendo do ADR-0025 §9),
+    com o **limite atual**. É a mesma regra da porta `CardPortfolio` (ADR-0027 §1) e do D12.
+  - Datas anteriores ao início do acompanhamento do cartão (início do período da primeira fatura acompanhada) ficam
+    fora.
+  - Vale também para um cartão arquivado (a tela do cartão continua disponível).
+- **Erros:** `CARD_NOT_FOUND`; `VALIDATION_FAILED` `months` `OUT_OF_RANGE`.
+- **`InstallmentPlan.currentInvoiceShare`** `{dueMonth, installment, invoiceAmount, percent}`, nulo quando o
+  parcelamento não tem parcela na fatura aberta ou quando ela não tem valor positivo.
+  - `installment` = parcelas do parcelamento na fatura aberta, com o estorno aplicado; `invoiceAmount` = valor da
+    fatura aberta; `percent` = `installment ÷ invoiceAmount`, inteiro `HALF_EVEN` (a mesma função da utilização).
+- **Observabilidade:** timer `shf.cards.utilization.history.get`.
+- **Isolamento:** a rota nova entra no `WorkspaceIsolationIT`.
+
 ## Alternatives
 
 - **Estornos persistidos por um consumidor de `transaction.*` (parte C):** rejeitado. A consistência seria eventual e

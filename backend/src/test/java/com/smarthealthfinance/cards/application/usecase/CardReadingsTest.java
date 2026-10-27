@@ -9,6 +9,7 @@ import com.smarthealthfinance.cards.application.dto.InvoiceItemPageView;
 import com.smarthealthfinance.cards.application.dto.InvoiceItemView;
 import com.smarthealthfinance.cards.application.dto.InvoiceSummaryView;
 import com.smarthealthfinance.cards.application.dto.InvoiceView;
+import com.smarthealthfinance.cards.application.dto.UtilizationHistoryView;
 import com.smarthealthfinance.cards.application.dto.UtilizationView;
 import com.smarthealthfinance.cards.application.exception.InvoiceNotFoundException;
 import com.smarthealthfinance.cards.application.service.CardEvents;
@@ -104,6 +105,29 @@ class CardReadingsTest {
     }
 
     @Test
+    void utilizationHistoryEndsTodayAndSkipsDatesBeforeTracking() {
+        UtilizationHistoryView history = ctx.utilizationHistory.execute(ctx.anasWorkspaceId(), aurora.id(), 3);
+
+        assertThat(history.points()).extracting(UtilizationHistoryView.Point::date).containsExactly(
+                LocalDate.parse("2026-06-30"), LocalDate.parse("2026-07-31"), LocalDate.parse("2026-08-31"),
+                LocalDate.parse("2026-09-22"));
+        UtilizationHistoryView.Point today = history.points().getLast();
+        assertThat(today.current()).isTrue();
+        assertThat(today.utilizationPercent()).isEqualTo(56);
+        assertThat(today.utilized()).isEqualTo(brl("6772.80"));
+        assertThat(history.points()).allSatisfy(point -> assertThat(point.limit()).isEqualTo(brl("12000.00")));
+        assertThat(history.points().subList(0, 3)).noneMatch(UtilizationHistoryView.Point::current);
+
+        // Horizonte começou a ser acompanhado no ciclo que abriu em 05 set: só o ponto de hoje.
+        assertThat(ctx.utilizationHistory.execute(ctx.anasWorkspaceId(), horizonte.id(), null).points())
+                .extracting(UtilizationHistoryView.Point::date).containsExactly(LocalDate.parse("2026-09-22"));
+        assertInvalidValue(() -> ctx.utilizationHistory.execute(ctx.anasWorkspaceId(), aurora.id(), 0),
+                "months", "OUT_OF_RANGE");
+        assertInvalidValue(() -> ctx.utilizationHistory.execute(ctx.anasWorkspaceId(), aurora.id(), 13),
+                "months", "OUT_OF_RANGE");
+    }
+
+    @Test
     void currentAndPastInvoices() {
         InvoiceView current = ctx.getInvoice.current(ctx.anasWorkspaceId(), aurora.id());
         assertThat(current.invoice().dueMonth()).isEqualTo(YearMonth.of(2026, 10));
@@ -193,6 +217,11 @@ class CardReadingsTest {
         // Limite reservado: R$ 3.840 na fatura de outubro (parcelas 3–10), R$ 480 na de maio.
         assertThat(plan.reservedLimit().get(2).amount()).isEqualTo(brl("3840.00"));
         assertThat(plan.reservedLimit().getLast().amount()).isEqualTo(brl("480.00"));
+        // Impacto: R$ 480 de R$ 3.412,80 da fatura de outubro → 14%.
+        assertThat(plan.currentInvoiceShare().dueMonth()).isEqualTo(YearMonth.of(2026, 10));
+        assertThat(plan.currentInvoiceShare().installment()).isEqualTo(brl("480.00"));
+        assertThat(plan.currentInvoiceShare().invoiceAmount()).isEqualTo(brl("3412.80"));
+        assertThat(plan.currentInvoiceShare().percent()).isEqualTo(14);
 
         assertThat(ctx.plans.list(ctx.anasWorkspaceId(), aurora.id(), null)).extracting(InstallmentPlanView::transactionId)
                 .containsExactly(NOTEBOOK);

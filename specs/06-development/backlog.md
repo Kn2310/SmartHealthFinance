@@ -229,6 +229,26 @@
   - porta `CardPortfolio` (posição em qualquer data, utilização histórica recalculada pelos fatos); ArchUnit;
   - suíte de isolamento e paridade; E2E `cards-integration.spec.ts`.
 
+- [x] telas de cartões (Sessão 6.2 parte F; ADR-0029, adendos ADR-0020, 0024 e 0026 §11):
+  - `/cards` (métricas, bloco por cartão com fatura atual, utilização com parcelas futuras tracejadas e compromisso da
+    próxima fatura, insight de Cartões, parcelamentos ativos, arquivados), `/cards/:id` (Visão geral, Faturas,
+    Parcelamentos), fatura atual e por mês (parcial, datas, mínimo só do arquivo, pago e em aberto, "✦ Explicação" do
+    D11, lançamentos paginados), próximas faturas (só o comprometido) e parcelamento (blocos, `BEFORE_TRACKING`,
+    impacto e limite reservado);
+  - backend aditivo: `GET /cards/{id}/utilization/history` e `InstallmentPlan.currentInvoiceShare`; suíte de
+    isolamento; BFF com os `GET` de cartões, faturas, parcelamentos e utilização, `PUT`, `archive` e `reactivate`;
+  - destinos ativados: `VIEW_CARD`/`VIEW_INVOICE` (Insights), `PAY_OVERDUE_INVOICE`/`REVIEW_CARD_UTILIZATION` (Health),
+    item "Cartões" da navegação;
+  - lacunas da 6.1 fechadas: filtro "Conta ou cartão", "Ver fatura"/"Ver cartão"/"Ver parcelamento" no detalhe,
+    edição e arquivamento do cartão, estorno no cartão ("Estorno no cartão" em `/transactions/new`);
+  - E2E `cards-frontend.spec.ts` (datas relativas a hoje, 5 larguras).
+- [ ] fatura "por categoria" (D-Invoice): adiada (ADR-0029 §6); precisa de endpoint próprio com a regra de
+  agrupamento do D11
+- [ ] estimativa da próxima fatura e das faturas futuras: M9 (ADR-0025 §10, ADR-0029 §4)
+
+**M8 completo** (Sessões 6.1 e 6.2), com as duas pendências acima explicitamente adiadas e as do ADR-0025 §14
+(feriados, `INCOME`/`ADJUSTMENT`/`PENDING` no cartão) fora do MVP.
+
 ### Handoff da Sessão 6.1 para a 6.2
 
 **Decisões em vigor** (não reabrir sem ADR): ADR-0025 (modelo, com adendo de estornos) e ADR-0026 (API, com o adendo
@@ -250,12 +270,12 @@ e os três `POST` de lançamento — a 6.2 adiciona os `GET` de fatura, parcelam
 consumidor**. Lançamentos de cartão usam os `transaction.*` existentes (payload só com id e `occurredOn`); o Analytics
 os consome e relê a fonte.
 
-**Lacunas conhecidas (fora do escopo da 6.1):**
-- estorno no cartão pela UI (a rota e o BFF existem; o detalhe só oferece "Registrar reembolso" para despesa em conta);
-- edição/arquivamento do cartão pela UI e o filtro "Conta ou cartão" na lista de transações;
-- telas `/cards`, fatura, faturas futuras e parcelamento (Parte F); ~~bloco "Faturas a pagar" no Overview; chip "Cartões" nos
-  Insights~~ (feitos na parte E);
-- o item "Cartões" da navegação aponta para `/cards`, que ainda não existe (só `/cards/new`).
+**Lacunas conhecidas (fora do escopo da 6.1):** todas fechadas na 6.2.
+- ~~estorno no cartão pela UI~~ (parte F);
+- ~~edição/arquivamento do cartão pela UI e o filtro "Conta ou cartão" na lista de transações~~ (parte F);
+- ~~telas `/cards`, fatura, faturas futuras e parcelamento~~ (parte F); ~~bloco "Faturas a pagar" no Overview; chip
+  "Cartões" nos Insights~~ (parte E);
+- ~~o item "Cartões" da navegação aponta para `/cards`, que ainda não existe~~ (parte F).
 
 **Pendências que precisam de decisão:** as listadas no ADR-0025 §14 (CSV/OFX de fatura, parcelas no extrato,
 conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v2`, detectores, histórico de utilização,

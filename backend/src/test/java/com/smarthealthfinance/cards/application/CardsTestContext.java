@@ -16,6 +16,7 @@ import com.smarthealthfinance.cards.application.service.PaymentAccountCheck;
 import com.smarthealthfinance.cards.application.usecase.ArchiveCard;
 import com.smarthealthfinance.cards.application.usecase.CreateCard;
 import com.smarthealthfinance.cards.application.usecase.GetCardUtilization;
+import com.smarthealthfinance.cards.application.usecase.GetCardUtilizationHistory;
 import com.smarthealthfinance.cards.application.usecase.GetCardsSummary;
 import com.smarthealthfinance.cards.application.usecase.GetFutureInvoices;
 import com.smarthealthfinance.cards.application.usecase.GetInstallmentPlans;
@@ -107,6 +108,8 @@ public final class CardsTestContext {
     public final GetFutureInvoices future = new GetFutureInvoices(access, loader, calendar);
     public final GetInstallmentPlans plans = new GetInstallmentPlans(access, loader, calendar);
     public final GetCardUtilization utilization = new GetCardUtilization(access, loader, calendar, meters);
+    public final GetCardUtilizationHistory utilizationHistory = new GetCardUtilizationHistory(access, loader, calendar,
+            meters);
     public final NotifyClosedInvoices notifyClosed = new NotifyClosedInvoices(invoices, events, calendar, clock,
             meters);
 
