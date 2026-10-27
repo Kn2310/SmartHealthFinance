@@ -6,6 +6,7 @@ import com.smarthealthfinance.cards.application.dto.FutureInvoicesView;
 import com.smarthealthfinance.cards.application.dto.InvoiceItemPageView;
 import com.smarthealthfinance.cards.application.dto.InvoiceSummaryView;
 import com.smarthealthfinance.cards.application.dto.InvoiceView;
+import com.smarthealthfinance.cards.application.dto.UtilizationHistoryView;
 import com.smarthealthfinance.cards.application.dto.UtilizationView;
 import com.smarthealthfinance.cards.application.dto.InvoiceItemView;
 import com.smarthealthfinance.cards.application.dto.InstallmentPlanView;
@@ -155,6 +156,22 @@ public final class CardResponses {
         }
     }
 
+    /** @param current {@code true} só no ponto de hoje; os demais são o último dia de um mês */
+    public record UtilizationPointResponse(LocalDate date, MoneyDto utilized, MoneyDto limit, int utilizationPercent,
+                                           boolean current) {}
+
+    /** Evolução da utilização (ADR-0029 §2), com o limite atual em todos os pontos. */
+    public record UtilizationHistoryResponse(List<UtilizationPointResponse> points, LocalDate asOf,
+                                             String calculationVersion) {
+
+        public static UtilizationHistoryResponse from(UtilizationHistoryView view) {
+            return new UtilizationHistoryResponse(view.points().stream()
+                    .map(point -> new UtilizationPointResponse(point.date(), money(point.utilized()),
+                            money(point.limit()), point.utilizationPercent(), point.current()))
+                    .toList(), view.asOf(), view.calculationVersion());
+        }
+    }
+
     public record CardSummaryResponse(CardResponse card, InvoiceSummaryResponse currentInvoice,
                                       UtilizationResponse utilization, MoneyDto nextInvoiceCommitted) {}
 
@@ -206,15 +223,25 @@ public final class CardResponses {
     public record ReservedLimitResponse(String dueMonth, MoneyDto amount) {}
 
     /**
+     * Peso do parcelamento na fatura aberta (ADR-0029 §5).
+     *
+     * @param percent installment ÷ invoiceAmount, inteiro HALF_EVEN
+     */
+    public record CurrentInvoiceShareResponse(String dueMonth, MoneyDto installment, MoneyDto invoiceAmount,
+                                              int percent) {}
+
+    /**
      * @param currentNumber         parcela na fatura atual (ou fechada não paga); nula se não houver
      * @param remainingAfterCurrent soma das parcelas em faturas futuras
+     * @param currentInvoiceShare   nulo sem parcela na fatura aberta ou com ela sem valor positivo
      */
     public record InstallmentPlanResponse(UUID transactionId, String description, LocalDate purchasedOn,
                                           MoneyDto total, int count, MoneyDto installmentAmount, int paidCount,
                                           MoneyDto paidAmount, Integer currentNumber, MoneyDto remainingAfterCurrent,
                                           String lastDueMonth, String status,
                                           List<InstallmentItemResponse> installments,
-                                          List<ReservedLimitResponse> reservedLimit) {
+                                          List<ReservedLimitResponse> reservedLimit,
+                                          CurrentInvoiceShareResponse currentInvoiceShare) {
 
         public static InstallmentPlanResponse from(InstallmentPlanView view) {
             return new InstallmentPlanResponse(view.transactionId(), view.description(), view.purchasedOn(),
@@ -226,7 +253,11 @@ public final class CardResponses {
                     .toList(), view.reservedLimit().stream()
                     .map(reserved -> new ReservedLimitResponse(reserved.dueMonth().toString(),
                             money(reserved.amount())))
-                    .toList());
+                    .toList(), view.currentInvoiceShare() == null ? null
+                    : new CurrentInvoiceShareResponse(view.currentInvoiceShare().dueMonth().toString(),
+                            money(view.currentInvoiceShare().installment()),
+                            money(view.currentInvoiceShare().invoiceAmount()),
+                            view.currentInvoiceShare().percent()));
         }
     }
 

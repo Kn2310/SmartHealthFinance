@@ -11,6 +11,8 @@ import com.smarthealthfinance.cards.domain.enums.InstallmentStatus;
 import com.smarthealthfinance.cards.domain.enums.InvoiceStatus;
 import com.smarthealthfinance.cards.domain.model.CreditCard;
 import com.smarthealthfinance.cards.domain.service.CreditAllocator.Charge;
+import com.smarthealthfinance.cards.domain.service.InvoiceLedger;
+import com.smarthealthfinance.cards.domain.valueobject.InvoiceStatement;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.transactions.application.exception.TransactionNotFoundException;
@@ -143,9 +145,21 @@ public class GetInstallmentPlans {
                 : open ? InstallmentPlanStatus.ACTIVE : InstallmentPlanStatus.FINISHED;
         YearMonth last = items.getLast().dueMonth();
 
+        // Peso na fatura aberta (ADR-0029 §5): a parte desta compra nela ÷ o valor dela, pela regra do razão.
+        InvoiceStatement openInvoice = snapshot.currentStatement();
+        YearMonth openDue = openInvoice.dates().dueMonth();
+        Money inOpen = items.stream()
+                .filter(item -> item.dueMonth().equals(openDue) && item.status() == InstallmentStatus.CURRENT)
+                .map(item -> item.amount().minus(item.cancelledAmount()))
+                .reduce(zero, Money::plus);
+        InstallmentPlanView.CurrentInvoiceShare share = inOpen.isPositive() && openInvoice.amount().isPositive()
+                ? new InstallmentPlanView.CurrentInvoiceShare(openDue, inOpen, openInvoice.amount(),
+                        InvoiceLedger.percent(inOpen, openInvoice.amount()))
+                : null;
+
         return new InstallmentPlanView(first.transactionId(), first.description(), first.purchasedOn(), total,
                 first.count(), items.getFirst().amount(), paidCount, paid, current, future, last, planStatus,
-                List.copyOf(items), List.copyOf(reserved));
+                List.copyOf(items), List.copyOf(reserved), share);
     }
 
     private static InstallmentStatus statusOf(Money net, InvoiceStatus invoice) {

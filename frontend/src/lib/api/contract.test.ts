@@ -203,7 +203,8 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
       'FutureInvoiceMonthResponse', 'FutureInvoicesResponse', 'UtilizationCompositionResponse', 'UtilizationResponse',
       'CardSummaryResponse', 'CardsSummaryResponse', 'PurchaseInstallmentResponse', 'CardPurchaseResponse',
       'CardTransactionResponse', 'InstallmentItemResponse', 'ReservedLimitResponse', 'InstallmentPlanResponse',
-      'InstallmentPlanListResponse', 'CardPaymentReconciliationResponse',
+      'InstallmentPlanListResponse', 'CardPaymentReconciliationResponse', 'CurrentInvoiceShareResponse',
+      'UtilizationPointResponse', 'UtilizationHistoryResponse',
     ] as const) {
       expect(sorted(responses[name] ?? []), name).toEqual(sorted(RECORD_FIELDS[name]))
     }

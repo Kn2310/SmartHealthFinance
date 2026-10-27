@@ -113,7 +113,15 @@ class CardTransactionsApiIT extends IntegrationTest {
                 .hasPathSatisfying("$.items[0].status", s -> assertThat(s).asString().isEqualTo("ACTIVE"));
         assertThat(get(CARD + "/installments/" + purchaseId)).hasStatus(HttpStatus.OK).bodyJson()
                 .hasPathSatisfying("$.remainingAfterCurrent.amount",
-                        a -> assertThat(a).asString().isEqualTo("200.00"));
+                        a -> assertThat(a).asString().isEqualTo("200.00"))
+                .hasPathSatisfying("$.currentInvoiceShare.installment.amount",
+                        a -> assertThat(a).asString().isEqualTo("100.00"))
+                .hasPathSatisfying("$.currentInvoiceShare.percent", p -> assertThat(p).asNumber().isEqualTo(100));
+        assertThat(get(CARD + "/utilization/history")).hasStatus(HttpStatus.OK).bodyJson()
+                .hasPathSatisfying("$.points[-1:].current", c -> assertThat(c).asArray().containsExactly(true))
+                .hasPathSatisfying("$.points[-1:].utilizationPercent", p -> assertThat(p).asArray().hasSize(1))
+                .hasPathSatisfying("$.calculationVersion", v -> assertThat(v).asString().isEqualTo("invoice-v2"));
+        assertThat(get(CARD + "/utilization/history?months=13")).hasStatus(HttpStatus.BAD_REQUEST);
 
         assertThat(mvc.get().uri(WS + "/transactions", workspace).param("cardId", card).with(ana())).bodyJson()
                 .hasPathSatisfying("$.totalItems", n -> assertThat(n).asNumber().isEqualTo(2));

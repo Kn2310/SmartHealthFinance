@@ -6,6 +6,7 @@ import com.smarthealthfinance.cards.application.usecase.ArchiveCard;
 import com.smarthealthfinance.cards.application.usecase.CreateCard;
 import com.smarthealthfinance.cards.application.usecase.GetCard;
 import com.smarthealthfinance.cards.application.usecase.GetCardUtilization;
+import com.smarthealthfinance.cards.application.usecase.GetCardUtilizationHistory;
 import com.smarthealthfinance.cards.application.usecase.GetCardsSummary;
 import com.smarthealthfinance.cards.application.usecase.GetFutureInvoices;
 import com.smarthealthfinance.cards.application.usecase.GetInstallmentPlans;
@@ -36,6 +37,7 @@ import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.Inst
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.InvoiceItemPageResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.InvoiceListResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.InvoiceResponse;
+import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.UtilizationHistoryResponse;
 import com.smarthealthfinance.cards.presentation.dto.response.CardResponses.UtilizationResponse;
 import com.smarthealthfinance.shared.presentation.error.ApiError;
 import com.smarthealthfinance.transactions.application.usecase.CreateTransaction;
@@ -80,6 +82,7 @@ public class CardController {
     private final RecordCardCredit recordCredit;
     private final GetInstallmentPlans installmentPlans;
     private final ReconcileCardPayment reconcilePayment;
+    private final GetCardUtilizationHistory getUtilizationHistory;
 
     public CardController(ListCards listCards, GetCard getCard, CreateCard createCard, UpdateCard updateCard,
                           ArchiveCard archiveCard, ReactivateCard reactivateCard, GetCardsSummary getSummary,
@@ -87,7 +90,9 @@ public class CardController {
                           GetFutureInvoices getFuture, GetCardUtilization getUtilization,
                           RecordCardPurchase recordPurchase, RecordCardPayment recordPayment,
                           RecordCardCredit recordCredit, GetInstallmentPlans installmentPlans,
-                          ReconcileCardPayment reconcilePayment) {
+                          ReconcileCardPayment reconcilePayment,
+                          GetCardUtilizationHistory getUtilizationHistory) {
+        this.getUtilizationHistory = getUtilizationHistory;
         this.reconcilePayment = reconcilePayment;
         this.recordPurchase = recordPurchase;
         this.recordPayment = recordPayment;
@@ -391,5 +396,19 @@ public class CardController {
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     public UtilizationResponse getCardUtilization(@PathVariable UUID workspaceId, @PathVariable UUID cardId) {
         return UtilizationResponse.from(getUtilization.execute(workspaceId, cardId));
+    }
+
+    @GetMapping("/{cardId}/utilization/history")
+    @Operation(summary = "Evolução da utilização: o último dia de cada mês anterior e hoje, com o limite atual")
+    @ApiResponse(responseCode = "200", description = "Pontos em ordem de data; datas antes do acompanhamento ficam fora")
+    @ApiResponse(responseCode = "400", description = "VALIDATION_FAILED (months)",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    @ApiResponse(responseCode = "404", description = "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public UtilizationHistoryResponse getCardUtilizationHistory(
+            @PathVariable UUID workspaceId, @PathVariable UUID cardId,
+            @Parameter(description = "Meses anteriores a hoje (1–12, padrão 6)")
+            @RequestParam(required = false) Integer months) {
+        return UtilizationHistoryResponse.from(getUtilizationHistory.execute(workspaceId, cardId, months));
     }
 }

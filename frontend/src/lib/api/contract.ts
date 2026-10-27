@@ -200,9 +200,13 @@ export const RECORD_FIELDS = {
   CardPaymentReconciliationRequest: ['transactionId'],
   InstallmentItemResponse: ['number', 'dueMonth', 'amount', 'cancelledAmount', 'status'],
   ReservedLimitResponse: ['dueMonth', 'amount'],
+  CurrentInvoiceShareResponse: ['dueMonth', 'installment', 'invoiceAmount', 'percent'],
+  UtilizationPointResponse: ['date', 'utilized', 'limit', 'utilizationPercent', 'current'],
+  UtilizationHistoryResponse: ['points', 'asOf', 'calculationVersion'],
   InstallmentPlanResponse: [
     'transactionId', 'description', 'purchasedOn', 'total', 'count', 'installmentAmount', 'paidCount', 'paidAmount',
     'currentNumber', 'remainingAfterCurrent', 'lastDueMonth', 'status', 'installments', 'reservedLimit',
+    'currentInvoiceShare',
   ],
   InstallmentPlanListResponse: ['items'],
   CardsSummaryResponse: [
@@ -272,6 +276,9 @@ export type FieldChecks = [
   Assert<Equals<Values<F['ImportInstallment']>, keyof NonNullable<Rec['installment']>>>,
   Assert<Equals<Values<F['InstallmentItemResponse']>, keyof S['InstallmentItemResponse']>>,
   Assert<Equals<Values<F['ReservedLimitResponse']>, keyof S['ReservedLimitResponse']>>,
+  Assert<Equals<Values<F['CurrentInvoiceShareResponse']>, keyof S['CurrentInvoiceShareResponse']>>,
+  Assert<Equals<Values<F['UtilizationPointResponse']>, keyof S['UtilizationPointResponse']>>,
+  Assert<Equals<Values<F['UtilizationHistoryResponse']>, keyof S['UtilizationHistoryResponse']>>,
   Assert<Equals<Values<F['InstallmentPlanResponse']>, keyof S['InstallmentPlanResponse']>>,
   Assert<Equals<Values<F['InstallmentPlanListResponse']>, keyof S['InstallmentPlanListResponse']>>,
 ]

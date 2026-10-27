@@ -770,6 +770,20 @@ export interface components {
       asOf: string
       calculationVersion: string
     }
+    /** Ponto da evolução da utilização: `current` só no de hoje; os demais são o último dia de um mês. */
+    UtilizationPointResponse: {
+      date: string
+      utilized: components['schemas']['MoneyDto']
+      limit: components['schemas']['MoneyDto']
+      utilizationPercent: number
+      current: boolean
+    }
+    /** Evolução da utilização (ADR-0029 §2), com o limite atual; datas antes do acompanhamento ficam fora. */
+    UtilizationHistoryResponse: {
+      points: components['schemas']['UtilizationPointResponse'][]
+      asOf: string
+      calculationVersion: string
+    }
     CardSummaryResponse: {
       card: components['schemas']['CardResponse']
       currentInvoice: components['schemas']['InvoiceSummaryResponse']
@@ -822,6 +836,13 @@ export interface components {
       status: 'PAID' | 'CURRENT' | 'FUTURE' | 'CANCELLED' | 'BEFORE_TRACKING'
     }
     ReservedLimitResponse: { dueMonth: string; amount: components['schemas']['MoneyDto'] }
+    /** Peso do parcelamento na fatura aberta (ADR-0029 §5): `percent` inteiro HALF_EVEN, calculado no backend. */
+    CurrentInvoiceShareResponse: {
+      dueMonth: string
+      installment: components['schemas']['MoneyDto']
+      invoiceAmount: components['schemas']['MoneyDto']
+      percent: number
+    }
     /** Parcelamento de uma compra, com os estornos já aplicados (ADR-0025 §6/§8). */
     InstallmentPlanResponse: {
       transactionId: string
@@ -838,6 +859,8 @@ export interface components {
       status: 'ACTIVE' | 'FINISHED' | 'CANCELLED'
       installments: components['schemas']['InstallmentItemResponse'][]
       reservedLimit: components['schemas']['ReservedLimitResponse'][]
+      /** Nulo sem parcela na fatura aberta ou com ela sem valor positivo. */
+      currentInvoiceShare: components['schemas']['CurrentInvoiceShareResponse'] | null
     }
     InstallmentPlanListResponse: { items: components['schemas']['InstallmentPlanResponse'][] }
     /** Resumo dos cartões ativos (ADR-0026 §3); `nextDueDate` nulo sem fatura em aberto. */
@@ -1507,6 +1530,14 @@ export interface paths {
       parameters: { path: CardPath }
       responses: {
         200: { content: { 'application/json': components['schemas']['UtilizationResponse'] } }
+      } & CardErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/cards/{cardId}/utilization/history': {
+    get: {
+      parameters: { query?: { months?: number }; path: CardPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['UtilizationHistoryResponse'] } }
       } & CardErrors
     }
   }

@@ -1278,6 +1278,24 @@
         "required" : [ "accountId", "amount", "description", "occurredOn", "type" ],
         "type" : "object"
       },
+      "CurrentInvoiceShareResponse" : {
+        "properties" : {
+          "dueMonth" : {
+            "type" : "string"
+          },
+          "installment" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "invoiceAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "percent" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
       "Detail" : {
         "properties" : {
           "code" : {
@@ -2384,6 +2402,9 @@
             "format" : "int32",
             "type" : "integer"
           },
+          "currentInvoiceShare" : {
+            "$ref" : "#/components/schemas/CurrentInvoiceShareResponse"
+          },
           "currentNumber" : {
             "format" : "int32",
             "type" : "integer"
@@ -3125,6 +3146,46 @@
             "$ref" : "#/components/schemas/MoneyDto"
           },
           "previousOutstanding" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "UtilizationHistoryResponse" : {
+        "properties" : {
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "calculationVersion" : {
+            "type" : "string"
+          },
+          "points" : {
+            "items" : {
+              "$ref" : "#/components/schemas/UtilizationPointResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "UtilizationPointResponse" : {
+        "properties" : {
+          "current" : {
+            "type" : "boolean"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "limit" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "utilizationPercent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "utilized" : {
             "$ref" : "#/components/schemas/MoneyDto"
           }
         },
@@ -5433,6 +5494,71 @@
           }
         },
         "summary" : "Utilização do limite: fatura atual, faturas anteriores em aberto e parcelas futuras",
+        "tags" : [ "Cards" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/cards/{cardId}/utilization/history" : {
+      "get" : {
+        "operationId" : "getCardUtilizationHistory",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "cardId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Meses anteriores a hoje (1–12, padrão 6)",
+          "in" : "query",
+          "name" : "months",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/UtilizationHistoryResponse"
+                }
+              }
+            },
+            "description" : "Pontos em ordem de data; datas antes do acompanhamento ficam fora"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (months)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND"
+          }
+        },
+        "summary" : "Evolução da utilização: o último dia de cada mês anterior e hoje, com o limite atual",
         "tags" : [ "Cards" ]
       }
     },
