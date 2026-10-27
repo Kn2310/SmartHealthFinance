@@ -48,6 +48,9 @@ do `M-More`, até aqui "Em breve".
    - **Adendo (2026-10-26, ADR-0028 §7):** o chip **Cartões** é habilitado, com contagem. "Registrar pagamento" leva a
      `/transactions/new?type=CARD_PAYMENT&cardId=`; "Ver cartão" e "Ver fatura" ficam desabilitados com "Em breve" até
      as rotas `/cards/...` da Parte F.
+   - **Adendo (2026-10-27, ADR-0029 §9):** "Ver cartão" (`VIEW_CARD`) leva a `/cards/{cardId}` e "Ver fatura"
+     (`VIEW_INVOICE`) a `/cards/{cardId}/invoices/{dueMonth}`. Sem os parâmetros, a ação continua sem rota. A tela da
+     fatura reaproveita o D11 dela como "✦ Explicação" (ADR-0029 §3).
 6. **Estilo:** só tokens do DS (teste de conformidade), sem estilo inline (CSP); larguras 375/768/1024/1280/1440 sem
    rolagem horizontal (E2E).
 

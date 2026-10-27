@@ -40,6 +40,9 @@ card Navy usa cores sobre fundo escuro que não existiam como tokens.
    - **Adendo (2026-10-26, ADR-0027 §4):** `PAY_OVERDUE_INVOICE` "Ver fatura" e `REVIEW_CARD_UTILIZATION` "Ver
      cartão" aparecem desabilitados com "Em breve" até as telas de cartões (Parte F). Credit e Debt deixam de mostrar
      "Em breve" no mini-grid quando estão `OK`; sem cartão, continuam com o motivo do backend.
+   - **Adendo (2026-10-27, ADR-0029 §9):** com as telas de cartões, `PAY_OVERDUE_INVOICE` leva a
+     `/cards/{cardId}/invoices/{month}` (o mês de vencimento do passo) e `REVIEW_CARD_UTILIZATION` a `/cards/{cardId}`.
+     Sem `cardId` (ou sem mês, na fatura), o passo continua sem link.
 5. **"Como calculamos?":** `<dialog>` modal nativo, 520 px à direita (bottom sheet no mobile), montado na primeira
    abertura e mantido; abrir e fechar só chamam `showModal()`/`close()`. Foco no botão Fechar ao abrir, preso no
    diálogo, Esc e clique no fundo fecham e o foco volta ao gatilho. O conteúdo vem de `/health/method` e só carrega ao
