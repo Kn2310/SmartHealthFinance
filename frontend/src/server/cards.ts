@@ -179,7 +179,7 @@ export async function readCreditBody(
 const FIELDS = new Set([
   'nickname', 'institutionName', 'brand', 'last4', 'limit', 'closingDay', 'dueDay', 'defaultPaymentAccountId',
   'amount', 'currency', 'occurredOn', 'description', 'installmentCount', 'accountId', 'refundOfTransactionId',
-  'transactionId',
+  'transactionId', 'dueMonth', 'from', 'to', 'page', 'pageSize', 'status', 'months',
 ])
 /** Códigos da Bean Validation viram os do domínio; os do domínio passam se forem códigos estáveis. */
 const BEAN_CODES: Partial<Record<string, string>> = { NotBlank: 'REQUIRED', NotNull: 'REQUIRED', Size: 'TOO_LONG' }
@@ -200,7 +200,8 @@ export function cardFailure(label: string, status: number, error: ApiError | und
     return details.length > 0 ? validationFailed(details) : invalidRequest()
   }
   if (status === 400) return invalidRequest()
-  if (status === 404 && (code === 'CARD_NOT_FOUND' || code === 'ACCOUNT_NOT_FOUND' || code === 'TRANSACTION_NOT_FOUND')) {
+  if (status === 404 && (code === 'CARD_NOT_FOUND' || code === 'ACCOUNT_NOT_FOUND' || code === 'TRANSACTION_NOT_FOUND'
+    || code === 'INVOICE_NOT_FOUND')) {
     return noStoreJson({ code }, 404)
   }
   if (status === 409 && (code === 'CARD_ARCHIVED' || code === 'ACCOUNT_ARCHIVED' || code === 'CONFLICT'
@@ -280,4 +281,69 @@ export async function reconcileCardPayment(
     if (data) return noStoreJson(data, response.status === 201 ? 201 : 200)
     return cardFailure('card payment reconcile', response.status, error)
   })
+}
+
+/** Mês de vencimento da fatura (`YYYY-MM`, ADR-0026 §4). */
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/
+
+export function isDueMonth(value: unknown): value is string {
+  return typeof value === 'string' && MONTH.test(value)
+}
+
+/** Inteiro de query entre `min` e `max`; malformado é descartado e cai no padrão do backend (como no Health). */
+export function intParam(search: URLSearchParams, name: string, min: number, max: number): number | undefined {
+  const raw = search.get(name)
+  if (!raw || !/^\d{1,4}$/.test(raw)) return undefined
+  const value = Number(raw)
+  return value >= min && value <= max ? value : undefined
+}
+
+/** Mês de query (`from`/`to`); malformado é descartado. */
+export function monthParam(search: URLSearchParams, name: string): string | undefined {
+  const raw = search.get(name)
+  return isDueMonth(raw) ? raw : undefined
+}
+
+type Client = ReturnType<typeof backendClient>
+type CardPath = { workspaceId: string; cardId: string }
+type Upstream = { data?: unknown; error?: unknown; response: Response }
+
+/**
+ * Leitura de cartão, fatura, parcelamento ou utilização (ADR-0026 §2–§6): id inválido é o mesmo 404 do cartão
+ * inexistente, o Workspace é sempre o da sessão e só passam códigos estáveis. Os valores chegam prontos do backend.
+ * Parâmetros de caminho inválidos (`issues`) viram `VALIDATION_FAILED` depois da sessão, como a autorização antes da
+ * validação no backend (ADR-0003).
+ */
+export async function readCardResource(
+  label: string,
+  cardId: string,
+  fetcher: (client: Client, path: CardPath) => Promise<Upstream>,
+  issues: FieldIssue[] = [],
+): Promise<NextResponse> {
+  if (!isUuid(cardId)) return noStoreJson({ code: 'CARD_NOT_FOUND' }, 404)
+  return withSession(label, async (session) => {
+    if (issues.length > 0) return validationFailed(issues)
+    const { data, error, response } = await fetcher(backendClient(session.accessToken), {
+      workspaceId: session.workspaceId,
+      cardId,
+    })
+    if (data) return noStoreJson(data)
+    return cardFailure(label, response.status, error as ApiError | undefined)
+  })
+}
+
+/** Arquivar ou reativar (ADR-0026 §2): idempotentes no backend, exigem `Origin` do app. */
+export async function changeCardStatus(
+  request: NextRequest,
+  params: Promise<{ cardId: string }>,
+  action: 'archive' | 'reactivate',
+): Promise<NextResponse> {
+  const forbidden = rejectCrossOrigin(request)
+  if (forbidden) return forbidden
+  const { cardId } = await params
+  return readCardResource(`card ${action}`, cardId, (client, path) =>
+    action === 'archive'
+      ? client.POST('/api/v1/workspaces/{workspaceId}/cards/{cardId}/archive', { params: { path } })
+      : client.POST('/api/v1/workspaces/{workspaceId}/cards/{cardId}/reactivate', { params: { path } }),
+  )
 }
