@@ -131,28 +131,38 @@ function Loaded({ cardId, card, plan }: { cardId: string; card: Card | null; pla
           ))}
         </ol>
         <dl className={styles.facts}>
-          <dt>Valor total</dt>
-          <dd>
-            <Money value={plan.total} />
-          </dd>
-          <dt>Já pago</dt>
-          <dd>
-            <Money value={plan.paidAmount} /> · {plan.paidCount} {plan.paidCount === 1 ? 'parcela' : 'parcelas'}
-          </dd>
+          <div>
+            <dt>Valor total</dt>
+            <dd>
+              <Money value={plan.total} />
+            </dd>
+          </div>
+          <div>
+            <dt>Já pago</dt>
+            <dd>
+              <Money value={plan.paidAmount} /> · {plan.paidCount} {plan.paidCount === 1 ? 'parcela' : 'parcelas'}
+            </dd>
+          </div>
           {plan.currentInvoiceShare && plan.currentNumber ? (
             <>
-              <dt>Nesta fatura</dt>
-              <dd>
-                <Money value={plan.currentInvoiceShare.installment} /> · parcela {plan.currentNumber}
-              </dd>
+              <div>
+                <dt>Nesta fatura</dt>
+                <dd>
+                  <Money value={plan.currentInvoiceShare.installment} /> · parcela {plan.currentNumber}
+                </dd>
+              </div>
             </>
           ) : null}
-          <dt>Em faturas futuras</dt>
-          <dd>
-            <Money value={plan.remainingAfterCurrent} />
-          </dd>
-          <dt>Última parcela</dt>
-          <dd>{invoiceFullName(plan.lastDueMonth)}</dd>
+          <div>
+            <dt>Em faturas futuras</dt>
+            <dd>
+              <Money value={plan.remainingAfterCurrent} />
+            </dd>
+          </div>
+          <div>
+            <dt>Última parcela</dt>
+            <dd>{invoiceFullName(plan.lastDueMonth)}</dd>
+          </div>
         </dl>
         {beforeTracking > 0 ? (
           <p className={styles.caption}>

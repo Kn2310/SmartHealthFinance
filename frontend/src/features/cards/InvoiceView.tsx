@@ -2,7 +2,7 @@
 
 import { ChevronRight, Info, Layers, Sparkles } from 'lucide-react'
 import Link from 'next/link'
-import { Fragment, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Money } from '@/components/ui/Money'
 import { magnitude } from '@/components/charts/geometry'
@@ -128,34 +128,50 @@ function Loaded({ card, cardId, invoice }: { card: Card | null; cardId: string; 
             </p>
           ) : null}
           <dl className={styles.facts}>
-            <dt>Vencimento</dt>
-            <dd>{formatLongDate(summary.dueDate)}</dd>
+            <div>
+              <dt>Vencimento</dt>
+              <dd>{formatLongDate(summary.dueDate)}</dd>
+            </div>
             {summary.effectiveDueDate !== summary.dueDate ? (
               <>
-                <dt>Vencimento efetivo</dt>
-                <dd>{formatLongDate(summary.effectiveDueDate)}</dd>
+                <div>
+                  <dt>Vencimento efetivo</dt>
+                  <dd>{formatLongDate(summary.effectiveDueDate)}</dd>
+                </div>
               </>
             ) : null}
-            <dt>Fechamento</dt>
-            <dd>{formatShortDate(summary.closingDate)}</dd>
-            <dt>Pagamento mínimo</dt>
-            <dd>{summary.minimumPayment ? <Money value={summary.minimumPayment} /> : '—'}</dd>
-            <dt>Compras</dt>
-            <dd>
-              <Money value={summary.charges} />
-            </dd>
-            <dt>Créditos e estornos</dt>
-            <dd>
-              <Money value={summary.credits} />
-            </dd>
-            <dt>Pago</dt>
-            <dd>
-              <Money value={summary.paid} />
-            </dd>
-            <dt>Em aberto</dt>
-            <dd>
-              <Money value={summary.remaining} />
-            </dd>
+            <div>
+              <dt>Fechamento</dt>
+              <dd>{formatShortDate(summary.closingDate)}</dd>
+            </div>
+            <div>
+              <dt>Pagamento mínimo</dt>
+              <dd>{summary.minimumPayment ? <Money value={summary.minimumPayment} /> : '—'}</dd>
+            </div>
+            <div>
+              <dt>Compras</dt>
+              <dd>
+                <Money value={summary.charges} />
+              </dd>
+            </div>
+            <div>
+              <dt>Créditos e estornos</dt>
+              <dd>
+                <Money value={summary.credits} />
+              </dd>
+            </div>
+            <div>
+              <dt>Pago</dt>
+              <dd>
+                <Money value={summary.paid} />
+              </dd>
+            </div>
+            <div>
+              <dt>Em aberto</dt>
+              <dd>
+                <Money value={summary.remaining} />
+              </dd>
+            </div>
           </dl>
           <p className={styles.caption}>
             {summary.minimumPayment ? 'Pagamento mínimo informado no arquivo da fatura. ' : 'Pagamento mínimo: só quando informado no arquivo da fatura. '}
@@ -218,10 +234,10 @@ function ExplanationDetail({ insightId, title }: { insightId: string; title: str
       {figures.length > 0 ? (
         <dl className={styles.facts}>
           {figures.map((figure) => (
-            <Fragment key={figure.code}>
+            <div key={figure.code}>
               <dt>{figure.label}</dt>
               <dd>{figureValue(figure)}</dd>
-            </Fragment>
+            </div>
           ))}
         </dl>
       ) : null}
@@ -266,10 +282,12 @@ function NextInvoice({ cardId, year }: { cardId: string; year: string }) {
         Próxima fatura · {monthName(next.dueMonth, year)}
       </h2>
       <dl className={styles.facts}>
-        <dt>Já comprometido (parcelas)</dt>
-        <dd>
-          <Money value={next.committed} />
-        </dd>
+        <div>
+          <dt>Já comprometido (parcelas)</dt>
+          <dd>
+            <Money value={next.committed} />
+          </dd>
+        </div>
       </dl>
       <p className={styles.caption}>Novas compras ainda não aparecem aqui.</p>
       <Link href={`/cards/${cardId}/invoices`} className={styles.link}>

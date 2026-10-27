@@ -225,9 +225,10 @@
 .grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-16); }
 
 /* Listas de dados */
-.facts { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-8) var(--space-16); font: var(--type-body-s); }
+.facts { display: flex; flex-direction: column; gap: var(--space-8); font: var(--type-body-s); }
+.facts > div { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-4) var(--space-16); }
 .facts dt { color: var(--color-neutral-text-secondary); }
-.facts dd { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.facts dd { margin-left: auto; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
 .list { display: flex; flex-direction: column; }
 .row {

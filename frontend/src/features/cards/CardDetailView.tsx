@@ -141,16 +141,24 @@ function Overview({ card }: { card: Card }) {
         <section className={styles.panel} aria-label="Dados do cartão">
           <CardVisual card={card} />
           <dl className={styles.facts}>
-            <dt>Limite</dt>
-            <dd>
-              <Money value={card.limit} />
-            </dd>
-            <dt>Fechamento</dt>
-            <dd>Dia {String(card.closingDay).padStart(2, '0')}</dd>
-            <dt>Vencimento</dt>
-            <dd>Dia {String(card.dueDay).padStart(2, '0')}</dd>
-            <dt>Acompanhado desde</dt>
-            <dd>{invoiceFullName(card.trackingStartDueMonth)}</dd>
+            <div>
+              <dt>Limite</dt>
+              <dd>
+                <Money value={card.limit} />
+              </dd>
+            </div>
+            <div>
+              <dt>Fechamento</dt>
+              <dd>Dia {String(card.closingDay).padStart(2, '0')}</dd>
+            </div>
+            <div>
+              <dt>Vencimento</dt>
+              <dd>Dia {String(card.dueDay).padStart(2, '0')}</dd>
+            </div>
+            <div>
+              <dt>Acompanhado desde</dt>
+              <dd>{invoiceFullName(card.trackingStartDueMonth)}</dd>
+            </div>
           </dl>
         </section>
       </div>
