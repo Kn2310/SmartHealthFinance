@@ -89,7 +89,8 @@ test('cadastro → compra parcelada → cartões → fatura → parcelamento →
   await expect(main).not.toContainText('Estimativa')
 
   // Parcelamento: blocos, peso na fatura aberta e utilização sem parcelas futuras, do backend.
-  await main.getByRole('link', { name: PURCHASE.description }).click()
+  // O lançamento aparece pelo comerciante que o backend reconheceu na descrição.
+  await main.getByRole('link', { name: /^Estante Fictícia/ }).click()
   await expect(page).toHaveURL(new RegExp(`/cards/${cardId}/installments/[0-9a-f-]{36}$`))
   const blocks = page.getByRole('list', { name: 'Parcelas' })
   await expect(blocks.getByRole('listitem')).toHaveCount(3)
