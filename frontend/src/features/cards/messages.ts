@@ -75,3 +75,16 @@ const REQUEST_FAILURE: Partial<Record<string, string>> = {
 
 export const cardRequestFailureMessage = (code: string) =>
   lookup(REQUEST_FAILURE, code, 'Não foi possível falar com o servidor. Nada foi alterado; tente de novo.')
+
+const READ_FAILURE: Partial<Record<string, string>> = {
+  CARD_NOT_FOUND: 'Este cartão não existe ou não está disponível para você.',
+  INVOICE_NOT_FOUND: 'Não há fatura com lançamentos neste mês.',
+  TRANSACTION_NOT_FOUND: 'Este parcelamento não existe neste cartão.',
+  VALIDATION_FAILED: 'O endereço desta página não é válido.',
+  CARD_ARCHIVED: 'Este cartão está arquivado. Reative para voltar a editá-lo.',
+  CONFLICT: 'O cartão foi alterado em outro lugar. Recarregue os dados e tente de novo.',
+}
+
+/** Falha ao carregar ou ao mudar o estado do cartão, sem jargão (05-states). */
+export const cardReadFailureMessage = (code: string) =>
+  lookup(READ_FAILURE, code, 'Não conseguimos carregar agora. Seus dados estão seguros; tente de novo em instantes.')
