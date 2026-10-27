@@ -129,17 +129,20 @@ export function evidenceSource(source: string): string {
 
 /**
  * Destino de cada próximo passo: só telas que existem (ADR-0017 §7, sem ✦). O passo da categoria leva ao insight da
- * alta dela no mesmo mês quando existe (adendo de 2026-10-19 ao ADR-0020); senão, à categoria na Análise. Fatura e
- * cartão (ADR-0027 §4) ficam sem rota, "Em breve", até as telas de cartões (Parte F).
+ * alta dela no mesmo mês quando existe (adendo de 2026-10-19 ao ADR-0020); senão, à categoria na Análise. Fatura
+ * vencida e utilização (ADR-0027 §4) levam às telas de Cartões (Parte F, adendo ao ADR-0020).
  *
  * @param insights insights ativos ligados aos gastos (`/insights/related?dimension=SPENDING`)
  */
 export function nextStepLink(step: HealthNextStep, insights: InsightItem[] = []): { href: string | null; label: string } {
   switch (step.kind) {
     case 'PAY_OVERDUE_INVOICE':
-      return { href: null, label: 'Ver fatura' }
+      return {
+        href: step.cardId && step.month ? `/cards/${encodeURIComponent(step.cardId)}/invoices/${encodeURIComponent(step.month)}` : null,
+        label: 'Ver fatura',
+      }
     case 'REVIEW_CARD_UTILIZATION':
-      return { href: null, label: 'Ver cartão' }
+      return { href: step.cardId ? `/cards/${encodeURIComponent(step.cardId)}` : null, label: 'Ver cartão' }
     case 'BUILD_RESERVE':
       return { href: '/accounts', label: 'Ver contas' }
     case 'ADD_RESERVE_ACCOUNT':

@@ -156,8 +156,8 @@ describe('Detalhe do insight (D-InsightDetail / M-InsightDetail)', () => {
     expect(items).toHaveLength(3)
     expect(items[1]).toHaveTextContent('Parcela de Loja Tech (3/10)')
     expect(items[1]).toHaveTextContent(/\+\sR\$\s160,00/)
-    expect(screen.getByRole('button', { name: 'Ver fatura · Em breve' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Ver cartão · Em breve' })).toBeDisabled()
+    expect(screen.getByRole('link', { name: 'Ver fatura' })).toHaveAttribute('href', '/cards/c1/invoices/2026-10')
+    expect(screen.getByRole('link', { name: 'Ver cartão' })).toHaveAttribute('href', '/cards/c1')
     expect(await axeViolations(container)).toEqual([])
   })
 
@@ -289,9 +289,10 @@ describe('format', () => {
     expect(actionHref(action('VIEW_INCOME', { month: '2026-09' }))).toBe('/analysis/income?month=2026-09')
     expect(actionHref(action('VIEW_TRANSACTION', { transactionId: 'abc' }))).toBe('/transactions/abc')
     expect(actionHref(action('RECORD_CARD_PAYMENT', { cardId: 'c1' }))).toBe('/transactions/new?type=CARD_PAYMENT&cardId=c1')
-    // Telas de cartão e fatura chegam na Parte F (adendo ao ADR-0024): até lá, sem rota.
-    expect(actionHref(action('VIEW_CARD', { cardId: 'c1' }))).toBeNull()
-    expect(actionHref(action('VIEW_INVOICE', { cardId: 'c1', dueMonth: '2026-10' }))).toBeNull()
+    // Telas de cartão e fatura (Parte F, adendo ao ADR-0024); sem os parâmetros, sem rota.
+    expect(actionHref(action('VIEW_CARD', { cardId: 'c1' }))).toBe('/cards/c1')
+    expect(actionHref(action('VIEW_INVOICE', { cardId: 'c1', dueMonth: '2026-10' }))).toBe('/cards/c1/invoices/2026-10')
+    expect(actionHref(action('VIEW_INVOICE', { cardId: 'c1' }))).toBeNull()
     expect(actionHref(action('IMPORT_STATEMENT'))).toBe('/import')
     expect(actionHref(action('VIEW_HEALTH'))).toBe('/home/health')
     expect(actionHref(action('VIEW_ACCOUNTS'))).toBe('/accounts')

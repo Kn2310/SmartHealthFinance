@@ -27,6 +27,7 @@ import { accountNames, cardNames, categoryNames, useAccounts, useCards, useCateg
 import { acceptedNature, CATEGORY_SOURCE_LABEL, NO_CATEGORY_LABEL, SOURCE_LABEL, statusBadge, statusEffect, transactionSign } from './labels'
 import { categoryErrorMessage, fieldErrorMessage, requestFailureMessage } from './messages'
 import { RelatedInsight } from '@/features/insights/RelatedInsight'
+import { CardInvoiceLinks } from '@/features/cards/CardInvoiceLinks'
 import { canMarkAsCardPayment, CardPaymentMarkSection } from './CardPaymentMarkSection'
 import { canMarkAsRefund, RefundMarkSection } from './RefundMarkSection'
 import accountStyles from '@/features/accounts/Accounts.module.css'
@@ -254,13 +255,21 @@ function Loaded({
             // D-TxnDetail: "Pago com" o cartão (só os 4 últimos dígitos — ADR-0025 §1).
             <div className={styles.fact}>
               <dt>Pago com</dt>
-              <dd>{cardName(transaction.cardId)}</dd>
+              <dd>
+                <Link href={`/cards/${transaction.cardId}`} className={styles.link}>
+                  {cardName(transaction.cardId)}
+                </Link>
+              </dd>
             </div>
           ) : null}
           {transaction.destinationCardId ? (
             <div className={styles.fact}>
               <dt>Fatura do cartão</dt>
-              <dd>{cardName(transaction.destinationCardId)}</dd>
+              <dd>
+                <Link href={`/cards/${transaction.destinationCardId}`} className={styles.link}>
+                  {cardName(transaction.destinationCardId)}
+                </Link>
+              </dd>
             </div>
           ) : null}
           {transaction.destinationAccountId ? (
@@ -411,6 +420,8 @@ function Loaded({
           </div>
         </section>
       ) : null}
+
+      {transaction.cardId ? <CardInvoiceLinks transaction={transaction} /> : null}
 
       {canMarkAsCardPayment(transaction) ? (
         <CardPaymentMarkSection

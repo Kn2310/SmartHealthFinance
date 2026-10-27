@@ -185,9 +185,13 @@ describe('formatação do Health', () => {
     expect(nextStepLink({ ...step, kind: 'ADD_RESERVE_ACCOUNT' })).toEqual({ href: '/accounts/new', label: 'Adicionar conta' })
     expect(nextStepLink({ ...step, kind: 'CATEGORIZE_TRANSACTIONS' }).href).toBe('/transactions?category=none')
     expect(nextStepLink({ ...step, kind: 'REVIEW_MONTH', month: '2026-08' }).href).toBe('/analysis?month=2026-08')
-    // Fatura e cartão (ADR-0027 §4): "Em breve" até as telas de cartões.
-    expect(nextStepLink({ ...step, kind: 'PAY_OVERDUE_INVOICE', cardId: 'c1' })).toEqual({ href: null, label: 'Ver fatura' })
-    expect(nextStepLink({ ...step, kind: 'REVIEW_CARD_UTILIZATION', cardId: 'c1' })).toEqual({ href: null, label: 'Ver cartão' })
+    // Fatura e cartão (ADR-0027 §4; Parte F, adendo ao ADR-0020).
+    expect(nextStepLink({ ...step, kind: 'PAY_OVERDUE_INVOICE', cardId: 'c1', month: '2026-09' })).toEqual({
+      href: '/cards/c1/invoices/2026-09',
+      label: 'Ver fatura',
+    })
+    expect(nextStepLink({ ...step, kind: 'REVIEW_CARD_UTILIZATION', cardId: 'c1' })).toEqual({ href: '/cards/c1', label: 'Ver cartão' })
+    expect(nextStepLink({ ...step, kind: 'REVIEW_CARD_UTILIZATION', cardId: null }).href).toBeNull()
   })
 
   it('fontes, atualização e eixos das curvas', () => {

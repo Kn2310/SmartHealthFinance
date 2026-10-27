@@ -7,6 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { TRANSACTION_SEARCH_MAX_LENGTH } from '@/lib/api/contract'
 import { formatDayHeading, formatPeriodRange } from '@/lib/format/date'
 import { businessToday } from '@/lib/format/business-date'
+import { cardLabel } from '@/lib/format/card'
 import type { Transaction, TransactionStatus, TransactionType } from './api'
 import {
   isFiltered,
@@ -52,7 +53,7 @@ function byDay(items: Transaction[]): [string, Transaction[]][] {
  * Mês inteiro sem outros filtros (ADR-0016 / parte E): só então o "Por que meu dinheiro mudou?" do mês faz sentido.
  */
 function wholeMonth(filters: Filters, q: string, today: string): string | null {
-  if (filters.accountId || filters.type || filters.status || filters.category || q.trim()) return null
+  if (filters.accountId || filters.cardId || filters.type || filters.status || filters.category || q.trim()) return null
   if (filters.period === 'CURRENT_MONTH' || filters.period === 'PREVIOUS_MONTH') {
     return periodRange(filters, today).from?.slice(0, 7) ?? null
   }
@@ -194,24 +195,42 @@ export function TransactionList({ filters, onFiltersChange, defaultPeriod, fixed
           {fixedAccountId ? null : (
             <div className={accountStyles.field}>
               <label htmlFor={`${id}-account`} className={accountStyles.label}>
-                Conta
+                Conta ou cartão
               </label>
+              {/* Um filtro só para os dois (D-Transactions): `account:` ou `card:` + id; nunca os dois juntos. */}
               <select
                 id={`${id}-account`}
                 className={accountStyles.select}
-                value={filters.accountId ?? ''}
-                onChange={(event) => set({ accountId: event.target.value || undefined })}
+                value={filters.accountId ? `account:${filters.accountId}` : filters.cardId ? `card:${filters.cardId}` : ''}
+                onChange={(event) => {
+                  const [kind, value] = event.target.value.split(':')
+                  set({ accountId: kind === 'account' ? value : undefined, cardId: kind === 'card' ? value : undefined })
+                }}
               >
                 <option value="">Todas</option>
-                {accounts.status === 'success'
-                  ? accounts.data.map((account) => (
-                      <option key={account.id} value={account.id}>
+                {accounts.status === 'success' && accounts.data.length > 0 ? (
+                  <optgroup label="Contas">
+                    {accounts.data.map((account) => (
+                      <option key={account.id} value={`account:${account.id}`}>
                         {account.status === 'ARCHIVED' ? `${account.name} (arquivada)` : account.name}
                       </option>
-                    ))
-                  : null}
-                {/* Conta da URL ainda sem nome (carregando ou falhou): o filtro continua visível e removível. */}
-                {filters.accountId && !names.has(filters.accountId) ? <option value={filters.accountId}>Conta selecionada</option> : null}
+                    ))}
+                  </optgroup>
+                ) : null}
+                {cards.status === 'success' && cards.data.length > 0 ? (
+                  <optgroup label="Cartões">
+                    {cards.data.map((card) => (
+                      <option key={card.id} value={`card:${card.id}`}>
+                        {card.status === 'ARCHIVED' ? `${cardLabel(card)} (arquivado)` : cardLabel(card)}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                {/* Conta ou cartão da URL ainda sem nome (carregando ou falhou): o filtro continua visível e removível. */}
+                {filters.accountId && !names.has(filters.accountId) ? (
+                  <option value={`account:${filters.accountId}`}>Conta selecionada</option>
+                ) : null}
+                {filters.cardId && !names.has(filters.cardId) ? <option value={`card:${filters.cardId}`}>Cartão selecionado</option> : null}
               </select>
             </div>
           )}

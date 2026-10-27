@@ -45,7 +45,15 @@ export interface NewCardPayment {
   description: string | null
 }
 
-const cardPath = (cardId: string, operation: 'purchases' | 'payments') =>
+/** Estorno ou crédito no cartão, opcionalmente vinculado a uma compra dele (ADR-0025 §8). */
+export interface NewCardCredit {
+  amount: string
+  occurredOn: string
+  description: string
+  refundOfTransactionId: string | null
+}
+
+const cardPath = (cardId: string, operation: 'purchases' | 'payments' | 'credits') =>
   `/api/bff/cards/${encodeURIComponent(cardId)}/${operation}`
 
 /** A mesma `idempotencyKey` em todo reenvio da mesma intenção (ADR-0026 §10). */
@@ -63,6 +71,13 @@ export const recordCardPayment = (cardId: string, fields: NewCardPayment, idempo
     body: JSON.stringify(fields),
   })
 
+export const recordCardCredit = (cardId: string, fields: NewCardCredit, idempotencyKey: string) =>
+  bffCall<Schemas['CardTransactionResponse']>(cardPath(cardId, 'credits'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(fields),
+  })
+
 /** Filtros enviados ao BFF (todos opcionais; o Workspace vem sempre da sessão). */
 export interface ListParams {
   from?: string
@@ -70,6 +85,7 @@ export interface ListParams {
   type?: TransactionType
   status?: TransactionStatus
   accountId?: string
+  cardId?: string
   q?: string
   /** Uma categoria do catálogo (ADR-0012). */
   categoryCode?: string

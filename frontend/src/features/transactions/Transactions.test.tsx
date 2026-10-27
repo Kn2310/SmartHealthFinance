@@ -187,7 +187,12 @@ describe('/transactions — lista', () => {
   })
 
   it('filtros vão para a URL (sem a busca por texto) e voltam para a lista', async () => {
-    stub({ 'GET /api/bff/transactions': () => json(page([txn()])), 'GET /api/bff/accounts': () => json(accountsList()) })
+    const CARD = '01922f5e-0000-7000-8000-0000000000c1'
+    stub({
+      'GET /api/bff/transactions': () => json(page([txn()])),
+      'GET /api/bff/accounts': () => json(accountsList()),
+      'GET /api/bff/cards': () => json({ items: [{ id: CARD, nickname: 'Aurora Platinum', last4: '4821', status: 'ACTIVE' }] }),
+    })
     const user = userEvent.setup()
     render(<TransactionsView />)
     await screen.findByText('Bistrô Lume')
@@ -195,7 +200,11 @@ describe('/transactions — lista', () => {
     await user.selectOptions(screen.getByLabelText('Tipo'), 'EXPENSE')
     expect(replace).toHaveBeenLastCalledWith('/transactions?type=EXPENSE', { scroll: false })
     await user.selectOptions(screen.getByLabelText('Status'), 'PENDING')
-    await user.selectOptions(screen.getByLabelText('Conta'), NORTE)
+    // "Conta ou cartão" (D-Transactions): um filtro só, com contas e cartões; nunca os dois ids juntos.
+    await user.selectOptions(screen.getByLabelText('Conta ou cartão'), `account:${NORTE}`)
+    expect(replace).toHaveBeenLastCalledWith(`/transactions?accountId=${NORTE}`, { scroll: false })
+    await user.selectOptions(screen.getByLabelText('Conta ou cartão'), `card:${CARD}`)
+    expect(replace).toHaveBeenLastCalledWith(`/transactions?cardId=${CARD}`, { scroll: false })
     await user.selectOptions(screen.getByLabelText('Período'), 'PREVIOUS_MONTH')
     expect(replace).toHaveBeenLastCalledWith('/transactions?period=PREVIOUS_MONTH', { scroll: false })
   })
@@ -1099,7 +1108,8 @@ describe('/transactions/new — transferência, reembolso e cartão (ADR-0026 §
       'GET /api/bff/cards': () => json({ items: [card()] }),
     })
     render(<TransactionsView />)
-    expect(await screen.findByText(/Aurora Platinum •••• 4821/)).toBeInTheDocument()
+    // A linha da compra e a opção do filtro "Conta ou cartão".
+    expect(await screen.findAllByText(/Aurora Platinum •••• 4821/)).toHaveLength(2)
   })
 
   it('detalhe da compra no cartão: "Pago com" o cartão, sem conta e sem o atalho de reembolso em conta', async () => {
@@ -1107,6 +1117,8 @@ describe('/transactions/new — transferência, reembolso e cartão (ADR-0026 §
       'GET /api/bff/accounts': () => json(accountsList()),
       'GET /api/bff/categories': () => json(catalog),
       'GET /api/bff/cards': () => json({ items: [card()] }),
+      'GET /api/bff/cards/': () =>
+        json({ transactionId: TXN, count: 1, installments: [{ number: 1, dueMonth: '2026-10', status: 'CURRENT' }] }),
       'GET /api/bff/transactions/': () => json(txn({ accountId: null, cardId: CARD })),
     })
     const { container } = render(<TransactionDetailView id={TXN} />)
@@ -1116,6 +1128,14 @@ describe('/transactions/new — transferência, reembolso e cartão (ADR-0026 §
     expect(screen.getByText('Pago com')).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Conta Aurora' })).not.toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Registrar reembolso' })).not.toBeInTheDocument()
+    // Fatura da parcela atual (lida do parcelamento no backend), cartão e estorno já vinculado (ADR-0029 §7).
+    expect(await screen.findByRole('link', { name: 'Ver fatura' })).toHaveAttribute('href', `/cards/${CARD}/invoices/2026-10`)
+    expect(screen.getByRole('link', { name: 'Ver cartão' })).toHaveAttribute('href', `/cards/${CARD}`)
+    expect(screen.getByRole('link', { name: 'Registrar estorno' })).toHaveAttribute(
+      'href',
+      `/transactions/new?type=CARD_CREDIT&cardId=${CARD}&refundOf=${TXN}`,
+    )
+    expect(screen.queryByRole('link', { name: 'Ver parcelamento' })).not.toBeInTheDocument()
     expect(await axeViolations(container)).toEqual([])
   })
 

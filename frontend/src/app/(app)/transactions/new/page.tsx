@@ -5,12 +5,14 @@ import { isUuid } from '@/lib/uuid'
 
 export const metadata: Metadata = { title: 'Nova transação' }
 
-const TYPES: readonly FormType[] = ['INCOME', 'EXPENSE', 'ADJUSTMENT', 'TRANSFER', 'REFUND', 'CARD_PURCHASE', 'CARD_PAYMENT']
+const TYPES: readonly FormType[] = [
+  'INCOME', 'EXPENSE', 'ADJUSTMENT', 'TRANSFER', 'REFUND', 'CARD_PURCHASE', 'CARD_PAYMENT', 'CARD_CREDIT',
+]
 
 /**
  * `?accountId=` pré-seleciona a conta; `?returnTo=account` volta para ela; `?type=` escolhe o tipo (só os nomes da
- * lista); `?refundOf=` vincula o reembolso a uma despesa (só UUID); `?cardId=` escolhe o cartão da compra ou do pagamento
- * (só UUID). Nunca uma URL nem dado financeiro na query.
+ * lista); `?refundOf=` vincula o reembolso ou o estorno no cartão à despesa ou compra (só UUID); `?cardId=` escolhe o
+ * cartão da compra, do pagamento ou do estorno (só UUID). Nunca uma URL nem dado financeiro na query.
  */
 export default async function NewTransactionPage({
   searchParams,
@@ -24,7 +26,7 @@ export default async function NewTransactionPage({
       initialAccountId={isUuid(accountId) ? accountId : null}
       returnTo={parseReturnTo(returnTo, accountId)}
       initialType={initialType}
-      refundOf={initialType === 'REFUND' && isUuid(refundOf) ? refundOf : null}
+      refundOf={(initialType === 'REFUND' || initialType === 'CARD_CREDIT') && isUuid(refundOf) ? refundOf : null}
       initialCardId={isUuid(cardId) ? cardId : null}
     />
   )
