@@ -271,6 +271,9 @@ Nenhum documento define:
 
 - Mostram **só o valor já comprometido** (parcelas contratadas), como fato.
 - A "estimativa pelo seu padrão" (D-Invoice, D-FutureInvoices) é previsão (M9) e nunca é somada ao comprometido.
+- **Adendo (2026-10-28, ADR-0030 §3.5):** as novas compras estimadas são a mediana das faturas fechadas **sem as linhas
+  de parcela**. O total só aparece como "≈", com o comprometido (fato) e a estimativa sempre visíveis, e o cálculo
+  fica no `forecast`, lendo a `CardPortfolio`.
 
 ### 11. Eventos (outbox, v1, idempotentes)
 

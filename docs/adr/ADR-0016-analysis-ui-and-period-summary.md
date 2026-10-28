@@ -43,6 +43,9 @@ bibliotecas de componentes, e a CSP de produção não permite estilos inline (`
   `NO_ACTIVITY_IN_PERIOD` (zeros reais), freshness `UPDATING`/`NOT_BUILT` e média curta (`LIMITED`) ou ausente.
 - A busca de comerciantes só filtra o que está na tela (não recalcula nada).
 - Fora do escopo, omitidos: "Estimado" (M9), score (M6), destaques ✦ e explicação em texto (M7/M11).
+  **Adendo (2026-10-28, ADR-0030):** o M9 preenche "Projeção para o mês (Estimado)" em Gastos e "Próxima receita
+  prevista (Estimado)" em Receitas. O texto passa de "Se o ritmo atual continuar" para "pelo seu padrão dos últimos N
+  meses", com faixa e confiança.
 
 ### 3. Resumo do período em D-Transactions
 

@@ -72,6 +72,9 @@ seriam regra financeira no cliente (a média das faturas, a fatura "por categori
 
 - **Estimativa (M9) oculta:** a próxima fatura mostra só "Já comprometido (parcelas)" e "Novas compras ainda não
   aparecem aqui." As faturas futuras mostram só o comprometido, com o mesmo aviso (ADR-0025 §10).
+  **Adendo (2026-10-28, ADR-0030 §3.5):** a estimativa deixa de ser oculta na parte D da Sessão 7.1. Ela aparece
+  visualmente separada do comprometido ("Novas compras pelo seu padrão ≈", Estimado, com faixa). O aviso "Novas
+  compras ainda não aparecem aqui" só continua quando não há estimativa (`PARTIAL_CARD_HISTORY`).
 - **Início do acompanhamento (ADR-0025 §15), texto curto:**
   - na fatura cujo mês de vencimento é o `trackingStartDueMonth` do cartão: "Primeira fatura acompanhada pelo app.
     Faturas e pagamentos anteriores não entram aqui.";
