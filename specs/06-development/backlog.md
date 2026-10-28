@@ -7,6 +7,10 @@
   `docker-compose.deploy.yml` para staging/produção — PR #1)
 - [x] Spring Boot (4.1, Java 25, monólito modular — ADR-0001, PR #1)
 - [x] Next.js (App Router + BFF — ADR-0007, PR #7)
+  - upgrade de segurança 16.4.0 → 16.4.3 (Sessão 7.1, parte 0): corrige GHSA-2464-fhr4-w9xw (RCE no Image
+    Optimization com SVG), GHSA-673q-mjm6-r5xr (RCE em `use cache` com typed arrays) e GHSA-p3m5-59mp-jv5r (DoS por
+    Server Actions), todos `>=16.0.0 <=16.4.0`; `eslint-config-next` acompanha. Sem mudança de código; `next build`
+    volta a passar; CSP com nonce, redirecionamento para `/auth/login` e BFF 401 sem sessão conferidos no `next start`
 - [x] PostgreSQL (17, fonte de verdade — PR #1)
 - [x] Redis (infra local/deploy e readiness da API; ainda sem uso funcional — nunca fonte de verdade, specs 05.5)
 - [x] RabbitMQ (Transactional Outbox + Import Worker com retry e DLQ — ADR-0009 §14/§15, PR #10)
