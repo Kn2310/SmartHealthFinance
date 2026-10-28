@@ -31,7 +31,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 
 /**
  * Fatura de cartão importada com PostgreSQL e RabbitMQ reais (ADR-0009 §19–§30, ADR-0025 §7 e §15): o cartão Aurora
- * (fecha 28, vence 05) com dados fictícios. As datas são relativas a hoje: o cartão é cadastrado hoje, então a fatura
+ * (fecha 28, vence 05; do dia 28 ao dia 5, fecha 15 e vence 22) com dados fictícios. As datas são relativas a hoje: o cartão é cadastrado hoje, então a fatura
  * atual é a primeira acompanhada.
  */
 class CardStatementImportApiIT extends IntegrationTest {
@@ -47,8 +47,14 @@ class CardStatementImportApiIT extends IntegrationTest {
     JdbcTemplate jdbc;
 
     private final LocalDate today = LocalDate.now(ZoneId.of("America/Sao_Paulo"));
+    /**
+     * Ciclo em que hoje fica depois do vencimento da fatura anterior ao acompanhamento: senão o pagamento de hoje é
+     * "antigo" e fica fora da alocação (ADR-0025 §15), e o teste quebraria do dia 28 ao dia 5 com o ciclo 28/5.
+     */
+    private final BillingCycle cycle = today.getDayOfMonth() >= 6 && today.getDayOfMonth() <= 27
+            ? new BillingCycle(28, 5) : new BillingCycle(15, 22);
     /** Fatura atual do Aurora e o notebook, comprado de forma que a parcela 3 caia nela. */
-    private final InvoiceDates current = new InvoiceCalendar(new BillingCycle(28, 5), List.of()).invoiceOf(today);
+    private final InvoiceDates current = new InvoiceCalendar(cycle, List.of()).invoiceOf(today);
     private final LocalDate notebookDate = current.periodStart().minusMonths(2);
 
     private String workspace;
@@ -64,9 +70,9 @@ class CardStatementImportApiIT extends IntegrationTest {
                 """, null, workspace), "$.id");
         card = read(post(WS + "/cards", """
                 {"nickname": "Aurora Platinum", "brand": "MASTERCARD", "last4": "4821",
-                 "limit": {"amount": "12000.00", "currency": "BRL"}, "closingDay": 28, "dueDay": 5,
+                 "limit": {"amount": "12000.00", "currency": "BRL"}, "closingDay": %d, "dueDay": %d,
                  "defaultPaymentAccountId": "%s"}
-                """.formatted(account), null, workspace), "$.id");
+                """.formatted(cycle.closingDay(), cycle.dueDay(), account), null, workspace), "$.id");
     }
 
     @Test
