@@ -151,6 +151,9 @@ e o ADR-0005: **POSTED é o único status com efeito financeiro**.
       - vencimento de fatura fechada com saldo: o saldo em aberto, `CLOSED`;
       - fatura vencida com saldo: `OVERDUE`, na data do vencimento;
       - fatura fechada já paga não gera evento; receitas e despesas recorrentes ficam para o Forecast.
+      - **Adendo (2026-10-28, ADR-0030 §3.3):** estes eventos seguem fatos, sem mudança. O Forecast acrescenta os
+        eventos estimados (recorrências) e um valor secundário "≈ no fechamento" na fatura aberta, sempre
+        `ESTIMATED` e separados do fato.
     - Cada evento traz `date`, `kind` (`INVOICE_CLOSING`/`INVOICE_DUE`), `status`, `dueMonth`, `amount` e
       `card {id, nickname, last4}`. Desempate: data, fechamento antes de vencimento, ordem de criação do cartão.
     - **Saldo total não muda:** continua só das contas (§8, §17). A dívida aparece só nesse bloco, sem "saldo

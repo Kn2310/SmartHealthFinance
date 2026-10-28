@@ -244,6 +244,7 @@ Cada insight guarda, com dinheiro e razões como **strings decimais**:
 ### 10. Fora desta fase
 
 - Detectores de Cartões (M8), de previsão (M9) e de metas (M10); queda de gasto e "assinaturas estáveis".
+  **Adendo (2026-10-28, ADR-0030 §8):** a previsão entra com o D15 `BALANCE_MAY_GO_NEGATIVE` (`insights-v3`).
 - "Insights limitados" no Free (05.4.1): não implementado; a ordenação do §3 permite um corte por entitlement na
   leitura sem mudar o modelo.
 - Consentimento "gerar insights" (`D-ProfileConsents`): não existe módulo de consentimento; fica para quando ele existir.

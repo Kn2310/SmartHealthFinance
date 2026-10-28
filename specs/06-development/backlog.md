@@ -283,6 +283,14 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
 
 ## M9 Forecast
 
+- [x] modelo `forecast-v1` (Sessão 7.1, parte A — ADR-0030; adendos ADR-0006, 0015, 0016, 0021, 0025, 0029):
+  - taxonomia `FACT`/`ESTIMATED`/`SIMULATED`;
+  - recorrências mensais detectadas, com confirmar, ignorar e editar;
+  - projeção do mês, próxima receita, próximos eventos, fluxo de caixa (mês + 3) e faturas;
+  - mediana + mín–máx; confiança; previsto × realizado no backend; D15; porta `ForecastReader` para a 7.2
+- [ ] motor de Forecast e recorrências (parte B)
+- [ ] API de Forecast e `/recurring-expenses` (parte C)
+- [ ] UI de Forecast nas telas existentes e gestão de recorrências (parte D)
 - [ ] cash flow forecast
 - [ ] bill forecast
 - [ ] freshness

@@ -19,6 +19,10 @@ as regras de variação, composição e recorrência, sem duplicar a semântica 
 Fora do escopo (outros marcos): projeção do mês e próxima receita prevista ("Estimado", M9 Forecast); score e linha
 do score (M6 Health); destaques ✦, explicação em texto e Insights (M7/M11).
 
+**Adendo (2026-10-28, ADR-0030 §3.1–§3.2):** a projeção do mês e a próxima receita prevista são do módulo `forecast`,
+que lê `AnalyticsReadModel.entries` e reaproveita a chave de fonte de `IncomeSources`. O contrato de Analytics não
+muda, e o `RECURRING` daqui continua uma heurística descritiva, distinta das recorrências do Forecast.
+
 ## Decision
 
 ### 1. Cálculo
