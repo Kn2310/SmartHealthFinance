@@ -19,6 +19,7 @@ import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
 import com.smarthealthfinance.cards.domain.valueobject.CardPosition.DueInvoice;
 import com.smarthealthfinance.cards.domain.valueobject.CardPosition.InstallmentCommitment;
 import com.smarthealthfinance.cards.domain.valueobject.CardPosition.InvoiceLine;
+import com.smarthealthfinance.cards.domain.valueobject.InvoiceDates;
 import com.smarthealthfinance.cards.domain.valueobject.InvoiceStatement;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.Money;
@@ -46,6 +47,8 @@ public class CardPortfolioService implements CardPortfolio {
 
     /** Faturas com lançamentos detalhados: a em foco, as 3 da base do D11 e folga para a série (ADR-0028 §2). */
     static final int DETAILED_INVOICES = 6;
+    /** Meses de datas de faturas futuras na posição: cobre o horizonte do Forecast (fim do mês + 3 meses). */
+    static final int FUTURE_INVOICE_DATES = 6;
 
     private final CreditCardRepository cards;
     private final CardInvoiceRepository invoices;
@@ -131,7 +134,17 @@ public class CardPortfolioService implements CardPortfolio {
 
         return new CardPosition(card.id(), card.nickname().value(), card.last4().value(), card.limit().value(), date,
                 snapshot.ledger().utilization(card.limit()), snapshot.currentStatement(),
-                snapshot.nextInvoiceCommitted(), statements, commitments(snapshot), due, lines);
+                snapshot.nextInvoiceCommitted(), statements, commitments(snapshot), due, lines, card.cycle(),
+                futureInvoiceDates(snapshot));
+    }
+
+    /** Datas das faturas seguintes à atual pelo calendário da invoice-v2 (ADR-0027 §1, adendo de 2026-10-29). */
+    static List<InvoiceDates> futureInvoiceDates(CardLedgerSnapshot snapshot) {
+        List<InvoiceDates> dates = new ArrayList<>();
+        for (int ahead = 1; ahead <= FUTURE_INVOICE_DATES; ahead++) {
+            dates.add(snapshot.calendar().datesOf(snapshot.current().closingMonth().plusMonths(ahead)));
+        }
+        return dates;
     }
 
     /** Parcelas que caem em faturas posteriores à atual, por compra, na ordem dos fatos. */

@@ -146,7 +146,8 @@ class CardInvoiceProjectorTest {
                 .toList());
         CardPosition young = new CardPosition(aurora.cardId(), aurora.nickname(), aurora.last4(), aurora.limit(),
                 aurora.asOf(), aurora.utilization(), aurora.current(), aurora.nextInvoiceCommitted(), onlyOneClosed,
-                aurora.commitments(), aurora.dueInvoices(), aurora.lines());
+                aurora.commitments(), aurora.dueInvoices(), aurora.lines(), aurora.cycle(),
+                aurora.futureInvoiceDates());
 
         Result result = project(purchases(), "2026-03-01", young);
 
@@ -180,7 +181,8 @@ class CardInvoiceProjectorTest {
                 "1000.00"));
         CardPosition overdue = new CardPosition(aurora.cardId(), aurora.nickname(), aurora.last4(), aurora.limit(),
                 aurora.asOf(), aurora.utilization(), aurora.current(), aurora.nextInvoiceCommitted(), statements,
-                aurora.commitments(), aurora.dueInvoices(), aurora.lines());
+                aurora.commitments(), aurora.dueInvoices(), aurora.lines(), aurora.cycle(),
+                aurora.futureInvoiceDates());
 
         Result result = project(purchases(), "2026-03-01", overdue);
 

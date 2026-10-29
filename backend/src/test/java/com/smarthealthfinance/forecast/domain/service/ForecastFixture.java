@@ -3,6 +3,7 @@ package com.smarthealthfinance.forecast.domain.service;
 import com.smarthealthfinance.cards.domain.enums.InvoiceDatesSource;
 import com.smarthealthfinance.cards.domain.enums.InvoiceItemKind;
 import com.smarthealthfinance.cards.domain.enums.InvoiceStatus;
+import com.smarthealthfinance.cards.domain.valueobject.BillingCycle;
 import com.smarthealthfinance.cards.domain.valueobject.CardId;
 import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
 import com.smarthealthfinance.cards.domain.valueobject.CardPosition.InvoiceLine;
@@ -153,11 +154,16 @@ final class ForecastFixture {
                 YearMonth.of(2026, 7), List.of(charge("2474.10"), installment(1, 10, "480.00")),
                 YearMonth.of(2026, 8), List.of(charge("2532.10"), installment(2, 10, "480.00")),
                 YearMonth.of(2026, 9), List.of(charge("2932.80"), installment(3, 10, "480.00")));
+        List<InvoiceDates> futureDates = new ArrayList<>();
+        for (YearMonth closing = YearMonth.of(2026, 10); !closing.isAfter(YearMonth.of(2027, 3));
+             closing = closing.plusMonths(1)) {
+            futureDates.add(dates(closing, 28, 5));
+        }
         Money zero = brl("0");
         CardUtilization utilization = new CardUtilization(brl("12000.00"), brl("6772.80"), brl("5227.20"), zero, 56, 28,
                 zero, brl("3412.80"), brl("3360.00"));
         return new CardPosition(new CardId(AURORA), "Aurora Platinum", "4821", brl("12000.00"),
                 LocalDate.parse("2026-09-22"), utilization, current, brl("480.00"), statements, List.of(), List.of(),
-                lines);
+                lines, new BillingCycle(28, 5), futureDates);
     }
 }

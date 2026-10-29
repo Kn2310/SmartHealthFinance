@@ -10,6 +10,8 @@ import com.smarthealthfinance.analytics.domain.model.CategoryFlow;
 import com.smarthealthfinance.analytics.domain.model.DailyFlow;
 import com.smarthealthfinance.analytics.domain.model.ExpenseItem;
 import com.smarthealthfinance.analytics.domain.model.FlowEntry;
+import com.smarthealthfinance.analytics.domain.model.FlowTransaction;
+import com.smarthealthfinance.analytics.domain.model.FlowTransaction;
 import com.smarthealthfinance.analytics.domain.model.MerchantFlow;
 import com.smarthealthfinance.analytics.domain.model.MonthlyFlow;
 import com.smarthealthfinance.analytics.domain.model.ProjectionFreshness;
@@ -257,6 +259,12 @@ class AnalysisQueriesTest {
         @Override
         public Optional<LocalDate> firstActivity(WorkspaceId workspaceId) {
             return entries.stream().map(FlowEntry::day).min(LocalDate::compareTo);
+        }
+
+        @Override
+        public List<FlowTransaction> flowTransactions(WorkspaceId workspaceId, AnalyticsPeriod period,
+                                                      Currency currency) {
+            return List.of();
         }
 
         @Override

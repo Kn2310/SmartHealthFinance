@@ -14,6 +14,7 @@ import com.smarthealthfinance.analytics.application.usecase.RefreshAnalyticsProj
 import com.smarthealthfinance.analytics.domain.enums.ProjectionState;
 import com.smarthealthfinance.analytics.domain.model.CategoryFlow;
 import com.smarthealthfinance.analytics.domain.model.DailyFlow;
+import com.smarthealthfinance.analytics.domain.model.FlowTransaction;
 import com.smarthealthfinance.analytics.domain.model.MerchantFlow;
 import com.smarthealthfinance.analytics.domain.model.MonthlyFlow;
 import com.smarthealthfinance.analytics.domain.valueobject.AnalyticsPeriod;
@@ -26,6 +27,7 @@ import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.support.IntegrationTest;
 import com.smarthealthfinance.transactions.domain.enums.AdjustmentDirection;
+import com.smarthealthfinance.transactions.domain.enums.CashFlowRole;
 import com.smarthealthfinance.transactions.domain.enums.TransactionStatus;
 import com.smarthealthfinance.transactions.domain.enums.TransactionType;
 import com.smarthealthfinance.transactions.domain.model.Transaction;
@@ -51,7 +53,10 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.Currency;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.Set;
 import java.util.UUID;
 
@@ -269,6 +274,41 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
         assertParity();
     }
 
+    @Test
+    void perTransactionFlowKeepsIdsChannelsAndTheInstallmentFlag() {
+        List<FlowTransaction> rows = readModel.flowTransactions(anas, AnalyticsPeriod.of(SEP), BRL);
+
+        assertThat(rows).extracting(FlowTransaction::transactionId).doesNotHaveDuplicates();
+        assertThat(rows).filteredOn(r -> r.merchantName() != null && r.merchantName().contains("Bistrô"))
+                .allSatisfy(r -> assertThat(r.accountId()).isEqualTo(aurora.value()));
+        assertThat(rows).filteredOn(r -> r.cardId() != null).isNotEmpty()
+                .allSatisfy(r -> assertThat(r.cardId()).isIn(activeCards).as("só cartão ativo"));
+        assertThat(rows).noneMatch(FlowTransaction::installment);
+
+        UUID cardId = activeCards.iterator().next();
+        UUID purchase = rows.stream().filter(r -> r.cardId() != null && r.role() == CashFlowRole.EXPENSE)
+                .findFirst().orElseThrow().transactionId();
+        UUID invoice = UUID.randomUUID();
+        jdbc.update("""
+                insert into card_invoices (id, workspace_id, card_id, closing_month, due_month, period_start,
+                  closing_date, due_date, dates_source, currency, created_at, updated_at)
+                values (?, ?, ?, date '2026-09-01', date '2026-10-01', date '2026-08-28', date '2026-09-28',
+                  date '2026-10-05', 'CALCULATED', 'BRL', now(), now())""", invoice, anas.value(), cardId);
+        for (int number = 1; number <= 2; number++) {
+            jdbc.update("""
+                    insert into card_installments (transaction_id, number, workspace_id, card_id, installment_count,
+                      purchased_on, amount, currency, invoice_id, rules_version, created_at, updated_at)
+                    values (?, ?, ?, ?, 2, date '2026-09-12', 206.40, 'BRL', ?, 'invoice-v2', now(), now())""",
+                    purchase, number, anas.value(), cardId, invoice);
+        }
+
+        assertThat(readModel.flowTransactions(anas, AnalyticsPeriod.of(SEP), BRL))
+                .filteredOn(FlowTransaction::installment).extracting(FlowTransaction::transactionId)
+                .containsExactly(purchase);
+        assertThat(readModel.flowTransactions(bobs, AnalyticsPeriod.of(SEP), BRL))
+                .extracting(FlowTransaction::transactionId).doesNotContain(purchase);
+    }
+
     // --- dados ---
 
     private void seed() {
@@ -378,6 +418,9 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
                     .containsExactlyInAnyOrderElementsOf(daily(reference.daily(period)));
             assertThat(entries(readModel.entries(anas, period, BRL))).as("entries %s", period)
                     .containsExactlyInAnyOrderElementsOf(entries(reference.entries(period)));
+            assertThat(perTransactionSums(readModel.flowTransactions(anas, period, BRL)))
+                    .as("flowTransactions %s", period)
+                    .containsExactlyInAnyOrderElementsOf(entrySums(readModel.entries(anas, period, BRL)));
             assertThat(expenses(readModel.largestExpenses(anas, period, 3, BRL))).as("largestExpenses %s", period)
                     .containsExactlyElementsOf(expenses(reference.largestExpenses(period, 3)));
         }
@@ -413,6 +456,30 @@ class JdbcAnalyticsProjectionIT extends IntegrationTest {
     private static List<String> expenses(List<com.smarthealthfinance.analytics.domain.model.ExpenseItem> rows) {
         return rows.stream().map(r -> r.transactionId() + "|" + r.occurredOn() + "|" + r.description() + "|"
                 + r.merchantName() + "|" + r.categoryCode() + "|" + plain(r.amount())).toList();
+    }
+
+    private static List<String> perTransactionSums(List<FlowTransaction> rows) {
+        Map<String, java.math.BigDecimal> sums = new TreeMap<>();
+        Map<String, Integer> counts = new HashMap<>();
+        for (FlowTransaction r : rows) {
+            String key = r.day() + "|" + r.role() + "|" + r.categoryCode() + "|" + r.merchantKey();
+            sums.merge(key, r.amount().amount(), java.math.BigDecimal::add);
+            counts.merge(key, 1, Integer::sum);
+        }
+        return sums.entrySet().stream().map(e -> e.getKey() + "|" + e.getValue().setScale(2, RoundingMode.UNNECESSARY)
+                .toPlainString() + "|" + counts.get(e.getKey())).toList();
+    }
+
+    private static List<String> entrySums(List<com.smarthealthfinance.analytics.domain.model.FlowEntry> rows) {
+        Map<String, java.math.BigDecimal> sums = new TreeMap<>();
+        Map<String, Integer> counts = new HashMap<>();
+        for (var r : rows) {
+            String key = r.day() + "|" + r.role() + "|" + r.categoryCode() + "|" + r.merchantKey();
+            sums.merge(key, r.amount().amount(), java.math.BigDecimal::add);
+            counts.merge(key, r.transactionCount(), Integer::sum);
+        }
+        return sums.entrySet().stream().map(e -> e.getKey() + "|" + e.getValue().setScale(2, RoundingMode.UNNECESSARY)
+                .toPlainString() + "|" + counts.get(e.getKey())).toList();
     }
 
     private static String plain(Money money) {

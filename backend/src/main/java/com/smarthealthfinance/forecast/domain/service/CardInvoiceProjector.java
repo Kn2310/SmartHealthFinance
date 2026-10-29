@@ -1,6 +1,5 @@
 package com.smarthealthfinance.forecast.domain.service;
 
-import com.smarthealthfinance.cards.domain.enums.InvoiceDatesSource;
 import com.smarthealthfinance.cards.domain.enums.InvoiceItemKind;
 import com.smarthealthfinance.cards.domain.enums.InvoiceStatus;
 import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
@@ -96,8 +95,8 @@ final class CardInvoiceProjector {
         boolean first = true;
         for (YearMonth closing = current.dates().closingMonth().plusMonths(1);; closing = closing.plusMonths(1)) {
             InvoiceStatement known = card.statement(closing).orElse(null);
-            InvoiceDates dates = known != null ? known.dates() : derivedDates(current.dates(), closing);
-            if (dates.dueDate().isAfter(horizonEnd)) {
+            InvoiceDates dates = known != null ? known.dates() : card.futureDates(closing).orElse(null);
+            if (dates == null || dates.dueDate().isAfter(horizonEnd)) {
                 break;
             }
             Money committed = known != null ? known.amount()
@@ -221,20 +220,5 @@ final class CardInvoiceProjector {
 
     static boolean isClosed(InvoiceStatus status) {
         return status != InvoiceStatus.FUTURE && status != InvoiceStatus.OPEN;
-    }
-
-    /**
-     * Datas de uma fatura sem linha no razão, pelo ciclo da fatura atual: mesmos dias de fechamento e vencimento,
-     * limitados ao tamanho do mês, e o mesmo deslocamento entre fechamento e vencimento (ADR-0025 §5).
-     */
-    static InvoiceDates derivedDates(InvoiceDates reference, YearMonth closingMonth) {
-        int offset = (int) ChronoUnit.MONTHS.between(reference.closingMonth(), reference.dueMonth());
-        YearMonth dueMonth = closingMonth.plusMonths(offset);
-        LocalDate closing = closingMonth.atDay(Math.min(reference.closingDate().getDayOfMonth(),
-                closingMonth.lengthOfMonth()));
-        LocalDate due = dueMonth.atDay(Math.min(reference.dueDate().getDayOfMonth(), dueMonth.lengthOfMonth()));
-        LocalDate start = closingMonth.minusMonths(1).atDay(Math.min(reference.closingDate().getDayOfMonth(),
-                closingMonth.minusMonths(1).lengthOfMonth()));
-        return new InvoiceDates(closingMonth, dueMonth, start, closing, due, InvoiceDatesSource.CALCULATED);
     }
 }
