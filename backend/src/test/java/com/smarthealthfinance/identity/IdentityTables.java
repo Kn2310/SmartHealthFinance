@@ -17,6 +17,10 @@ public final class IdentityTables {
 		awaitQuiescence(jdbc);
 		jdbc.update("delete from insights");
 		jdbc.update("delete from insights_workspaces");
+		jdbc.update("delete from forecast_month_outcomes");
+		jdbc.update("delete from forecast_recurring_series");
+		jdbc.update("delete from forecast_snapshots");
+		jdbc.update("delete from forecast_workspaces");
 		jdbc.update("delete from health_snapshots");
 		jdbc.update("delete from health_workspaces");
 		jdbc.update("delete from analytics_daily_flows");

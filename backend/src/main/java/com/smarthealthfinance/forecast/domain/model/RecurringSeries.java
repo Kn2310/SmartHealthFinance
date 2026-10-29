@@ -6,6 +6,7 @@ import com.smarthealthfinance.forecast.domain.enums.SeriesDirection;
 import com.smarthealthfinance.forecast.domain.enums.SeriesOrigin;
 import com.smarthealthfinance.forecast.domain.enums.SeriesStatus;
 import com.smarthealthfinance.shared.domain.Money;
+import com.smarthealthfinance.shared.domain.InvalidValueException;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -84,6 +85,50 @@ public record RecurringSeries(SeriesDirection direction, String key, String labe
     /** Data esperada no mês; em meses mais curtos, o último dia do mês. */
     public LocalDate expectedDateIn(YearMonth month) {
         return month.atDay(Math.min(effectiveDay(), month.lengthOfMonth()));
+    }
+
+    /** Confirma a série (ADR-0030 §2). Idempotente: confirmada de novo não muda nada. */
+    public RecurringSeries confirm(Instant now) {
+        return withStatus(SeriesStatus.CONFIRMED, now);
+    }
+
+    /** Ignora a série: o mesmo {@code direction + key} não volta a ser sugerido. Idempotente. */
+    public RecurringSeries ignore(Instant now) {
+        return withStatus(SeriesStatus.IGNORED, now);
+    }
+
+    /**
+     * Edita valor e/ou dia esperados (campos {@code user*}); o estado e a elegibilidade não mudam. O valor editado
+     * vale como exato.
+     *
+     * @param amount nulo = mantém o valor editado atual; moeda igual à do valor detectado
+     * @param day    nulo = mantém o dia editado atual
+     */
+    public RecurringSeries edit(Money amount, Integer day) {
+        if (amount == null && day == null) {
+            throw new InvalidValueException("amount", "REQUIRED");
+        }
+        if (amount != null && !amount.isPositive()) {
+            throw new InvalidValueException("amount", "MUST_BE_POSITIVE");
+        }
+        if (amount != null && !amount.currency().equals(expectedAmount.currency())) {
+            throw new InvalidValueException("amount", "CURRENCY_MISMATCH");
+        }
+        if (day != null && (day < 1 || day > 31)) {
+            throw new InvalidValueException("expectedDay", "OUT_OF_RANGE");
+        }
+        return new RecurringSeries(direction, key, label, channel, periodicity, expectedDay, expectedAmount,
+                amountRange, confidence, occurrences, algorithmVersion, status, origin,
+                amount != null ? amount : userExpectedAmount, day != null ? day : userExpectedDay, statusChangedAt);
+    }
+
+    private RecurringSeries withStatus(SeriesStatus newStatus, Instant now) {
+        if (status == newStatus) {
+            return this;
+        }
+        return new RecurringSeries(direction, key, label, channel, periodicity, expectedDay, expectedAmount,
+                amountRange, confidence, occurrences, algorithmVersion, newStatus, origin, userExpectedAmount,
+                userExpectedDay, now);
     }
 
     /** Atualiza só os campos detectados e as ocorrências; o estado do usuário fica como está. */
