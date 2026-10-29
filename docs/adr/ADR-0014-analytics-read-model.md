@@ -71,6 +71,8 @@ Workspace, nenhum dado financeiro em logs e o Overview sem depender de Analytics
      consumidor e o rebuild gravam **`analytics.projection-updated` v1** na outbox, na mesma transação. Payload: só
      `months` (`YYYY-MM` recalculados; vazio no rebuild). Duplicados e eventos totalmente coalescidos não publicam
      nada. O consumidor é o Health; a freshness deste ADR (§6) não conta esse evento.
+   - **Adendo (2026-10-29, ADR-0031 §2):** o Forecast também consome `analytics.projection-updated` (fila
+     `shf.forecast.snapshot`), em paralelo ao Health.
 
 ### Leitura
 

@@ -43,6 +43,8 @@ Restrições do código atual:
     `cards.domain` (posição dos cartões hoje e no fim dos 6 meses anteriores). Os insights de fatura (D11, D14) ficam
     presos à fatura: não detectados, viram `RESOLVED` se a fatura ainda está em avaliação, senão `EXPIRED`
     (`PERIOD_ENDED`). Na troca de versão, o insight novo herda `seenAt` e feedback pelo fingerprint (ADR-0021 §6).
+  - **Adendo (2026-10-29, ADR-0031 §1):** `insights` lê também a porta só de leitura
+    `forecast.application.port.ForecastReader` e `forecast.domain` (D15, `insights-v3`).
 
 ### 2. Gatilho: `health.snapshot-updated` v1
 
@@ -53,6 +55,9 @@ Restrições do código atual:
 - **Fila `shf.insights.generation`** (binding `health.snapshot-updated`), consumidor `insights.generation` no padrão do
   ADR-0014 §4: inbox `processed_events` na mesma transação do efeito, retry com backoff exponencial + jitter só para
   falhas transitórias, DLQ `shf.insights.generation.dlq`.
+  - **Adendo (2026-10-29, ADR-0031 §7):** a fila ganha o binding `forecast.snapshot-updated`. Forecast e Health rodam
+    em paralelo depois do Analytics (`Analytics → {Health ‖ Forecast} → Insights`); os dois eventos só marcam o
+    Workspace e o debounce os junta. Uma geração com o Forecast ainda em recálculo é corrigida pela seguinte.
 - **Nova porta `HealthSnapshotReader`** (`find`, `findMonths`, `state`), que o `HealthSnapshotStore` estende: os
   Insights leem o snapshot sem enxergar os métodos de escrita do Health.
 
@@ -119,6 +124,7 @@ Restrições do código atual:
   - `NOT_BUILT`: há transações e nenhuma geração na versão atual;
   - `UPDATING`: Workspace marcado, eventos dos Insights pendentes, Health em recálculo (marcado, eventos pendentes ou
     snapshot de outro dia), Analytics `UPDATING`, ou última geração de um dia anterior (que também marca o Workspace);
+    **Adendo (2026-10-29, ADR-0031 §7):** também quando o Forecast está em `RECALCULATING`;
   - `UP_TO_DATE`: os demais casos.
 - Métricas: `shf.insights.generation.freshness` (gauge, segundos desde o `dirty_since` mais antigo), timer
   `shf.insights.generation` (tag `result`), contadores `shf.insights.marked` e `shf.insights.detected` (tags
