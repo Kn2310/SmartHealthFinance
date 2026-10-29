@@ -39,6 +39,7 @@ Métricas por tarefa:
 
 | Tarefa | Data | Modelos/agentes usados | Uso (tokens ou % do limite) | Intervenções manuais | Retrabalho (ciclos de correção) | Falhas de verificação | Qualidade (achados na revisão) | Observações |
 |---|---|---|---|---|---|---|---|---|
+| Arquitetural — M9 Parte B (estratégia do forecast) | 2026-10-29 | `context-researcher` (Haiku), `architecture-advisor` (Opus); sessão principal coordenou e conferiu | Haiku ~91k tokens / 28 chamadas / 2m18s; Opus ~44k tokens / 11 chamadas / 2m16s | 1 rodada de 4 perguntas ao usuário | 0 | — (sem código) | Pesquisa achou as lacunas reais (recorrência sem evento, calendário, conflito fan-out × encadeamento); afirmações-chave conferidas pela sessão principal (eventos do Health, crons 00:05/00:10, última migration V19) e corretas | Usuário aprovou todas as recomendações de primeira. Haiku gastou 2× os tokens do Opus: perguntas de pesquisa podem ser mais estreitas |
 | | | | | | | | | |
 
 Comparar com as sessões anteriores (M5–M8, sessão única) e decidir: manter, ajustar descrições dos agents ou remover algum.
