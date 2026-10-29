@@ -123,3 +123,26 @@ Se uma tarefa exigir mudança de produto, UX, arquitetura ou regra financeira:
 3. proponha alteração;
 4. registre ADR se arquitetural;
 5. não implemente uma decisão nova sem aprovação.
+
+## Orquestração de agentes
+
+Procedimento completo na skill `sdd-implement`; agentes em `.claude/agents/`.
+
+Roteamento:
+- Sessão principal em Sonnet: coordena e implementa por padrão.
+- `context-researcher` (Haiku): pesquisa delimitada que exige percorrer vários arquivos. Não delegue se o arquivo relevante já é conhecido.
+- `feature-implementer` (Sonnet): parte aprovada com escopo, arquivos e critérios de aceite fechados.
+- `quality-reviewer` (Sonnet): revisão contra critérios de aceite, specs, ADRs e invariantes; interpretação de falhas.
+- `architecture-advisor` (Opus): só para conflito entre ADRs, mudança de domínio, quebra de contrato, alteração transversal ou falha persistente. Não use para explicar código.
+- Não crie agentes para tarefas triviais: cada agente consome uso próprio.
+
+Specs e ADRs:
+- Specs e ADRs aprovados são decisões do projeto. Nunca edite silenciosamente um ADR aprovado nem mude seu status; mudanças entram como adendo datado, com aprovação.
+- Se a implementação conflitar com um ADR, pare e reporte o conflito.
+- Não altere contrato de API, autorização, migrations ou payload de eventos sem identificar o impacto explicitamente.
+
+Execução e verificação:
+- Antes de mudanças amplas (mais de 3 arquivos), declare escopo, critérios de aceite e plano.
+- Agentes só rodam em paralelo em tarefas independentes que não editam os mesmos arquivos, e nunca antes de uma decisão arquitetural pendente.
+- Rode as verificações da área alterada (skill `release-validation`) e relate verificações executadas, resultados, arquivos alterados e riscos não resolvidos.
+- Nunca afirme que um teste passou sem ter observado o resultado.
