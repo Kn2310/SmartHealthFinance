@@ -238,6 +238,8 @@ A confiança de uma soma é a menor confiança entre as partes estimadas.
 - **Texto**: "Seu saldo pode ficar negativo por volta de {data}." A evidência é o menor saldo, com a faixa e os
   maiores movimentos até a data.
 - **Custo**: os Insights passam a ler o `ForecastReader`, mais um elo na cadeia de eventos (`insights-v3`).
+  - **Adendo (2026-10-29, ADR-0031 §2, §7):** o elo é paralelo ao Health, não depois dele: os Insights consomem
+    `health.snapshot-updated` e `forecast.snapshot-updated`.
 
 ### 9. Fora de escopo
 
@@ -278,7 +280,8 @@ A confiança de uma soma é a menor confiança entre as partes estimadas.
 
 ## Operational Impact
 
-Definido na parte B.
+Definido na parte B: ADR-0031 (snapshot por eventos, persistência, calendário, previsto × realizado, rebuild,
+status e métricas).
 
 ## Related Specs
 
