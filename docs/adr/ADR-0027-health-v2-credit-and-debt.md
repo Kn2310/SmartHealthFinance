@@ -41,6 +41,9 @@ Faltava:
 - **Limite, apelido e conjunto de cartões são os atuais**, como as contas de reserva na evolução (ADR-0018 §4). O
   sistema não guarda o histórico do limite. Documentado no método.
 - Uma leitura das faturas e uma dos fatos por Workspace; as posições de todas as datas saem da memória (sem N+1).
+- **Adendo (2026-10-29, ADR-0031 §11):** o `CardPosition` ganha, de forma aditiva, o ciclo do cartão (`BillingCycle`)
+  e as datas das faturas futuras calculadas pelo calendário da `invoice-v2`. Assim o Forecast data as faturas sem
+  repetir a regra de calendário. Overview, Health e Insights não mudam.
 - **ArchUnit:** Overview, Health e Insights podem ler `cards.application.port` e `cards.domain` (ADR-0025 §1). Cards
   continua sem depender de nenhum deles.
 
