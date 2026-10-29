@@ -191,6 +191,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("health: método", HttpMethod.GET, WORKSPACE_SCOPE + "/health/method", f -> new Object[0], NONE),
             op("health: status", HttpMethod.GET, WORKSPACE_SCOPE + "/health/status", f -> new Object[0], NONE),
 
+            op("forecast: status", HttpMethod.GET, WORKSPACE_SCOPE + "/forecast/status", f -> new Object[0], NONE),
+
             op("insights: status", HttpMethod.GET, WORKSPACE_SCOPE + "/insights/status", f -> new Object[0], NONE),
             op("insights: listar", HttpMethod.GET, INSIGHTS, f -> new Object[0], NONE),
             op("insights: destaques", HttpMethod.GET, INSIGHTS + "/highlights", f -> new Object[0], NONE),
@@ -572,7 +574,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private String snapshot() {
         return Stream.of("users", "workspaces", "workspace_memberships", "accounts", "transactions",
                         "transaction_idempotency_keys", "import_batches", "import_records", "imported_transaction_keys",
-                        "outbox_events", "processed_events", "health_workspaces", "health_snapshots",
+                        "outbox_events", "processed_events", "health_workspaces", "health_snapshots", "forecast_workspaces",
+                        "forecast_snapshots", "forecast_recurring_series", "forecast_month_outcomes",
                         "insights_workspaces", "insights", "credit_cards", "card_invoices", "card_installments")
                 .map(table -> table + "=" + jdbc.queryForObject(
                         "select coalesce(string_agg(t::text, '|' order by t::text), '') from " + table + " t",

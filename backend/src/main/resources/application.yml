@@ -105,7 +105,26 @@ shf:
       delay: 1s
       max-delay: 30s
       jitter: 500ms
-  # Insights (ADR-0021/0022): gerados depois de cada health.snapshot-updated, com debounce.
+  # Snapshot do Forecast (ADR-0030/0031): mesmo padrão do Health, com debounce e job.
+  forecast:
+    # Na inicialização, depois do rebuild do Analytics: missing (backfill do deploy e de nova versão), all ou off.
+    rebuild: ${FORECAST_REBUILD:missing}
+    debounce:
+      quiet: 10s
+      max-wait: 60s
+    job:
+      interval-ms: 5000
+      batch-size: 50
+      failure-backoff: 60s
+    # O calendário muda o resultado sem evento: marca todos os Workspaces com snapshot (fuso de shf.overview.zone).
+    daily:
+      cron: "0 7 0 * * *"
+    retry:
+      max-retries: 4
+      delay: 1s
+      max-delay: 30s
+      jitter: 500ms
+  # Insights (ADR-0021/0022, ADR-0031 §7): gerados depois de cada health.snapshot-updated e forecast.snapshot-updated.
   insights:
     # Na inicialização: missing (backfill do deploy e de nova versão), all (runbook) ou off. Só marca para o job.
     rebuild: ${INSIGHTS_REBUILD:missing}
