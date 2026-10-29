@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Consumidor dos Insights (ADR-0022 §2): {@code health.snapshot-updated} só marca o Workspace para geração; o payload
+ * Consumidor dos Insights (ADR-0022 §2): {@code health.snapshot-updated} e {@code forecast.snapshot-updated} só
+ * marcam o Workspace para geração; o payload
  * não importa (a geração relê tudo). O ack só sai depois do commit.
  */
 @Component
@@ -52,7 +53,8 @@ public class InsightsEventListener {
     static EventEnvelope target(Message message, JsonMapper json) {
         EventEnvelope event = EventEnvelope.from(message, json);
         if (event.workspaceId() == null || event.eventVersion() != 1
-                || !InsightsMessagingConfig.SNAPSHOT_UPDATED.equals(event.eventType())) {
+                || !(InsightsMessagingConfig.SNAPSHOT_UPDATED.equals(event.eventType())
+                        || InsightsMessagingConfig.FORECAST_SNAPSHOT_UPDATED.equals(event.eventType()))) {
             throw new AmqpRejectAndDontRequeueException("Unexpected event on insights queue");
         }
         return event;

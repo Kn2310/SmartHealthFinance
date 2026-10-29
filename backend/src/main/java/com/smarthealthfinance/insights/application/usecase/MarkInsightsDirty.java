@@ -14,7 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Consumidor {@code insights.generation} (ADR-0022 §2/§3), chamado para cada {@code health.snapshot-updated}: não
+ * Consumidor {@code insights.generation} (ADR-0022 §2/§3), chamado para cada {@code health.snapshot-updated} e
+ * {@code forecast.snapshot-updated}: não
  * gera, só marca o Workspace para o job, com debounce. A marca e a inbox commitam juntas; uma reentrega não tem efeito.
  */
 @Service

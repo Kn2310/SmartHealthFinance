@@ -21,7 +21,7 @@ public record InsightsFreshness(InsightsFreshnessState state, Instant generatedA
      * @param built             última geração na versão atual
      * @param hasTransactions   o Workspace tem transações
      * @param busy              Workspace marcado ou eventos dos Insights pendentes
-     * @param sourcesUpdating   Health ou Analytics ainda processando
+     * @param sourcesUpdating   Health, Forecast ou Analytics ainda processando
      * @param asOf              data de negócio da última geração; nula se nunca
      * @param today             hoje no fuso de negócio
      */

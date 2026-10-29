@@ -23,7 +23,7 @@ import org.springframework.transaction.CannotCreateTransactionException;
 /**
  * Topologia e retry do consumidor dos Insights (ADR-0022 §2), no padrão do consumidor do Health (ADR-0018 §2).
  * <p>
- * {@code shf.events --health.snapshot-updated--> shf.insights.generation}; rejeições vão para
+ * {@code shf.events --health.snapshot-updated / forecast.snapshot-updated--> shf.insights.generation}; rejeições vão para
  * {@code shf.insights.generation.dlq}. Só falhas transitórias são retentadas, com backoff exponencial + jitter.
  */
 @Configuration(proxyBeanMethods = false)
@@ -33,8 +33,9 @@ public class InsightsMessagingConfig {
     public static final String DEAD_LETTER_QUEUE = QUEUE + ".dlq";
     public static final String CONTAINER_FACTORY = "insightsListenerContainerFactory";
 
-    /** Os Insights conhecem o evento do Health só pelo nome. */
+    /** Os Insights conhecem os eventos do Health e do Forecast só pelo nome (adendo ao ADR-0022; ADR-0031 §7). */
     public static final String SNAPSHOT_UPDATED = "health.snapshot-updated";
+    public static final String FORECAST_SNAPSHOT_UPDATED = "forecast.snapshot-updated";
 
     @Bean
     Declarables insightsTopology(TopicExchange eventsExchange) {
@@ -44,7 +45,8 @@ public class InsightsMessagingConfig {
                 .build();
         Queue deadLetters = QueueBuilder.durable(DEAD_LETTER_QUEUE).build();
         return new Declarables(queue, deadLetters,
-                BindingBuilder.bind(queue).to(eventsExchange).with(SNAPSHOT_UPDATED));
+                BindingBuilder.bind(queue).to(eventsExchange).with(SNAPSHOT_UPDATED),
+                BindingBuilder.bind(queue).to(eventsExchange).with(FORECAST_SNAPSHOT_UPDATED));
     }
 
     @Bean(CONTAINER_FACTORY)

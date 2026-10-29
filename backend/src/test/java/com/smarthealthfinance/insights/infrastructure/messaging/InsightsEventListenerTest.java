@@ -14,20 +14,21 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Só {@code health.snapshot-updated} v1 com Workspace (ADR-0022 §2); o resto vai direto para a DLQ. */
+/** Só {@code health.snapshot-updated} e {@code forecast.snapshot-updated} v1 com Workspace (ADR-0022 §2, ADR-0031 §7). */
 class InsightsEventListenerTest {
 
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
-    @Test
-    void acceptsTheHealthSnapshotEvent() {
-        assertThat(InsightsEventListener.target(message("health.snapshot-updated", 1, true), JSON).eventType())
-                .isEqualTo("health.snapshot-updated");
+    @ParameterizedTest
+    @CsvSource({"health.snapshot-updated", "forecast.snapshot-updated"})
+    void acceptsTheSnapshotEvents(String type) {
+        assertThat(InsightsEventListener.target(message(type, 1, true), JSON).eventType()).isEqualTo(type);
     }
 
     @ParameterizedTest
     @CsvSource({"analytics.projection-updated, 1, true", "health.snapshot-updated, 2, true",
-            "health.snapshot-updated, 1, false"})
+            "health.snapshot-updated, 1, false", "forecast.snapshot-updated, 2, true",
+            "forecast.snapshot-updated, 1, false"})
     void rejectsEverythingElse(String type, int version, boolean withWorkspace) {
         assertThatThrownBy(() -> InsightsEventListener.target(message(type, version, withWorkspace), JSON))
                 .isInstanceOf(AmqpRejectAndDontRequeueException.class);

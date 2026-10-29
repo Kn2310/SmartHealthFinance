@@ -39,8 +39,9 @@ import tools.jackson.databind.json.JsonMapper;
 @Transactional(propagation = Propagation.MANDATORY)
 public class JdbcInsightStore implements InsightStore {
 
-    /** Evento que o consumidor dos Insights processa (ADR-0022 §2). */
+    /** Eventos que o consumidor dos Insights processa (ADR-0022 §2, ADR-0031 §7). */
     static final String CONSUMED_EVENT = "health.snapshot-updated";
+    static final String CONSUMED_FORECAST_EVENT = "forecast.snapshot-updated";
 
     /** Mesmo upsert de marca do Health: parâmetros workspace, agora, agora + quiet, maxWait em ms. */
     private static final String MARK = """
@@ -178,7 +179,7 @@ public class JdbcInsightStore implements InsightStore {
                                coalesce(h.algorithm_version = ?, false) as built,
                                exists (select 1 from transactions t where t.workspace_id = ?) as has_transactions,
                                (select count(*) from outbox_events o
-                                 where o.workspace_id = ? and o.event_type = ?
+                                 where o.workspace_id = ? and o.event_type in (?, ?)
                                    and not exists (select 1 from processed_events e
                                                     where e.consumer = ? and e.event_id = o.id)) as pending
                         from (select 1) as one
@@ -191,7 +192,8 @@ public class JdbcInsightStore implements InsightStore {
                             rs.getObject("as_of", LocalDate.class), rs.getBoolean("has_transactions"),
                             rs.getInt("pending"));
                 },
-                algorithmVersion, workspace, workspace, CONSUMED_EVENT, MarkInsightsDirty.CONSUMER, workspace);
+                algorithmVersion, workspace, workspace, CONSUMED_EVENT, CONSUMED_FORECAST_EVENT,
+                MarkInsightsDirty.CONSUMER, workspace);
     }
 
     /** A ordem de {@code InsightScoring.ORDER} em SQL (ADR-0021 §3). */

@@ -2,6 +2,8 @@ package com.smarthealthfinance.insights.application.usecase;
 
 import com.smarthealthfinance.analytics.application.port.AnalyticsReadModel;
 import com.smarthealthfinance.analytics.domain.enums.ProjectionState;
+import com.smarthealthfinance.forecast.application.port.ForecastReader;
+import com.smarthealthfinance.forecast.domain.service.ForecastCalculator;
 import com.smarthealthfinance.health.application.port.HealthSnapshotReader;
 import com.smarthealthfinance.health.domain.service.HealthCalculator;
 import com.smarthealthfinance.identity.application.service.CurrentUserService;
@@ -21,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 /**
  * Freshness dos insights do Workspace (ADR-0022 §8). Autoriza o membro antes de ler. Uma geração de um dia anterior
- * marca o Workspace para o job e responde {@code UPDATING}.
+ * marca o Workspace para o job e responde {@code UPDATING}, o que também vale com o Forecast em recálculo (ADR-0031 §7).
  */
 @Service
 public class GetInsightsStatus {
@@ -30,6 +32,7 @@ public class GetInsightsStatus {
     private final WorkspaceAccessGuard accessGuard;
     private final InsightStore store;
     private final HealthSnapshotReader health;
+    private final ForecastReader forecast;
     private final AnalyticsReadModel analytics;
     private final InsightInputLoader loader;
     private final Clock clock;
@@ -37,13 +40,15 @@ public class GetInsightsStatus {
     private final Duration maxWait;
 
     public GetInsightsStatus(CurrentUserService currentUser, WorkspaceAccessGuard accessGuard, InsightStore store,
-                             HealthSnapshotReader health, AnalyticsReadModel analytics, InsightInputLoader loader,
+                             HealthSnapshotReader health, ForecastReader forecast, AnalyticsReadModel analytics,
+                             InsightInputLoader loader,
                              Clock clock, @Value("${shf.insights.debounce.quiet:10s}") Duration quiet,
                              @Value("${shf.insights.debounce.max-wait:60s}") Duration maxWait) {
         this.currentUser = currentUser;
         this.accessGuard = accessGuard;
         this.store = store;
         this.health = health;
+        this.forecast = forecast;
         this.analytics = analytics;
         this.loader = loader;
         this.clock = clock;
@@ -69,9 +74,12 @@ public class GetInsightsStatus {
         }
         boolean healthUpdating = snapshot.dirty() || snapshot.pendingEvents() > 0
                 || (snapshot.latestAsOf() != null && snapshot.latestAsOf().isBefore(today));
+        ForecastReader.SnapshotState forecastState = forecast.state(id, ForecastCalculator.ALGORITHM_VERSION);
+        boolean forecastUpdating = forecastState.dirty() || forecastState.pendingEvents() > 0
+                || (forecastState.latestAsOf() != null && forecastState.latestAsOf().isBefore(today));
         boolean analyticsUpdating = analytics.freshness(id).state() != ProjectionState.UP_TO_DATE;
         return InsightsFreshness.resolve(state.built(), state.hasTransactions(),
-                state.dirty() || stale || state.pendingEvents() > 0, healthUpdating || analyticsUpdating,
+                state.dirty() || stale || state.pendingEvents() > 0, healthUpdating || forecastUpdating || analyticsUpdating,
                 state.asOf(), today, state.generatedAt(), snapshot.computedAt());
     }
 }
