@@ -62,7 +62,9 @@ public final class MonthProjector {
 
         var excluded = ctx.eligibleKeys(SeriesDirection.EXPENSE);
         VariableSpending.Estimate variable = VariableSpending.estimate(ctx.input().entries(), baseMonths, zero,
-                e -> !excluded.contains(SeriesKeys.keyOf(e)), day -> day > today.getDayOfMonth());
+                e -> !excluded.contains(SeriesKeys.keyOf(e)),
+                // Só os dias que ainda restam no mês corrente: o dia 31 da base não existe num mês de 30 dias.
+                day -> day > today.getDayOfMonth() && day <= month.lengthOfMonth());
 
         Projected expense = expense(ctx, realizedExpense, pendingExpenses, variable);
         Projected income = income(ctx, realizedIncome, pendingIncomes, partialMonth);

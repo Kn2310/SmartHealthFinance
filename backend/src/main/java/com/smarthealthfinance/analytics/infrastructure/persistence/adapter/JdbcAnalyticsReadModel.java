@@ -8,7 +8,6 @@ import com.smarthealthfinance.analytics.domain.model.DailyFlow;
 import com.smarthealthfinance.analytics.domain.model.ExpenseItem;
 import com.smarthealthfinance.analytics.domain.model.FlowEntry;
 import com.smarthealthfinance.analytics.domain.model.FlowTransaction;
-import com.smarthealthfinance.analytics.domain.model.FlowTransaction;
 import com.smarthealthfinance.analytics.domain.model.FlowTotals;
 import com.smarthealthfinance.analytics.domain.model.MerchantFlow;
 import com.smarthealthfinance.analytics.domain.model.MonthlyFlow;

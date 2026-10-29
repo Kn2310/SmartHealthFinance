@@ -153,6 +153,31 @@ class ForecastUseCasesTest {
         assertThat(store.calls).contains("targets all=false", "targets all=true", "lock " + workspace);
     }
 
+    @Test
+    void rebuildSkipsAFailingWorkspaceAndContinuesWithTheOthers() {
+        WorkspaceId broken = new WorkspaceId(UUID.randomUUID());
+        WorkspaceId other = new WorkspaceId(UUID.randomUUID());
+        store.rebuildTargets.addAll(List.of(broken, other));
+        List<WorkspaceId> recalculated = new ArrayList<>();
+        ForecastSnapshotCalculator calculator = new ForecastSnapshotCalculator(null, store, null, null, CLOCK, meters,
+                null) {
+            @Override
+            public ForecastResult recalculate(WorkspaceId workspaceId) {
+                if (workspaceId.equals(broken)) {
+                    throw new IllegalStateException("boom");
+                }
+                recalculated.add(workspaceId);
+                return null;
+            }
+        };
+
+        int rebuilt = new RebuildForecastSnapshots(store, calculator, transactions())
+                .execute(RebuildForecastSnapshots.Scope.MISSING);
+
+        assertThat(rebuilt).isEqualTo(1);
+        assertThat(recalculated).containsExactly(other);
+    }
+
     // --- status ---
 
     @Test

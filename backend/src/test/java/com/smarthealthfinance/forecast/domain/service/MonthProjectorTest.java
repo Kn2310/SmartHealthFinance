@@ -213,4 +213,19 @@ class MonthProjectorTest {
         assertThat(projection.expense().value()).isEqualTo(brl("150.00"));
         assertThat(projection.pending()).isEmpty();
     }
+
+    /** No último dia de um mês de 30 dias, o gasto do dia 31 dos meses de base não é "restante". */
+    @Test
+    void daysThatTheCurrentMonthDoesNotHaveAreNotLeftToEstimate() {
+        ForecastFixture fixture = new ForecastFixture()
+                .add("2026-08-10", CashFlowRole.EXPENSE, "GROCERIES", "mercado bom preco", "300.00")
+                .add("2026-08-31", CashFlowRole.EXPENSE, "LEISURE", "cinema", "120.00")
+                .add("2026-09-10", CashFlowRole.EXPENSE, "GROCERIES", "mercado bom preco", "280.00");
+        ForecastInput input = fixture.input("2026-09-30", "2026-08-01", "1000.00");
+
+        MonthProjection projection = MonthProjector.project(context(input), List.of(YearMonth.of(2026, 8)));
+
+        assertThat(projection.expense().estimatedPart()).isEqualTo(brl("0"));
+        assertThat(projection.expense().value()).isEqualTo(brl("280.00"));
+    }
 }

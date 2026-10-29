@@ -44,11 +44,21 @@ public class RebuildForecastSnapshots {
         if (targets == null || targets.isEmpty()) {
             return 0;
         }
+        int rebuilt = 0;
         for (WorkspaceId workspace : targets) {
-            execute(workspace);
+            // Um Workspace com falha não impede o backfill dos demais; ele volta a ser marcado no próximo evento.
+            try {
+                execute(workspace);
+                rebuilt++;
+            }
+            catch (RuntimeException e) {
+                log.warn("Forecast snapshot rebuild failed workspaceId={} error={}", workspace,
+                        e.getClass().getSimpleName());
+            }
         }
-        log.info("Forecast snapshot rebuild finished scope={} workspaces={}", scope, targets.size());
-        return targets.size();
+        log.info("Forecast snapshot rebuild finished scope={} workspaces={} failed={}", scope, rebuilt,
+                targets.size() - rebuilt);
+        return rebuilt;
     }
 
     public void execute(WorkspaceId workspaceId) {

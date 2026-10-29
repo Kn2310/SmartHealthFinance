@@ -127,6 +127,15 @@ class ForecastSnapshotParityIT extends IntegrationTest {
         // firstActivity vem da projeção do Analytics: constrói a dos dois Workspaces como o rebuild do deploy
         analyticsRebuild.execute(anas);
         analyticsRebuild.execute(bobs);
+        // O rebuild do Analytics publica analytics.projection-updated, que o consumidor e o job do Forecast tratam em
+        // segundo plano. Espera isso assentar e parte de um Forecast vazio, para que nada assíncrono marque ou grave
+        // durante o teste.
+        IdentityTables.awaitQuiescence(jdbc);
+        jdbc.update("delete from forecast_month_outcomes");
+        jdbc.update("delete from forecast_recurring_series");
+        jdbc.update("delete from forecast_snapshots");
+        jdbc.update("delete from forecast_workspaces");
+        jdbc.update("delete from outbox_events where event_type = 'forecast.snapshot-updated'");
     }
 
     @AfterEach
