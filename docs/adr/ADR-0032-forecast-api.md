@@ -137,6 +137,24 @@ Rotas:
 - D15: casos de tabela (gatilho, piso, confiança, importância, resolução) e IT ponta a ponta. O snapshot com saldo
   projetado negativo gera o insight.
 
+### 5. Adendo (2026-11-04): detalhes de formato da implementação
+
+Pontos que o contrato deixava em aberto, resolvidos sem mudar nenhuma decisão:
+- **Blocos sem dados** (`NOT_BUILT`, `NO_DATA`): os escalares (`month`, `nextIncome`, `cashFlow`) vêm `null`, e as
+  listas (`events`, `invoices`) vêm `[]`.
+- **Formato das respostas:**
+  - a lista das recorrências é `{items}`;
+  - as ações respondem `{series, forecastState: "RECALCULATING"}`;
+  - a série devolvida traz a elegibilidade do último snapshot até o recálculo terminar.
+- **`nextExpectedDate`:** é a data esperada no mês do snapshot. Para uma série que não está no snapshot,
+  `eligibility`, `realizedThisMonth` e `nextExpectedDate` vêm `null`.
+- **Ajuste:**
+  - a autorização vem antes de ler o corpo, então um não membro recebe `404` mesmo com valor mal formatado;
+  - um valor numa moeda diferente da do Workspace é `400`.
+- **Itens que referenciam uma série** (`pending`, `upcoming` e `nextIncome`) trazem o `seriesId`. A chave do
+  comerciante não sai do módulo.
+- **`cardId`:** a validação usa o `CreditCardRepository` de `cards.domain`, que o ArchUnit já permite.
+
 ## Alternatives
 
 - **Recurso único `/recurring-expenses?direction=`:** o nome engana, porque as receitas ficariam dentro de

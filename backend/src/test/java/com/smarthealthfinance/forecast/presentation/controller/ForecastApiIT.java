@@ -190,6 +190,12 @@ class ForecastApiIT extends IntegrationTest {
                     .hasStatus(HttpStatus.NOT_FOUND).bodyJson()
                     .hasPathSatisfying("$.code", c -> assertThat(c).isEqualTo("WORKSPACE_NOT_FOUND"));
         }
+        // Também no ajuste: um valor mal formatado não vaza a validação para quem não é membro.
+        assertThat(mvc.put().uri(EXPENSES + "/" + rentId + "/adjustment", anas).with(bob())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"expectedAmount\": {\"amount\": \"abc\", \"currency\": \"BRL\"}}").exchange())
+                .hasStatus(HttpStatus.NOT_FOUND).bodyJson()
+                .hasPathSatisfying("$.code", c -> assertThat(c).isEqualTo("WORKSPACE_NOT_FOUND"));
     }
 
     @Test

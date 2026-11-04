@@ -22,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * Recorrências do Workspace para a API (ADR-0032 §2): lista, detalhe e as ações do usuário. O estado da série (status,
@@ -89,8 +90,10 @@ public class RecurringSeriesService {
 
     @Transactional
     public RecurringItem adjust(UUID workspaceId, SeriesDirection direction, UUID seriesId,
-                                RecurringSeriesActions.Edit edit) {
-        return present(workspaceId, seriesId, actions.edit(workspaceId, direction, seriesId, edit));
+                                Supplier<RecurringSeriesActions.Edit> edit) {
+        // Autoriza antes de ler o corpo: um não membro recebe 404 mesmo com valor mal formatado (ADR-0003, ADR-0015).
+        accessGuard.requireMember(currentUser.requireCurrentUserId(), new WorkspaceId(workspaceId));
+        return present(workspaceId, seriesId, actions.edit(workspaceId, direction, seriesId, edit.get()));
     }
 
     @Transactional

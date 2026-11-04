@@ -96,7 +96,7 @@ public class RecurringExpensesController {
     public ForecastRecurringActionResponse adjust(@PathVariable UUID workspaceId, @PathVariable UUID seriesId,
                                                   @RequestBody ForecastAdjustmentRequest request) {
         return ForecastRecurringActionResponse.of(service.adjust(workspaceId, DIRECTION, seriesId,
-                AdjustmentMapper.toEdit(request)));
+                () -> AdjustmentMapper.toEdit(request)));
     }
 
     @DeleteMapping("/{seriesId}/adjustment")
