@@ -116,6 +116,8 @@ Home. O ADR-0027 criou a porta `CardPortfolio`, que dá a posição dos cartões
   faz nada reaparecer como "Novo" nem perde o "útil / não útil".
 - Rebuild: o runner `missing` marca todos os Workspaces sem geração na v2. O estado do usuário nunca é apagado
   (ADR-0022 §7).
+- **Adendo (2026-11-04, ADR-0032 §3):** a `insights-v3` acrescenta o D15 `BALANCE_MAY_GO_NEGATIVE`, que lê o
+  `ForecastReader`, com a mesma regra de troca de versão e de herança. Os D1–D14 não mudam.
 
 ### 7. API e UI
 

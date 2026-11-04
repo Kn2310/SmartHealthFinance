@@ -297,7 +297,7 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - `V20`: séries (estado do usuário), snapshots e previsto × realizado (congelado na virada, reconciliado até D+5);
   - job diário 00:07, rebuild na inicialização + runbook, `forecast/status` e métricas de freshness;
   - `forecast.snapshot-updated` ligado à fila dos Insights (status `UPDATING` com o Forecast em recálculo; o D15 fica para a parte C); ArchUnit das fronteiras do módulo e `forecast/status` na suíte de isolamento
-- [ ] API de Forecast e `/recurring-expenses` (parte C)
+- [ ] API de Forecast, `/recurring-expenses` e `/recurring-incomes` e D15 (parte C — ADR-0032; adendo ADR-0028)
 - [ ] UI de Forecast nas telas existentes e gestão de recorrências (parte D)
 - [ ] cash flow forecast
 - [ ] bill forecast
