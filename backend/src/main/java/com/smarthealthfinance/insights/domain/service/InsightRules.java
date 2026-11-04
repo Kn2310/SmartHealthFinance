@@ -9,7 +9,7 @@ import java.math.BigDecimal;
  */
 public final class InsightRules {
 
-    public static final String ALGORITHM_VERSION = "insights-v2";
+    public static final String ALGORITHM_VERSION = "insights-v3";
 
     /** Meses da média de comparação (ADR-0015 §2) e mínimo de meses usados pelos detectores comparativos. */
     public static final int AVERAGE_MONTHS = 5;
@@ -83,6 +83,11 @@ public final class InsightRules {
 
     // D14 — fatura vencendo ou vencida (ADR-0028 §4).
     public static final int INVOICE_DUE_SOON_DAYS = 5;
+
+    // D15 — saldo que pode ficar negativo (ADR-0032 §3): déficit mínimo do limite baixo em R$.
+    public static final BigDecimal BALANCE_MIN_DEFICIT = new BigDecimal("100");
+    /** Quantos dos maiores movimentos até a data entram na evidência. */
+    public static final int BALANCE_MOVEMENTS = 3;
 
     // Pontuação (§3).
     public static final BigDecimal FLOOR_AMOUNT = new BigDecimal("50");

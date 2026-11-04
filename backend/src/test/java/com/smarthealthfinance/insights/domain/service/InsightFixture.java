@@ -4,6 +4,7 @@ import com.smarthealthfinance.analytics.domain.model.ExpenseItem;
 import com.smarthealthfinance.analytics.domain.model.FlowEntry;
 import com.smarthealthfinance.analytics.domain.service.FlowLedger;
 import com.smarthealthfinance.analytics.domain.valueobject.AnalysisPeriod;
+import com.smarthealthfinance.forecast.domain.model.ForecastResult;
 import com.smarthealthfinance.health.application.service.HealthSnapshotCalculator;
 import com.smarthealthfinance.health.domain.model.HealthInput;
 import com.smarthealthfinance.health.domain.model.HealthResult;
@@ -120,6 +121,13 @@ final class InsightFixture {
                 .toList();
         return new InsightInput(period, Optional.ofNullable(firstActivity), new FlowLedger(visible, BRL), NAMES,
                 largest, withHealth ? health(period, now) : Map.of());
+    }
+
+    /** A mesma entrada com o snapshot do Forecast (D15, ADR-0032 §3). */
+    InsightInput asOf(String today, ForecastResult forecast) {
+        InsightInput base = asOf(today);
+        return new InsightInput(base.period(), base.firstActivity(), base.ledger(), base.categoryNames(),
+                base.largestExpenses(), base.health(), base.cards(), base.cardsAtMonthEnd(), Optional.of(forecast));
     }
 
     List<InsightCandidate> detect(String today) {

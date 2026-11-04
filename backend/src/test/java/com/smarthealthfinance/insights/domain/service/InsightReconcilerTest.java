@@ -65,7 +65,7 @@ class InsightReconcilerTest {
         assertThat(created).singleElement().satisfies(i -> {
             assertThat(i.status()).isEqualTo(InsightStatus.ACTIVE);
             assertThat(i.revision()).isEqualTo(1);
-            assertThat(i.algorithmVersion()).isEqualTo("insights-v2");
+            assertThat(i.algorithmVersion()).isEqualTo("insights-v3");
             assertThat(i.seenAt()).isNull();
         });
         assertThat(reconcile(created, LATER, spike("40.00"))).isEmpty();
@@ -152,7 +152,7 @@ class InsightReconcilerTest {
         List<Insight> changes = reconcile(List.of(old), LATER, spike("400.00"));
         assertThat(changes).extracting(Insight::algorithmVersion, Insight::status, Insight::statusReason)
                 .containsExactlyInAnyOrder(
-                        org.assertj.core.groups.Tuple.tuple("insights-v2", InsightStatus.ACTIVE, null),
+                        org.assertj.core.groups.Tuple.tuple("insights-v3", InsightStatus.ACTIVE, null),
                         org.assertj.core.groups.Tuple.tuple("insights-v0", InsightStatus.EXPIRED,
                                 StatusReason.VERSION_SUPERSEDED));
     }
@@ -176,6 +176,63 @@ class InsightReconcilerTest {
         assertThat(created.seenAt()).isEqualTo(seen);
         assertThat(created.feedback()).isEqualTo(InsightFeedback.NOT_USEFUL);
         assertThat(created.feedbackAt()).isEqualTo(rated);
+    }
+
+    /** ADR-0032 §3: o D15 fica preso à janela de 30 dias; deixa de ser detectado e resolve, volta se o risco volta. */
+    @Test
+    void balanceMayGoNegativeResolvesWhenTheRiskGoesAwayAndComesBack() {
+        ScoredCandidate risk = scored(InsightDetector.BALANCE_MAY_GO_NEGATIVE, null, ForecastDetectors.SUBJECT,
+                "500.00", "saldo negativo");
+        Insight active = reconcile(List.of(), NOW, risk).getFirst();
+
+        List<Insight> resolved = reconcile(List.of(active), LATER);
+        assertThat(resolved).singleElement().extracting(Insight::status, Insight::statusReason)
+                .containsExactly(InsightStatus.RESOLVED, null);
+
+        List<Insight> back = reconcile(resolved, LATER.plusSeconds(60), risk);
+        assertThat(back).singleElement().extracting(Insight::id, Insight::status)
+                .containsExactly(active.id(), InsightStatus.ACTIVE);
+        // Uma geração de outro mês não expira o D15: ele não é preso a um período.
+        assertThat(InsightReconciler.reconcile(WORKSPACE, V1, "2026-10", List.of(active), List.of(risk), NOW, ids))
+                .isEmpty();
+    }
+
+    /** ADR-0032 §3 / ADR-0028 §6: v2 → v3 expira os ativos da v2 e o D15 herda visto e feedback pelo fingerprint. */
+    @Test
+    void theVersionSwitchFromV2ExpiresItsActivesAndInheritsSeenAndFeedback() {
+        ScoredCandidate risk = scored(InsightDetector.BALANCE_MAY_GO_NEGATIVE, null, ForecastDetectors.SUBJECT,
+                "500.00", "saldo negativo");
+        Insight v3 = reconcile(List.of(), NOW, risk).getFirst();
+        Instant seen = NOW.minus(Duration.ofDays(2));
+        Instant rated = NOW.minus(Duration.ofDays(1));
+        Insight spikeV3 = reconcile(List.of(), NOW, spike("400.00")).getFirst();
+        Insight spikeV2 = new Insight(UUID.randomUUID(), WORKSPACE, spikeV3.fingerprint(), "insights-v2",
+                spikeV3.detector(), spikeV3.periodKey(), spikeV3.subject(), InsightStatus.ACTIVE, null,
+                spikeV3.importance(), spikeV3.impact(), spikeV3.relevance(), spikeV3.confidence(), spikeV3.priority(),
+                spikeV3.impactAmount(), null, true, spikeV3.content(), seen, null, InsightFeedback.USEFUL, rated, 1,
+                NOW, NOW, NOW);
+        Insight riskV2 = new Insight(UUID.randomUUID(), WORKSPACE, v3.fingerprint(), "insights-v2", v3.detector(),
+                v3.periodKey(), v3.subject(), InsightStatus.DISMISSED, null, v3.importance(), v3.impact(),
+                v3.relevance(), v3.confidence(), v3.priority(), v3.impactAmount(), null, true, v3.content(), seen,
+                NOW, InsightFeedback.NOT_USEFUL, rated, 1, NOW, NOW, NOW);
+
+        List<Insight> changes = reconcile(List.of(spikeV2), LATER, spike("400.00"), risk);
+        assertThat(changes).extracting(Insight::algorithmVersion, Insight::detector, Insight::status)
+                .containsExactlyInAnyOrder(
+                        org.assertj.core.groups.Tuple.tuple("insights-v3", InsightDetector.CATEGORY_SPIKE,
+                                InsightStatus.ACTIVE),
+                        org.assertj.core.groups.Tuple.tuple("insights-v2", InsightDetector.CATEGORY_SPIKE,
+                                InsightStatus.EXPIRED),
+                        org.assertj.core.groups.Tuple.tuple("insights-v3", InsightDetector.BALANCE_MAY_GO_NEGATIVE,
+                                InsightStatus.ACTIVE));
+        assertThat(changes).filteredOn(i -> i.algorithmVersion().equals(V1)).allSatisfy(i -> {
+            if (i.detector() == InsightDetector.CATEGORY_SPIKE) {
+                assertThat(i.seenAt()).isEqualTo(seen);
+                assertThat(i.feedback()).isEqualTo(InsightFeedback.USEFUL);
+            }
+        });
+        // O D15 dispensado na v2 continua dispensado na v3 (mesmo fingerprint).
+        assertThat(reconcile(List.of(riskV2), LATER, risk)).isEmpty();
     }
 
     /** ADR-0028 §5: insight de fatura não detectado resolve enquanto a fatura está em avaliação, depois expira. */

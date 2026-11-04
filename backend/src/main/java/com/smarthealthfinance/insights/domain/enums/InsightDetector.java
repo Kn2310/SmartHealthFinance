@@ -1,7 +1,8 @@
 package com.smarthealthfinance.insights.domain.enums;
 
 /**
- * Catálogo (ADR-0021 §2; D11, D12 e D14 de Cartões na {@code insights-v2}, ADR-0028), com o tipo (filtro), se o
+ * Catálogo (ADR-0021 §2; D11, D12 e D14 de Cartões na {@code insights-v2}, ADR-0028; D15 de previsão na
+ * {@code insights-v3}, ADR-0032 §3), com o tipo (filtro), se o
  * detector pode gerar insight Importante (§3) e se o insight é preso a um período avaliado (D3 usa o mês de início da
  * série; D9 e D12 não têm período, §5) ou a uma fatura (D11, D14: o período é o mês de vencimento).
  */
@@ -20,7 +21,8 @@ public enum InsightDetector {
     UNCATEGORIZED_SHARE(InsightType.SPENDING, false, true),
     INVOICE_ABOVE_PATTERN(InsightType.CARDS, true, false, true),
     CARD_UTILIZATION_HIGH(InsightType.CARDS, true, false),
-    INVOICE_DUE(InsightType.CARDS, true, false, true);
+    INVOICE_DUE(InsightType.CARDS, true, false, true),
+    BALANCE_MAY_GO_NEGATIVE(InsightType.SPENDING, true, false);
 
     private final InsightType type;
     private final boolean canBeImportant;

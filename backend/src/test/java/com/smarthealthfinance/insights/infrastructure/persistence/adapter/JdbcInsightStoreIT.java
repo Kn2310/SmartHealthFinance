@@ -181,22 +181,22 @@ class JdbcInsightStoreIT extends IntegrationTest {
 
     @Test
     void stateAndRebuildFollowTheLastGeneration() throws Exception {
-        assertThat(state("insights-v2"))
+        assertThat(state("insights-v3"))
                 .isEqualTo(new InsightStore.GenerationState(false, false, null, null, false, 0));
         createTransaction();
         IdentityTables.awaitQuiescence(jdbc);
 
-        InsightStore.GenerationState state = state("insights-v2");
+        InsightStore.GenerationState state = state("insights-v3");
         assertThat(state.built()).isTrue();
         assertThat(state.hasTransactions()).isTrue();
         assertThat(state.asOf()).isNotNull();
-        assertThat(state("insights-v3").built()).isFalse();
+        assertThat(state("insights-v4").built()).isFalse();
 
         // missing: já gerado na versão atual; all: todos com transações.
-        assertThat(rebuild("insights-v2", false)).isZero();
-        assertThat(rebuild("insights-v3", false)).isEqualTo(1);
-        assertThat(rebuild("insights-v2", true)).isEqualTo(1);
-        assertThat(state("insights-v2").dirty()).isTrue();
+        assertThat(rebuild("insights-v3", false)).isZero();
+        assertThat(rebuild("insights-v4", false)).isEqualTo(1);
+        assertThat(rebuild("insights-v3", true)).isEqualTo(1);
+        assertThat(state("insights-v3").dirty()).isTrue();
     }
 
     @Test

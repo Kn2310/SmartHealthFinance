@@ -107,7 +107,7 @@ class InsightsWorkerIT extends IntegrationTest {
 
         String in = InsightTexts.inPeriod(period.month(), period.partial());
         Insight spike = one(active, InsightDetector.CATEGORY_SPIKE);
-        assertThat(spike.algorithmVersion()).isEqualTo("insights-v2");
+        assertThat(spike.algorithmVersion()).isEqualTo("insights-v3");
         assertThat(spike.periodKey()).isEqualTo(period.key());
         assertThat(spike.subject()).isEqualTo("DINING_OUT");
         assertThat(spike.impactAmount().amount()).isEqualByComparingTo("600.00");

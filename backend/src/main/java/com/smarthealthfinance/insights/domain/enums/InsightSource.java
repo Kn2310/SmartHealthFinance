@@ -13,7 +13,9 @@ public enum InsightSource {
     /** Faturas dos cartões (razão do ADR-0025, porta {@code CardPortfolio}). */
     CARDS_INVOICES("cards.invoices"),
     /** Utilização dos cartões. */
-    CARDS_UTILIZATION("cards.utilization");
+    CARDS_UTILIZATION("cards.utilization"),
+    /** Fluxo de caixa projetado do saldo total (snapshot do Forecast, porta {@code ForecastReader}). */
+    FORECAST_CASH_FLOW("forecast.cash-flow");
 
     private final String code;
 
