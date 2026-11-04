@@ -155,7 +155,7 @@ class MarkAsRefundApiIT extends IntegrationTest {
         mark(importedIncome("4321.09", "Estorno Loja Secreta"), null);
 
         assertThat(output.getOut()).contains("Transaction marked as refund")
-                .doesNotContain("4321").doesNotContain("Loja Secreta");
+                .doesNotContainPattern("(?<![0-9A-Za-z-])4321(?![0-9A-Za-z-])").doesNotContain("Loja Secreta");
     }
 
     /** Lançamento manual + troca da origem: o caminho da importação já é coberto pelos testes de Ingestion. */

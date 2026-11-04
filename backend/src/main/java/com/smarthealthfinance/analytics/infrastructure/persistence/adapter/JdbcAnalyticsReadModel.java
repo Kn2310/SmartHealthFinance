@@ -7,6 +7,7 @@ import com.smarthealthfinance.analytics.domain.model.CategoryFlow;
 import com.smarthealthfinance.analytics.domain.model.DailyFlow;
 import com.smarthealthfinance.analytics.domain.model.ExpenseItem;
 import com.smarthealthfinance.analytics.domain.model.FlowEntry;
+import com.smarthealthfinance.analytics.domain.model.FlowTransaction;
 import com.smarthealthfinance.analytics.domain.model.FlowTotals;
 import com.smarthealthfinance.analytics.domain.model.MerchantFlow;
 import com.smarthealthfinance.analytics.domain.model.MonthlyFlow;
@@ -141,6 +142,32 @@ public class JdbcAnalyticsReadModel implements AnalyticsReadModel {
                 (rs, row) -> new FlowEntry(rs.getObject("day", LocalDate.class), role(rs),
                         rs.getString("category_code"), rs.getString("merchant_key"), rs.getString("merchant_name"),
                         money(rs, "amount", currency), rs.getInt("transaction_count")),
+                workspaceId.value(), Date.valueOf(period.from()), Date.valueOf(period.to()));
+    }
+
+    @Override
+    public List<FlowTransaction> flowTransactions(WorkspaceId workspaceId, AnalyticsPeriod period,
+                                                  Currency currency) {
+        return jdbc.query("""
+                        select t.id, t.occurred_on, t.type, t.category_code, t.merchant_key, t.merchant_name,
+                               t.amount, t.account_id, t.card_id,
+                               exists (select 1 from card_installments i
+                                        where i.transaction_id = t.id and i.workspace_id = t.workspace_id
+                                          and i.installment_count > 1) as installment
+                        from transactions t
+                        left join accounts a on a.id = t.account_id and a.workspace_id = t.workspace_id
+                        left join credit_cards c on c.id = t.card_id and c.workspace_id = t.workspace_id
+                        where t.workspace_id = ? and t.status = 'POSTED'
+                          and t.type in ('INCOME', 'EXPENSE', 'REFUND')
+                          and t.occurred_on between ? and ?
+                          and ((a.status = 'ACTIVE' and a.included_in_total) or c.status = 'ACTIVE')
+                        order by t.occurred_on, t.id
+                        """,
+                (rs, row) -> new FlowTransaction(rs.getObject("id", UUID.class),
+                        rs.getObject("occurred_on", LocalDate.class), CashFlowRole.valueOf(rs.getString("type")),
+                        rs.getString("category_code"), rs.getString("merchant_key"), rs.getString("merchant_name"),
+                        money(rs, "amount", currency), rs.getObject("account_id", UUID.class),
+                        rs.getObject("card_id", UUID.class), rs.getBoolean("installment")),
                 workspaceId.value(), Date.valueOf(period.from()), Date.valueOf(period.to()));
     }
 

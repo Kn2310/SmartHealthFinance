@@ -298,7 +298,10 @@ class OverviewApiIT extends IntegrationTest {
 
         assertThat(overview(ana(), anasWorkspace, "")).hasStatus(HttpStatus.OK);
 
-        assertThat(output.getAll()).contains("Overview served").doesNotContain("4321", "Sigilosa");
+        // O valor 4321 isolado (não colado a outros dígitos/letras/hífen): ids aleatórios (traceId, UUIDs) podem conter
+        // a sequência por acaso e não são o valor.
+        assertThat(output.getAll()).contains("Overview served").doesNotContain("Sigilosa")
+                .doesNotContainPattern("(?<![0-9A-Za-z-])4321(?![0-9A-Za-z-])");
     }
 
     // --- helpers ---

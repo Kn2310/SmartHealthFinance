@@ -90,7 +90,7 @@ class RenormalizeMerchantsIT extends IntegrationTest {
                 + " order by 1", String.class, workspace)).containsExactly("bistro lume", "bob");
 
         assertThat(output.getAll()).contains("Merchants renormalized")
-                .doesNotContain("4321").doesNotContain("Bob").doesNotContain("bob");
+                .doesNotContainPattern("(?<![0-9A-Za-z-])4321(?![0-9A-Za-z-])").doesNotContain("Bob").doesNotContain("bob");
     }
 
     /** O rebuild do Analytics precisa ler as chaves já renormalizadas: a renormalização roda antes. */

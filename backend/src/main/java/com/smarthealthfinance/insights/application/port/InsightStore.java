@@ -85,7 +85,7 @@ public interface InsightStore {
      * @param generatedAt     última geração; nula se nunca
      * @param asOf            data de negócio da última geração; nula se nunca
      * @param hasTransactions o Workspace tem transações
-     * @param pendingEvents   {@code health.snapshot-updated} ainda não marcados pelo consumidor (inclui DLQ)
+     * @param pendingEvents   {@code health.snapshot-updated} e {@code forecast.snapshot-updated} ainda não marcados pelo consumidor (inclui DLQ)
      */
     record GenerationState(boolean dirty, boolean built, Instant generatedAt, LocalDate asOf,
                            boolean hasTransactions, int pendingEvents) {}

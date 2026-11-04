@@ -1310,6 +1310,26 @@
         },
         "type" : "object"
       },
+      "ForecastStatusResponse" : {
+        "properties" : {
+          "analyticsRefreshedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "computedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "FutureInstallmentResponse" : {
         "properties" : {
           "amount" : {
@@ -4229,7 +4249,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/analytics/status" : {
       "get" : {
-        "operationId" : "status_1",
+        "operationId" : "status_2",
         "parameters" : [ {
           "in" : "path",
           "name" : "workspaceId",
@@ -5598,6 +5618,44 @@
         },
         "summary" : "Catálogo de categorias (do sistema), inclusive as inativas, na ordem de exibição",
         "tags" : [ "Categories" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/forecast/status" : {
+      "get" : {
+        "operationId" : "status_1",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastStatusResponse"
+                }
+              }
+            },
+            "description" : "Estado do snapshot"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Freshness do snapshot do Forecast: UP_TO_DATE, RECALCULATING ou NOT_BUILT",
+        "tags" : [ "Forecast" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/health" : {

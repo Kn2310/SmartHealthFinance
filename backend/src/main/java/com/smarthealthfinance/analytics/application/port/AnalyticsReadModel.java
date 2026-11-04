@@ -4,6 +4,7 @@ import com.smarthealthfinance.analytics.domain.model.CategoryFlow;
 import com.smarthealthfinance.analytics.domain.model.DailyFlow;
 import com.smarthealthfinance.analytics.domain.model.ExpenseItem;
 import com.smarthealthfinance.analytics.domain.model.FlowEntry;
+import com.smarthealthfinance.analytics.domain.model.FlowTransaction;
 import com.smarthealthfinance.analytics.domain.model.MerchantFlow;
 import com.smarthealthfinance.analytics.domain.model.MonthlyFlow;
 import com.smarthealthfinance.analytics.domain.model.ProjectionFreshness;
@@ -39,6 +40,13 @@ public interface AnalyticsReadModel {
      * categoria e comerciante: o insumo dos cálculos da Análise (ADR-0015 §1).
      */
     List<FlowEntry> entries(WorkspaceId workspaceId, AnalyticsPeriod period, Currency currency);
+
+    /**
+     * O mesmo fluxo de {@link #entries}, uma linha por transação (ADR-0031 §11): id, dia, papel, categoria, comerciante,
+     * valor, conta ou cartão e se a compra é parcelada. Lido de {@code transactions} (como {@link #largestExpenses}),
+     * com a mesma regra de contas; ordem: dia, id.
+     */
+    List<FlowTransaction> flowTransactions(WorkspaceId workspaceId, AnalyticsPeriod period, Currency currency);
 
     /** Nome de exibição de cada categoria do catálogo (ADR-0012 §3), por código; usado nos textos do Health. */
     Map<String, String> categoryNames();

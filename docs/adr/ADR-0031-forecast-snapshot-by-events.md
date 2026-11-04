@@ -170,6 +170,36 @@ account.changed, card.*, invoice.closed ─────────────�
 - Integração: importação de cartão → `analytics.projection-updated` → snapshot do Forecast reflete a fatura.
 - Isolamento por Workspace na marcação, no recálculo, nas ações e na leitura.
 
+### 11. Adendo (2026-10-29): entradas por transação e regras de borda da implementação
+
+Decisões aprovadas durante a implementação da parte B:
+
+- **Fluxo por transação:**
+  - o `AnalyticsReadModel` ganha uma leitura por transação, com a mesma regra de fluxo de `entries` (como o
+    `largestExpenses`, ADR-0015 §1);
+  - cada item traz id, dia, papel, categoria, comerciante, valor, conta ou cartão e se a compra é parcelada;
+  - um teste de paridade compara as somas com `entries` (adendo ao ADR-0014);
+  - a fronteira do §1 não muda.
+- **Ciclo do cartão:** o `CardPosition` ganha o ciclo e as datas das faturas futuras (adendo ao ADR-0027 §1).
+- **Fatura fechada em aberto no fluxo de caixa:**
+  - a fatura a vencer sai no vencimento, como `FACT`;
+  - a fatura vencida e não paga sai em hoje + 1, como `FACT`.
+- **Editar uma série** ajusta valor e dia, mas não muda a elegibilidade. Uma série `DETECTED` com confiança `LOW` só
+  entra nas projeções se for confirmada.
+- **Regras de borda adotadas** (leitura conservadora do ADR-0030):
+  - uma série com data esperada igual a hoje e não realizada entra nos eventos de 30 dias (§3.3), mas não nos pendentes
+    do mês (§3.1) nem no fluxo de caixa, que usam "depois de hoje";
+  - `STALE` = nenhuma transação da chave nos 3 meses fechados anteriores nem no mês corrente até hoje;
+  - a tolerância de ±10% é tudo ou nada, como no D3. Meses com mais de uma ocorrência não contam;
+  - mediana de quantidade par: 2 casas, HALF_EVEN;
+  - reembolsos ficam fora da detecção e das projeções. As novas compras no cartão têm piso zero;
+  - confiança:
+    - parte de `HIGH` e só cai pelos tetos e rebaixamentos do ADR-0030 §5;
+    - `HIGH_VARIABILITY` é medida nas amostras de cada parte estimada, e não na soma;
+  - compras parceladas:
+    - continuam no gasto variável da projeção do mês, porque a despesa é bruta (ADR-0015);
+    - saem do variável na capacidade de aporte, onde as parcelas já entram como comprometidas.
+
 ## Alternatives
 
 - **Sob demanda na leitura:** sem tabela de snapshot, mas cada tela refaz 6 meses de Analytics, cartões e Overview

@@ -23,6 +23,9 @@ import java.util.UUID;
  * @param commitments          parcelamentos com parcelas em faturas que ainda não começaram
  * @param dueInvoices          faturas com valor &gt; 0 cujo vencimento efetivo já passou (ou é hoje), com a pontualidade
  * @param lines                lançamentos das até 6 últimas faturas iniciadas, por mês de fechamento
+ * @param cycle               dias de fechamento e vencimento atuais do cartão (ADR-0027 §1, adendo de 2026-10-29)
+ * @param futureInvoiceDates datas das faturas seguintes à atual, pelo calendário da {@code invoice-v2} (inclui as
+ *                           persistidas e as calculadas pelo ciclo), em ordem de fechamento
  */
 public record CardPosition(
         CardId cardId,
@@ -36,7 +39,9 @@ public record CardPosition(
         List<InvoiceStatement> statements,
         List<InstallmentCommitment> commitments,
         List<DueInvoice> dueInvoices,
-        Map<YearMonth, List<InvoiceLine>> lines
+        Map<YearMonth, List<InvoiceLine>> lines,
+        BillingCycle cycle,
+        List<InvoiceDates> futureInvoiceDates
 ) {
     public CardPosition {
         Objects.requireNonNull(cardId, "cardId");
@@ -51,6 +56,8 @@ public record CardPosition(
         commitments = List.copyOf(commitments);
         dueInvoices = List.copyOf(dueInvoices);
         lines = Map.copyOf(lines);
+        Objects.requireNonNull(cycle, "cycle");
+        futureInvoiceDates = List.copyOf(futureInvoiceDates);
     }
 
     /** Parcelamento com parcelas ainda não faturadas. Sem a descrição da compra (texto livre do usuário). */
@@ -80,6 +87,11 @@ public record CardPosition(
 
     public Optional<InvoiceStatement> statement(YearMonth closingMonth) {
         return statements.stream().filter(s -> s.dates().closingMonth().equals(closingMonth)).findFirst();
+    }
+
+    /** Datas da fatura que fecha em {@code closingMonth}, se estiver entre as faturas futuras da posição. */
+    public Optional<InvoiceDates> futureDates(YearMonth closingMonth) {
+        return futureInvoiceDates.stream().filter(d -> d.closingMonth().equals(closingMonth)).findFirst();
     }
 
     /** Parcelas em faturas que ainda não começaram (ADR-0025 §9). */

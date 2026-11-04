@@ -5,6 +5,10 @@ import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noFields;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
+import com.smarthealthfinance.cards.application.port.CardPortfolio;
+import com.smarthealthfinance.forecast.application.port.ForecastReader;
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
 import com.tngtech.archunit.core.importer.ImportOption;
 import com.tngtech.archunit.junit.AnalyzeClasses;
 import com.tngtech.archunit.junit.ArchTest;
@@ -291,6 +295,55 @@ class ArchitectureTest {
 				+ "Transactions (nunca a porta de "
 				+ "escrita do snapshot), nunca casos de uso ou adapters, e conhecem os eventos só pelo nome (ADR-0022 §1, "
 				+ "ADR-0023)");
+
+	// Forecast (ADR-0030/0031 §1) é read model downstream de Analytics, Overview, Cards e Accounts; só os Insights
+	// (e, na Sessão 7.2, Goals e Simulation) leem o snapshot, pela porta ForecastReader e pelo domínio.
+
+	@ArchTest
+	static final ArchRule nothingExceptInsightsDependsOnForecast = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance..")
+		.and()
+		.resideOutsideOfPackages("com.smarthealthfinance.forecast..", "com.smarthealthfinance.insights..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.forecast..")
+		.allowEmptyShould(true)
+		.because("o Forecast é derivado; só os Insights leem o snapshot dele (ADR-0031 §1)");
+
+	@ArchTest
+	static final ArchRule insightsOnlyReadTheForecastThroughItsReaderAndDomain = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.insights..")
+		.should()
+		.dependOnClassesThat(JavaClass.Predicates.resideInAPackage("com.smarthealthfinance.forecast..")
+			.and(DescribedPredicate.not(JavaClass.Predicates.resideInAPackage("com.smarthealthfinance.forecast.domain.."))
+				.and(DescribedPredicate.not(JavaClass.Predicates.belongToAnyOf(ForecastReader.class)))))
+		.allowEmptyShould(true)
+		.because("os Insights leem o Forecast só pela porta ForecastReader (sem a porta de escrita do snapshot) e pelo "
+				+ "domínio, nunca por casos de uso, serviços ou adapters (ADR-0031 §1)");
+
+	@ArchTest
+	static final ArchRule forecastOnlyReadsPortsAndDomainModels = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.forecast..")
+		.should()
+		.dependOnClassesThat(JavaClass.Predicates
+			.resideInAnyPackage("com.smarthealthfinance.analytics..", "com.smarthealthfinance.overview..",
+					"com.smarthealthfinance.cards..", "com.smarthealthfinance.accounts..",
+					"com.smarthealthfinance.transactions..", "com.smarthealthfinance.identity..",
+					"com.smarthealthfinance.ingestion..", "com.smarthealthfinance.health..",
+					"com.smarthealthfinance.insights..")
+			.and(DescribedPredicate.not(JavaClass.Predicates.resideInAnyPackage(
+					"com.smarthealthfinance.analytics.application.port..", "com.smarthealthfinance.analytics.domain..",
+					"com.smarthealthfinance.overview.application.port..", "com.smarthealthfinance.overview.domain..",
+					"com.smarthealthfinance.cards.domain..", "com.smarthealthfinance.accounts.domain..",
+					"com.smarthealthfinance.transactions.domain..", "com.smarthealthfinance.identity.domain..",
+					"com.smarthealthfinance.identity.application.service..",
+					"com.smarthealthfinance.identity.application.exception.."))
+				.and(DescribedPredicate.not(JavaClass.Predicates
+					.belongToAnyOf(CardPortfolio.class)))))
+		.allowEmptyShould(true)
+		.because("o Forecast lê só portas e modelos de domínio de Analytics, Overview, Cards (CardPortfolio), Accounts "
+				+ "e Transactions, mais Identity para Workspace e autorização; nunca casos de uso ou adapters de "
+				+ "outros módulos, nem Health nem Insights (ADR-0031 §1)");
 
 	// Cards (ADR-0025/0026) fica a jusante do Financial Core: identity → accounts → transactions → cards.
 

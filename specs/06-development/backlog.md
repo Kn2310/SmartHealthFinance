@@ -292,10 +292,11 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - recorrências mensais detectadas, com confirmar, ignorar e editar;
   - projeção do mês, próxima receita, próximos eventos, fluxo de caixa (mês + 3) e faturas;
   - mediana + mín–máx; confiança; previsto × realizado no backend; D15; porta `ForecastReader` para a 7.2
-- [ ] motor de Forecast e recorrências (parte B — ADR-0031; adendos ADR-0014, 0022, 0030):
+- [x] motor de Forecast e recorrências (parte B — ADR-0031; adendos ADR-0014, 0022, 0030):
   - snapshot por eventos em paralelo ao Health (`Analytics → {Health ‖ Forecast} → Insights`), debounce + job;
   - `V20`: séries (estado do usuário), snapshots e previsto × realizado (congelado na virada, reconciliado até D+5);
-  - job diário 00:07, rebuild na inicialização + runbook, `forecast/status` e métricas de freshness
+  - job diário 00:07, rebuild na inicialização + runbook, `forecast/status` e métricas de freshness;
+  - `forecast.snapshot-updated` ligado à fila dos Insights (status `UPDATING` com o Forecast em recálculo; o D15 fica para a parte C); ArchUnit das fronteiras do módulo e `forecast/status` na suíte de isolamento
 - [ ] API de Forecast e `/recurring-expenses` (parte C)
 - [ ] UI de Forecast nas telas existentes e gestão de recorrências (parte D)
 - [ ] cash flow forecast
