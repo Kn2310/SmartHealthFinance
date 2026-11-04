@@ -62,6 +62,8 @@ public class RecurringSeriesService {
         Map<String, SeriesAssessment> assessments = assessments(id);
         return series.findAll(id).stream()
                 .filter(s -> s.direction() == direction && (filter == null || s.status() == filter))
+                // Série gravada pelo job entre as duas leituras ainda não tem id aqui: entra na próxima listagem.
+                .filter(s -> ids.containsKey(s.direction() + "|" + s.key()))
                 .map(s -> item(ids.get(s.direction() + "|" + s.key()), s, assessments))
                 .sorted(Comparator
                         .comparing((RecurringItem item) -> item.eligibility() != SeriesEligibility.ELIGIBLE)

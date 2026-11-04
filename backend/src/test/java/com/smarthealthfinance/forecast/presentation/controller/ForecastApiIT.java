@@ -375,6 +375,9 @@ class ForecastApiIT extends IntegrationTest {
                 {"{\"expectedAmount\": {\"amount\": \"-5.00\", \"currency\": \"BRL\"}}", "expectedAmount"},
                 {"{\"expectedAmount\": {\"amount\": \"10.005\", \"currency\": \"BRL\"}}", "expectedAmount"},
                 {"{\"expectedAmount\": {\"amount\": \"abc\", \"currency\": \"BRL\"}}", "expectedAmount"},
+                {"{\"expectedAmount\": {\"amount\": \"1e999999999\", \"currency\": \"BRL\"}}", "expectedAmount"},
+                {"{\"expectedAmount\": {\"amount\": \"1e5\", \"currency\": \"BRL\"}}", "expectedAmount"},
+                {"{\"expectedAmount\": {\"amount\": \"1234567890123456.00\", \"currency\": \"BRL\"}}", "expectedAmount"},
                 {"{\"expectedAmount\": {\"amount\": \"10.00\", \"currency\": \"USD\"}}", "expectedAmount"}}) {
             assertThat(put(EXPENSES + "/" + rentId + "/adjustment", bad[0])).as(bad[0])
                     .hasStatus(HttpStatus.BAD_REQUEST).bodyJson()

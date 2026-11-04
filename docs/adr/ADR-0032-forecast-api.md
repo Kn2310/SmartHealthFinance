@@ -151,6 +151,12 @@ Pontos que o contrato deixava em aberto, resolvidos sem mudar nenhuma decisão:
 - **Ajuste:**
   - a autorização vem antes de ler o corpo, então um não membro recebe `404` mesmo com valor mal formatado;
   - um valor numa moeda diferente da do Workspace é `400`.
+- **Importância do D15 (aprovado em 2026-11-04):**
+  - "central < 0" é a regra própria do detector;
+  - para ser `IMPORTANT`, o D15 passa também pelos critérios comuns do ADR-0021 §3: impacto ≥ 50, relevância ≥ 50,
+    confiança diferente de `LOW` e o piso global (A ≥ R$ 50 e A ÷ R ≥ 1%), como todos os detectores;
+  - um déficit pequeno frente à despesa média sai `INFO`.
+- **Valor do ajuste:** só decimal simples, até 15 dígitos inteiros. Notação científica e valores longos dão `400`.
 - **Itens que referenciam uma série** (`pending`, `upcoming` e `nextIncome`) trazem o `seriesId`. A chave do
   comerciante não sai do módulo.
 - **`cardId`:** a validação usa o `CreditCardRepository` de `cards.domain`, que o ArchUnit já permite.
