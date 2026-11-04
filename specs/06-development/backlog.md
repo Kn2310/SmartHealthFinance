@@ -298,6 +298,7 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - job diário 00:07, rebuild na inicialização + runbook, `forecast/status` e métricas de freshness;
   - `forecast.snapshot-updated` ligado à fila dos Insights (status `UPDATING` com o Forecast em recálculo; o D15 fica para a parte C); ArchUnit das fronteiras do módulo e `forecast/status` na suíte de isolamento
 - [ ] API de Forecast, `/recurring-expenses` e `/recurring-incomes` e D15 (parte C — ADR-0032; adendo ADR-0028)
+  - D15 `BALANCE_MAY_GO_NEGATIVE` entregue no backend (`insights-v3`, lê o `ForecastReader`; ação `VIEW_UPCOMING_EVENTS`; os D1–D14 não mudam e a troca de versão herda `seenAt` e feedback); o card na UI fica para a parte D
 - [ ] UI de Forecast nas telas existentes e gestão de recorrências (parte D)
 - [ ] cash flow forecast
 - [ ] bill forecast
