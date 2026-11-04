@@ -295,6 +295,7 @@ export interface components {
         | 'IMPORT_LAG'
         | 'PARTIAL_INVOICE'
         | 'CARD_PAYMENTS'
+        | 'ESTIMATED_FORECAST'
       text: string
     }
     InsightSourceDto: { source: string; from: string; to: string }
@@ -1132,6 +1133,7 @@ export type InsightDetector =
   | 'INVOICE_ABOVE_PATTERN'
   | 'CARD_UTILIZATION_HIGH'
   | 'INVOICE_DUE'
+  | 'BALANCE_MAY_GO_NEGATIVE'
 export type InsightActionKind =
   | 'VIEW_TRANSACTIONS'
   | 'VIEW_CATEGORY'
@@ -1146,6 +1148,7 @@ export type InsightActionKind =
   | 'VIEW_INVOICE'
   | 'VIEW_CARD'
   | 'RECORD_CARD_PAYMENT'
+  | 'VIEW_UPCOMING_EVENTS'
   | 'CREATE_SAVINGS_GOAL'
   | 'ASK_COPILOT'
 export type HealthState = 'READY' | 'INSUFFICIENT_DATA' | 'NO_DATA'
