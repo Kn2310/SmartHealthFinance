@@ -174,4 +174,73 @@ class RecurringSeriesActionsTest {
         assertThat(series.find(anas.id(), SeriesDirection.EXPENSE, RENT).orElseThrow().status())
                 .isEqualTo(SeriesStatus.DETECTED);
     }
+
+    // --- pelo id opaco da API (ADR-0032 §2) ---
+
+    private UUID rentId() {
+        return InMemorySeries.idOf(anas.id(), SeriesDirection.EXPENSE, RENT);
+    }
+
+    @Test
+    void actionsByIdResolveTheKeyOnlyAfterAuthorizingAndRespectTheDirection() {
+        assertThat(actions.confirm(anasId(), SeriesDirection.EXPENSE, rentId()).status())
+                .isEqualTo(SeriesStatus.CONFIRMED);
+
+        // a mesma série pela rota da outra direção é inexistente, e nada é marcado nem gravado
+        store.calls.clear();
+        series.calls.clear();
+        assertThatThrownBy(() -> actions.ignore(anasId(), SeriesDirection.INCOME, rentId()))
+                .isInstanceOf(RecurringSeriesNotFoundException.class);
+        assertThatThrownBy(() -> actions.ignore(anasId(), SeriesDirection.EXPENSE, UUID.randomUUID()))
+                .isInstanceOf(RecurringSeriesNotFoundException.class);
+        assertThat(store.calls).isEmpty();
+        assertThat(series.calls).isEmpty();
+
+        acting = bob;
+        assertThatThrownBy(() -> actions.confirm(anasId(), SeriesDirection.EXPENSE, rentId()))
+                .isInstanceOf(WorkspaceNotFoundException.class);
+        // o id da Ana dentro do Workspace do Bob é inexistente
+        assertThatThrownBy(() -> actions.confirm(bobs.id().value(), SeriesDirection.EXPENSE, rentId()))
+                .isInstanceOf(RecurringSeriesNotFoundException.class);
+    }
+
+    @Test
+    void clearingTheAdjustmentGoesBackToTheDetectedValuesAndIsIdempotent() {
+        actions.edit(anasId(), SeriesDirection.EXPENSE, rentId(), new Edit(new BigDecimal("1100.50"), 10));
+        actions.confirm(anasId(), SeriesDirection.EXPENSE, rentId());
+
+        RecurringSeries cleared = actions.clearAdjustment(anasId(), SeriesDirection.EXPENSE, rentId());
+
+        assertThat(cleared.userExpectedAmount()).isNull();
+        assertThat(cleared.userExpectedDay()).isNull();
+        assertThat(cleared.effectiveAmount()).isEqualTo(Money.of("1000.00", BRL));
+        assertThat(cleared.effectiveDay()).isEqualTo(5);
+        assertThat(cleared.status()).isEqualTo(SeriesStatus.CONFIRMED);
+
+        series.calls.clear();
+        assertThat(actions.clearAdjustment(anasId(), SeriesDirection.EXPENSE, rentId())).isEqualTo(cleared);
+        assertThat(series.calls).containsExactly("lock-series " + RENT);
+    }
+
+    @Test
+    void theAdjustmentIsValidatedWithTheApiFieldNames() {
+        assertInvalid(new Edit(null, null), "expectedAmount", "REQUIRED");
+        assertInvalid(new Edit(new BigDecimal("0"), null), "expectedAmount", "MUST_BE_POSITIVE");
+        assertInvalid(new Edit(new BigDecimal("-5.00"), null), "expectedAmount", "MUST_BE_POSITIVE");
+        assertInvalid(new Edit(new BigDecimal("10.005"), null), "expectedAmount", "TOO_MANY_DECIMALS");
+        assertInvalid(new Edit(null, 0), "expectedDay", "OUT_OF_RANGE");
+        assertInvalid(new Edit(null, 32), "expectedDay", "OUT_OF_RANGE");
+        assertInvalid(new Edit(new BigDecimal("10.00"), null, "USD"), "expectedAmount", "CURRENCY_MISMATCH");
+        // 10.50 com zeros à direita e o dia 31 são válidos
+        assertThat(actions.edit(anasId(), SeriesDirection.EXPENSE, rentId(),
+                new Edit(new BigDecimal("10.5000"), 31)).userExpectedDay()).isEqualTo(31);
+    }
+
+    private void assertInvalid(Edit edit, String field, String reason) {
+        assertThatThrownBy(() -> actions.edit(anasId(), SeriesDirection.EXPENSE, rentId(), edit))
+                .isInstanceOfSatisfying(InvalidValueException.class, e -> {
+                    assertThat(e.field()).isEqualTo(field);
+                    assertThat(e.reason()).isEqualTo(reason);
+                });
+    }
 }
