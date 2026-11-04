@@ -873,6 +873,180 @@ export interface components {
       asOf: string
       calculationVersion: string
     }
+    /** Freshness do snapshot do Forecast (ADR-0031 §9). */
+    ForecastStatusResponse: {
+      state: ForecastFreshnessState
+      computedAt: string | null
+      asOf: string | null
+      analyticsRefreshedAt: string | null
+    }
+    /** Freshness no envelope das leituras do Forecast (ADR-0032 §1); `computedAt` e `asOf` nulos sem snapshot. */
+    ForecastFreshnessDto: { state: ForecastFreshnessState; computedAt: string | null; asOf: string | null }
+    ForecastRangeDto: { low: MoneyDto; high: MoneyDto }
+    /** Só ids, meses e valores (nunca nomes): `month` nulo numa ocorrência, `refId` nulo numa amostra mensal. */
+    ForecastEvidenceDto: { kind: ForecastEvidenceKind; month: string | null; refId: string | null; value: MoneyDto | null }
+    /** `value = factPart + estimatedPart`; `low <= value <= high`; `partial` só em fato (ADR-0030 §1). */
+    ForecastValueDto: {
+      basis: ForecastBasis
+      value: MoneyDto
+      factPart: MoneyDto
+      estimatedPart: MoneyDto
+      range: components['schemas']['ForecastRangeDto']
+      partial: boolean
+      confidence: ForecastConfidence
+      limitations: ForecastLimitation[]
+      evidence: components['schemas']['ForecastEvidenceDto'][]
+    }
+    ForecastChannelDto: { kind: 'ACCOUNT' | 'CARD'; id: string }
+    /** `seriesId` nulo se a série não existe mais. */
+    ForecastPendingOccurrenceDto: {
+      seriesId: string | null
+      direction: ForecastSeriesDirection
+      label: string | null
+      date: string
+      expected: MoneyDto
+      range: components['schemas']['ForecastRangeDto']
+      confidence: ForecastConfidence
+      channel: components['schemas']['ForecastChannelDto']
+    }
+    /** `baseMonths` 0 = sem estimativa (só os fatos). */
+    ForecastMonthDto: {
+      month: string
+      asOf: string
+      baseMonths: number
+      expense: components['schemas']['ForecastValueDto']
+      income: components['schemas']['ForecastValueDto']
+      net: components['schemas']['ForecastValueDto']
+      pending: components['schemas']['ForecastPendingOccurrenceDto'][]
+    }
+    /** `month` nulo em NO_DATA e NOT_BUILT; `asOf` nulo sem snapshot. */
+    ForecastMonthResponse: {
+      state: ForecastDataState
+      freshness: components['schemas']['ForecastFreshnessDto']
+      algorithmVersion: string
+      asOf: string | null
+      month: components['schemas']['ForecastMonthDto'] | null
+    }
+    ForecastNextIncomeDto: {
+      seriesId: string | null
+      label: string | null
+      date: string
+      channel: components['schemas']['ForecastChannelDto']
+      amount: components['schemas']['ForecastValueDto']
+    }
+    /** `nextIncome` nulo sem snapshot, sem histórico suficiente ou sem receita recorrente prevista. */
+    ForecastNextIncomeResponse: {
+      state: ForecastDataState
+      freshness: components['schemas']['ForecastFreshnessDto']
+      algorithmVersion: string
+      asOf: string | null
+      nextIncome: components['schemas']['ForecastNextIncomeDto'] | null
+    }
+    /** `seriesId` nulo nos eventos de fatura; `closingEstimate` só na fatura aberta (o "≈ no fechamento"). */
+    ForecastUpcomingEventDto: {
+      kind: ForecastUpcomingEventKind
+      date: string
+      seriesId: string | null
+      label: string | null
+      channel: components['schemas']['ForecastChannelDto']
+      value: components['schemas']['ForecastValueDto']
+      closingEstimate: components['schemas']['ForecastValueDto'] | null
+    }
+    /** A agenda de 30 dias completa e ordenada; `events` vazio sem snapshot. */
+    ForecastUpcomingResponse: {
+      state: ForecastDataState
+      freshness: components['schemas']['ForecastFreshnessDto']
+      algorithmVersion: string
+      asOf: string | null
+      events: components['schemas']['ForecastUpcomingEventDto'][]
+    }
+    /** `total.factPart` é o parcial (aberta) ou o comprometido (futuras); `estimatedPart`, as novas compras. */
+    ForecastInvoiceDto: {
+      cardId: string
+      nickname: string | null
+      kind: 'OPEN' | 'NEXT' | 'FUTURE'
+      closingMonth: string
+      dueMonth: string
+      closingDate: string
+      dueDate: string
+      total: components['schemas']['ForecastValueDto']
+    }
+    ForecastInvoicesResponse: {
+      state: ForecastDataState
+      freshness: components['schemas']['ForecastFreshnessDto']
+      algorithmVersion: string
+      asOf: string | null
+      invoices: components['schemas']['ForecastInvoiceDto'][]
+    }
+    ForecastBalancePointDto: { date: string; central: MoneyDto; low: MoneyDto; high: MoneyDto }
+    ForecastTroughDto: {
+      lowestCentral: components['schemas']['ForecastBalancePointDto']
+      lowestLowBound: components['schemas']['ForecastBalancePointDto']
+    }
+    ForecastCashFlowMonthDto: {
+      month: string
+      opening: MoneyDto
+      inflowFact: MoneyDto
+      inflowEstimated: MoneyDto
+      outflowFact: MoneyDto
+      outflowEstimated: MoneyDto
+      closing: components['schemas']['ForecastValueDto']
+    }
+    ForecastCashFlowDto: {
+      from: string
+      to: string
+      months: components['schemas']['ForecastCashFlowMonthDto'][]
+      trough: components['schemas']['ForecastTroughDto']
+      troughNext30: components['schemas']['ForecastTroughDto']
+      confidence: ForecastConfidence
+      limitations: ForecastLimitation[]
+      evidence: components['schemas']['ForecastEvidenceDto'][]
+    }
+    /** `cashFlow` nulo sem snapshot ou sem histórico suficiente. */
+    ForecastCashFlowResponse: {
+      state: ForecastDataState
+      freshness: components['schemas']['ForecastFreshnessDto']
+      algorithmVersion: string
+      asOf: string | null
+      cashFlow: components['schemas']['ForecastCashFlowDto'] | null
+    }
+    ForecastDetectedDto: {
+      expectedDay: number
+      expectedAmount: MoneyDto
+      amountRange: components['schemas']['ForecastRangeDto']
+      confidence: ForecastConfidence
+    }
+    /**
+     * Série recorrente (ADR-0032 §2). Os valores de topo são os efetivos; `detected` guarda os detectados.
+     * `eligibility`, `nextExpectedDate` e `realizedThisMonth` vêm do último snapshot e são nulos numa série ainda
+     * fora dele.
+     */
+    ForecastRecurringSeriesDto: {
+      id: string
+      direction: ForecastSeriesDirection
+      label: string | null
+      channel: components['schemas']['ForecastChannelDto']
+      periodicity: 'MONTHLY'
+      expectedDay: number
+      expectedAmount: MoneyDto
+      amountRange: components['schemas']['ForecastRangeDto']
+      detected: components['schemas']['ForecastDetectedDto']
+      userAdjusted: boolean
+      status: ForecastSeriesStatus
+      origin: 'DETECTED' | 'USER'
+      eligibility: ForecastSeriesEligibility | null
+      nextExpectedDate: string | null
+      realizedThisMonth: boolean | null
+      occurrences: string[]
+      algorithmVersion: string
+    }
+    ForecastRecurringListResponse: { items: components['schemas']['ForecastRecurringSeriesDto'][] }
+    ForecastRecurringActionResponse: {
+      series: components['schemas']['ForecastRecurringSeriesDto']
+      forecastState: 'RECALCULATING'
+    }
+    /** Pelo menos um dos campos; o ausente mantém o valor atual. Valor positivo com até 2 casas; dia de 1 a 31. */
+    ForecastAdjustmentRequest: { expectedAmount?: MoneyDto | null; expectedDay?: number | null }
   }
 }
 
@@ -880,6 +1054,59 @@ export type CardBrand = 'VISA' | 'MASTERCARD' | 'ELO' | 'AMEX' | 'HIPERCARD' | '
 export type InvoiceStatus = 'FUTURE' | 'OPEN' | 'CLOSED' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE'
 
 type MoneyDto = components['schemas']['MoneyDto']
+export type ForecastFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
+export type ForecastDataState = 'READY' | 'NO_DATA' | 'INSUFFICIENT_HISTORY' | 'NOT_BUILT'
+export type ForecastBasis = 'FACT' | 'ESTIMATED'
+export type ForecastConfidence = 'HIGH' | 'MEDIUM' | 'LOW'
+export type ForecastLimitation =
+  | 'INSUFFICIENT_HISTORY'
+  | 'SHORT_HISTORY'
+  | 'HIGH_VARIABILITY'
+  | 'UNCATEGORIZED'
+  | 'PARTIAL_CARD_HISTORY'
+export type ForecastEvidenceKind = 'SAMPLE_MONTH' | 'SERIES_OCCURRENCE' | 'BASE_INVOICE'
+export type ForecastUpcomingEventKind =
+  | 'INVOICE_PARTIAL'
+  | 'INVOICE_OPEN'
+  | 'INVOICE_OVERDUE'
+  | 'RECURRING_INCOME'
+  | 'RECURRING_EXPENSE'
+export type ForecastSeriesDirection = 'INCOME' | 'EXPENSE'
+export type ForecastSeriesStatus = 'DETECTED' | 'CONFIRMED' | 'IGNORED'
+export type ForecastSeriesEligibility = 'ELIGIBLE' | 'STALE' | 'NOT_ELIGIBLE'
+
+type ForecastErrors = {
+  400: { content: { 'application/json': components['schemas']['ApiError'] } }
+  401: { content: { 'application/json': components['schemas']['ApiError'] } }
+  404: { content: { 'application/json': components['schemas']['ApiError'] } }
+}
+type ForecastSeriesPath = { workspaceId: string; seriesId: string }
+type ForecastActionResult = {
+  200: { content: { 'application/json': components['schemas']['ForecastRecurringActionResponse'] } }
+} & ForecastErrors
+type ForecastSeriesResult = {
+  200: { content: { 'application/json': components['schemas']['ForecastRecurringSeriesDto'] } }
+} & ForecastErrors
+
+/** As rotas de despesas e receitas recorrentes têm o mesmo formato (ADR-0032 §2). */
+type ForecastRecurringRoutes = {
+  get: {
+    parameters: { query?: { status?: ForecastSeriesStatus }; path: { workspaceId: string } }
+    responses: { 200: { content: { 'application/json': components['schemas']['ForecastRecurringListResponse'] } } } & ForecastErrors
+  }
+}
+type ForecastRecurringSeriesRoutes = {
+  get: { parameters: { path: ForecastSeriesPath }; responses: ForecastSeriesResult }
+}
+type ForecastRecurringAdjustmentRoutes = {
+  put: {
+    parameters: { path: ForecastSeriesPath }
+    requestBody: { content: { 'application/json': components['schemas']['ForecastAdjustmentRequest'] } }
+    responses: ForecastActionResult
+  }
+  delete: { parameters: { path: ForecastSeriesPath }; responses: ForecastActionResult }
+}
+type ForecastRecurringActionRoute = { post: { parameters: { path: ForecastSeriesPath }; responses: ForecastActionResult } }
 export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type HealthFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
 export type InsightsFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
@@ -1541,4 +1768,50 @@ export interface paths {
       } & CardErrors
     }
   }
+  '/api/v1/workspaces/{workspaceId}/forecast/status': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['ForecastStatusResponse'] } } } & ForecastErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/forecast/month': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['ForecastMonthResponse'] } } } & ForecastErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/forecast/next-income': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['ForecastNextIncomeResponse'] } } } & ForecastErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/forecast/upcoming': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['ForecastUpcomingResponse'] } } } & ForecastErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/forecast/invoices': {
+    get: {
+      parameters: { query?: { cardId?: string }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['ForecastInvoicesResponse'] } } } & ForecastErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/forecast/cash-flow': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['ForecastCashFlowResponse'] } } } & ForecastErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/recurring-expenses': ForecastRecurringRoutes
+  '/api/v1/workspaces/{workspaceId}/recurring-expenses/{seriesId}': ForecastRecurringSeriesRoutes
+  '/api/v1/workspaces/{workspaceId}/recurring-expenses/{seriesId}/confirm': ForecastRecurringActionRoute
+  '/api/v1/workspaces/{workspaceId}/recurring-expenses/{seriesId}/ignore': ForecastRecurringActionRoute
+  '/api/v1/workspaces/{workspaceId}/recurring-expenses/{seriesId}/adjustment': ForecastRecurringAdjustmentRoutes
+  '/api/v1/workspaces/{workspaceId}/recurring-incomes': ForecastRecurringRoutes
+  '/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}': ForecastRecurringSeriesRoutes
+  '/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/confirm': ForecastRecurringActionRoute
+  '/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/ignore': ForecastRecurringActionRoute
+  '/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/adjustment': ForecastRecurringAdjustmentRoutes
 }

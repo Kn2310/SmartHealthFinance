@@ -1310,6 +1310,465 @@
         },
         "type" : "object"
       },
+      "ForecastAdjustmentRequest" : {
+        "properties" : {
+          "expectedAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "expectedDay" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastBalancePointDto" : {
+        "properties" : {
+          "central" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "high" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "low" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastCashFlowDto" : {
+        "properties" : {
+          "confidence" : {
+            "type" : "string"
+          },
+          "evidence" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForecastEvidenceDto"
+            },
+            "type" : "array"
+          },
+          "from" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "limitations" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "months" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForecastCashFlowMonthDto"
+            },
+            "type" : "array"
+          },
+          "to" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "trough" : {
+            "$ref" : "#/components/schemas/ForecastTroughDto"
+          },
+          "troughNext30" : {
+            "$ref" : "#/components/schemas/ForecastTroughDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastCashFlowMonthDto" : {
+        "properties" : {
+          "closing" : {
+            "$ref" : "#/components/schemas/ForecastValueDto"
+          },
+          "inflowEstimated" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "inflowFact" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "opening" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "outflowEstimated" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "outflowFact" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastCashFlowResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "cashFlow" : {
+            "$ref" : "#/components/schemas/ForecastCashFlowDto"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/ForecastFreshnessDto"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastChannelDto" : {
+        "properties" : {
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastDetectedDto" : {
+        "properties" : {
+          "amountRange" : {
+            "$ref" : "#/components/schemas/ForecastRangeDto"
+          },
+          "confidence" : {
+            "type" : "string"
+          },
+          "expectedAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "expectedDay" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastEvidenceDto" : {
+        "properties" : {
+          "kind" : {
+            "type" : "string"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "refId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "value" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastFreshnessDto" : {
+        "properties" : {
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "computedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastInvoiceDto" : {
+        "properties" : {
+          "cardId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "closingDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "closingMonth" : {
+            "type" : "string"
+          },
+          "dueDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "dueMonth" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "nickname" : {
+            "type" : "string"
+          },
+          "total" : {
+            "$ref" : "#/components/schemas/ForecastValueDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastInvoicesResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/ForecastFreshnessDto"
+          },
+          "invoices" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForecastInvoiceDto"
+            },
+            "type" : "array"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastMonthDto" : {
+        "properties" : {
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "baseMonths" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "expense" : {
+            "$ref" : "#/components/schemas/ForecastValueDto"
+          },
+          "income" : {
+            "$ref" : "#/components/schemas/ForecastValueDto"
+          },
+          "month" : {
+            "type" : "string"
+          },
+          "net" : {
+            "$ref" : "#/components/schemas/ForecastValueDto"
+          },
+          "pending" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForecastPendingOccurrenceDto"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastMonthResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/ForecastFreshnessDto"
+          },
+          "month" : {
+            "$ref" : "#/components/schemas/ForecastMonthDto"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastNextIncomeDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/ForecastValueDto"
+          },
+          "channel" : {
+            "$ref" : "#/components/schemas/ForecastChannelDto"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "seriesId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastNextIncomeResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/ForecastFreshnessDto"
+          },
+          "nextIncome" : {
+            "$ref" : "#/components/schemas/ForecastNextIncomeDto"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastPendingOccurrenceDto" : {
+        "properties" : {
+          "channel" : {
+            "$ref" : "#/components/schemas/ForecastChannelDto"
+          },
+          "confidence" : {
+            "type" : "string"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "direction" : {
+            "type" : "string"
+          },
+          "expected" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "range" : {
+            "$ref" : "#/components/schemas/ForecastRangeDto"
+          },
+          "seriesId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastRangeDto" : {
+        "properties" : {
+          "high" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "low" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastRecurringActionResponse" : {
+        "properties" : {
+          "forecastState" : {
+            "type" : "string"
+          },
+          "series" : {
+            "$ref" : "#/components/schemas/ForecastRecurringSeriesDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastRecurringListResponse" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForecastRecurringSeriesDto"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastRecurringSeriesDto" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "amountRange" : {
+            "$ref" : "#/components/schemas/ForecastRangeDto"
+          },
+          "channel" : {
+            "$ref" : "#/components/schemas/ForecastChannelDto"
+          },
+          "detected" : {
+            "$ref" : "#/components/schemas/ForecastDetectedDto"
+          },
+          "direction" : {
+            "type" : "string"
+          },
+          "eligibility" : {
+            "type" : "string"
+          },
+          "expectedAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "expectedDay" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "nextExpectedDate" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "occurrences" : {
+            "items" : {
+              "format" : "uuid",
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "origin" : {
+            "type" : "string"
+          },
+          "periodicity" : {
+            "type" : "string"
+          },
+          "realizedThisMonth" : {
+            "type" : "boolean"
+          },
+          "status" : {
+            "type" : "string"
+          },
+          "userAdjusted" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
       "ForecastStatusResponse" : {
         "properties" : {
           "analyticsRefreshedAt" : {
@@ -1326,6 +1785,107 @@
           },
           "state" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastTroughDto" : {
+        "properties" : {
+          "lowestCentral" : {
+            "$ref" : "#/components/schemas/ForecastBalancePointDto"
+          },
+          "lowestLowBound" : {
+            "$ref" : "#/components/schemas/ForecastBalancePointDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastUpcomingEventDto" : {
+        "properties" : {
+          "channel" : {
+            "$ref" : "#/components/schemas/ForecastChannelDto"
+          },
+          "closingEstimate" : {
+            "$ref" : "#/components/schemas/ForecastValueDto"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "kind" : {
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "seriesId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "value" : {
+            "$ref" : "#/components/schemas/ForecastValueDto"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastUpcomingResponse" : {
+        "properties" : {
+          "algorithmVersion" : {
+            "type" : "string"
+          },
+          "asOf" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "events" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForecastUpcomingEventDto"
+            },
+            "type" : "array"
+          },
+          "freshness" : {
+            "$ref" : "#/components/schemas/ForecastFreshnessDto"
+          },
+          "state" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "ForecastValueDto" : {
+        "properties" : {
+          "basis" : {
+            "type" : "string"
+          },
+          "confidence" : {
+            "type" : "string"
+          },
+          "estimatedPart" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "evidence" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ForecastEvidenceDto"
+            },
+            "type" : "array"
+          },
+          "factPart" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "limitations" : {
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "partial" : {
+            "type" : "boolean"
+          },
+          "range" : {
+            "$ref" : "#/components/schemas/ForecastRangeDto"
+          },
+          "value" : {
+            "$ref" : "#/components/schemas/MoneyDto"
           }
         },
         "type" : "object"
@@ -5620,6 +6180,176 @@
         "tags" : [ "Categories" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/forecast/cash-flow" : {
+      "get" : {
+        "operationId" : "forecastCashFlow",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastCashFlowResponse"
+                }
+              }
+            },
+            "description" : "Fluxo de caixa projetado, com estado e freshness"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Os meses do horizonte com a faixa e o menor saldo projetado (ADR-0030 3.4)",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/forecast/invoices" : {
+      "get" : {
+        "operationId" : "forecastInvoices",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Cartão do Workspace; omitido = todos os cartões",
+          "in" : "query",
+          "name" : "cardId",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastInvoicesResponse"
+                }
+              }
+            },
+            "description" : "Faturas projetadas, com estado e freshness"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (cardId INVALID)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CARD_NOT_FOUND (inexistente ou de outro Workspace)"
+          }
+        },
+        "summary" : "A fatura aberta (parcial + fechamento estimado) e as futuras até o horizonte, por cartão (ADR-0030 3.5)",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/forecast/month" : {
+      "get" : {
+        "operationId" : "forecastMonth",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastMonthResponse"
+                }
+              }
+            },
+            "description" : "Projeção do mês, com estado e freshness"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Despesa, receita e resultado projetados do mês corrente, com os pendentes (ADR-0030 3.1)",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/forecast/next-income" : {
+      "get" : {
+        "operationId" : "forecastNextIncome",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastNextIncomeResponse"
+                }
+              }
+            },
+            "description" : "Próxima receita, com estado e freshness"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "A próxima receita prevista: fonte, data, conta e valor (ADR-0030 3.2)",
+        "tags" : [ "Forecast" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/forecast/status" : {
       "get" : {
         "operationId" : "status_1",
@@ -5655,6 +6385,44 @@
           }
         },
         "summary" : "Freshness do snapshot do Forecast: UP_TO_DATE, RECALCULATING ou NOT_BUILT",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/forecast/upcoming" : {
+      "get" : {
+        "operationId" : "forecastUpcoming",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastUpcomingResponse"
+                }
+              }
+            },
+            "description" : "Próximos eventos, com estado e freshness"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Agenda de 30 dias completa e ordenada: eventos de fatura (fatos) e recorrências estimadas (ADR-0030 3.3)",
         "tags" : [ "Forecast" ]
       }
     },
@@ -6732,6 +7500,614 @@
         },
         "summary" : "Visão financeira consolidada do Workspace: saldo, fluxo de caixa, contas e atividade recente",
         "tags" : [ "Overview" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-expenses" : {
+      "get" : {
+        "operationId" : "listRecurringExpenses",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "DETECTED, CONFIRMED ou IGNORED; omitido = todas",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringListResponse"
+                }
+              }
+            },
+            "description" : "Séries recorrentes"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (status INVALID)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Séries da direção, sem paginação: elegíveis primeiro, depois o maior valor esperado",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-expenses/{seriesId}" : {
+      "get" : {
+        "operationId" : "getRecurringExpenseSeries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringSeriesDto"
+                }
+              }
+            },
+            "description" : "Série recorrente"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Detalhe da série",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-expenses/{seriesId}/adjustment" : {
+      "delete" : {
+        "operationId" : "clearRecurringExpenseSeriesAdjustment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringActionResponse"
+                }
+              }
+            },
+            "description" : "Ajuste removido; o forecast recalcula em seguida"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Remove o ajuste: voltam os valores detectados. Idempotente",
+        "tags" : [ "Forecast" ]
+      },
+      "put" : {
+        "operationId" : "adjustRecurringExpenseSeries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForecastAdjustmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringActionResponse"
+                }
+              }
+            },
+            "description" : "Série ajustada; o forecast recalcula em seguida"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (corpo vazio; expectedDay fora de 1-31; expectedAmount <= 0 ou com mais de 2 casas)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Define o valor e/ou o dia esperados do usuário (não mudam a elegibilidade). Idempotente",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-expenses/{seriesId}/confirm" : {
+      "post" : {
+        "operationId" : "confirmRecurringExpenseSeries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringActionResponse"
+                }
+              }
+            },
+            "description" : "Série confirmada; o forecast recalcula em seguida"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Confirma a série (CONFIRMED); também desfaz o ignorar. Idempotente",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-expenses/{seriesId}/ignore" : {
+      "post" : {
+        "operationId" : "ignoreRecurringExpenseSeries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringActionResponse"
+                }
+              }
+            },
+            "description" : "Série ignorada; o forecast recalcula em seguida"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Ignora a série (IGNORED); ela não volta a ser sugerida. Idempotente",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-incomes" : {
+      "get" : {
+        "operationId" : "listRecurringIncomes",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "DETECTED, CONFIRMED ou IGNORED; omitido = todas",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringListResponse"
+                }
+              }
+            },
+            "description" : "Séries recorrentes"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (status INVALID)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Séries da direção, sem paginação: elegíveis primeiro, depois o maior valor esperado",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}" : {
+      "get" : {
+        "operationId" : "getRecurringIncomeSeries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringSeriesDto"
+                }
+              }
+            },
+            "description" : "Série recorrente"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Detalhe da série",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/adjustment" : {
+      "delete" : {
+        "operationId" : "clearRecurringIncomeSeriesAdjustment",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringActionResponse"
+                }
+              }
+            },
+            "description" : "Ajuste removido; o forecast recalcula em seguida"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Remove o ajuste: voltam os valores detectados. Idempotente",
+        "tags" : [ "Forecast" ]
+      },
+      "put" : {
+        "operationId" : "adjustRecurringIncomeSeries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ForecastAdjustmentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringActionResponse"
+                }
+              }
+            },
+            "description" : "Série ajustada; o forecast recalcula em seguida"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (corpo vazio; expectedDay fora de 1-31; expectedAmount <= 0 ou com mais de 2 casas)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Define o valor e/ou o dia esperados do usuário (não mudam a elegibilidade). Idempotente",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/confirm" : {
+      "post" : {
+        "operationId" : "confirmRecurringIncomeSeries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringActionResponse"
+                }
+              }
+            },
+            "description" : "Série confirmada; o forecast recalcula em seguida"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Confirma a série (CONFIRMED); também desfaz o ignorar. Idempotente",
+        "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/ignore" : {
+      "post" : {
+        "operationId" : "ignoreRecurringIncomeSeries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "seriesId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ForecastRecurringActionResponse"
+                }
+              }
+            },
+            "description" : "Série ignorada; o forecast recalcula em seguida"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou RECURRING_SERIES_NOT_FOUND (inexistente, de outro Workspace ou da outra direção)"
+          }
+        },
+        "summary" : "Ignora a série (IGNORED); ela não volta a ser sugerida. Idempotente",
+        "tags" : [ "Forecast" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/transactions" : {

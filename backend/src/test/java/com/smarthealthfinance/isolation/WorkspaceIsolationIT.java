@@ -61,6 +61,14 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private static final String CARDS = WORKSPACE_SCOPE + "/cards";
     private static final String CARD = CARDS + "/{cardId}";
     private static final String CARD_INVOICE = CARD + "/invoices/{dueMonth}";
+    private static final String FORECAST = WORKSPACE_SCOPE + "/forecast";
+    private static final String EXPENSES = WORKSPACE_SCOPE + "/recurring-expenses";
+    private static final String EXPENSE = EXPENSES + "/{seriesId}";
+    private static final String INCOMES = WORKSPACE_SCOPE + "/recurring-incomes";
+    private static final String INCOME = INCOMES + "/{seriesId}";
+    private static final String ADJUSTMENT_JSON = """
+            {"expectedAmount": {"amount": "1.00", "currency": "BRL"}, "expectedDay": 3}
+            """;
     private static final String CARD_JSON = """
             {"nickname": "Invasor", "brand": "VISA", "last4": "0000", "limit": {"amount": "100.00", "currency": "BRL"},
              "closingDay": 28, "dueDay": 5}
@@ -92,11 +100,12 @@ class WorkspaceIsolationIT extends IntegrationTest {
 
     /** Ids de um Workspace semeado: uma conta ativa, uma segunda conta, uma arquivada, transações POSTED/PENDING e um preview de importação. */
     record Fixture(String workspace, String account, String otherAccount, String archivedAccount, String posted,
-                   String pending, String importId, String card, String purchase) {
+                   String pending, String importId, String card, String purchase, String expenseSeries,
+                   String incomeSeries) {
 
         List<String> ids() {
             return List.of(workspace, account, otherAccount, archivedAccount, posted, pending, importId, card,
-                    purchase);
+                    purchase, expenseSeries, incomeSeries);
         }
     }
 
@@ -192,6 +201,30 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("health: status", HttpMethod.GET, WORKSPACE_SCOPE + "/health/status", f -> new Object[0], NONE),
 
             op("forecast: status", HttpMethod.GET, WORKSPACE_SCOPE + "/forecast/status", f -> new Object[0], NONE),
+            op("forecast: mês", HttpMethod.GET, FORECAST + "/month", f -> new Object[0], NONE),
+            op("forecast: próxima receita", HttpMethod.GET, FORECAST + "/next-income", f -> new Object[0], NONE),
+            op("forecast: próximos eventos", HttpMethod.GET, FORECAST + "/upcoming", f -> new Object[0], NONE),
+            op("forecast: faturas", HttpMethod.GET, FORECAST + "/invoices", f -> new Object[0],
+                    (request, f) -> request.param("cardId", f.card())),
+            op("forecast: fluxo de caixa", HttpMethod.GET, FORECAST + "/cash-flow", f -> new Object[0], NONE),
+            op("despesas recorrentes: listar", HttpMethod.GET, EXPENSES, f -> new Object[0], NONE),
+            op("despesas recorrentes: detalhe", HttpMethod.GET, EXPENSE, f -> ids(f.expenseSeries()), NONE),
+            op("despesas recorrentes: confirmar", HttpMethod.POST, EXPENSE + "/confirm", f -> ids(f.expenseSeries()), NONE),
+            op("despesas recorrentes: ignorar", HttpMethod.POST, EXPENSE + "/ignore", f -> ids(f.expenseSeries()), NONE),
+            op("despesas recorrentes: ajustar", HttpMethod.PUT, EXPENSE + "/adjustment", f -> ids(f.expenseSeries()),
+                    json(f -> ADJUSTMENT_JSON)),
+            op("despesas recorrentes: remover ajuste", HttpMethod.DELETE, EXPENSE + "/adjustment", f -> ids(f.expenseSeries()),
+                    NONE),
+
+            op("receitas recorrentes: listar", HttpMethod.GET, INCOMES, f -> new Object[0], NONE),
+            op("receitas recorrentes: detalhe", HttpMethod.GET, INCOME, f -> ids(f.incomeSeries()), NONE),
+            op("receitas recorrentes: confirmar", HttpMethod.POST, INCOME + "/confirm", f -> ids(f.incomeSeries()), NONE),
+            op("receitas recorrentes: ignorar", HttpMethod.POST, INCOME + "/ignore", f -> ids(f.incomeSeries()), NONE),
+            op("receitas recorrentes: ajustar", HttpMethod.PUT, INCOME + "/adjustment", f -> ids(f.incomeSeries()),
+                    json(f -> ADJUSTMENT_JSON)),
+            op("receitas recorrentes: remover ajuste", HttpMethod.DELETE, INCOME + "/adjustment", f -> ids(f.incomeSeries()),
+                    NONE),
+
 
             op("insights: status", HttpMethod.GET, WORKSPACE_SCOPE + "/insights/status", f -> new Object[0], NONE),
             op("insights: listar", HttpMethod.GET, INSIGHTS, f -> new Object[0], NONE),
@@ -456,7 +489,33 @@ class WorkspaceIsolationIT extends IntegrationTest {
                     (mvc, own, id) -> mvc.get().uri(CARD + "/installments/{transactionId}", own.workspace(),
                             own.card(), id)),
             cross("transactions: filtrar por cartão alheio", HttpStatus.OK, null, Fixture::card,
-                    (mvc, own, id) -> mvc.get().uri(TRANSACTIONS, own.workspace()).param("cardId", id)));
+                    (mvc, own, id) -> mvc.get().uri(TRANSACTIONS, own.workspace()).param("cardId", id)),
+
+            // ADR-0032 §1: cartão do filtro de outro Workspace = cartão inexistente.
+            cross("forecast: faturas de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.get().uri(FORECAST + "/invoices", own.workspace()).param("cardId", id)),
+
+            // ADR-0032 §2: série de outro Workspace = série inexistente.
+            cross("despesas recorrentes: detalhe série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::expenseSeries, (mvc, own, id) -> mvc.get().uri(EXPENSE, own.workspace(), id)),
+            cross("despesas recorrentes: confirmar série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::expenseSeries, (mvc, own, id) -> mvc.post().uri(EXPENSE + "/confirm", own.workspace(), id)),
+            cross("despesas recorrentes: ignorar série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::expenseSeries, (mvc, own, id) -> mvc.post().uri(EXPENSE + "/ignore", own.workspace(), id)),
+            cross("despesas recorrentes: ajustar série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::expenseSeries, (mvc, own, id) -> mvc.put().uri(EXPENSE + "/adjustment", own.workspace(), id).contentType(MediaType.APPLICATION_JSON).content(ADJUSTMENT_JSON)),
+            cross("despesas recorrentes: remover ajuste de série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::expenseSeries, (mvc, own, id) -> mvc.delete().uri(EXPENSE + "/adjustment", own.workspace(), id)),
+            cross("receitas recorrentes: detalhe série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::incomeSeries, (mvc, own, id) -> mvc.get().uri(INCOME, own.workspace(), id)),
+            cross("receitas recorrentes: confirmar série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::incomeSeries, (mvc, own, id) -> mvc.post().uri(INCOME + "/confirm", own.workspace(), id)),
+            cross("receitas recorrentes: ignorar série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::incomeSeries, (mvc, own, id) -> mvc.post().uri(INCOME + "/ignore", own.workspace(), id)),
+            cross("receitas recorrentes: ajustar série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::incomeSeries, (mvc, own, id) -> mvc.put().uri(INCOME + "/adjustment", own.workspace(), id).contentType(MediaType.APPLICATION_JSON).content(ADJUSTMENT_JSON)),
+            cross("receitas recorrentes: remover ajuste de série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
+                    Fixture::incomeSeries, (mvc, own, id) -> mvc.delete().uri(INCOME + "/adjustment", own.workspace(), id)));
 
     static Stream<CrossOp> foreignReferenceOperations() {
         return FOREIGN_REFERENCE.stream();
@@ -538,7 +597,22 @@ class WorkspaceIsolationIT extends IntegrationTest {
                         """.formatted(amount, description)).exchange();
         assertThat(purchase).hasStatus(HttpStatus.CREATED);
         return new Fixture(workspace, account, other, archived, posted, pending, read(upload, "$.id"),
-                read(card, "$.id"), read(purchase, "$.transaction.id"));
+                read(card, "$.id"), read(purchase, "$.transaction.id"),
+                seedSeries(workspace, "EXPENSE", description + " (despesa)"),
+                seedSeries(workspace, "INCOME", description + " (receita)"));
+    }
+
+    /** Série recorrente gravada direto, como o job do Forecast faria; devolve o id opaco da API. */
+    private String seedSeries(String workspace, String direction, String label) {
+        String id = UUID.randomUUID().toString();
+        jdbc.update("""
+                insert into forecast_recurring_series (workspace_id, direction, series_key, label, channel_kind,
+                  channel_id, periodicity, expected_day, expected_amount, amount_min, amount_max, currency,
+                  confidence, occurrences, algorithm_version, status, origin, created_at, updated_at, id)
+                values (?::uuid, ?, ?, ?, 'ACCOUNT', ?::uuid, 'MONTHLY', 5, 100, 90, 110, 'BRL', 'HIGH', '{}',
+                  'forecast-v1', 'DETECTED', 'DETECTED', now(), now(), ?::uuid)
+                """, workspace, direction, "merchant:" + id, label, UUID.randomUUID().toString(), id);
+        return id;
     }
 
     private String createAccount(RequestPostProcessor who, String workspace, String name) throws Exception {
