@@ -41,7 +41,7 @@ describe('<ProjectedValue>', () => {
   it('badge e faixa podem ser omitidos (a faixa fica em outro lugar)', () => {
     render(<ProjectedValue value={estimate('2532.10', '2400.00', '2700.00')} badge={false} range={false} />)
     expect(screen.queryByText('Estimado')).not.toBeInTheDocument()
-    expect(screen.queryByText(/entre R\$ 2\.400/)).not.toBeInTheDocument()
+    expect(screen.queryByText('entre R$ 2.400 e R$ 2.700')).not.toBeInTheDocument()
   })
 
   it('valor inválido não vira R$ 0: mostra "sem dados"', () => {
