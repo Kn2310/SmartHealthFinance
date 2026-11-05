@@ -303,7 +303,9 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - recorrências por id opaco (`V21`): lista, detalhe, `confirm`, `ignore`, `PUT`/`DELETE adjustment`, idempotentes;
   - suíte de isolamento, snapshot OpenAPI e `schema.d.ts`
   - D15 `BALANCE_MAY_GO_NEGATIVE` entregue no backend (`insights-v3`, lê o `ForecastReader`; ação `VIEW_UPCOMING_EVENTS`; os D1–D14 não mudam e a troca de versão herda `seenAt` e feedback); o card na UI fica para a parte D
-- [ ] UI de Forecast nas telas existentes e gestão de recorrências (parte D)
+- [ ] UI de Forecast nas telas existentes e gestão de recorrências (parte D — ADR-0033)
+  - fatia A (entregue na branch): BFF do Forecast e das recorrências, componente `ProjectedValue` (Estimado/Confirmado/Parcial), "Próximos eventos" da Home, projeção do mês e próxima receita na Análise, estimativa da próxima fatura e das futuras em Cartões;
+  - fatia B: página `/recurring` (abas Despesas/Receitas; Para revisar, Confirmadas e Ignoradas; confirmar, ignorar com desfazer, ajustar e voltar ao detectado; "Atualizando estimativas…"), item em M-More, ação e evidências do D15 no detalhe do insight, testes Vitest + axe e E2E `forecast.spec.ts` com os valores exatos do `forecast-v1` nas 5 larguras
 - [ ] cash flow forecast
 - [ ] bill forecast
 - [ ] freshness
