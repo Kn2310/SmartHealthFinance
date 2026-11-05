@@ -3,6 +3,7 @@ import type {
   ForecastDataState,
   ForecastFreshness,
   ForecastLimitation,
+  ForecastRecurringSeries,
   ForecastValue,
 } from '@/lib/api/types'
 
@@ -71,5 +72,26 @@ export function statusNote(status: EstimateStatus): string | null {
       return NOTE_INSUFFICIENT_HISTORY
     default:
       return null
+  }
+}
+
+export const confidenceText = (confidence: ForecastConfidence): string => CONFIDENCE[confidence]
+
+/**
+ * Valor esperado de uma série como `ForecastValue` estimado, só para reusar o `ProjectedValue`: o valor, a faixa e a
+ * confiança vêm da API; `factPart`/`estimatedPart` não são exibidos aqui e nada é calculado no cliente.
+ */
+export function seriesValue(series: ForecastRecurringSeries): ForecastValue {
+  const zero = { amount: '0.00', currency: series.expectedAmount.currency }
+  return {
+    basis: 'ESTIMATED',
+    value: series.expectedAmount,
+    factPart: zero,
+    estimatedPart: series.expectedAmount,
+    range: series.amountRange,
+    partial: false,
+    confidence: series.detected.confidence,
+    limitations: [],
+    evidence: [],
   }
 }

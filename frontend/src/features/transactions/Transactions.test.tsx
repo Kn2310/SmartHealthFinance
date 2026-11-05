@@ -925,6 +925,8 @@ describe('Mais (M-More)', () => {
     expect(screen.getByRole('link', { name: /Insights/ })).toHaveAttribute('href', '/insights')
     expect(screen.getByRole('link', { name: /Insights/ })).not.toHaveTextContent('Em breve')
     expect(screen.getByRole('link', { name: /Objetivos/ })).toHaveTextContent('Em breve')
+    // Recorrências (ADR-0033 §5): sem item na navegação principal, só aqui.
+    expect(screen.getByRole('link', { name: 'Recorrências' })).toHaveAttribute('href', '/recurring')
     expect(await axeViolations(container)).toEqual([])
   })
 })

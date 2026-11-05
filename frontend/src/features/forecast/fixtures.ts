@@ -5,6 +5,7 @@ import type {
   ForecastLimitation,
   ForecastMonthResponse,
   ForecastNextIncomeResponse,
+  ForecastRecurringSeries,
   ForecastUpcomingResponse,
   ForecastValue,
   MoneyDto,
@@ -232,3 +233,29 @@ export const recalculating = <T extends { freshness: ForecastFreshness }>(respon
   ...response,
   freshness: fresh('RECALCULATING'),
 })
+
+/** Série recorrente (aluguel por padrão): valor 1.800,00 no dia 7, conta `a1`, detectada com confiança alta. */
+export function recurringSeries(overrides: Partial<ForecastRecurringSeries> = {}): ForecastRecurringSeries {
+  return {
+    id: SERIES_RENT,
+    direction: 'EXPENSE',
+    label: 'Aluguel',
+    channel: { kind: 'ACCOUNT', id: 'a1' },
+    periodicity: 'MONTHLY',
+    expectedDay: 7,
+    expectedAmount: brl('1800.00'),
+    amountRange: { low: brl('1800.00'), high: brl('1800.00') },
+    detected: { expectedDay: 7, expectedAmount: brl('1800.00'), amountRange: { low: brl('1800.00'), high: brl('1800.00') }, confidence: 'HIGH' },
+    userAdjusted: false,
+    status: 'DETECTED',
+    origin: 'DETECTED',
+    eligibility: 'ELIGIBLE',
+    nextExpectedDate: '2026-10-07',
+    realizedThisMonth: false,
+    occurrences: [],
+    algorithmVersion: 'forecast-v1',
+    ...overrides,
+  }
+}
+
+export const recurringAction = (series: ForecastRecurringSeries) => ({ series, forecastState: 'RECALCULATING' as const })
