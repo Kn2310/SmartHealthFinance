@@ -161,6 +161,53 @@ describe('Detalhe do insight (D-InsightDetail / M-InsightDetail)', () => {
     expect(await axeViolations(container)).toEqual([])
   })
 
+  it('saldo pode ficar negativo (D15): figuras, maiores movimentos, "Baseado em estimativa" e ação para a Home', async () => {
+    const brl = (amount: string) => ({ amount, currency: 'BRL' })
+    const fig = (code: string, label: string, value: string) =>
+      ({ code, label, kind: 'MONEY' as const, value, from: '2026-10-22', to: '2026-11-07' })
+    const insight = spikeItem({
+      seen: true, detector: 'BALANCE_MAY_GO_NEGATIVE', type: 'SPENDING', subjectLabel: 'Saldo projetado',
+      title: 'Seu saldo pode ficar negativo por volta de 7 de novembro.',
+      support: 'Pela projeção, o saldo total chega a R$ 120,00 em 7 de novembro, com faixa de -R$ 380,00 a R$ 620,00.',
+      primaryAction: { kind: 'VIEW_UPCOMING_EVENTS', label: 'Ver próximos eventos', primary: true, available: true, params: {} },
+    })
+    stubBff({
+      [`GET /api/bff/insights/${SPIKE_ID}`]: () => json(spikeDetail({
+        insight,
+        figures: [
+          fig('lowBound', 'Menor saldo (limite baixo)', '-380.00'),
+          fig('central', 'Saldo central nesse dia', '120.00'),
+          fig('highBound', 'Saldo no limite alto nesse dia', '620.00'),
+          fig('lowestCentral', 'Menor saldo central dos próximos 30 dias', '120.00'),
+        ],
+        series: { kind: 'MONEY', points: [] },
+        contributors: [
+          { kind: 'FACTOR', key: 'RECURRING_EXPENSE', name: 'Aluguel', amount: brl('-1800.00'), count: null, share: null, day: '2026-11-07' },
+          { kind: 'FACTOR', key: 'RECURRING_INCOME', name: 'Salário', amount: brl('6500.00'), count: null, share: null, day: '2026-11-05' },
+        ],
+        limitations: [{ code: 'ESTIMATED_FORECAST', text: 'É uma projeção estimada, com faixa e confiança média; o saldo real pode ficar fora dela.' }],
+        sources: [{ source: 'forecast.cash-flow', from: '2026-10-22', to: '2026-11-07' }],
+        actions: [insight.primaryAction],
+      })),
+    })
+    const { container } = render(<InsightDetailView id={SPIKE_ID} />)
+
+    expect(await screen.findByRole('heading', { level: 1, name: /Seu saldo pode ficar negativo/ })).toBeInTheDocument()
+    expect(screen.getByText('Menor saldo (limite baixo)').nextElementSibling).toHaveTextContent(/[−-]\s?R\$\s380,00/)
+    expect(screen.getByText('Saldo no limite alto nesse dia').nextElementSibling).toHaveTextContent('620,00')
+    const movements = screen.getByRole('list', { name: 'Maiores movimentos' })
+    const items = within(movements).getAllByRole('listitem')
+    expect(items).toHaveLength(2)
+    expect(items[0]).toHaveTextContent('Aluguel')
+    expect(items[0]).toHaveTextContent(/[−-]\s?R\$\s1\.800,00/)
+    expect(items[1]).toHaveTextContent('Salário')
+    expect(screen.getByRole('heading', { name: 'Maiores movimentos até a data' })).toBeInTheDocument()
+    expect(screen.getByText('Baseado em estimativa.')).toBeInTheDocument()
+    expect(screen.getByText(/Previsão › saldo projetado/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Ver próximos eventos/ })).toHaveAttribute('href', '/home#events')
+    expect(await axeViolations(container)).toEqual([])
+  })
+
   it('feedback: "Útil" fica pressionado; clicar de novo remove', async () => {
     const bodies: unknown[] = []
     stubBff({
@@ -295,6 +342,7 @@ describe('format', () => {
     expect(actionHref(action('VIEW_INVOICE', { cardId: 'c1' }))).toBeNull()
     expect(actionHref(action('IMPORT_STATEMENT'))).toBe('/import')
     expect(actionHref(action('VIEW_HEALTH'))).toBe('/home/health')
+    expect(actionHref(action('VIEW_UPCOMING_EVENTS'))).toBe('/home#events')
     expect(actionHref(action('VIEW_ACCOUNTS'))).toBe('/accounts')
     expect(actionHref(action('CATEGORIZE', { category: 'none' }))).toBe('/transactions?category=none')
     expect(actionHref(action('CREATE_SAVINGS_GOAL', {}, false))).toBeNull()

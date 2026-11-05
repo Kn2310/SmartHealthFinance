@@ -26,6 +26,8 @@ export function actionHref(action: InsightAction): string | null {
       return `/analysis/merchants${search({ month: p.month })}`
     case 'VIEW_TRANSACTION':
       return p.transactionId ? `/transactions/${encodeURIComponent(p.transactionId)}` : null
+    case 'VIEW_UPCOMING_EVENTS':
+      return '/home#events'
     case 'IMPORT_STATEMENT':
       return '/import'
     case 'VIEW_INCOME':
@@ -96,6 +98,7 @@ const SOURCE_NAME: Record<string, string> = {
   'transactions.largest-expenses': 'Transações › maiores gastos',
   'health.snapshot': 'Saúde financeira',
   'overview.account-balances': 'Contas › saldos',
+  'forecast.cash-flow': 'Previsão › saldo projetado',
 }
 
 export function sourceName(source: string): string {
