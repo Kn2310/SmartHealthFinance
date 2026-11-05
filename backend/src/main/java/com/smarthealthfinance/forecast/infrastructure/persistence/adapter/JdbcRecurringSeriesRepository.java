@@ -12,6 +12,7 @@ import com.smarthealthfinance.forecast.domain.model.Range;
 import com.smarthealthfinance.forecast.domain.model.RecurringSeries;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.Money;
+import com.smarthealthfinance.shared.domain.UuidV7;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -56,6 +57,21 @@ public class JdbcRecurringSeriesRepository implements RecurringSeriesRepository 
     }
 
     @Override
+    public List<SeriesRef> findAllRefs(WorkspaceId workspaceId) {
+        return jdbc.query("select id, direction, series_key from forecast_recurring_series where workspace_id = ?",
+                REF_MAPPER, workspaceId.value());
+    }
+
+    @Override
+    public Optional<SeriesRef> findRef(WorkspaceId workspaceId, UUID seriesId) {
+        return jdbc.query("select id, direction, series_key from forecast_recurring_series "
+                + "where workspace_id = ? and id = ?", REF_MAPPER, workspaceId.value(), seriesId).stream().findFirst();
+    }
+
+    private static final RowMapper<SeriesRef> REF_MAPPER = (rs, row) -> new SeriesRef(rs.getObject("id", UUID.class),
+            SeriesDirection.valueOf(rs.getString("direction")), rs.getString("series_key"));
+
+    @Override
     public Optional<RecurringSeries> find(WorkspaceId workspaceId, SeriesDirection direction, String key) {
         return jdbc.query(SELECT + " where workspace_id = ? and direction = ? and series_key = ?", MAPPER,
                 workspaceId.value(), direction.name(), key).stream().findFirst();
@@ -76,8 +92,8 @@ public class JdbcRecurringSeriesRepository implements RecurringSeriesRepository 
                           (workspace_id, direction, series_key, label, channel_kind, channel_id, periodicity,
                            expected_day, expected_amount, amount_min, amount_max, currency, confidence, occurrences,
                            algorithm_version, status, origin, user_expected_amount, user_expected_day,
-                           status_changed_at, created_at, updated_at)
-                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                           status_changed_at, created_at, updated_at, id)
+                        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         on conflict (workspace_id, direction, series_key) do update set
                           label = excluded.label, channel_kind = excluded.channel_kind,
                           channel_id = excluded.channel_id, periodicity = excluded.periodicity,
@@ -110,7 +126,8 @@ public class JdbcRecurringSeriesRepository implements RecurringSeriesRepository 
                 statement.setObject(i++, s.userExpectedDay(), java.sql.Types.SMALLINT);
                 statement.setTimestamp(i++, s.statusChangedAt() == null ? null : Timestamp.from(s.statusChangedAt()));
                 statement.setTimestamp(i++, at);
-                statement.setTimestamp(i, at);
+                statement.setTimestamp(i++, at);
+                statement.setObject(i, UuidV7.generate(now));
                 return statement;
             });
         }

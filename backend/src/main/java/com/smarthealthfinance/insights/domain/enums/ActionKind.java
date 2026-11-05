@@ -21,6 +21,8 @@ public enum ActionKind {
     VIEW_CARD,
     /** Registrar o pagamento da fatura ({@code cardId}) em {@code /transactions/new}. */
     RECORD_CARD_PAYMENT,
+    /** Próximos eventos na Home (D15, {@code insights-v3}, ADR-0032 §3); sem parâmetros. */
+    VIEW_UPCOMING_EVENTS,
     CREATE_SAVINGS_GOAL,
     ASK_COPILOT
 }

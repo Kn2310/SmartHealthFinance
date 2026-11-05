@@ -108,7 +108,7 @@ class InsightsUseCasesTest {
     void rebuildMarksMissingOrAll() {
         new RebuildInsights(store, transactions(), CLOCK).execute(RebuildInsights.Scope.MISSING);
         new RebuildInsights(store, transactions(), CLOCK).execute(RebuildInsights.Scope.ALL);
-        assertThat(store.calls).containsExactly("rebuild insights-v2 all=false", "rebuild insights-v2 all=true");
+        assertThat(store.calls).containsExactly("rebuild insights-v3 all=false", "rebuild insights-v3 all=true");
     }
 
     @ParameterizedTest(name = "built={0} tx={1} busy={2} fontes={3} asOf={4} → {5}")

@@ -66,7 +66,7 @@ class InsightApiIT extends IntegrationTest {
         seed();
         MvcTestResult all = list(Map.of());
         assertThat(read(all, "$.state")).isEqualTo("READY");
-        assertThat(read(all, "$.algorithmVersion")).isEqualTo("insights-v2");
+        assertThat(read(all, "$.algorithmVersion")).isEqualTo("insights-v3");
         assertThat(read(all, "$.period.month")).isEqualTo(period.key());
         assertThat(read(all, "$.freshness.state")).isEqualTo("UP_TO_DATE");
         int total = ((Number) read(all, "$.totalItems")).intValue();

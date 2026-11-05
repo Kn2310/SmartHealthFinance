@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Catálogo (ADR-0021 §2; Cartões na {@code insights-v2}, ADR-0028): roda os detectores sobre a mesma entrada e aplica
+ * Catálogo (ADR-0021 §2; Cartões na {@code insights-v2}, ADR-0028; previsão na {@code insights-v3}, ADR-0032): roda os detectores sobre a mesma entrada e aplica
  * o piso de impacto (§3). Puro e determinístico: mesma entrada, mesmos candidatos, na mesma ordem.
  */
 public final class InsightEngine {
@@ -36,6 +36,7 @@ public final class InsightEngine {
         all.addAll(CardDetectors.invoicesAbovePattern(ctx));
         all.addAll(CardDetectors.highUtilization(ctx));
         all.addAll(CardDetectors.invoicesDue(ctx));
+        all.addAll(ForecastDetectors.balanceMayGoNegative(ctx));
         return all.stream()
                 .filter(c -> InsightScoring.passesFloor(c, ctx.reference()))
                 .sorted(Comparator.comparing((InsightCandidate c) -> c.detector().ordinal())

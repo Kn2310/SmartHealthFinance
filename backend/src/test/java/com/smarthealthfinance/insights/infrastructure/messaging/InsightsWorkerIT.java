@@ -1,11 +1,20 @@
 package com.smarthealthfinance.insights.infrastructure.messaging;
 
 import com.jayway.jsonpath.JsonPath;
+import com.smarthealthfinance.forecast.application.port.ForecastSnapshotStore;
+import com.smarthealthfinance.forecast.application.port.RecurringSeriesRepository;
+import com.smarthealthfinance.forecast.domain.model.Channel;
+import com.smarthealthfinance.forecast.domain.model.ForecastEntry;
+import com.smarthealthfinance.forecast.domain.model.ForecastInput;
+import com.smarthealthfinance.forecast.domain.model.ForecastResult;
+import com.smarthealthfinance.forecast.domain.model.SeriesAssessment;
+import com.smarthealthfinance.forecast.domain.service.ForecastCalculator;
 import com.smarthealthfinance.identity.IdentityTables;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.insights.application.port.InsightStore;
 import com.smarthealthfinance.insights.application.service.InsightGenerator;
 import com.smarthealthfinance.insights.application.service.InsightInputLoader;
+import com.smarthealthfinance.insights.domain.enums.ActionKind;
 import com.smarthealthfinance.insights.domain.enums.Importance;
 import com.smarthealthfinance.insights.domain.enums.InsightDetector;
 import com.smarthealthfinance.insights.domain.enums.InsightStatus;
@@ -13,7 +22,9 @@ import com.smarthealthfinance.insights.domain.model.Insight;
 import com.smarthealthfinance.insights.domain.model.ScoredCandidate;
 import com.smarthealthfinance.insights.domain.service.InsightTexts;
 import com.smarthealthfinance.insights.domain.valueobject.EvaluationPeriod;
+import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.support.IntegrationTest;
+import com.smarthealthfinance.transactions.domain.enums.CashFlowRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,8 +46,12 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.ArrayList;
+import java.util.Currency;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Predicate;
 
@@ -60,6 +75,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 class InsightsWorkerIT extends IntegrationTest {
 
     private static final String ME = "/api/v1/users/me";
+    private static final Currency BRL = Currency.getInstance("BRL");
     private static final String ACCOUNTS = "/api/v1/workspaces/{workspaceId}/accounts";
     private static final String TRANSACTIONS = "/api/v1/workspaces/{workspaceId}/transactions";
     private static final String STATUS = "/api/v1/workspaces/{workspaceId}/insights/status";
@@ -78,6 +94,12 @@ class InsightsWorkerIT extends IntegrationTest {
 
     @Autowired
     InsightInputLoader loader;
+
+    @Autowired
+    ForecastSnapshotStore forecastStore;
+
+    @Autowired
+    RecurringSeriesRepository seriesRepository;
 
     @Autowired
     PlatformTransactionManager transactionManager;
@@ -107,7 +129,7 @@ class InsightsWorkerIT extends IntegrationTest {
 
         String in = InsightTexts.inPeriod(period.month(), period.partial());
         Insight spike = one(active, InsightDetector.CATEGORY_SPIKE);
-        assertThat(spike.algorithmVersion()).isEqualTo("insights-v2");
+        assertThat(spike.algorithmVersion()).isEqualTo("insights-v3");
         assertThat(spike.periodKey()).isEqualTo(period.key());
         assertThat(spike.subject()).isEqualTo("DINING_OUT");
         assertThat(spike.impactAmount().amount()).isEqualByComparingTo("600.00");
@@ -202,6 +224,67 @@ class InsightsWorkerIT extends IntegrationTest {
 
         await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> assertThat(
                 admin.getQueueInfo(InsightsMessagingConfig.DEAD_LETTER_QUEUE).getMessageCount()).isEqualTo(2));
+    }
+
+    /**
+     * ADR-0032 §3: o snapshot do Forecast com saldo projetado negativo (R$ 300 em conta, aluguel de R$ 1.000 nos
+     * próximos 30 dias, sem receita recorrente) gera o D15 com a ação "Ver próximos eventos"; com o saldo recuperado
+     * o insight resolve.
+     */
+    @Test
+    void balanceMayGoNegativeFollowsTheForecastSnapshot() throws Exception {
+        seed();
+        IdentityTables.awaitQuiescence(jdbc);
+        assertThat(all()).extracting(Insight::detector).doesNotContain(InsightDetector.BALANCE_MAY_GO_NEGATIVE);
+
+        ForecastResult tight = forecast("300.00");
+        assertThat(tight.cashFlow().troughNext30().lowestLowBound().low().amount().signum()).isNegative();
+        saveForecast(tight);
+
+        Insight d15 = await().atMost(Duration.ofSeconds(30)).until(
+                () -> all().stream().filter(i -> i.detector() == InsightDetector.BALANCE_MAY_GO_NEGATIVE)
+                        .filter(Insight::visible).findFirst(), Optional::isPresent).orElseThrow();
+        assertThat(d15.algorithmVersion()).isEqualTo("insights-v3");
+        assertThat(d15.periodKey()).isNull();
+        assertThat(d15.status()).isEqualTo(InsightStatus.ACTIVE);
+        assertThat(d15.content().title()).startsWith("Seu saldo pode ficar negativo por volta de ");
+        assertThat(d15.content().primaryAction().kind()).isEqualTo(ActionKind.VIEW_UPCOMING_EVENTS);
+        assertThat(d15.content().evidence().contributors()).isNotEmpty().hasSizeLessThanOrEqualTo(3);
+
+        // Saldo recuperado: o D15 deixa de ser detectado e resolve (mesma identidade).
+        saveForecast(forecast("10000.00"));
+        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> assertThat(all())
+                .filteredOn(i -> i.fingerprint().equals(d15.fingerprint()))
+                .extracting(Insight::status).containsExactly(InsightStatus.RESOLVED));
+    }
+
+    private ForecastResult forecast(String balance) {
+        LocalDate today = loader.today();
+        UUID account = UUID.randomUUID();
+        List<ForecastEntry> entries = new ArrayList<>();
+        int sequence = 0;
+        for (int k = 4; k >= 1; k--) {
+            YearMonth month = YearMonth.from(today).minusMonths(k);
+            for (Object[] row : new Object[][]{{15, "ALUGUEL", "1000.00"}, {8, "MERCADO", "150.55"},
+                    {20, "MERCADO", "149.45"}}) {
+                entries.add(new ForecastEntry(UUID.nameUUIDFromBytes(("tx-" + sequence++).getBytes(StandardCharsets.UTF_8)),
+                        month.atDay((Integer) row[0]), CashFlowRole.EXPENSE, "moradia", (String) row[1],
+                        (String) row[1], Money.of((String) row[2], BRL), Channel.account(account), false));
+            }
+        }
+        LocalDate first = YearMonth.from(today).minusMonths(4).atDay(8);
+        return ForecastCalculator.calculate(new ForecastInput(today, BRL, Optional.of(first), entries, List.of(),
+                Money.of(balance, BRL), List.of(), List.of()));
+    }
+
+    private void saveForecast(ForecastResult result) {
+        Instant now = Instant.now();
+        new TransactionTemplate(transactionManager).executeWithoutResult(status -> {
+            seriesRepository.upsertDetected(id(), result.series().stream().map(SeriesAssessment::series).toList(),
+                    now);
+            forecastStore.replace(id(), result, now);
+            store.markDirty(id(), now, Duration.ZERO, Duration.ZERO);
+        });
     }
 
     private void seed() throws Exception {

@@ -6,6 +6,7 @@ import com.smarthealthfinance.analytics.domain.service.FlowLedger;
 import com.smarthealthfinance.analytics.domain.valueobject.AnalyticsPeriod;
 import com.smarthealthfinance.cards.application.port.CardPortfolio;
 import com.smarthealthfinance.cards.domain.valueobject.CardPosition;
+import com.smarthealthfinance.forecast.application.port.ForecastReader;
 import com.smarthealthfinance.health.application.port.HealthSnapshotReader;
 import com.smarthealthfinance.health.domain.model.HealthResult;
 import com.smarthealthfinance.health.domain.service.HealthCalculator;
@@ -35,7 +36,8 @@ import org.springframework.stereotype.Service;
  * Monta a entrada dos detectores (ADR-0022 §4) só pelas portas: uma leitura das linhas do fluxo de caixa
  * ({@link AnalyticsReadModel#entries}) de P − 7 meses até hoje, o primeiro lançamento, o catálogo de categorias, as
  * maiores despesas de P, os snapshots do Health de P − 6 a P e a posição dos cartões hoje e no último dia de cada um
- * dos 6 meses anteriores ({@link CardPortfolio}, ADR-0028 §1). Nenhuma regra financeira própria.
+ * dos 6 meses anteriores ({@link CardPortfolio}, ADR-0028 §1) e o snapshot atual do Forecast
+ * ({@link ForecastReader}, ADR-0032 §3). Nenhuma regra financeira própria.
  */
 @Service
 public class InsightInputLoader {
@@ -50,16 +52,19 @@ public class InsightInputLoader {
     private final AnalyticsReadModel analytics;
     private final HealthSnapshotReader health;
     private final CardPortfolio cards;
+    private final ForecastReader forecast;
     private final Clock clock;
     private final ZoneId businessZone;
 
     public InsightInputLoader(WorkspaceRepository workspaces, AnalyticsReadModel analytics,
-                              HealthSnapshotReader health, CardPortfolio cards, Clock clock,
+                              HealthSnapshotReader health, CardPortfolio cards, ForecastReader forecast,
+                              Clock clock,
                               @Value("${shf.overview.zone:America/Sao_Paulo}") ZoneId businessZone) {
         this.workspaces = workspaces;
         this.analytics = analytics;
         this.health = health;
         this.cards = cards;
+        this.forecast = forecast;
         this.clock = clock;
         this.businessZone = businessZone;
     }
@@ -101,6 +106,6 @@ public class InsightInputLoader {
         return new InsightInput(period, firstActivity, new FlowLedger(entries, currency), analytics.categoryNames(),
                 analytics.largestExpenses(workspaceId, period.period().range(), InsightRules.UNUSUAL_CANDIDATES,
                         currency),
-                snapshots, positions.getOrDefault(today, List.of()), atMonthEnd);
+                snapshots, positions.getOrDefault(today, List.of()), atMonthEnd, forecast.current(workspaceId));
     }
 }

@@ -297,7 +297,12 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - `V20`: séries (estado do usuário), snapshots e previsto × realizado (congelado na virada, reconciliado até D+5);
   - job diário 00:07, rebuild na inicialização + runbook, `forecast/status` e métricas de freshness;
   - `forecast.snapshot-updated` ligado à fila dos Insights (status `UPDATING` com o Forecast em recálculo; o D15 fica para a parte C); ArchUnit das fronteiras do módulo e `forecast/status` na suíte de isolamento
-- [ ] API de Forecast e `/recurring-expenses` (parte C)
+- [x] API de Forecast, `/recurring-expenses` e `/recurring-incomes` e D15 (parte C — ADR-0032; adendo ADR-0028)
+  - leituras `forecast/{month,next-income,upcoming,invoices,cash-flow}` só do snapshot, sempre `200` com `state` e
+    `freshness`, valores com `basis`, partes, faixa, confiança e evidências;
+  - recorrências por id opaco (`V21`): lista, detalhe, `confirm`, `ignore`, `PUT`/`DELETE adjustment`, idempotentes;
+  - suíte de isolamento, snapshot OpenAPI e `schema.d.ts`
+  - D15 `BALANCE_MAY_GO_NEGATIVE` entregue no backend (`insights-v3`, lê o `ForecastReader`; ação `VIEW_UPCOMING_EVENTS`; os D1–D14 não mudam e a troca de versão herda `seenAt` e feedback); o card na UI fica para a parte D
 - [ ] UI de Forecast nas telas existentes e gestão de recorrências (parte D)
 - [ ] cash flow forecast
 - [ ] bill forecast

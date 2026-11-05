@@ -147,6 +147,23 @@ public final class ForecastFakes {
                     .toList();
         }
 
+        /** Id estável por (Workspace, sentido, chave), como o id gravado na primeira inserção. */
+        public static java.util.UUID idOf(WorkspaceId ws, SeriesDirection direction, String key) {
+            return java.util.UUID.nameUUIDFromBytes(id(ws, direction, key).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+
+        @Override
+        public List<SeriesRef> findAllRefs(WorkspaceId workspaceId) {
+            return findAll(workspaceId).stream()
+                    .map(s -> new SeriesRef(idOf(workspaceId, s.direction(), s.key()), s.direction(), s.key()))
+                    .toList();
+        }
+
+        @Override
+        public Optional<SeriesRef> findRef(WorkspaceId workspaceId, java.util.UUID seriesId) {
+            return findAllRefs(workspaceId).stream().filter(r -> r.id().equals(seriesId)).findFirst();
+        }
+
         @Override
         public Optional<RecurringSeries> find(WorkspaceId workspaceId, SeriesDirection direction, String key) {
             return Optional.ofNullable(rows.get(id(workspaceId, direction, key)));

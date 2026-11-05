@@ -10,5 +10,7 @@ public enum LimitationCode {
     /** Fatura ainda aberta: o valor pode mudar até o fechamento (D11). */
     PARTIAL_INVOICE,
     /** Os números de cartão dependem dos pagamentos registrados ou importados (D12, D14). */
-    CARD_PAYMENTS
+    CARD_PAYMENTS,
+    /** O número é uma projeção estimada do Forecast, com faixa e confiança; não é fato (D15, ADR-0032 §3). */
+    ESTIMATED_FORECAST
 }

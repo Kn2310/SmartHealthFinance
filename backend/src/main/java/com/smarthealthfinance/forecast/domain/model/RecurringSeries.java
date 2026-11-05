@@ -122,6 +122,15 @@ public record RecurringSeries(SeriesDirection direction, String key, String labe
                 amount != null ? amount : userExpectedAmount, day != null ? day : userExpectedDay, statusChangedAt);
     }
 
+    /** Remove o ajuste do usuário (valor e dia): voltam os valores detectados. Estado e elegibilidade não mudam. */
+    public RecurringSeries clearAdjustment() {
+        if (userExpectedAmount == null && userExpectedDay == null) {
+            return this;
+        }
+        return new RecurringSeries(direction, key, label, channel, periodicity, expectedDay, expectedAmount,
+                amountRange, confidence, occurrences, algorithmVersion, status, origin, null, null, statusChangedAt);
+    }
+
     private RecurringSeries withStatus(SeriesStatus newStatus, Instant now) {
         if (status == newStatus) {
             return this;

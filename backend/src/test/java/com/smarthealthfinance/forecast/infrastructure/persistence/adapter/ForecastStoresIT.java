@@ -302,6 +302,27 @@ class ForecastStoresIT extends IntegrationTest {
                 .isEmpty();
     }
 
+    @Test
+    void theSeriesIdIsCreatedOnInsertNeverChangedByRedetectionAndResolvedOnlyInsideTheWorkspace() {
+        RecurringSeries rent = series("aluguel", SeriesStatus.DETECTED, "1000.00");
+        tx.executeWithoutResult(s -> seriesRepository.upsertDetected(workspace, List.of(rent), FUTURE));
+        UUID id = read(() -> seriesRepository.findAllRefs(workspace)).getFirst().id();
+
+        tx.executeWithoutResult(s -> seriesRepository.upsertDetected(workspace,
+                List.of(series("aluguel", SeriesStatus.DETECTED, "1100.00")), FUTURE.plusSeconds(1)));
+
+        assertThat(read(() -> seriesRepository.findAllRefs(workspace))).singleElement()
+                .satisfies(ref -> {
+                    assertThat(ref.id()).isEqualTo(id);
+                    assertThat(ref.direction()).isEqualTo(SeriesDirection.EXPENSE);
+                    assertThat(ref.key()).isEqualTo("merchant:aluguel");
+                });
+        assertThat(read(() -> seriesRepository.findRef(workspace, id))).isPresent();
+        // o id de um Workspace não resolve em outro
+        assertThat(read(() -> seriesRepository.findRef(other, id))).isEmpty();
+        assertThat(read(() -> seriesRepository.findAllRefs(other))).isEmpty();
+    }
+
     // --- previsto x realizado ---
 
     @Test

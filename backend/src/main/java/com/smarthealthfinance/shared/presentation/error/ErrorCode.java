@@ -39,6 +39,8 @@ public enum ErrorCode {
 	IMPORT_FILE_REJECTED(HttpStatus.UNPROCESSABLE_CONTENT, "O arquivo não pôde ser importado."),
 	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0023). */
 	INSIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "Insight não encontrado."),
+	/** Inexistente, de outro Workspace ou da outra direção: indistinguíveis de propósito (ADR-0032 §2). */
+	RECURRING_SERIES_NOT_FOUND(HttpStatus.NOT_FOUND, "Série recorrente não encontrada."),
 	/** Só um insight ativo pode ser dispensado (ADR-0023 §3). */
 	INSIGHT_NOT_ACTIVE(HttpStatus.CONFLICT, "O insight não está mais ativo."),
 	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0026). */
