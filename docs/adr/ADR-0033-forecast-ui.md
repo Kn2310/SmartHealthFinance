@@ -163,7 +163,9 @@ Pontos que o ADR deixava em aberto, resolvidos sem mudar nenhuma decisão:
 
 ## Para a Sessão 7.2
 
-Preenchido ao fim desta parte.
+O handoff está no ADR-0030, seção "Para a Sessão 7.2". Do lado da UI, o M10 reaproveita o `ProjectedValue`
+(selos e faixa), o padrão de estados `NOT_BUILT`/`INSUFFICIENT_HISTORY`/`RECALCULATING` e a página
+`/recurring`, que é onde o usuário corrige a base das simulações.
 
 ## Date
 
