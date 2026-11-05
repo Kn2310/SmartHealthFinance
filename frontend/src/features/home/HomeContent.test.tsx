@@ -1,9 +1,17 @@
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Overview, OverviewTransaction } from '@/lib/api/types'
 import { axeViolations } from '@/test/a11y'
+import { json, stubBff } from '@/test/bff-stub'
+import { notBuiltUpcoming } from '@/features/forecast/fixtures'
 import { HomeContent } from './HomeContent'
 import { brl, noAccountsOverview, noActivityOverview, noTransactionsOverview, readyOverview } from './fixtures'
+
+// "Próximos eventos" consulta o Forecast; por padrão, sem snapshot (fallback do Overview).
+beforeEach(() => {
+  stubBff({ 'GET /api/bff/forecast/upcoming': () => json(notBuiltUpcoming()) })
+})
+afterEach(() => vi.unstubAllGlobals())
 
 /** Texto de um elemento sem distinguir espaço comum de não separável. */
 const text = (el: Element | null) => el?.textContent?.replace(/ /g, ' ') ?? ''
@@ -269,7 +277,8 @@ describe('HomeContent — cartões (ADR-0006 §18)', () => {
     calculationVersion: 'invoice-v2',
   })
 
-  it('"Faturas a pagar" separado do saldo total e "Próximos eventos" só com fatos', async () => {
+  it('"Faturas a pagar" separado do saldo total e, sem snapshot, "Próximos eventos" só com os fatos do Overview', async () => {
+    stubBff({ 'GET /api/bff/forecast/upcoming': () => json(notBuiltUpcoming()) })
     const { container } = render(<HomeContent overview={readyOverview({ cards: bills() })} />)
 
     // O saldo total continua só das contas.
@@ -280,6 +289,7 @@ describe('HomeContent — cartões (ADR-0006 §18)', () => {
     expect(text(toPay)).toContain('Próximo vencimento: 5 out. · R$ 3.412,80')
 
     const events = screen.getByRole('region', { name: 'Próximos eventos' })
+    await within(events).findByText('Estimativas em preparação.')
     const items = within(events).getAllByRole('listitem')
     expect(items).toHaveLength(3)
     expect(text(items[0]!)).toContain('Fechamento da fatura Aurora Platinum')
@@ -291,8 +301,10 @@ describe('HomeContent — cartões (ADR-0006 §18)', () => {
     expect(await axeViolations(container)).toEqual([])
   })
 
-  it('sem cartão ativo, os blocos não aparecem', () => {
+  it('sem cartão ativo e sem agenda, os blocos não aparecem', async () => {
+    const calls = stubBff({ 'GET /api/bff/forecast/upcoming': () => json(notBuiltUpcoming()) })
     render(<HomeContent overview={readyOverview()} />)
+    await waitFor(() => expect(calls).toHaveLength(1))
     expect(screen.queryByRole('region', { name: 'Faturas a pagar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('region', { name: 'Próximos eventos' })).not.toBeInTheDocument()
   })

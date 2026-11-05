@@ -81,3 +81,37 @@ export function formatMoneySpoken(
 export function isNegative(money: MoneyDto | null | undefined): boolean {
   return money ? (parseAmount(money.amount)?.negative ?? false) : false
 }
+
+/**
+ * Estimativa sem centavos ("R$ 4.664"), arredondada SÓ na exibição (meio para cima, sobre os dígitos da string
+ * decimal: sem `number`). O valor exato continua na API; nada aqui é somado nem derivado (ADR-0033 §1).
+ */
+export function formatMoneyApprox(
+  money: MoneyDto | null | undefined,
+  { sign = 'auto' }: { sign?: SignDisplay } = {},
+): string | null {
+  if (!money) return null
+  const parsed = parseAmount(money.amount)
+  if (!parsed) return null
+  const up = (parsed.fraction[0] ?? '0') >= '5'
+  const integer = up ? (BigInt(parsed.integer) + 1n).toString() : parsed.integer
+  const text = `${SYMBOLS[money.currency] ?? money.currency} ${group(integer)}`
+  if (integer === '0') return text
+  if (sign === 'never') return text
+  if (sign === 'inflow') return `+ ${text}`
+  if (sign === 'outflow') return `− ${text}`
+  if (parsed.negative) return `− ${text}`
+  return sign === 'always' ? `+ ${text}` : text
+}
+
+/** Texto falado da estimativa arredondada: "menos R$ 120" no lugar do sinal. */
+export function formatMoneyApproxSpoken(
+  money: MoneyDto | null | undefined,
+  options: { sign?: SignDisplay } = {},
+): string | null {
+  const text = formatMoneyApprox(money, options)
+  if (text === null) return null
+  if (text.startsWith('− ')) return `menos ${text.slice(2)}`
+  if (text.startsWith('+ ')) return `mais ${text.slice(2)}`
+  return text
+}

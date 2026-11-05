@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatMoney, formatMoneySpoken, isNegative, parseAmount } from './money'
+import { formatMoney, formatMoneyApprox, formatMoneyApproxSpoken, formatMoneySpoken, isNegative, parseAmount } from './money'
 
 const brl = (amount: string) => ({ amount, currency: 'BRL' })
 
@@ -87,5 +87,29 @@ describe('parseAmount / isNegative', () => {
     expect(isNegative(null)).toBe(false)
     expect(isNegative(brl('-0.00'))).toBe(false)
     expect(isNegative(brl('-1.00'))).toBe(true)
+  })
+})
+
+describe('formatMoneyApprox (estimativa sem centavos)', () => {
+  it('arredonda só na exibição, meio para cima, sem passar por number', () => {
+    expect(formatMoneyApprox(brl('4664.10'))).toBe('R$ 4.664')
+    expect(formatMoneyApprox(brl('4664.50'))).toBe('R$ 4.665')
+    expect(formatMoneyApprox(brl('4664.49'))).toBe('R$ 4.664')
+    expect(formatMoneyApprox(brl('2999.99'))).toBe('R$ 3.000')
+    expect(formatMoneyApprox(brl('9007199254740993.60'))).toBe('R$ 9.007.199.254.740.994')
+    expect(formatMoneyApprox(brl('480'))).toBe('R$ 480')
+  })
+
+  it('sinal só quando há valor depois do arredondamento; null não vira zero', () => {
+    expect(formatMoneyApprox(brl('-120.40'))).toBe('− R$ 120')
+    expect(formatMoneyApprox(brl('-0.40'))).toBe('R$ 0')
+    expect(formatMoneyApprox(brl('120.00'), { sign: 'always' })).toBe('+ R$ 120')
+    expect(formatMoneyApprox(null)).toBeNull()
+    expect(formatMoneyApprox(brl('abc'))).toBeNull()
+  })
+
+  it('texto falado troca o sinal por palavra', () => {
+    expect(formatMoneyApproxSpoken(brl('-120.40'))).toBe('menos R$ 120')
+    expect(formatMoneyApproxSpoken(brl('4664.10'))).toBe('R$ 4.664')
   })
 })

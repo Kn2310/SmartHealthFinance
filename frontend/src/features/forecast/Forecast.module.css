@@ -1,0 +1,6 @@
+/* Peças comuns das telas com estimativa (ADR-0033). Só tokens do DS. */
+.confidence { color: var(--color-neutral-text-secondary); font: var(--type-caption); overflow-wrap: anywhere; }
+.limitation { color: var(--color-neutral-muted); font: var(--type-caption); overflow-wrap: anywhere; }
+.note { color: var(--color-neutral-muted); font: var(--type-caption); overflow-wrap: anywhere; }
+.noteRecalculating { color: var(--color-semantic-text-info); }
+.block { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); }

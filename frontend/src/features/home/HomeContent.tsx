@@ -2,10 +2,11 @@ import type { ReactNode } from 'react'
 import type { Overview } from '@/lib/api/types'
 import { AccountsSummary } from './AccountsSummary'
 import { BalanceHero } from './BalanceHero'
-import { InvoicesToPay, UpcomingEvents } from './CardBills'
+import { InvoicesToPay } from './CardBills'
 import { CashFlowSummary } from './CashFlowSummary'
 import { NoAccounts, NoActivityInPeriod, NoTransactions, UnsupportedState } from './HomeEmpty'
 import { RecentTransactions } from './RecentTransactions'
+import { UpcomingEvents } from './UpcomingEvents'
 import styles from './HomeView.module.css'
 
 /**
@@ -14,7 +15,7 @@ import styles from './HomeView.module.css'
  * bloco e independente do período da Visão geral; `insights` são "Merece atenção" e "O que mudou?" (ADR-0023 §5),
  * logo depois da Visão geral, só nos estados com saldo (os blocos têm os próprios estados e não seguem o período).
  * Com cartão ativo, "Faturas a pagar" fica logo abaixo do saldo, como bloco separado (a dívida não entra no saldo), e
- * "Próximos eventos" fecha a Home (ADR-0006 §18); os dois são sempre de hoje, qualquer que seja o período.
+ * "Próximos eventos" fecha a Home (ADR-0006 §18, ADR-0033 §2: agenda do Forecast, com os fatos do Overview de reserva); os dois são sempre de hoje, qualquer que seja o período.
  */
 export function HomeContent({ overview, health = null, insights = null }: {
   overview: Overview
@@ -32,7 +33,7 @@ export function HomeContent({ overview, health = null, insights = null }: {
     .filter(Boolean).join(' ')
   const { state, summary, period, cashFlow, accounts, recentTransactions, cards } = overview
   const bills = cards ? <InvoicesToPay bills={cards} /> : null
-  const events = cards ? <UpcomingEvents bills={cards} /> : null
+  const events = <UpcomingEvents bills={cards} accounts={accounts} />
   const hero = (
     <div className={styles.hero}>
       <div className={styles.heroStack}>
