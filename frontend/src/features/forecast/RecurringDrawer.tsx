@@ -151,7 +151,7 @@ export function RecurringDrawer({ series, kind, onClose, onDone, trigger }: {
       aria-labelledby={`${id}-title`}
       aria-modal="true"
       onKeyDown={onKeyDown}
-      onClose={onClose}
+      // Sem onClose nativo: o efeito fecha o diálogo ao desmontar (e o StrictMode do dev o faz uma vez a mais); Esc e fundo já chamam onClose.
       onCancel={(event) => {
         event.preventDefault()
         onClose()
