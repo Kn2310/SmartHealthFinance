@@ -50,7 +50,8 @@ export function RecurringDrawer({ series, kind, onClose, onDone, trigger }: {
 }) {
   const id = useId()
   const dialog = useRef<HTMLDialogElement>(null)
-  const [amount, setAmount] = useState(decimal(series.expectedAmount.amount))
+  const initialAmount = decimal(series.expectedAmount.amount)
+  const [amount, setAmount] = useState(initialAmount)
   const [day, setDay] = useState(String(series.expectedDay))
   const [errors, setErrors] = useState<Partial<Record<Field | 'form', string>>>({})
   const [busy, setBusy] = useState(false)
@@ -97,10 +98,11 @@ export function RecurringDrawer({ series, kind, onClose, onDone, trigger }: {
     const next: Partial<Record<Field | 'form', string>> = {}
     const body: Adjustment = {}
 
-    const parsed = parseAmountInput(amount)
-    if (!parsed.ok) next.expectedAmount = AMOUNT_ERROR[parsed.error] ?? AMOUNT_FALLBACK
-    else if (parsed.value !== series.expectedAmount.amount) {
-      body.expectedAmount = { amount: parsed.value, currency: series.expectedAmount.currency }
+    // Só interpreta o valor que a pessoa alterou: o detectado pode vir com mais de 2 casas (mediana) ou outra escala.
+    if (amount.trim() !== initialAmount) {
+      const parsed = parseAmountInput(amount)
+      if (!parsed.ok) next.expectedAmount = AMOUNT_ERROR[parsed.error] ?? AMOUNT_FALLBACK
+      else body.expectedAmount = { amount: parsed.value, currency: series.expectedAmount.currency }
     }
     const dayNumber = Number(day)
     if (!/^\d{1,2}$/.test(day.trim()) || dayNumber < 1 || dayNumber > 31) next.expectedDay = SERVER_FIELD_ERROR.expectedDay

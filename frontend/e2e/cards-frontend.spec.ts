@@ -74,7 +74,7 @@ test('cadastro → compra parcelada → cartões → fatura → parcelamento →
   await expect(block.getByRole('img', { name: 'Utilização de 60% do limite' })).toBeVisible()
   await expect(page.getByRole('region', { name: 'Parcelamentos' })).toContainText(PURCHASE.description)
 
-  // Fatura atual: parcial, com a parcela 1/3 destacada e o comprometido da próxima, sem estimativa.
+  // Fatura atual: parcial, com a parcela 1/3 destacada e o comprometido da próxima, sem valor estimado.
   await block.getByRole('link', { name: 'Ver fatura' }).click()
   await expect(page).toHaveURL(new RegExp(`/cards/${cardId}/invoice$`))
   const main = page.getByRole('main')
@@ -86,7 +86,9 @@ test('cadastro → compra parcelada → cartões → fatura → parcelamento →
   await expect(main).toContainText('regras invoice-v2')
   await expect(main).toContainText('Parcela 1 de 3')
   await expect(main.getByText('Já comprometido (parcelas)')).toBeVisible()
-  await expect(main).not.toContainText('Estimativa')
+  await expect(main).not.toContainText('≈')
+  await expect(main).not.toContainText('Novas compras pelo seu padrão')
+  await expect(main.getByText('Estimado', { exact: true })).toHaveCount(0)
 
   // Parcelamento: blocos, peso na fatura aberta e utilização sem parcelas futuras, do backend.
   // O lançamento aparece pelo comerciante que o backend reconheceu na descrição.

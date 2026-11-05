@@ -15,6 +15,14 @@ import type {
  * Fixtures sintéticas do Forecast com os números do 09-dados: projeção do mês R$ 4.664,10 (realizado 3.846,20 +
  * 817,90 estimados) e a fatura Aurora de novembro (480,00 comprometido + 2.532,10 de novas compras).
  */
+/** Só para fixtures: subtração exata em centavos, sem float. */
+const amountToCents = (amount: string) => BigInt(amount.replace('.', ''))
+const centsToAmount = (cents: bigint) => {
+  const sign = cents < 0n ? '-' : ''
+  const digits = (cents < 0n ? -cents : cents).toString().padStart(3, '0')
+  return `${sign}${digits.slice(0, -2)}.${digits.slice(-2)}`
+}
+
 export const brl = (amount: string): MoneyDto => ({ amount, currency: 'BRL' })
 
 export const AURORA_CARD = '01922f5e-0000-7000-8000-0000000000c1'
@@ -53,7 +61,7 @@ export function estimate(
     basis: 'ESTIMATED',
     value: brl(value),
     factPart: brl(factPart),
-    estimatedPart: brl((Number(value) - Number(factPart)).toFixed(2)),
+    estimatedPart: brl(/^-?\d+\.\d{2}$/.test(value) ? centsToAmount(amountToCents(value) - amountToCents(factPart)) : value),
     range: { low: brl(low), high: brl(high) },
     partial: false,
     confidence: options.confidence ?? 'MEDIUM',

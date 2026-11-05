@@ -52,7 +52,7 @@ export function RecurringView() {
   const list = useRecurringList(kind)
   const names = useChannelNames()
 
-  const [notice, setNotice] = useState<{ message: string; undo?: string } | null>(null)
+  const [notice, setNotice] = useState<{ message: string; undo?: string; kind: RecurringKind } | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [adjusting, setAdjusting] = useState<{ series: ForecastRecurringSeries; trigger: HTMLElement | null } | null>(null)
@@ -86,7 +86,7 @@ export function RecurringView() {
     if (list.status === 'success') {
       replace({ items: list.data.items.map((item) => (item.id === outcome.series.id ? outcome.series : item)) })
     }
-    setNotice({ message: outcome.message, undo: outcome.undo })
+    setNotice({ message: outcome.message, undo: outcome.undo, kind })
     setActionError(null)
     setRecalcRun((n) => n + 1)
   }
@@ -109,15 +109,15 @@ export function RecurringView() {
     })
   }
 
-  async function undo(id: string) {
+  async function undo(id: string, seriesKind: RecurringKind) {
     setBusy(id)
-    const result = await confirmSeries(kind, id)
+    const result = await confirmSeries(seriesKind, id)
     setBusy(null)
     if (!result.ok) {
       setActionError('Não conseguimos desfazer agora. Use "Confirmar" na lista de ignoradas.')
       return
     }
-    apply({ series: result.data.series, message: 'Recorrência confirmada.' })
+    apply({ series: result.data.series, message: 'Recorrência restaurada e confirmada.' })
   }
 
   const items = list.status === 'success' ? list.data.items : []
@@ -143,12 +143,12 @@ export function RecurringView() {
       </nav>
 
       <div className={styles.live} role="status">
-        {notice ? (
+        {notice && notice.kind === kind ? (
           <p className={styles.toast}>
             <span>{notice.message}</span>
             {notice.undo ? (
               <button type="button" className={styles.linkButton} disabled={busy !== null}
-                onClick={() => void undo(notice.undo!)}>
+                onClick={() => void undo(notice.undo!, notice.kind)}>
                 Desfazer
               </button>
             ) : null}

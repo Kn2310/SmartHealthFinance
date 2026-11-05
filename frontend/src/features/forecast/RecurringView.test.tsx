@@ -141,6 +141,19 @@ describe('Recorrências (/recurring, ADR-0033 §5)', () => {
     expect(screen.queryByRole('button', { name: 'Desfazer' })).not.toBeInTheDocument()
   })
 
+  it('o aviso "Desfazer" pertence à aba onde a ação aconteceu', async () => {
+    stubAll([rent()], {
+      [`POST /api/bff/recurring-expenses/${SERIES_RENT}/ignore`]: () => json(recurringAction(rent({ status: 'IGNORED' }))),
+    })
+    const { rerender } = render(<RecurringView />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Ignorar Aluguel' }))
+    expect(await screen.findByRole('button', { name: 'Desfazer' })).toBeInTheDocument()
+
+    search = new URLSearchParams('tab=incomes')
+    rerender(<RecurringView />)
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Desfazer' })).not.toBeInTheDocument())
+  })
+
   it('falha numa ação mostra o erro e mantém a lista', async () => {
     stubAll([rent()], { [`POST /api/bff/recurring-expenses/${SERIES_RENT}/confirm`]: () => json({ code: 'UNAVAILABLE' }, 502) })
     render(<RecurringView />)
@@ -176,6 +189,25 @@ describe('Recorrências (/recurring, ADR-0033 §5)', () => {
     expect(await screen.findByText('Ajustada por você')).toBeInTheDocument()
     expect(screen.getByText('Ajuste salvo.')).toBeInTheDocument()
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Ajustar Aluguel' }))
+  })
+
+  it('ajustar só o dia não reenvia o valor detectado, mesmo com mais de 2 casas ou outra escala', async () => {
+    const detected = { expectedAmount: brl('100.005'), amountRange: { low: brl('100.00'), high: brl('100.01') } }
+    const calls = stubAll([rent({ status: 'CONFIRMED', ...detected })], {
+      [`PUT /api/bff/recurring-expenses/${SERIES_RENT}/adjustment`]: () =>
+        json(recurringAction(rent({ status: 'CONFIRMED', ...detected, expectedDay: 9, userAdjusted: true, origin: 'USER' }))),
+    })
+    render(<RecurringView />)
+    await userEvent.click(await screen.findByRole('button', { name: 'Ajustar Aluguel' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Ajustar recorrência' })
+    const day = within(dialog).getByLabelText('Dia do mês')
+    await userEvent.clear(day)
+    await userEvent.type(day, '9')
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Salvar ajuste' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    const put = calls.find((c) => c.method === 'PUT')!
+    expect(JSON.parse(String(put.init?.body))).toEqual({ expectedDay: 9 })
   })
 
   it('ajustar: validação local por campo e nada a salvar', async () => {
