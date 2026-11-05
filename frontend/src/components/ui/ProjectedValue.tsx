@@ -22,7 +22,7 @@ interface ProjectedValueProps {
   value: ForecastValue
   /** Mostra o selo ao lado do valor (padrão). */
   badge?: boolean
-  /** Mostra "entre R$ a e R$ b" abaixo de uma estimativa (padrão). */
+  /** Mostra "entre R$ a e R$ b" abaixo de uma estimativa (padrão); sem a faixa, o texto alternativo também a omite. */
   range?: boolean
   className?: string
 }
@@ -48,7 +48,10 @@ export function ProjectedValue({ value, badge = true, range = true, className }:
   const low = formatMoneyApprox(value.range.low)
   const high = formatMoneyApprox(value.range.high)
   if (main === null || low === null || high === null) return <Money value={null} className={className} />
-  const spoken = `aproximadamente ${formatMoneyApproxSpoken(value.value)}, entre ${formatMoneyApproxSpoken(value.range.low)} e ${formatMoneyApproxSpoken(value.range.high)}, estimado`
+  const aloud = formatMoneyApproxSpoken(value.value)
+  const spoken = range
+    ? `aproximadamente ${aloud}, entre ${formatMoneyApproxSpoken(value.range.low)} e ${formatMoneyApproxSpoken(value.range.high)}, estimado`
+    : `aproximadamente ${aloud}, estimado`
   return (
     <span className={[styles.wrap, className].filter(Boolean).join(' ')} data-basis="estimated">
       <span className={styles.line}>
