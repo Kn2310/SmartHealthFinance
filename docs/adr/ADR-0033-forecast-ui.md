@@ -115,6 +115,21 @@ Adendo ao ADR-0029 §4: a estimativa deixa de ficar oculta.
   2. confirmar e ignorar uma recorrência produz o efeito esperado;
   3. o teste roda nas 5 larguras.
 
+### 8. Adendo (2026-11-05): detalhes da implementação
+
+Pontos que o ADR deixava em aberto, resolvidos sem mudar nenhuma decisão:
+- **Faixa das novas compras (Cartões):** a API devolve a faixa só no total (`total.range`). Como o cliente não
+  calcula, "Novas compras pelo seu padrão" mostra "≈ valor" com o selo, e a faixa aparece na linha "Total
+  estimado". Se for preciso ter a faixa por parte, o contrato ganha um campo aditivo.
+- **Projeção do mês em outro mês:** o `/forecast/month` vale só para o mês corrente. Com outro mês escolhido na
+  Análise, aparece "A projeção vale só para o mês corrente."
+- **Títulos das faturas na Home:** para manter "Fechamento" e "Vencimento" e o mês da fatura, os eventos de fatura do
+  Forecast são cruzados com os do Overview pelo cartão e pela data. Sem correspondência, o título fica "Fatura
+  {cartão}". O valor exibido é sempre o da API.
+- **Home sem cartão:** "Próximos eventos" aparece quando há recorrências na agenda, mesmo sem cartão ativo.
+- **D-FutureInvoices:** os meses vêm das faturas `NEXT` e `FUTURE` do Forecast, e as parcelas vêm de Cartões. Sem
+  estimativa, a tela é a de antes.
+
 ## Alternatives
 
 - **Nova aba em Análise ou seção no Perfil:** muda as abas do design, ou fica longe de onde as estimativas aparecem.
