@@ -838,6 +838,19 @@
         },
         "type" : "object"
       },
+      "ApplyGoalPlanRequest" : {
+        "properties" : {
+          "deadline" : {
+            "example" : "2027-07",
+            "type" : "string"
+          },
+          "plannedMonthly" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "required" : [ "plannedMonthly" ],
+        "type" : "object"
+      },
       "CardCreditRequest" : {
         "properties" : {
           "amount" : {
@@ -1236,6 +1249,43 @@
           }
         },
         "required" : [ "name", "type" ],
+        "type" : "object"
+      },
+      "CreateGoalRequest" : {
+        "properties" : {
+          "deadline" : {
+            "example" : "2027-07",
+            "type" : "string"
+          },
+          "destinationAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 60,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "origin" : {
+            "$ref" : "#/components/schemas/GoalOriginRequest"
+          },
+          "plannedMonthly" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "sourceAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "targetAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "type" : {
+            "enum" : [ "EMERGENCY_RESERVE", "PURCHASE", "CUSTOM" ],
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "name", "plannedMonthly", "targetAmount", "type" ],
         "type" : "object"
       },
       "CreateTransactionRequest" : {
@@ -1947,6 +1997,254 @@
           },
           "totalCommitted" : {
             "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalContributionRequest" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "description" : {
+            "maxLength" : 200,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "destinationAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "occurredOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "sourceAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "occurredOn", "sourceAccountId" ],
+        "type" : "object"
+      },
+      "GoalContributionsResponse" : {
+        "properties" : {
+          "movements" : {
+            "items" : {
+              "$ref" : "#/components/schemas/GoalMovementDto"
+            },
+            "type" : "array"
+          },
+          "openingBalance" : {
+            "$ref" : "#/components/schemas/GoalOpeningBalance"
+          },
+          "page" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "pageSize" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "totalElements" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalDestinationDto" : {
+        "properties" : {
+          "accountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "enum" : [ "ACCOUNT", "RESERVE" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalListResponse" : {
+        "properties" : {
+          "goals" : {
+            "items" : {
+              "$ref" : "#/components/schemas/GoalResponse"
+            },
+            "type" : "array"
+          },
+          "summary" : {
+            "$ref" : "#/components/schemas/GoalListSummary"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalListSummary" : {
+        "properties" : {
+          "activeCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "plannedMonthlyTotal" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "savedTotal" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalMovementDto" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "counterpartAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "direction" : {
+            "enum" : [ "IN", "OUT" ],
+            "type" : "string"
+          },
+          "kind" : {
+            "enum" : [ "CONTRIBUTION", "WITHDRAWAL", "OTHER" ],
+            "type" : "string"
+          },
+          "occurredOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "transactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalOpeningBalance" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "date" : {
+            "format" : "date",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalOriginDto" : {
+        "properties" : {
+          "insightId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "enum" : [ "MANUAL", "INSIGHT", "HEALTH" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalOriginRequest" : {
+        "properties" : {
+          "insightId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "kind" : {
+            "enum" : [ "MANUAL", "INSIGHT", "HEALTH" ],
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "kind" ],
+        "type" : "object"
+      },
+      "GoalProgressDto" : {
+        "properties" : {
+          "basis" : {
+            "enum" : [ "FACT" ],
+            "type" : "string"
+          },
+          "destinationBalance" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "destinationState" : {
+            "enum" : [ "OK", "ACCOUNT_ARCHIVED", "NO_RESERVE_ACCOUNT" ],
+            "type" : "string"
+          },
+          "percent" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "reached" : {
+            "type" : "boolean"
+          },
+          "remaining" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "saved" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalResponse" : {
+        "properties" : {
+          "completedAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "completedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "deadline" : {
+            "type" : "string"
+          },
+          "destination" : {
+            "$ref" : "#/components/schemas/GoalDestinationDto"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "type" : "string"
+          },
+          "origin" : {
+            "$ref" : "#/components/schemas/GoalOriginDto"
+          },
+          "plannedMonthly" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "progress" : {
+            "$ref" : "#/components/schemas/GoalProgressDto"
+          },
+          "sourceAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED" ],
+            "type" : "string"
+          },
+          "targetAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "trackingStart" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "type" : {
+            "enum" : [ "EMERGENCY_RESERVE", "PURCHASE", "CUSTOM" ],
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -3381,6 +3679,41 @@
         },
         "type" : "object"
       },
+      "RecentContributionItem" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "goalId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "occurredOn" : {
+            "format" : "date",
+            "type" : "string"
+          },
+          "sourceAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "transactionId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "RecentContributionsResponse" : {
+        "properties" : {
+          "contributions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/RecentContributionItem"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "RecentTransaction" : {
         "properties" : {
           "account" : {
@@ -3671,6 +4004,35 @@
           }
         },
         "required" : [ "includedInTotal", "name", "type" ],
+        "type" : "object"
+      },
+      "UpdateGoalRequest" : {
+        "properties" : {
+          "deadline" : {
+            "example" : "2027-07",
+            "type" : "string"
+          },
+          "destinationAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "name" : {
+            "maxLength" : 60,
+            "minLength" : 0,
+            "type" : "string"
+          },
+          "plannedMonthly" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "sourceAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "targetAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "required" : [ "name", "plannedMonthly", "targetAmount" ],
         "type" : "object"
       },
       "UpdateProfileRequest" : {
@@ -6424,6 +6786,771 @@
         },
         "summary" : "Agenda de 30 dias completa e ordenada: eventos de fatura (fatos) e recorrências estimadas (ADR-0030 3.3)",
         "tags" : [ "Forecast" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals" : {
+      "get" : {
+        "operationId" : "listGoals",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "ACTIVE, PAUSED, COMPLETED ou ARCHIVED",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalListResponse"
+                }
+              }
+            },
+            "description" : "Objetivos, mais recentes primeiro, com o progresso (fato)"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (status INVALID)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Lista os objetivos (sem filtro: ativos e pausados) com o resumo dos abertos",
+        "tags" : [ "Goals" ]
+      },
+      "post" : {
+        "operationId" : "createGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateGoalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalResponse"
+                }
+              }
+            },
+            "description" : "Objetivo criado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (destinationAccountId REQUIRED/NOT_ALLOWED/SAVINGS_NOT_ALLOWED, deadline PAST, sourceAccountId SAME_AS_DESTINATION, ...)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou ACCOUNT_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "ACCOUNT_ARCHIVED, GOAL_DESTINATION_IN_USE ou GOAL_RESERVE_ALREADY_EXISTS"
+          }
+        },
+        "summary" : "Cria um objetivo",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/recent-contributions" : {
+      "get" : {
+        "operationId" : "listRecentGoalContributions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "1 a 20 (padrão 5)",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/RecentContributionsResponse"
+                }
+              }
+            },
+            "description" : "Aportes, mais recentes primeiro"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (limit OUT_OF_RANGE)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Aportes recentes (fato) dos objetivos ativos e pausados",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}" : {
+      "get" : {
+        "operationId" : "getGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalResponse"
+                }
+              }
+            },
+            "description" : "Objetivo"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          }
+        },
+        "summary" : "Detalhe do objetivo com o progresso (fato)",
+        "tags" : [ "Goals" ]
+      },
+      "put" : {
+        "operationId" : "updateGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/UpdateGoalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalResponse"
+                }
+              }
+            },
+            "description" : "Objetivo atualizado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, GOAL_NOT_FOUND ou ACCOUNT_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "GOAL_STATUS_CONFLICT, ACCOUNT_ARCHIVED, GOAL_DESTINATION_IN_USE ou CONFLICT"
+          }
+        },
+        "summary" : "Edita nome, alvo, aporte planejado, prazo, conta de origem e destino do objetivo",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/archive" : {
+      "post" : {
+        "operationId" : "archiveGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalResponse"
+                }
+              }
+            },
+            "description" : "Objetivo arquivado"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          }
+        },
+        "summary" : "Arquiva o objetivo (idempotente; terminal)",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/complete" : {
+      "post" : {
+        "operationId" : "completeGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalResponse"
+                }
+              }
+            },
+            "description" : "Objetivo concluído"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "GOAL_STATUS_CONFLICT"
+          }
+        },
+        "summary" : "Conclui o objetivo e congela o progresso atual (idempotente)",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/contributions" : {
+      "get" : {
+        "operationId" : "listGoalContributions",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "0-based (padrão 0)",
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "1 a 50 (padrão 20)",
+          "in" : "query",
+          "name" : "pageSize",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalContributionsResponse"
+                }
+              }
+            },
+            "description" : "Movimentos, mais recentes primeiro"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (page ou pageSize OUT_OF_RANGE)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          }
+        },
+        "summary" : "Histórico do destino: saldo inicial e movimentos (aportes, resgates e outros), fatos",
+        "tags" : [ "Goals" ]
+      },
+      "post" : {
+        "operationId" : "addGoalContribution",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Chave única por intenção",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/GoalContributionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransactionResponse"
+                }
+              }
+            },
+            "description" : "Replay: a mesma chave e conteúdo já foram processados"
+          },
+          "201" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/TransactionResponse"
+                }
+              }
+            },
+            "description" : "Aporte registrado (a transferência criada)"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (Idempotency-Key ausente, occurredOn FUTURE/BEFORE_TRACKING_START, destinationAccountId REQUIRED/NOT_ALLOWED/NOT_RESERVE_ACCOUNT, ...)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, GOAL_NOT_FOUND ou ACCOUNT_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "GOAL_STATUS_CONFLICT ou ACCOUNT_ARCHIVED"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "IDEMPOTENCY_KEY_REUSED"
+          }
+        },
+        "summary" : "Registra um aporte: transferência da origem para o destino do objetivo (idempotente)",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/pause" : {
+      "post" : {
+        "operationId" : "pauseGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalResponse"
+                }
+              }
+            },
+            "description" : "Objetivo pausado"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "GOAL_STATUS_CONFLICT"
+          }
+        },
+        "summary" : "Pausa o objetivo (idempotente)",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/plan" : {
+      "put" : {
+        "operationId" : "applyGoalPlan",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ApplyGoalPlanRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalResponse"
+                }
+              }
+            },
+            "description" : "Plano aplicado; nenhum dado financeiro muda"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (deadline PAST, ...)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "GOAL_STATUS_CONFLICT ou CONFLICT"
+          }
+        },
+        "summary" : "Aplica um novo aporte planejado e prazo ao objetivo (\"Aplicar ao objetivo\")",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/resume" : {
+      "post" : {
+        "operationId" : "resumeGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalResponse"
+                }
+              }
+            },
+            "description" : "Objetivo ativo"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "GOAL_STATUS_CONFLICT"
+          }
+        },
+        "summary" : "Retoma o objetivo pausado (idempotente)",
+        "tags" : [ "Goals" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/health" : {
