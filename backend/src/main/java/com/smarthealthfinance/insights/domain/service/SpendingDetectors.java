@@ -139,7 +139,7 @@ final class SpendingDetectors {
                 purchases == 1 ? "Ver a transação" : "Ver as " + purchases + " transações", filter));
         actions.add(InsightAction.secondary(ActionKind.VIEW_CATEGORY, "Ver categoria",
                 Map.of("month", ctx.key(), "category", category)));
-        actions.addAll(DetectionContext.comingSoon());
+        actions.addAll(ctx.savingsGoalActions(delta, category));
 
         InsightContent content = new InsightContent(title, support, name,
                 ctx.riseLine(name, spent, average, delta), recommendation, evidence, actions,
@@ -195,7 +195,7 @@ final class SpendingDetectors {
 
         List<InsightAction> actions = new ArrayList<>();
         actions.add(InsightAction.primary(ActionKind.VIEW_ANALYSIS, "Ver na análise", Map.of("month", ctx.key())));
-        actions.addAll(DetectionContext.comingSoon());
+        actions.addAll(ctx.savingsGoalActions(delta, null));
         InsightContent content = new InsightContent(title, support, TOTAL_LABEL,
                 ctx.riseLine(TOTAL_LABEL, spent, average, delta), null, evidence, actions,
                 new InsightRefs(rises.isEmpty() ? null : rises.getFirst().categoryCode(), null, null, null,
