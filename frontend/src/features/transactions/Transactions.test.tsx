@@ -924,7 +924,8 @@ describe('Mais (M-More)', () => {
     // Insights existe (ADR-0023): sem "Em breve"; a contagem de Importantes some quando a chamada falha.
     expect(screen.getByRole('link', { name: /Insights/ })).toHaveAttribute('href', '/insights')
     expect(screen.getByRole('link', { name: /Insights/ })).not.toHaveTextContent('Em breve')
-    expect(screen.getByRole('link', { name: /Objetivos/ })).toHaveTextContent('Em breve')
+    // Objetivos existe (ADR-0037): sem "Em breve".
+    expect(screen.getByRole('link', { name: 'Objetivos' })).toHaveAttribute('href', '/goals')
     // Recorrências (ADR-0033 §5): sem item na navegação principal, só aqui.
     expect(screen.getByRole('link', { name: 'Recorrências' })).toHaveAttribute('href', '/recurring')
     expect(await axeViolations(container)).toEqual([])

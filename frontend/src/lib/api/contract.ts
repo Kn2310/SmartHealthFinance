@@ -44,6 +44,13 @@ export const INSTALLMENT_PLAN_STATUSES = ['ACTIVE', 'FINISHED', 'CANCELLED'] as 
 /** Parcelas de uma compra no cartão (InstallmentSplitter.MAX_INSTALLMENTS). */
 export const MAX_INSTALLMENTS = 48
 export const CARD_NICKNAME_MAX_LENGTH = 100
+/** Objetivos (ADR-0034 §1, ADR-0035): tipos, status, ações e o limite do nome (`GoalName.MAX_LENGTH`). */
+export const GOAL_TYPES = ['EMERGENCY_RESERVE', 'PURCHASE', 'CUSTOM'] as const
+export const GOAL_STATUSES = ['ACTIVE', 'PAUSED', 'COMPLETED', 'ARCHIVED'] as const
+export const GOAL_ORIGIN_KINDS = ['MANUAL', 'INSIGHT', 'HEALTH'] as const
+export const GOAL_NAME_MAX_LENGTH = 60
+/** `GoalSimulator.MAX_SCENARIOS` do backend. */
+export const GOAL_MAX_SCENARIOS = 5
 
 /** `AccountName.MAX_LENGTH` e `InstitutionName.MAX_LENGTH` do backend: o BFF e o formulário recusam antes. */
 export const ACCOUNT_NAME_MAX_LENGTH = 100
@@ -102,6 +109,10 @@ export type EnumChecks = [
   Assert<Equals<Values<typeof INVOICE_ITEM_KINDS>, S['InvoiceItemResponse']['kind']>>,
   Assert<Equals<Values<typeof INSTALLMENT_STATUSES>, S['InstallmentItemResponse']['status']>>,
   Assert<Equals<Values<typeof INSTALLMENT_PLAN_STATUSES>, S['InstallmentPlanResponse']['status']>>,
+  Assert<Equals<Values<typeof GOAL_TYPES>, S['GoalResponse']['type']>>,
+  Assert<Equals<Values<typeof GOAL_TYPES>, S['CreateGoalRequest']['type']>>,
+  Assert<Equals<Values<typeof GOAL_STATUSES>, S['GoalResponse']['status']>>,
+  Assert<Equals<Values<typeof GOAL_ORIGIN_KINDS>, S['GoalOriginRequest']['kind']>>,
 ]
 
 /** Campos de cada record Java (nomes iguais aos do backend) ↔ chaves do tipo TS correspondente. */

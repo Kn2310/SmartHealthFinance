@@ -348,11 +348,31 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - médias pela porta do Analytics com a janela do Health (teste de paridade);
   - `CREATE_SAVINGS_GOAL` disponível no D1/D2 com a sugestão (300/1.800/mar 2027 no 09-dados), sem trocar de versão;
   - sem rebuild nem runbook (nada é projetado nem gravado)
+- [x] UI de Objetivos (parte D — ADR-0037):
+  - BFF `/api/bff/goals/*` (lista, criação, detalhe, edição, plano, status, aportes com `Idempotency-Key`, simulação,
+    prévia, projeção), `contract.ts` com os enums e limites e teste de drift;
+  - `/goals` (métricas, faixa de simulação sem ✦, Goal Cards, filtro por status, aportes recentes, toast do
+    D-GoalCreated), `/goals/:id` (progresso, previsão Estimada, gráfico real + projeção + prazo com "Ver dados",
+    aportes, Simulation Card com plano/mínimo/outro valor e "Aplicar" com confirmação, drawer "Registrar aporte"),
+    `/goals/new` (tipo, conta do objetivo, origem do insight/Health, prévia Simulada ao vivo) e `/goals/:id/edit`
+    (status com confirmação);
+  - placeholders liberados: "Criar objetivo de economia" (Insights), passo da reserva (Health), "Objetivos" (M-More),
+    "Ações rápidas" da Home; "Perguntar ao Copilot" segue "Em breve" (M11);
+  - Vitest/RTL + axe e testes do BFF; E2E `goals.spec.ts` (Health → reserva → aporte → previsão → simular → aplicar,
+    sem efeito em saldo, fluxo e Health) nas 5 larguras
 - [x] goal
 - [x] contributions
 - [x] progress
 - [x] forecast
 - [x] simulation
+
+**M10 completo** (Sessão 7.2; ADR-0034 a ADR-0037). Para o M11 (Copilot):
+- disponível como fonte determinística: objetivos com progresso (fato), previsão (Estimado) e simulação (Simulado) por
+  `GET /goals`, `/goals/{id}`, `/projection` e `POST /simulations` — o Copilot pode explicar e simular, nunca gravar;
+  "Aplicar" continua uma ação da pessoa (`PUT /plan`) com confirmação;
+- placeholders do Copilot ainda "Em breve": "Perguntar ao Copilot" no detalhe do insight e nas Ações rápidas da Home;
+- dívidas: D16 (insight acionável), "Marcar como transferência", "Ver todos" dos aportes recentes, redução de categoria
+  na UI de simulação, consumidores dos eventos `goal.*`, caixinhas do Open Finance (`INVESTMENT_POSITION`).
 
 ## M11 Copilot
 

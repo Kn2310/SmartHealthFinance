@@ -1,4 +1,5 @@
 import type { Health, HealthDimensionCode, HealthEvidence, HealthNextStep, InsightItem } from '@/lib/api/types'
+import type { Goal } from '@/features/goals/api'
 import { formatMoney } from '@/lib/format/money'
 import { formatPeriodRange, formatShortDate } from '@/lib/format/date'
 import { longMonthLabel, monthLabel } from '@/components/charts/geometry'
@@ -132,9 +133,17 @@ export function evidenceSource(source: string): string {
  * alta dela no mesmo mês quando existe (adendo de 2026-10-19 ao ADR-0020); senão, à categoria na Análise. Fatura
  * vencida e utilização (ADR-0027 §4) levam às telas de Cartões (Parte F, adendo ao ADR-0020).
  *
+ * A reserva leva ao objetivo de reserva aberto ou à criação dele (adendo de 2026-11-06 ao ADR-0020); sem a lista de
+ * objetivos (`undefined`: carregando ou falhou), leva aos Objetivos, sem arriscar uma segunda reserva.
+ *
  * @param insights insights ativos ligados aos gastos (`/insights/related?dimension=SPENDING`)
+ * @param reserveGoal o objetivo de reserva aberto, `null` se não existe, `undefined` se não se sabe
  */
-export function nextStepLink(step: HealthNextStep, insights: InsightItem[] = []): { href: string | null; label: string } {
+export function nextStepLink(
+  step: HealthNextStep,
+  insights: InsightItem[] = [],
+  reserveGoal?: Goal | null,
+): { href: string | null; label: string } {
   switch (step.kind) {
     case 'PAY_OVERDUE_INVOICE':
       return {
@@ -144,7 +153,9 @@ export function nextStepLink(step: HealthNextStep, insights: InsightItem[] = [])
     case 'REVIEW_CARD_UTILIZATION':
       return { href: step.cardId ? `/cards/${encodeURIComponent(step.cardId)}` : null, label: 'Ver cartão' }
     case 'BUILD_RESERVE':
-      return { href: '/accounts', label: 'Ver contas' }
+      if (reserveGoal) return { href: `/goals/${encodeURIComponent(reserveGoal.id)}`, label: 'Ver objetivo de reserva' }
+      if (reserveGoal === null) return { href: '/goals/new?type=EMERGENCY_RESERVE&origin=HEALTH', label: 'Criar objetivo de reserva' }
+      return { href: '/goals', label: 'Ver objetivos' }
     case 'ADD_RESERVE_ACCOUNT':
       return { href: '/accounts/new', label: 'Adicionar conta' }
     case 'REVIEW_CATEGORY': {

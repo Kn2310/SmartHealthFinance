@@ -7,6 +7,11 @@ import {
   CARD_BRANDS,
   CARD_NICKNAME_MAX_LENGTH,
   CARD_STATUSES,
+  GOAL_MAX_SCENARIOS,
+  GOAL_NAME_MAX_LENGTH,
+  GOAL_ORIGIN_KINDS,
+  GOAL_STATUSES,
+  GOAL_TYPES,
   INSTALLMENT_PLAN_STATUSES,
   INSTALLMENT_STATUSES,
   INVOICE_DATES_SOURCES,
@@ -237,5 +242,20 @@ describe.skipIf(!hasBackend)('contrato do Overview × backend (drift)', () => {
     for (const field of ['totalBalance', 'income', 'expense', 'refunds', 'net', 'volume', 'balance', 'amount']) {
       expect(source, field).toMatch(new RegExp(`MoneyDto\\s+${field}\\b`))
     }
+  })
+})
+
+describe.skipIf(!hasBackend)('contrato de Objetivos × backend (drift)', () => {
+  it.each([
+    ['goals/domain/enums/GoalType.java', GOAL_TYPES],
+    ['goals/domain/enums/GoalStatus.java', GOAL_STATUSES],
+    ['goals/domain/enums/GoalOriginKind.java', GOAL_ORIGIN_KINDS],
+  ])('enum %s', (path, frontend) => {
+    expect(sorted(frontend)).toEqual(sorted(javaEnum(path)))
+  })
+
+  it('limites do nome e dos cenários são os do backend', () => {
+    expect(read('goals/domain/valueobject/GoalName.java')).toContain(`MAX_LENGTH = ${GOAL_NAME_MAX_LENGTH};`)
+    expect(read('goals/application/service/GoalSimulator.java')).toContain(`MAX_SCENARIOS = ${GOAL_MAX_SCENARIOS};`)
   })
 })

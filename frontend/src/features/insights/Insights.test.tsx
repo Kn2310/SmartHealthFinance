@@ -120,7 +120,9 @@ describe('Detalhe do insight (D-InsightDetail / M-InsightDetail)', () => {
       '/transactions?period=CUSTOM&from=2026-09-01&to=2026-09-22&type=EXPENSE&category=DINING_OUT')
     expect(screen.getByRole('link', { name: 'Ver categoria' })).toHaveAttribute('href',
       '/analysis/categories?month=2026-09&category=DINING_OUT')
-    expect(screen.getByRole('button', { name: 'Criar objetivo de economia · Em breve' })).toBeDisabled()
+    // Objetivo com origem no insight (adendo de 2026-11-06 ao ADR-0024); o Copilot continua "Em breve" (M11).
+    expect(screen.getByRole('link', { name: 'Criar objetivo de economia' })).toHaveAttribute('href',
+      `/goals/new?origin=INSIGHT&insightId=${SPIKE_ID}`)
     expect(screen.getByRole('button', { name: 'Perguntar ao Copilot · Em breve' })).toBeDisabled()
     expect(screen.getByText('Confiança alta')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Gastos · 71 na saúde financeira/ })).toHaveAttribute('href', '/home/health')
@@ -346,6 +348,8 @@ describe('format', () => {
     expect(actionHref(action('VIEW_ACCOUNTS'))).toBe('/accounts')
     expect(actionHref(action('CATEGORIZE', { category: 'none' }))).toBe('/transactions?category=none')
     expect(actionHref(action('CREATE_SAVINGS_GOAL', {}, false))).toBeNull()
+    expect(actionHref(action('CREATE_SAVINGS_GOAL', { suggestedMonthly: '300.00' }), 'i1')).toBe('/goals/new?origin=INSIGHT&insightId=i1')
+    expect(actionHref(action('CREATE_SAVINGS_GOAL', {}))).toBeNull()
     expect(actionHref(action('ASK_COPILOT', {}, false))).toBeNull()
   })
 

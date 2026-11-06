@@ -47,6 +47,10 @@ card Navy usa cores sobre fundo escuro que não existiam como tokens.
      (`/goals/new?type=EMERGENCY_RESERVE&origin=HEALTH`) quando não existe. Com a previsão do objetivo pronta, o passo
      mostra "Com aportes de {R$}/mês, sua reserva chega a 6 meses de despesas em {mês}" com o selo "≈ Estimado"; sem
      ela, o texto do Health continua. O backend do Health não muda: a ligação é do frontend (parte D).
+   - **Adendo (2026-11-06, ADR-0037 §5, aprovado):** a frase passa a ser "Com aportes de {R$}/mês, sua reserva chega
+     ao alvo de {R$ alvo} em {mês}" com "≈ Estimado", porque o alvo da reserva é editável e pode não ser 6 meses de
+     despesas. Sem a lista de objetivos (carregando ou falhou), o link é "Ver objetivos" (`/goals`), para não arriscar
+     uma segunda reserva.
      Sem `cardId` (ou sem mês, na fatura), o passo continua sem link.
 5. **"Como calculamos?":** `<dialog>` modal nativo, 520 px à direita (bottom sheet no mobile), montado na primeira
    abertura e mantido; abrir e fechar só chamam `showModal()`/`close()`. Foco no botão Fechar ao abrir, preso no

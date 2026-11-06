@@ -121,7 +121,9 @@ export function spikeDetail(overrides: Partial<InsightDetail> = {}): InsightDeta
     actions: [
       spikeItem().primaryAction,
       { kind: 'VIEW_CATEGORY', label: 'Ver categoria', primary: false, available: true, params: { category: 'DINING_OUT', month: '2026-09' } },
-      { kind: 'CREATE_SAVINGS_GOAL', label: 'Criar objetivo de economia', primary: false, available: false, params: {} },
+      // Disponível com a sugestão desde a Parte C da Sessão 7.2 (ADR-0036 §4).
+      { kind: 'CREATE_SAVINGS_GOAL', label: 'Criar objetivo de economia', primary: false, available: true,
+        params: { categoryCode: 'DINING_OUT', suggestedMonthly: '300.00', suggestedTarget: '1800.00', suggestedDeadline: '2027-03' } },
       { kind: 'ASK_COPILOT', label: 'Perguntar ao Copilot', primary: false, available: false, params: {} },
     ],
     related: [scoreItem()],

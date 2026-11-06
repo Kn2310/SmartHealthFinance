@@ -110,3 +110,9 @@
     grid-template-rows: auto;
   }
 }
+
+/* Próximos eventos + Ações rápidas: uma coluna; lado a lado a partir de 1024 px (sem eventos, as ações ocupam a linha). */
+.closing { display: flex; flex-wrap: wrap; gap: var(--grid-gutter-mobile); }
+.events { flex: 2 1 30rem; min-width: 0; }
+.events:empty { display: none; }
+.quick { flex: 1 1 18rem; min-width: 0; }

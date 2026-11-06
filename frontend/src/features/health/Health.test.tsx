@@ -9,6 +9,7 @@ import { evolution, method, noDataHealth, readyHealth } from './fixtures'
 import { curvePoint, nextStepLink, sourcesText, updatedAgo, variationHeadline, variationShort } from './format'
 import { HealthCard } from './HealthCard'
 import { HealthView } from './HealthView'
+import { goalList, RESERVE_ID, reserveGoal } from '@/features/goals/fixtures'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -85,6 +86,8 @@ describe('/home/health (D-Health / M-Health)', () => {
     'GET /api/bff/health/summary': () => json(readyHealth()),
     'GET /api/bff/health/evolution': () => json(evolution()),
     'GET /api/bff/health/method': () => json(method()),
+    // Sem objetivo de reserva: o passo da reserva leva à criação dele (adendo de 2026-11-06 ao ADR-0020).
+    'GET /api/bff/goals': () => json(goalList([])),
   })
 
   it('resumo, fontes, dimensões 3×2, fatores neutros e próximos passos só para telas existentes', async () => {
@@ -106,7 +109,8 @@ describe('/home/health (D-Health / M-Health)', () => {
 
     expect(screen.getByText('Sustentando o resultado')).toBeInTheDocument()
     expect(screen.getByText('Pesando no resultado')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Ver contas' })).toHaveAttribute('href', '/accounts')
+    expect(await screen.findByRole('link', { name: 'Criar objetivo de reserva' })).toHaveAttribute('href',
+      '/goals/new?type=EMERGENCY_RESERVE&origin=HEALTH')
     expect(screen.getByRole('link', { name: 'Ver categoria' })).toHaveAttribute('href',
       '/analysis/categories?month=2026-09&category=DINING_OUT')
     expect(screen.queryByText(/✦/)).not.toBeInTheDocument()
@@ -179,9 +183,25 @@ describe('formatação do Health', () => {
     expect(variationHeadline(-2, '2026-09')).toBe('Seu score caiu 2 pontos desde agosto')
   })
 
+  it('passo da reserva com objetivo de reserva: link para ele e a previsão Estimada do objetivo', async () => {
+    stubBff({
+      'GET /api/bff/health/summary': () => json(readyHealth()),
+      'GET /api/bff/health/evolution': () => json(evolution()),
+      'GET /api/bff/goals': () => json(goalList([reserveGoal()])),
+    })
+    render(<HealthView />)
+    expect(await screen.findByRole('link', { name: 'Ver objetivo de reserva' })).toHaveAttribute('href', `/goals/${RESERVE_ID}`)
+    const sentence = screen.getByText(/sua reserva chega ao alvo de/)
+    expect(sentence).toHaveTextContent('Com aportes de R$ 500,00/mês, sua reserva chega ao alvo de R$ 25.152,00 em abr/2028')
+    expect(within(sentence).getByText('abril de 2028, estimado')).toBeInTheDocument()
+  })
+
   it('links dos próximos passos só para telas existentes', () => {
     const step = readyHealth().nextSteps[0]!
-    expect(nextStepLink(step)).toEqual({ href: '/accounts', label: 'Ver contas' })
+    // Reserva (adendo de 2026-11-06 ao ADR-0020): objetivo aberto, criação, ou Objetivos quando não se sabe.
+    expect(nextStepLink(step)).toEqual({ href: '/goals', label: 'Ver objetivos' })
+    expect(nextStepLink(step, [], null)).toEqual({ href: '/goals/new?type=EMERGENCY_RESERVE&origin=HEALTH', label: 'Criar objetivo de reserva' })
+    expect(nextStepLink(step, [], reserveGoal())).toEqual({ href: `/goals/${RESERVE_ID}`, label: 'Ver objetivo de reserva' })
     expect(nextStepLink({ ...step, kind: 'ADD_RESERVE_ACCOUNT' })).toEqual({ href: '/accounts/new', label: 'Adicionar conta' })
     expect(nextStepLink({ ...step, kind: 'CATEGORIZE_TRANSACTIONS' }).href).toBe('/transactions?category=none')
     expect(nextStepLink({ ...step, kind: 'REVIEW_MONTH', month: '2026-08' }).href).toBe('/analysis?month=2026-08')

@@ -3,10 +3,11 @@ import { formatMoney } from '@/lib/format/money'
 
 /**
  * Rota de cada ação (ADR-0021 §2): o backend manda o código e os parâmetros, a UI só monta o link para telas que já
- * existem. Cartão e fatura levam às telas de Cartões (Parte F, adendo ao ADR-0024). Placeholders "Em breve"
+ * existem. Cartão e fatura levam às telas de Cartões (Parte F, adendo ao ADR-0024); "Criar objetivo de economia" leva ao
+ * D-CreateGoal com a origem no insight (`insightId`; a sugestão é relida do backend, adendo de 2026-11-06). Placeholders "Em breve"
  * (`available = false`) e códigos desconhecidos não têm rota.
  */
-export function actionHref(action: InsightAction): string | null {
+export function actionHref(action: InsightAction, insightId?: string): string | null {
   if (!action.available) return null
   const p = action.params
   const search = (entries: Record<string, string | undefined>) => {
@@ -46,6 +47,8 @@ export function actionHref(action: InsightAction): string | null {
       return p.cardId && p.dueMonth
         ? `/cards/${encodeURIComponent(p.cardId)}/invoices/${encodeURIComponent(p.dueMonth)}`
         : null
+    case 'CREATE_SAVINGS_GOAL':
+      return insightId ? `/goals/new${search({ origin: 'INSIGHT', insightId })}` : null
     default:
       return null
   }
