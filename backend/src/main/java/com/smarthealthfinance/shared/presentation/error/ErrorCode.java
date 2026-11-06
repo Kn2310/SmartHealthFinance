@@ -48,6 +48,14 @@ public enum ErrorCode {
 	CARD_ARCHIVED(HttpStatus.CONFLICT, "Cartão arquivado não pode ser alterado."),
 	/** Fatura passada sem lançamentos ou mês sem fatura com esse vencimento (ADR-0026 §4). */
 	INVOICE_NOT_FOUND(HttpStatus.NOT_FOUND, "Fatura não encontrada."),
+	/** Inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0035). */
+	GOAL_NOT_FOUND(HttpStatus.NOT_FOUND, "Objetivo não encontrado."),
+	/** A ação não é permitida no status atual do objetivo (ADR-0034 §1). */
+	GOAL_STATUS_CONFLICT(HttpStatus.CONFLICT, "O objetivo não permite esta ação no status atual."),
+	/** No máximo uma reserva de emergência ativa ou pausada por Workspace (ADR-0034 §3). */
+	GOAL_RESERVE_ALREADY_EXISTS(HttpStatus.CONFLICT, "Já existe um objetivo de reserva de emergência."),
+	/** A conta já é destino de outro objetivo ativo ou pausado (ADR-0034 §2.1). */
+	GOAL_DESTINATION_IN_USE(HttpStatus.CONFLICT, "A conta já é o destino de outro objetivo."),
 	/** Mesma Idempotency-Key com conteúdo diferente (spec 05.6). */
 	IDEMPOTENCY_KEY_REUSED(HttpStatus.UNPROCESSABLE_CONTENT,
 			"A Idempotency-Key já foi usada em uma requisição com outro conteúdo.");

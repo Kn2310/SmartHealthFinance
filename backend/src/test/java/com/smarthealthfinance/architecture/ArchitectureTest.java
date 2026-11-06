@@ -373,6 +373,47 @@ class ArchitectureTest {
 		.because("Overview, Health e Insights leem os cartões só pela porta CardPortfolio e pelos modelos de "
 				+ "domínio de Cards, nunca por casos de uso, serviços ou adapters (ADR-0006 §18, ADR-0027 §1)");
 
+	// Goals (ADR-0034 §8, ADR-0035) fica a jusante: lê saldos e movimentos pelas portas do Overview e pelo domínio de
+	// Accounts e Transactions, e lança o aporte só pelo caso de uso CreateTransaction. Ninguém depende de Goals.
+
+	@ArchTest
+	static final ArchRule nothingDependsOnGoals = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance..")
+		.and()
+		.resideOutsideOfPackage("com.smarthealthfinance.goals..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.goals..")
+		.allowEmptyShould(true)
+		.because("os objetivos são lidos só pela própria API; Health e Insights se ligam a eles pelo frontend "
+				+ "(ADR-0034 §7)");
+
+	@ArchTest
+	static final ArchRule goalsOnlyUseCorePortsDomainAndTheTransferUseCase = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.goals..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.accounts.application.usecase..",
+				"com.smarthealthfinance.accounts.application.service..",
+				"com.smarthealthfinance.accounts.infrastructure..", "com.smarthealthfinance.accounts.presentation..",
+				"com.smarthealthfinance.transactions.infrastructure..",
+				"com.smarthealthfinance.transactions.application.service..",
+				"com.smarthealthfinance.transactions.application.port..",
+				"com.smarthealthfinance.transactions.presentation.controller..",
+				"com.smarthealthfinance.transactions.presentation.handler..",
+				"com.smarthealthfinance.transactions.presentation.dto.request..",
+				"com.smarthealthfinance.overview.application.usecase..",
+				"com.smarthealthfinance.overview.application.service..",
+				"com.smarthealthfinance.overview.infrastructure..", "com.smarthealthfinance.overview.presentation..",
+				"com.smarthealthfinance.ingestion..", "com.smarthealthfinance.analytics..",
+				"com.smarthealthfinance.cards..", "com.smarthealthfinance.health..",
+				"com.smarthealthfinance.insights..", "com.smarthealthfinance.forecast..",
+				"com.smarthealthfinance.identity.application.usecase..",
+				"com.smarthealthfinance.identity.infrastructure..")
+		.allowEmptyShould(true)
+		.because("Goals lê contas e transações pelo domínio, saldos pela porta do Overview e lança o aporte só pelo "
+				+ "caso de uso CreateTransaction; a resposta do aporte reusa o TransactionResponse (ADR-0035)");
+
 	@ArchTest
 	static final ArchRule cardsOnlyUsesCorePortsAndDomain = noClasses().that()
 		.resideInAPackage("com.smarthealthfinance.cards..")

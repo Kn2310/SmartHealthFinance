@@ -15,6 +15,7 @@ import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -66,6 +67,21 @@ public final class InMemoryTransactionRepository implements TransactionRepositor
     public List<Transaction> findRefundsOf(WorkspaceId workspaceId, TransactionId originalId) {
         return inWorkspace(workspaceId)
                 .filter(transaction -> transaction.refundOfTransactionId().filter(originalId::equals).isPresent())
+                .toList();
+    }
+
+    @Override
+    public List<Transaction> findPostedTouchingAccounts(WorkspaceId workspaceId, Collection<AccountId> accounts,
+                                                        LocalDate from, LocalDate to) {
+        return inWorkspace(workspaceId)
+                .filter(t -> t.status() == TransactionStatus.POSTED)
+                .filter(t -> accounts.contains(t.accountId())
+                        || t.destinationAccountId().filter(accounts::contains).isPresent())
+                .filter(t -> !t.occurredOn().isBefore(from) && !t.occurredOn().isAfter(to))
+                .sorted(Comparator.comparing(Transaction::occurredOn)
+                        .thenComparing(Transaction::createdAt)
+                        .thenComparing(t -> t.id().value())
+                        .reversed())
                 .toList();
     }
 

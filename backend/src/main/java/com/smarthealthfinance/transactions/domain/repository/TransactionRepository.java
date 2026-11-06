@@ -9,6 +9,7 @@ import com.smarthealthfinance.transactions.domain.valueobject.CardReference;
 import com.smarthealthfinance.transactions.domain.valueobject.TransactionId;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,13 @@ public interface TransactionRepository {
     Optional<Transaction> findByIdForUpdate(WorkspaceId workspaceId, TransactionId transactionId);
 
     List<Transaction> findRefundsOf(WorkspaceId workspaceId, TransactionId originalId);
+
+    /**
+     * Transações {@code POSTED} que têm alguma das contas como origem ou destino, entre as datas (inclusive), mais
+     * recentes primeiro (occurredOn desc, createdAt desc, id desc). Histórico do destino de um objetivo (ADR-0035).
+     */
+    List<Transaction> findPostedTouchingAccounts(WorkspaceId workspaceId, Collection<AccountId> accounts,
+                                                 LocalDate from, LocalDate to);
 
     /**
      * Pagamentos de fatura {@code POSTED} da conta para o cartão, com este valor, entre as datas (inclusive), que

@@ -331,9 +331,16 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - eventos `goal.created|plan-changed|status-changed` sem consumidor no M10
   - adiado: insight acionável D16 (05.13 §9); dívida: "Marcar como transferência" para aportes importados dos dois
     lados
-- [ ] goal
-- [ ] contributions
-- [ ] progress
+- [x] objetivos e aportes no backend (parte B — ADR-0035):
+  - módulo `goals`: agregado `Goal` (plano + estado), destino tipado, origem, status idempotentes, `V22`
+    (exclusividade do destino e reserva única por índice parcial);
+  - progresso e histórico lidos do destino pela porta `GoalBalanceSource` (saldo do Overview + transações), sem cópia;
+  - `POST .../contributions` cria a `TRANSFER` pelo `CreateTransaction` com `Idempotency-Key`; histórico e aportes
+    recentes derivados;
+  - eventos `goal.*` pela outbox; ArchUnit (ninguém depende de `goals`); suíte de isolamento; OpenAPI e `schema.d.ts`
+- [x] goal
+- [x] contributions
+- [x] progress
 - [ ] forecast
 - [ ] simulation
 

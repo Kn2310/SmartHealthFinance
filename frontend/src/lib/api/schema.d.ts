@@ -1048,6 +1048,97 @@ export interface components {
     }
     /** Pelo menos um dos campos; o ausente mantém o valor atual. Valor positivo com até 2 casas; dia de 1 a 31. */
     ForecastAdjustmentRequest: { expectedAmount?: MoneyDto | null; expectedDay?: number | null }
+    /** Origem do objetivo (ADR-0034 §1): `insightId` só com `INSIGHT`. */
+    GoalOriginDto: { kind: GoalOriginKind; insightId: string | null }
+    /** `ACCOUNT`: conta dedicada; `RESERVE`: as contas `SAVINGS` ativas, sem `accountId` (ADR-0034 §2.1). */
+    GoalDestinationDto: { kind: GoalDestinationKind; accountId: string | null }
+    /** Progresso, sempre fato (ADR-0034 §2.2): `saved` nunca negativo; `percent` com teto 99 até atingir o alvo. */
+    GoalProgressDto: {
+      basis: 'FACT'
+      saved: MoneyDto
+      percent: number
+      remaining: MoneyDto
+      reached: boolean
+      destinationBalance: MoneyDto
+      destinationState: GoalDestinationState
+    }
+    /** Objetivo (ADR-0035 §1). `deadline` como "2027-07"; a previsão (Estimado) entra na parte C. */
+    GoalResponse: {
+      id: string
+      name: string
+      type: GoalType
+      status: GoalStatus
+      origin: components['schemas']['GoalOriginDto']
+      targetAmount: MoneyDto
+      plannedMonthly: MoneyDto
+      deadline: string | null
+      sourceAccountId: string | null
+      destination: components['schemas']['GoalDestinationDto']
+      trackingStart: string
+      createdAt: string
+      completedAt: string | null
+      completedAmount: MoneyDto | null
+      progress: components['schemas']['GoalProgressDto']
+    }
+    /** Resumo sempre dos objetivos abertos, qualquer que seja o filtro (ADR-0035 §1). */
+    GoalListSummary: { savedTotal: MoneyDto; plannedMonthlyTotal: MoneyDto; activeCount: number }
+    GoalListResponse: {
+      summary: components['schemas']['GoalListSummary']
+      goals: components['schemas']['GoalResponse'][]
+    }
+    CreateGoalRequest: {
+      name: string
+      type: GoalType
+      targetAmount: MoneyDto
+      plannedMonthly: MoneyDto
+      deadline?: string | null
+      sourceAccountId?: string | null
+      destinationAccountId?: string | null
+      origin?: components['schemas']['GoalOriginRequest'] | null
+    }
+    GoalOriginRequest: { kind: GoalOriginKind; insightId?: string | null }
+    UpdateGoalRequest: {
+      name: string
+      targetAmount: MoneyDto
+      plannedMonthly: MoneyDto
+      deadline?: string | null
+      sourceAccountId?: string | null
+      destinationAccountId?: string | null
+    }
+    ApplyGoalPlanRequest: { plannedMonthly: MoneyDto; deadline?: string | null }
+    /** "Registrar aporte" (ADR-0035 §2): `destinationAccountId` só na reserva. */
+    GoalContributionRequest: {
+      sourceAccountId: string
+      destinationAccountId?: string | null
+      amount: MoneyDto
+      occurredOn: string
+      description?: string | null
+    }
+    GoalOpeningBalance: { date: string; amount: MoneyDto }
+    /** Movimento do destino (ADR-0034 §2.3), valor sempre positivo. */
+    GoalMovementDto: {
+      transactionId: string
+      kind: GoalMovementKind
+      direction: 'IN' | 'OUT'
+      occurredOn: string
+      amount: MoneyDto
+      counterpartAccountId: string | null
+    }
+    GoalContributionsResponse: {
+      openingBalance: components['schemas']['GoalOpeningBalance']
+      movements: components['schemas']['GoalMovementDto'][]
+      page: number
+      pageSize: number
+      totalElements: number
+    }
+    RecentContributionItem: {
+      goalId: string
+      transactionId: string
+      occurredOn: string
+      amount: MoneyDto
+      sourceAccountId: string | null
+    }
+    RecentContributionsResponse: { contributions: components['schemas']['RecentContributionItem'][] }
   }
 }
 
@@ -1108,6 +1199,23 @@ type ForecastRecurringAdjustmentRoutes = {
   delete: { parameters: { path: ForecastSeriesPath }; responses: ForecastActionResult }
 }
 type ForecastRecurringActionRoute = { post: { parameters: { path: ForecastSeriesPath }; responses: ForecastActionResult } }
+
+export type GoalType = 'EMERGENCY_RESERVE' | 'PURCHASE' | 'CUSTOM'
+export type GoalStatus = 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'ARCHIVED'
+export type GoalOriginKind = 'MANUAL' | 'INSIGHT' | 'HEALTH'
+export type GoalDestinationKind = 'ACCOUNT' | 'RESERVE'
+export type GoalDestinationState = 'OK' | 'ACCOUNT_ARCHIVED' | 'NO_RESERVE_ACCOUNT'
+export type GoalMovementKind = 'CONTRIBUTION' | 'WITHDRAWAL' | 'OTHER'
+
+type GoalErrors = {
+  400: { content: { 'application/json': components['schemas']['ApiError'] } }
+  401: { content: { 'application/json': components['schemas']['ApiError'] } }
+  404: { content: { 'application/json': components['schemas']['ApiError'] } }
+  409: { content: { 'application/json': components['schemas']['ApiError'] } }
+}
+type GoalPath = { workspaceId: string; goalId: string }
+type GoalResult = { 200: { content: { 'application/json': components['schemas']['GoalResponse'] } } } & GoalErrors
+type GoalActionRoute = { post: { parameters: { path: GoalPath }; responses: GoalResult } }
 export type AnalysisFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type HealthFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
 export type InsightsFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
@@ -1817,4 +1925,59 @@ export interface paths {
   '/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/confirm': ForecastRecurringActionRoute
   '/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/ignore': ForecastRecurringActionRoute
   '/api/v1/workspaces/{workspaceId}/recurring-incomes/{seriesId}/adjustment': ForecastRecurringAdjustmentRoutes
+  '/api/v1/workspaces/{workspaceId}/goals': {
+    get: {
+      parameters: { query?: { status?: GoalStatus }; path: { workspaceId: string } }
+      responses: { 200: { content: { 'application/json': components['schemas']['GoalListResponse'] } } } & GoalErrors
+    }
+    post: {
+      parameters: { path: { workspaceId: string } }
+      requestBody: { content: { 'application/json': components['schemas']['CreateGoalRequest'] } }
+      responses: { 201: { content: { 'application/json': components['schemas']['GoalResponse'] } } } & GoalErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/goals/recent-contributions': {
+    get: {
+      parameters: { query?: { limit?: number }; path: { workspaceId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['RecentContributionsResponse'] } }
+      } & GoalErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}': {
+    get: { parameters: { path: GoalPath }; responses: GoalResult }
+    put: {
+      parameters: { path: GoalPath }
+      requestBody: { content: { 'application/json': components['schemas']['UpdateGoalRequest'] } }
+      responses: GoalResult
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}/plan': {
+    put: {
+      parameters: { path: GoalPath }
+      requestBody: { content: { 'application/json': components['schemas']['ApplyGoalPlanRequest'] } }
+      responses: GoalResult
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}/pause': GoalActionRoute
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}/resume': GoalActionRoute
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}/complete': GoalActionRoute
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}/archive': GoalActionRoute
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}/contributions': {
+    get: {
+      parameters: { query?: { page?: number; pageSize?: number }; path: GoalPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['GoalContributionsResponse'] } }
+      } & GoalErrors
+    }
+    post: {
+      parameters: { header: { 'Idempotency-Key': string }; path: GoalPath }
+      requestBody: { content: { 'application/json': components['schemas']['GoalContributionRequest'] } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['TransactionResponse'] } }
+        201: { content: { 'application/json': components['schemas']['TransactionResponse'] } }
+        422: { content: { 'application/json': components['schemas']['ApiError'] } }
+      } & GoalErrors
+    }
+  }
 }

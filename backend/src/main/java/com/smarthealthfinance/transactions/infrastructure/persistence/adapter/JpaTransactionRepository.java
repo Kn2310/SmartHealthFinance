@@ -25,6 +25,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -66,6 +67,18 @@ public class JpaTransactionRepository implements TransactionRepository {
     @Override
     public List<Transaction> findRefundsOf(WorkspaceId workspaceId, TransactionId originalId) {
         return jpa.findAllByWorkspaceIdAndRefundOfTransactionId(workspaceId.value(), originalId.value()).stream()
+                .map(TransactionJpaEntity::toDomain)
+                .toList();
+    }
+
+    @Override
+    public List<Transaction> findPostedTouchingAccounts(WorkspaceId workspaceId, Collection<AccountId> accounts,
+                                                        LocalDate from, LocalDate to) {
+        if (accounts.isEmpty()) {
+            return List.of();
+        }
+        return jpa.findPostedTouchingAccounts(workspaceId.value(), accounts.stream().map(AccountId::value).toList(),
+                        from, to, TransactionStatus.POSTED).stream()
                 .map(TransactionJpaEntity::toDomain)
                 .toList();
     }

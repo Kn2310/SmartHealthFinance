@@ -66,6 +66,15 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private static final String EXPENSE = EXPENSES + "/{seriesId}";
     private static final String INCOMES = WORKSPACE_SCOPE + "/recurring-incomes";
     private static final String INCOME = INCOMES + "/{seriesId}";
+    private static final String GOALS = WORKSPACE_SCOPE + "/goals";
+    private static final String GOAL = GOALS + "/{goalId}";
+    private static final String GOAL_UPDATE_JSON = """
+            {"name": "Invasor", "targetAmount": {"amount": "10.00", "currency": "BRL"},
+             "plannedMonthly": {"amount": "1.00", "currency": "BRL"}}
+            """;
+    private static final String GOAL_PLAN_JSON = """
+            {"plannedMonthly": {"amount": "2.00", "currency": "BRL"}}
+            """;
     private static final String ADJUSTMENT_JSON = """
             {"expectedAmount": {"amount": "1.00", "currency": "BRL"}, "expectedDay": 3}
             """;
@@ -101,11 +110,11 @@ class WorkspaceIsolationIT extends IntegrationTest {
     /** Ids de um Workspace semeado: uma conta ativa, uma segunda conta, uma arquivada, transações POSTED/PENDING e um preview de importação. */
     record Fixture(String workspace, String account, String otherAccount, String archivedAccount, String posted,
                    String pending, String importId, String card, String purchase, String expenseSeries,
-                   String incomeSeries) {
+                   String incomeSeries, String goal) {
 
         List<String> ids() {
             return List.of(workspace, account, otherAccount, archivedAccount, posted, pending, importId, card,
-                    purchase, expenseSeries, incomeSeries);
+                    purchase, expenseSeries, incomeSeries, goal);
         }
     }
 
@@ -246,6 +255,20 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("imports: linhas", HttpMethod.GET, IMPORT + "/records", f -> ids(f.importId()), NONE),
             op("imports: confirmar", HttpMethod.POST, IMPORT + "/confirm", f -> ids(f.importId()), NONE),
             op("imports: cancelar", HttpMethod.POST, IMPORT + "/cancel", f -> ids(f.importId()), NONE),
+
+            op("goals: listar", HttpMethod.GET, GOALS, f -> new Object[0], NONE),
+            op("goals: criar", HttpMethod.POST, GOALS, f -> new Object[0], json(f -> goalJson(f.otherAccount(), null))),
+            op("goals: aportes recentes", HttpMethod.GET, GOALS + "/recent-contributions", f -> new Object[0], NONE),
+            op("goals: consultar", HttpMethod.GET, GOAL, f -> ids(f.goal()), NONE),
+            op("goals: editar", HttpMethod.PUT, GOAL, f -> ids(f.goal()), json(f -> GOAL_UPDATE_JSON)),
+            op("goals: aplicar plano", HttpMethod.PUT, GOAL + "/plan", f -> ids(f.goal()), json(f -> GOAL_PLAN_JSON)),
+            op("goals: pausar", HttpMethod.POST, GOAL + "/pause", f -> ids(f.goal()), NONE),
+            op("goals: retomar", HttpMethod.POST, GOAL + "/resume", f -> ids(f.goal()), NONE),
+            op("goals: concluir", HttpMethod.POST, GOAL + "/complete", f -> ids(f.goal()), NONE),
+            op("goals: arquivar", HttpMethod.POST, GOAL + "/archive", f -> ids(f.goal()), NONE),
+            op("goals: registrar aporte", HttpMethod.POST, GOAL + "/contributions", f -> ids(f.goal()),
+                    idempotent(json(f -> contributionJson(f.account())))),
+            op("goals: histórico de aportes", HttpMethod.GET, GOAL + "/contributions", f -> ids(f.goal()), NONE),
 
             op("cards: listar", HttpMethod.GET, CARDS, f -> new Object[0], NONE),
             op("cards: criar", HttpMethod.POST, CARDS, f -> new Object[0], json(f -> CARD_JSON)),
@@ -491,6 +514,41 @@ class WorkspaceIsolationIT extends IntegrationTest {
             cross("transactions: filtrar por cartão alheio", HttpStatus.OK, null, Fixture::card,
                     (mvc, own, id) -> mvc.get().uri(TRANSACTIONS, own.workspace()).param("cardId", id)),
 
+            // ADR-0035: objetivo de outro Workspace = inexistente; conta alheia como destino, origem ou origem do
+            // aporte = conta inexistente.
+            cross("goals: consultar objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.get().uri(GOAL, own.workspace(), id)),
+            cross("goals: editar objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.put().uri(GOAL, own.workspace(), id).contentType(MediaType.APPLICATION_JSON)
+                            .content(GOAL_UPDATE_JSON)),
+            cross("goals: aplicar plano em objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.put().uri(GOAL + "/plan", own.workspace(), id)
+                            .contentType(MediaType.APPLICATION_JSON).content(GOAL_PLAN_JSON)),
+            cross("goals: pausar objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.post().uri(GOAL + "/pause", own.workspace(), id)),
+            cross("goals: retomar objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.post().uri(GOAL + "/resume", own.workspace(), id)),
+            cross("goals: concluir objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.post().uri(GOAL + "/complete", own.workspace(), id)),
+            cross("goals: arquivar objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.post().uri(GOAL + "/archive", own.workspace(), id)),
+            cross("goals: aporte em objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.post().uri(GOAL + "/contributions", own.workspace(), id)
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey())
+                            .content(contributionJson(own.account()))),
+            cross("goals: histórico de objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.get().uri(GOAL + "/contributions", own.workspace(), id)),
+            cross("goals: destino em conta alheia", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
+                    (mvc, own, id) -> mvc.post().uri(GOALS, own.workspace()).contentType(MediaType.APPLICATION_JSON)
+                            .content(goalJson(id, null))),
+            cross("goals: origem em conta alheia", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
+                    (mvc, own, id) -> mvc.post().uri(GOALS, own.workspace()).contentType(MediaType.APPLICATION_JSON)
+                            .content(goalJson(own.account(), id))),
+            cross("goals: aporte vindo de conta alheia", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
+                    (mvc, own, id) -> mvc.post().uri(GOAL + "/contributions", own.workspace(), own.goal())
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey())
+                            .content(contributionJson(id))),
+
             // ADR-0032 §1: cartão do filtro de outro Workspace = cartão inexistente.
             cross("forecast: faturas de cartão alheio", HttpStatus.NOT_FOUND, "CARD_NOT_FOUND", Fixture::card,
                     (mvc, own, id) -> mvc.get().uri(FORECAST + "/invoices", own.workspace()).param("cardId", id)),
@@ -599,7 +657,33 @@ class WorkspaceIsolationIT extends IntegrationTest {
         return new Fixture(workspace, account, other, archived, posted, pending, read(upload, "$.id"),
                 read(card, "$.id"), read(purchase, "$.transaction.id"),
                 seedSeries(workspace, "EXPENSE", description + " (despesa)"),
-                seedSeries(workspace, "INCOME", description + " (receita)"));
+                seedSeries(workspace, "INCOME", description + " (receita)"),
+                seedGoal(who, workspace, other, account, description));
+    }
+
+    /** Objetivo com a segunda conta como destino dedicado (ADR-0035). */
+    private String seedGoal(RequestPostProcessor who, String workspace, String destination, String source,
+                            String description) throws Exception {
+        MvcTestResult goal = mvc.post().uri(GOALS, workspace).with(who).contentType(MediaType.APPLICATION_JSON)
+                .content(goalJson(destination, source).replace("\"Objetivo\"", "\"" + description + " objetivo\""))
+                .exchange();
+        assertThat(goal).hasStatus(HttpStatus.CREATED);
+        return read(goal, "$.id");
+    }
+
+    private static String goalJson(String destination, String source) {
+        return """
+                {"name": "Objetivo", "type": "PURCHASE", "targetAmount": {"amount": "1000.00", "currency": "BRL"},
+                 "plannedMonthly": {"amount": "100.00", "currency": "BRL"}, "destinationAccountId": "%s",
+                 "sourceAccountId": %s}
+                """.formatted(destination, source == null ? "null" : "\"" + source + "\"");
+    }
+
+    /** Aporte de hoje (data de negócio): o objetivo do seed começa hoje. */
+    private static String contributionJson(String source) {
+        return """
+                {"sourceAccountId": "%s", "amount": {"amount": "1.00", "currency": "BRL"}, "occurredOn": "%s"}
+                """.formatted(source, java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")));
     }
 
     /** Série recorrente gravada direto, como o job do Forecast faria; devolve o id opaco da API. */
@@ -650,7 +734,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
                         "transaction_idempotency_keys", "import_batches", "import_records", "imported_transaction_keys",
                         "outbox_events", "processed_events", "health_workspaces", "health_snapshots", "forecast_workspaces",
                         "forecast_snapshots", "forecast_recurring_series", "forecast_month_outcomes",
-                        "insights_workspaces", "insights", "credit_cards", "card_invoices", "card_installments")
+                        "insights_workspaces", "insights", "credit_cards", "card_invoices", "card_installments",
+                        "goals")
                 .map(table -> table + "=" + jdbc.queryForObject(
                         "select coalesce(string_agg(t::text, '|' order by t::text), '') from " + table + " t",
                         String.class))
