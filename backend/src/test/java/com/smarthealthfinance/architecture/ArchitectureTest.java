@@ -303,12 +303,25 @@ class ArchitectureTest {
 	static final ArchRule nothingExceptInsightsDependsOnForecast = noClasses().that()
 		.resideInAPackage("com.smarthealthfinance..")
 		.and()
-		.resideOutsideOfPackages("com.smarthealthfinance.forecast..", "com.smarthealthfinance.insights..")
+		.resideOutsideOfPackages("com.smarthealthfinance.forecast..", "com.smarthealthfinance.insights..",
+				"com.smarthealthfinance.goals..")
 		.should()
 		.dependOnClassesThat()
 		.resideInAPackage("com.smarthealthfinance.forecast..")
 		.allowEmptyShould(true)
-		.because("o Forecast é derivado; só os Insights leem o snapshot dele (ADR-0031 §1)");
+		.because("o Forecast é derivado; só os Insights e os Goals leem o snapshot dele (ADR-0031 §1, adendo "
+				+ "ADR-0036)");
+
+	@ArchTest
+	static final ArchRule goalsOnlyReadTheForecastThroughItsReaderAndDomain = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.goals..")
+		.should()
+		.dependOnClassesThat(JavaClass.Predicates.resideInAPackage("com.smarthealthfinance.forecast..")
+			.and(DescribedPredicate.not(JavaClass.Predicates.resideInAPackage("com.smarthealthfinance.forecast.domain.."))
+				.and(DescribedPredicate.not(JavaClass.Predicates.belongToAnyOf(ForecastReader.class)))))
+		.allowEmptyShould(true)
+		.because("os Goals leem o Forecast só pela porta ForecastReader e pelo domínio e aplicam deltas SIMULATED "
+				+ "por cima, sem gravar nada nele (ADR-0030 'Para a Sessão 7.2', ADR-0036)");
 
 	@ArchTest
 	static final ArchRule insightsOnlyReadTheForecastThroughItsReaderAndDomain = noClasses().that()
@@ -405,14 +418,17 @@ class ArchitectureTest {
 				"com.smarthealthfinance.overview.application.usecase..",
 				"com.smarthealthfinance.overview.application.service..",
 				"com.smarthealthfinance.overview.infrastructure..", "com.smarthealthfinance.overview.presentation..",
-				"com.smarthealthfinance.ingestion..", "com.smarthealthfinance.analytics..",
+				"com.smarthealthfinance.ingestion..", "com.smarthealthfinance.analytics.application.usecase..",
+				"com.smarthealthfinance.analytics.application.service..",
+				"com.smarthealthfinance.analytics.application.dto..",
+				"com.smarthealthfinance.analytics.infrastructure..", "com.smarthealthfinance.analytics.presentation..",
 				"com.smarthealthfinance.cards..", "com.smarthealthfinance.health..",
-				"com.smarthealthfinance.insights..", "com.smarthealthfinance.forecast..",
-				"com.smarthealthfinance.identity.application.usecase..",
+				"com.smarthealthfinance.insights..", "com.smarthealthfinance.identity.application.usecase..",
 				"com.smarthealthfinance.identity.infrastructure..")
 		.allowEmptyShould(true)
-		.because("Goals lê contas e transações pelo domínio, saldos pela porta do Overview e lança o aporte só pelo "
-				+ "caso de uso CreateTransaction; a resposta do aporte reusa o TransactionResponse (ADR-0035)");
+		.because("Goals lê contas e transações pelo domínio, saldos pela porta do Overview, médias pela porta e pelo "
+				+ "domínio do Analytics e lança o aporte só pelo caso de uso CreateTransaction; nunca lê o Health "
+				+ "(ADR-0035, ADR-0036)");
 
 	@ArchTest
 	static final ArchRule cardsOnlyUsesCorePortsAndDomain = noClasses().that()

@@ -1079,9 +1079,33 @@ export interface components {
       completedAt: string | null
       completedAmount: MoneyDto | null
       progress: components['schemas']['GoalProgressDto']
+      forecast: components['schemas']['GoalForecastDto']
     }
+    /** Previsão de conclusão, sempre Estimado (ADR-0034 §4, ADR-0036 §1). Só `reason` em NO_FORECAST. */
+    GoalForecastDto: {
+      basis: 'ESTIMATED'
+      status: GoalForecastStatus
+      reason: GoalForecastReason | null
+      completion: string | null
+      contributionsLeft: number | null
+      monthsLate: number | null
+      monthsEarly: number | null
+      range: components['schemas']['GoalForecastRange'] | null
+      confidence: 'HIGH' | 'MEDIUM' | 'LOW' | null
+      realPace: MoneyDto | null
+      freshness: GoalForecastFreshness
+    }
+    GoalForecastRange: { optimistic: string; pessimistic: string | null; openEnded: boolean }
     /** Resumo sempre dos objetivos abertos, qualquer que seja o filtro (ADR-0035 §1). */
-    GoalListSummary: { savedTotal: MoneyDto; plannedMonthlyTotal: MoneyDto; activeCount: number }
+    GoalListSummary: {
+      savedTotal: MoneyDto
+      plannedMonthlyTotal: MoneyDto
+      activeCount: number
+      plannedIncomeShare: number | null
+      forecastCount: number
+      onTrackCount: number
+      forecastFreshness: GoalForecastFreshness
+    }
     GoalListResponse: {
       summary: components['schemas']['GoalListSummary']
       goals: components['schemas']['GoalResponse'][]
@@ -1139,6 +1163,62 @@ export interface components {
       sourceAccountId: string | null
     }
     RecentContributionsResponse: { contributions: components['schemas']['RecentContributionItem'][] }
+    /** De 1 a 5 cenários (ADR-0036 §2); campos ausentes usam o plano do objetivo. */
+    SimulateGoalRequest: { scenarios: components['schemas']['SimulationScenarioRequest'][] }
+    SimulationScenarioRequest: {
+      monthlyAmount?: MoneyDto | null
+      deadline?: string | null
+      reduction?: components['schemas']['SimulationReductionRequest'] | null
+    }
+    SimulationReductionRequest: { categoryCode: string; amount: MoneyDto }
+    /** Sempre Simulado, nunca gravado (ADR-0034 §5). */
+    SimulationResponse: {
+      basis: 'SIMULATED'
+      remaining: MoneyDto
+      start: string
+      averageIncome: MoneyDto | null
+      assumptions: ('EQUAL_MONTHLY_CONTRIBUTIONS' | 'NO_YIELD')[]
+      scenarios: components['schemas']['SimulationScenarioDto'][]
+    }
+    SimulationScenarioDto: {
+      monthlyAmount: MoneyDto
+      completion: string | null
+      contributions: number
+      firstContribution: string
+      lastContribution: components['schemas']['SimulationLastContribution'] | null
+      deadline: components['schemas']['SimulationDeadline'] | null
+      requiredMonthlyForDeadline: MoneyDto | null
+      incomeShare: number | null
+      tooFar: boolean
+      reduction: components['schemas']['SimulationReduction'] | null
+    }
+    SimulationLastContribution: { month: string; amount: MoneyDto }
+    SimulationDeadline: { month: string; within: boolean | null; monthsFromDeadline: number | null }
+    SimulationReduction: { categoryCode: string; amount: MoneyDto }
+    PreviewGoalRequest: {
+      type: GoalType
+      targetAmount?: MoneyDto | null
+      plannedMonthly: MoneyDto
+      deadline?: string | null
+      destinationAccountId?: string | null
+    }
+    /** `alreadySaved` é fato; `simulation` é Simulado (ADR-0036 §3). */
+    GoalPreviewResponse: {
+      alreadySaved: MoneyDto
+      suggestedTarget: MoneyDto | null
+      target: MoneyDto | null
+      simulation: components['schemas']['SimulationResponse'] | null
+    }
+    /** Gráfico do D-GoalDetail: fato e estimativa em séries separadas (ADR-0036 §5). */
+    GoalProjectionResponse: {
+      target: MoneyDto
+      deadline: string | null
+      actual: components['schemas']['GoalProjectionSeries']
+      projected: components['schemas']['GoalProjectionSeries']
+      forecast: components['schemas']['GoalForecastDto']
+    }
+    GoalProjectionSeries: { basis: 'FACT' | 'ESTIMATED'; points: components['schemas']['GoalProjectionPoint'][] }
+    GoalProjectionPoint: { month: string; amount: MoneyDto }
   }
 }
 
@@ -1206,6 +1286,9 @@ export type GoalOriginKind = 'MANUAL' | 'INSIGHT' | 'HEALTH'
 export type GoalDestinationKind = 'ACCOUNT' | 'RESERVE'
 export type GoalDestinationState = 'OK' | 'ACCOUNT_ARCHIVED' | 'NO_RESERVE_ACCOUNT'
 export type GoalMovementKind = 'CONTRIBUTION' | 'WITHDRAWAL' | 'OTHER'
+export type GoalForecastStatus = 'ON_TRACK' | 'LATE' | 'NO_DEADLINE' | 'REACHED' | 'NO_FORECAST'
+export type GoalForecastReason = 'FORECAST_NOT_READY' | 'NO_PLAN' | 'NOT_ACTIVE' | 'TOO_FAR'
+export type GoalForecastFreshness = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
 
 type GoalErrors = {
   400: { content: { 'application/json': components['schemas']['ApiError'] } }
@@ -1957,6 +2040,28 @@ export interface paths {
       parameters: { path: GoalPath }
       requestBody: { content: { 'application/json': components['schemas']['ApplyGoalPlanRequest'] } }
       responses: GoalResult
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/goals/simulations/preview': {
+    post: {
+      parameters: { path: { workspaceId: string } }
+      requestBody: { content: { 'application/json': components['schemas']['PreviewGoalRequest'] } }
+      responses: { 200: { content: { 'application/json': components['schemas']['GoalPreviewResponse'] } } } & GoalErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}/simulations': {
+    post: {
+      parameters: { path: GoalPath }
+      requestBody: { content: { 'application/json': components['schemas']['SimulateGoalRequest'] } }
+      responses: { 200: { content: { 'application/json': components['schemas']['SimulationResponse'] } } } & GoalErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/goals/{goalId}/projection': {
+    get: {
+      parameters: { path: GoalPath }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['GoalProjectionResponse'] } }
+      } & GoalErrors
     }
   }
   '/api/v1/workspaces/{workspaceId}/goals/{goalId}/pause': GoalActionRoute

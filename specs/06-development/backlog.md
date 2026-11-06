@@ -338,11 +338,21 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - `POST .../contributions` cria a `TRANSFER` pelo `CreateTransaction` com `Idempotency-Key`; histórico e aportes
     recentes derivados;
   - eventos `goal.*` pela outbox; ArchUnit (ninguém depende de `goals`); suíte de isolamento; OpenAPI e `schema.d.ts`
+- [x] previsão de conclusão e simulação (parte C — ADR-0036; adendos ADR-0020, 0021, 0024, 0031):
+  - `forecast` (Estimado) no objetivo sobre o `ForecastReader`: central pelo plano, faixa pelo ritmo real,
+    confiança com a capacidade de aporte; sem Forecast pronto, só fatos; resumo com peso na renda e "no prazo";
+  - `SimulationEngine` puro (`POST /goals/{id}/simulations`, até 5 cenários; aporte, prazo, redução de categoria)
+    e prévia do D-CreateGoal (`POST /goals/simulations/preview`: já guardado, alvo sugerido da reserva = 6 × despesa
+    média), sempre `SIMULATED` e sem gravar nada;
+  - `GET /goals/{id}/projection`: guardado real (fato) + projeção (estimado) + prazo;
+  - médias pela porta do Analytics com a janela do Health (teste de paridade);
+  - `CREATE_SAVINGS_GOAL` disponível no D1/D2 com a sugestão (300/1.800/mar 2027 no 09-dados), sem trocar de versão;
+  - sem rebuild nem runbook (nada é projetado nem gravado)
 - [x] goal
 - [x] contributions
 - [x] progress
-- [ ] forecast
-- [ ] simulation
+- [x] forecast
+- [x] simulation
 
 ## M11 Copilot
 

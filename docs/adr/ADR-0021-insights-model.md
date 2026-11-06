@@ -123,6 +123,12 @@ Definições:
 
 - O backend devolve as ações com código e parâmetros; o frontend monta a rota. Placeholders não têm destino e passam a
   existir quando o M10/M11 entrarem (nova versão das ações, sem mudar os detectores).
+  - **Adendo (2026-11-06, ADR-0036 §4):** `CREATE_SAVINGS_GOAL` sai disponível (secundária) no D1 e no D2, com destino
+    `/goals/new?origin=INSIGHT&insightId=…` e a sugestão nos parâmetros: `suggestedMonthly` = o excesso sobre a média
+    arredondado para baixo em múltiplos de R$ 50 (mínimo R$ 50), `suggestedTarget` = 6 × o aporte,
+    `suggestedDeadline` = o 6º mês a partir do seguinte e, no D1, `categoryCode`. É adição de conteúdo: os detectores
+    e a versão (`insights-v3`) não mudam, e os insights existentes ganham a ação na próxima geração. `ASK_COPILOT`
+    continua "Em breve" até o M11.
 - **Ação recomendada** (bloco de texto do detalhe): D1 com comerciante de s ≥ 30% → "Revisar {comerciante}:
   {s}% do gasto da categoria (R$ {valor} em {n} compras)."; senão "Revisar {categoria}". Os demais detectores usam o
   rótulo da ação primária. Sugere, não manda (02-components, Recommendation).

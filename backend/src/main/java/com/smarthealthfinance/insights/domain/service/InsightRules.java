@@ -17,6 +17,10 @@ public final class InsightRules {
 
     // D1 — categoria acima da média.
     public static final BigDecimal CATEGORY_MIN_DELTA = new BigDecimal("100");
+
+    /** Sugestão do "Criar objetivo de economia" (ADR-0036 §4): passo do aporte e meses do alvo e do prazo. */
+    public static final BigDecimal GOAL_SUGGESTION_STEP = new BigDecimal("50");
+    public static final int GOAL_SUGGESTION_MONTHS = 6;
     public static final BigDecimal CATEGORY_MIN_PERCENT = new BigDecimal("20");
     public static final BigDecimal CATEGORY_MIN_SHARE_OF_REFERENCE = new BigDecimal("3");
     public static final int CATEGORY_MAX = 3;

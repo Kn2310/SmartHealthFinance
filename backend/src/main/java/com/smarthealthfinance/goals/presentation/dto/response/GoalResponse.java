@@ -11,8 +11,8 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 /**
- * Objetivo com o progresso, sempre fato (ADR-0034 §2, ADR-0035). A previsão (Estimado) entra na Parte C como campo
- * aditivo.
+ * Objetivo com o progresso, sempre fato (ADR-0034 §2, ADR-0035), e a previsão de conclusão, sempre Estimado
+ * (ADR-0034 §4, ADR-0036).
  *
  * @param deadline        {@code "2027-07"} ou nulo (sem prazo)
  * @param completedAmount o progresso congelado na conclusão (§2.5)
@@ -32,7 +32,8 @@ public record GoalResponse(
         Instant createdAt,
         Instant completedAt,
         MoneyDto completedAmount,
-        GoalProgressDto progress) {
+        GoalProgressDto progress,
+        GoalForecastDto forecast) {
 
     public record GoalOriginDto(@Schema(allowableValues = {"MANUAL", "INSIGHT", "HEALTH"}) String kind, UUID insightId) {}
 
@@ -61,7 +62,8 @@ public record GoalResponse(
                 view.sourceAccountId(), new GoalDestinationDto(view.destinationKind().name(), view.destinationAccountId()),
                 view.trackingStart(), view.createdAt(), view.completedAt(), money(view.completedAmount()),
                 new GoalProgressDto("FACT", money(progress.saved()), progress.percent(), money(progress.remaining()),
-                        progress.reached(), money(progress.destinationBalance()), view.destinationState().name()));
+                        progress.reached(), money(progress.destinationBalance()), view.destinationState().name()),
+                GoalForecastDto.from(view.forecast(), view.forecastFreshness()));
     }
 
     static MoneyDto money(Money money) {

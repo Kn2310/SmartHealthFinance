@@ -205,9 +205,30 @@ final class DetectionContext {
                 InsightTexts.percent(delta.amount(), average.amount()), averageRange()));
     }
 
-    /** Placeholders "Em breve" de Objetivos (M10) e Copilot (M11), aprovados para D1/D2. */
-    static List<InsightAction> comingSoon() {
-        return List.of(InsightAction.comingSoon(ActionKind.CREATE_SAVINGS_GOAL, "Criar objetivo de economia"),
+    /**
+     * "Criar objetivo de economia" (adendo ADR-0021/ADR-0024, 2026-11-06, ADR-0036 §4) e o placeholder "Em breve" do
+     * Copilot (M11), para D1/D2. A sugestão vem do excesso sobre a média:
+     * <ul>
+     *   <li>{@code suggestedMonthly} = excesso arredondado para baixo em múltiplos de R$ 50 (mínimo R$ 50);</li>
+     *   <li>{@code suggestedTarget} = 6 × o aporte; {@code suggestedDeadline} = o 6º mês a partir do seguinte;</li>
+     *   <li>{@code categoryCode} só no D1.</li>
+     * </ul>
+     * Ex. (09-dados, alimentação fora +R$ 311): R$ 300/mês, alvo R$ 1.800, prazo mar/2027.
+     */
+    List<InsightAction> savingsGoalActions(Money excess, String categoryCode) {
+        BigDecimal step = InsightRules.GOAL_SUGGESTION_STEP;
+        BigDecimal monthly = excess.amount().divide(step, 0, RoundingMode.FLOOR).multiply(step).max(step)
+                .setScale(2, RoundingMode.UNNECESSARY);
+        BigDecimal target = monthly.multiply(BigDecimal.valueOf(InsightRules.GOAL_SUGGESTION_MONTHS));
+        Map<String, String> params = new java.util.TreeMap<>();
+        params.put("suggestedMonthly", monthly.toPlainString());
+        params.put("suggestedTarget", target.toPlainString());
+        params.put("suggestedDeadline",
+                YearMonth.from(today()).plusMonths(InsightRules.GOAL_SUGGESTION_MONTHS).toString());
+        if (categoryCode != null) {
+            params.put("categoryCode", categoryCode);
+        }
+        return List.of(InsightAction.secondary(ActionKind.CREATE_SAVINGS_GOAL, "Criar objetivo de economia", params),
                 InsightAction.comingSoon(ActionKind.ASK_COPILOT, "Perguntar ao Copilot"));
     }
 

@@ -109,7 +109,16 @@ class InsightEngineTest {
             assertThat(primary(spike).params()).isEqualTo(Map.of("from", "2026-09-01", "to", "2026-09-22",
                     "type", "EXPENSE", "category", "DINING_OUT"));
             assertThat(spike.content().actions()).filteredOn(a -> !a.available()).extracting(InsightAction::kind)
-                    .containsExactly(ActionKind.CREATE_SAVINGS_GOAL, ActionKind.ASK_COPILOT);
+                    .containsExactly(ActionKind.ASK_COPILOT);
+            // "Guardar a diferença do delivery" (09-dados, D-CreateGoal): +R$ 311 → R$ 300/mês, R$ 1.800, mar/2027.
+            assertThat(spike.content().actions()).filteredOn(a -> a.kind() == ActionKind.CREATE_SAVINGS_GOAL)
+                    .singleElement().satisfies(goal -> {
+                        assertThat(goal.available()).isTrue();
+                        assertThat(goal.primary()).isFalse();
+                        assertThat(goal.params()).isEqualTo(Map.of("categoryCode", "DINING_OUT",
+                                "suggestedMonthly", "300.00", "suggestedTarget", "1800.00",
+                                "suggestedDeadline", "2027-03"));
+                    });
             assertThat(spike.content().refs().categoryCode()).isEqualTo("DINING_OUT");
             assertThat(spike.content().refs().dimension()).isEqualTo(HealthDimension.SPENDING);
             assertThat(spike.content().subjectLabel()).isEqualTo("Alimentação fora");

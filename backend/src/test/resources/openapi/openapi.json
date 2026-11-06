@@ -2066,6 +2066,66 @@
         },
         "type" : "object"
       },
+      "GoalForecastDto" : {
+        "properties" : {
+          "basis" : {
+            "enum" : [ "ESTIMATED" ],
+            "type" : "string"
+          },
+          "completion" : {
+            "type" : "string"
+          },
+          "confidence" : {
+            "enum" : [ "HIGH", "MEDIUM", "LOW" ],
+            "type" : "string"
+          },
+          "contributionsLeft" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "freshness" : {
+            "enum" : [ "UP_TO_DATE", "RECALCULATING", "NOT_BUILT" ],
+            "type" : "string"
+          },
+          "monthsEarly" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "monthsLate" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "range" : {
+            "$ref" : "#/components/schemas/GoalForecastRange"
+          },
+          "realPace" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "reason" : {
+            "enum" : [ "FORECAST_NOT_READY", "NO_PLAN", "NOT_ACTIVE", "TOO_FAR" ],
+            "type" : "string"
+          },
+          "status" : {
+            "enum" : [ "ON_TRACK", "LATE", "NO_DEADLINE", "REACHED", "NO_FORECAST" ],
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalForecastRange" : {
+        "properties" : {
+          "openEnded" : {
+            "type" : "boolean"
+          },
+          "optimistic" : {
+            "type" : "string"
+          },
+          "pessimistic" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "GoalListResponse" : {
         "properties" : {
           "goals" : {
@@ -2083,6 +2143,22 @@
       "GoalListSummary" : {
         "properties" : {
           "activeCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "forecastCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "forecastFreshness" : {
+            "enum" : [ "UP_TO_DATE", "RECALCULATING", "NOT_BUILT" ],
+            "type" : "string"
+          },
+          "onTrackCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "plannedIncomeShare" : {
             "format" : "int32",
             "type" : "integer"
           },
@@ -2163,6 +2239,23 @@
         "required" : [ "kind" ],
         "type" : "object"
       },
+      "GoalPreviewResponse" : {
+        "properties" : {
+          "alreadySaved" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "simulation" : {
+            "$ref" : "#/components/schemas/SimulationResponse"
+          },
+          "suggestedTarget" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "target" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
       "GoalProgressDto" : {
         "properties" : {
           "basis" : {
@@ -2192,6 +2285,52 @@
         },
         "type" : "object"
       },
+      "GoalProjectionPoint" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "month" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalProjectionResponse" : {
+        "properties" : {
+          "actual" : {
+            "$ref" : "#/components/schemas/GoalProjectionSeries"
+          },
+          "deadline" : {
+            "type" : "string"
+          },
+          "forecast" : {
+            "$ref" : "#/components/schemas/GoalForecastDto"
+          },
+          "projected" : {
+            "$ref" : "#/components/schemas/GoalProjectionSeries"
+          },
+          "target" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          }
+        },
+        "type" : "object"
+      },
+      "GoalProjectionSeries" : {
+        "properties" : {
+          "basis" : {
+            "enum" : [ "FACT", "ESTIMATED" ],
+            "type" : "string"
+          },
+          "points" : {
+            "items" : {
+              "$ref" : "#/components/schemas/GoalProjectionPoint"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
       "GoalResponse" : {
         "properties" : {
           "completedAmount" : {
@@ -2210,6 +2349,9 @@
           },
           "destination" : {
             "$ref" : "#/components/schemas/GoalDestinationDto"
+          },
+          "forecast" : {
+            "$ref" : "#/components/schemas/GoalForecastDto"
           },
           "id" : {
             "format" : "uuid",
@@ -3638,6 +3780,31 @@
         },
         "type" : "object"
       },
+      "PreviewGoalRequest" : {
+        "properties" : {
+          "deadline" : {
+            "example" : "2027-03",
+            "type" : "string"
+          },
+          "destinationAccountId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "plannedMonthly" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "targetAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "type" : {
+            "enum" : [ "EMERGENCY_RESERVE", "PURCHASE", "CUSTOM" ],
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "plannedMonthly", "type" ],
+        "type" : "object"
+      },
       "ProvisionedUserResponse" : {
         "properties" : {
           "createdAt" : {
@@ -3768,6 +3935,153 @@
           },
           "dueMonth" : {
             "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SimulateGoalRequest" : {
+        "properties" : {
+          "scenarios" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SimulationScenarioRequest"
+            },
+            "maxItems" : 5,
+            "minItems" : 0,
+            "type" : "array"
+          }
+        },
+        "required" : [ "scenarios" ],
+        "type" : "object"
+      },
+      "SimulationDeadline" : {
+        "properties" : {
+          "month" : {
+            "type" : "string"
+          },
+          "monthsFromDeadline" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "within" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "SimulationLastContribution" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "month" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SimulationReduction" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SimulationReductionRequest" : {
+        "properties" : {
+          "amount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "categoryCode" : {
+            "minLength" : 1,
+            "type" : "string"
+          }
+        },
+        "required" : [ "amount", "categoryCode" ],
+        "type" : "object"
+      },
+      "SimulationResponse" : {
+        "properties" : {
+          "assumptions" : {
+            "enum" : [ "EQUAL_MONTHLY_CONTRIBUTIONS", "NO_YIELD" ],
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "averageIncome" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "basis" : {
+            "enum" : [ "SIMULATED" ],
+            "type" : "string"
+          },
+          "remaining" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "scenarios" : {
+            "items" : {
+              "$ref" : "#/components/schemas/SimulationScenarioDto"
+            },
+            "type" : "array"
+          },
+          "start" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "SimulationScenarioDto" : {
+        "properties" : {
+          "completion" : {
+            "type" : "string"
+          },
+          "contributions" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "deadline" : {
+            "$ref" : "#/components/schemas/SimulationDeadline"
+          },
+          "firstContribution" : {
+            "type" : "string"
+          },
+          "incomeShare" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "lastContribution" : {
+            "$ref" : "#/components/schemas/SimulationLastContribution"
+          },
+          "monthlyAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "reduction" : {
+            "$ref" : "#/components/schemas/SimulationReduction"
+          },
+          "requiredMonthlyForDeadline" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "tooFar" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "SimulationScenarioRequest" : {
+        "properties" : {
+          "deadline" : {
+            "example" : "2027-07",
+            "type" : "string"
+          },
+          "monthlyAmount" : {
+            "$ref" : "#/components/schemas/MoneyDto"
+          },
+          "reduction" : {
+            "$ref" : "#/components/schemas/SimulationReductionRequest"
           }
         },
         "type" : "object"
@@ -6967,6 +7281,74 @@
         "tags" : [ "Goals" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/goals/simulations/preview" : {
+      "post" : {
+        "operationId" : "previewGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/PreviewGoalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalPreviewResponse"
+                }
+              }
+            },
+            "description" : "Prévia; nada é gravado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou ACCOUNT_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "ACCOUNT_ARCHIVED"
+          }
+        },
+        "summary" : "Prévia simulada do objetivo em criação: já guardado, alvo sugerido da reserva e conclusão",
+        "tags" : [ "Goals" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/goals/{goalId}" : {
       "get" : {
         "operationId" : "getGoal",
@@ -7497,6 +7879,52 @@
         "tags" : [ "Goals" ]
       }
     },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/projection" : {
+      "get" : {
+        "operationId" : "getGoalProjection",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/GoalProjectionResponse"
+                }
+              }
+            },
+            "description" : "Séries do gráfico"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          }
+        },
+        "summary" : "Gráfico do objetivo: guardado real (fato), projeção pelo plano (estimado) e prazo",
+        "tags" : [ "Goals" ]
+      }
+    },
     "/api/v1/workspaces/{workspaceId}/goals/{goalId}/resume" : {
       "post" : {
         "operationId" : "resumeGoal",
@@ -7550,6 +7978,72 @@
           }
         },
         "summary" : "Retoma o objetivo pausado (idempotente)",
+        "tags" : [ "Goals" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/goals/{goalId}/simulations" : {
+      "post" : {
+        "operationId" : "simulateGoal",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "goalId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/SimulateGoalRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/SimulationResponse"
+                }
+              }
+            },
+            "description" : "Cenários simulados; o objetivo não muda"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (scenarios OUT_OF_RANGE, deadline PAST, categoryCode INVALID, ...)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou GOAL_NOT_FOUND"
+          }
+        },
+        "summary" : "Simula de 1 a 5 cenários de aporte, prazo ou redução de gasto sobre o objetivo",
         "tags" : [ "Goals" ]
       }
     },

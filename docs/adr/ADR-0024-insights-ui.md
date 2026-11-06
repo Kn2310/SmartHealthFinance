@@ -31,6 +31,8 @@ do `M-More`, até aqui "Em breve".
    dinheiro, `ScoreLine` para score, tabela para cobertura) e a tabela "Ver dados" (ADR-0016); maiores contribuintes;
    "Como comparamos", limitações (mês em andamento etc.) e fontes com as origens; coluna lateral com Ação recomendada
    (ação primária, secundárias e os placeholders Objetivo/Copilot desabilitados "Em breve"), Confiança (3 segmentos),
+   **Adendo (2026-11-06, ADR-0036 §4):** "Criar objetivo de economia" deixa de ser placeholder e leva à criação com
+   origem no insight e a sugestão pré-preenchida (parte D da Sessão 7.2); "Perguntar ao Copilot" continua "Em breve".
    "Este insight foi útil?" (Útil/Não útil com `aria-pressed`; clicar no pressionado remove), Dispensar com
    confirmação inline e Relacionados (dimensão do Health e insights). Abrir o detalhe chama `POST /seen` (ADR-0023 §3).
 4. **Home:** uma chamada a `/highlights` alimenta "O que mudou" (até 3 linhas com rótulo, valor e comparação, cada uma
