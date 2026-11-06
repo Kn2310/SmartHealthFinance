@@ -115,3 +115,14 @@
 .tipRow { display: flex; align-items: center; gap: var(--space-8); }
 .tipLabel { flex: 1; color: var(--color-neutral-text-secondary); }
 .tipValue { font-weight: 600; white-space: nowrap; }
+
+/* Previsão de objetivo (D-GoalDetail): guardado sólido Teal, projeção tracejada, prazo vertical */
+.grid { stroke: var(--color-neutral-border); stroke-width: 1; stroke-dasharray: 2 4; }
+.deadline { stroke: var(--color-semantic-warning); stroke-width: 1.5; stroke-dasharray: 4 4; }
+.deadlineLabel { fill: var(--color-semantic-text-warning); font: var(--type-caption); }
+.lineSaved { fill: none; stroke: var(--color-brand-intelligent-teal); stroke-width: 2.5; }
+.lineProjected { fill: none; stroke: var(--color-brand-intelligent-teal); stroke-width: 2; stroke-dasharray: 6 5; }
+.dotSaved { fill: var(--color-brand-intelligent-teal); }
+.dotProjected { fill: var(--color-neutral-surface); stroke: var(--color-brand-intelligent-teal); stroke-width: 2; }
+.swatchSaved { height: 0; width: 16px; border-top: 2.5px solid var(--color-brand-intelligent-teal); border-radius: 0; }
+.swatchProjected { height: 0; width: 16px; border-top: 2px dashed var(--color-brand-intelligent-teal); border-radius: 0; }
