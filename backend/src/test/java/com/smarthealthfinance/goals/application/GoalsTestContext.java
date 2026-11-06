@@ -6,7 +6,11 @@ import com.smarthealthfinance.accounts.domain.model.Account;
 import com.smarthealthfinance.accounts.domain.valueobject.AccountId;
 import com.smarthealthfinance.accounts.domain.valueobject.AccountName;
 import com.smarthealthfinance.goals.application.port.GoalBalanceSource;
+import com.smarthealthfinance.forecast.application.port.ForecastReader;
 import com.smarthealthfinance.goals.application.service.GoalAccess;
+import com.smarthealthfinance.goals.application.service.GoalAverages;
+import com.smarthealthfinance.goals.application.service.GoalForecastContext;
+import com.smarthealthfinance.goals.application.service.GoalSimulator;
 import com.smarthealthfinance.goals.application.service.GoalCalendar;
 import com.smarthealthfinance.goals.application.service.GoalDestinations;
 import com.smarthealthfinance.goals.application.service.GoalEvents;
@@ -16,6 +20,8 @@ import com.smarthealthfinance.goals.application.usecase.ChangeGoalStatus;
 import com.smarthealthfinance.goals.application.usecase.CreateGoal;
 import com.smarthealthfinance.goals.application.usecase.GetGoal;
 import com.smarthealthfinance.goals.application.usecase.ListGoals;
+import com.smarthealthfinance.goals.application.usecase.PreviewGoal;
+import com.smarthealthfinance.goals.application.usecase.SimulateGoal;
 import com.smarthealthfinance.goals.application.usecase.UpdateGoal;
 import com.smarthealthfinance.goals.domain.model.Goal;
 import com.smarthealthfinance.goals.domain.repository.GoalRepository;
@@ -82,11 +88,20 @@ public final class GoalsTestContext {
             new WorkspaceAccessGuard(workspaces), goals);
     public final GoalCalendar calendar = new GoalCalendar(clock, ZoneId.of("America/Sao_Paulo"));
     public final GoalDestinations destinations = new GoalDestinations(accounts, goals);
-    public final GoalReader reader = new GoalReader(balances, destinations, calendar);
+    /** Forecast sem snapshot: a previsão fica {@code NO_FORECAST} (só fatos), como num Workspace novo. */
+    public final ForecastReader forecast = PortFakes.forecastWithoutSnapshot();
+    /** Analytics com renda média de R$ 6.600 e despesa média de R$ 4.192 (09-dados, abr–set). */
+    public final PortFakes.Analytics analytics = new PortFakes.Analytics();
+    public final GoalAverages averages = new GoalAverages(analytics.port(), calendar);
+    public final GoalReader reader = new GoalReader(balances, destinations, calendar, goals,
+            new GoalForecastContext(forecast));
+    public final GoalSimulator simulator = new GoalSimulator(averages, calendar);
 
     public final CreateGoal createGoal = new CreateGoal(access, goals, destinations, reader, events, calendar, clock);
     public final GetGoal getGoal = new GetGoal(access, reader);
-    public final ListGoals listGoals = new ListGoals(access, goals, reader);
+    public final ListGoals listGoals = new ListGoals(access, goals, reader, averages);
+    public final SimulateGoal simulateGoal = new SimulateGoal(access, reader, simulator);
+    public final PreviewGoal previewGoal = new PreviewGoal(access, destinations, reader, averages, simulator);
     public final UpdateGoal updateGoal = new UpdateGoal(access, goals, destinations, reader, events, calendar, clock);
     public final ApplyGoalPlan applyPlan = new ApplyGoalPlan(access, goals, reader, events, calendar, clock);
     public final ChangeGoalStatus changeStatus = new ChangeGoalStatus(access, goals, reader, events, clock);

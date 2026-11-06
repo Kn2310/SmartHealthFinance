@@ -5,6 +5,12 @@ import com.smarthealthfinance.accounts.domain.model.Account;
 import com.smarthealthfinance.goals.application.GoalsTestContext;
 import com.smarthealthfinance.goals.application.dto.GoalListView;
 import com.smarthealthfinance.goals.application.dto.GoalView;
+import com.smarthealthfinance.goals.application.dto.SimulationView;
+import com.smarthealthfinance.goals.application.service.GoalSimulator;
+import com.smarthealthfinance.goals.domain.enums.GoalForecastFreshness;
+import com.smarthealthfinance.goals.domain.enums.GoalForecastReason;
+import com.smarthealthfinance.goals.domain.enums.GoalForecastStatus;
+import com.smarthealthfinance.goals.domain.valueobject.SimulationScenario;
 import com.smarthealthfinance.goals.application.exception.GoalDestinationInUseException;
 import com.smarthealthfinance.goals.application.exception.GoalNotFoundException;
 import com.smarthealthfinance.goals.application.exception.ReserveGoalAlreadyExistsException;
@@ -16,6 +22,8 @@ import com.smarthealthfinance.shared.domain.InvalidValueException;
 import com.smarthealthfinance.shared.domain.Money;
 import org.junit.jupiter.api.Test;
 
+import java.time.YearMonth;
+import java.util.List;
 import java.util.UUID;
 
 import static com.smarthealthfinance.goals.application.GoalsTestContext.BRL;
@@ -137,6 +145,83 @@ class GoalUseCasesTest {
                 .isInstanceOf(GoalNotFoundException.class);
         assertThatThrownBy(() -> ctx.getGoal.execute(ctx.bobsWorkspace.id().value(), UUID.randomUUID()))
                 .isInstanceOf(GoalNotFoundException.class);
+    }
+
+    @Test
+    void simulatesTheDesignScenariosWithoutChangingTheGoal() {
+        GoalView lisbon = createLisbon();
+
+        SimulationView simulation = ctx.simulateGoal.execute(ctx.anasWorkspaceId(), lisbon.id(), List.of(
+                new GoalSimulator.Scenario("700.00", null, null, null),
+                new GoalSimulator.Scenario("780.00", null, null, null),
+                new GoalSimulator.Scenario("900.00", null, null, null),
+                new GoalSimulator.Scenario(null, "2027-06", null, null),
+                new GoalSimulator.Scenario(null, null, "DINING_OUT", "200.00")));
+
+        assertThat(simulation.remaining()).isEqualTo(Money.of("7700.00", BRL));
+        assertThat(simulation.start()).isEqualTo(YearMonth.of(2026, 10));
+        assertThat(simulation.scenarios()).extracting(s -> s.result().completion()).containsExactly(
+                YearMonth.of(2027, 8), YearMonth.of(2027, 7), YearMonth.of(2027, 6), YearMonth.of(2027, 6),
+                YearMonth.of(2027, 6));
+        assertThat(simulation.scenarios().get(1).result().withinDeadline()).isTrue();
+        assertThat(simulation.scenarios().get(3).result().monthlyAmount()).isEqualTo(Money.of("855.56", BRL));
+        assertThat(simulation.scenarios().get(4).result().monthlyAmount()).isEqualTo(Money.of("900.00", BRL));
+        assertThat(simulation.scenarios().get(4).reductionCategory()).isEqualTo("DINING_OUT");
+        // 780 ÷ 6.560 (renda média abr–ago) ≈ 12%.
+        assertThat(simulation.scenarios().get(1).result().incomeShare()).isEqualTo(12);
+        assertThat(ctx.getGoal.execute(ctx.anasWorkspaceId(), lisbon.id()).plannedMonthly())
+                .isEqualTo(Money.of("700.00", BRL));
+        assertThat(ctx.outbox).hasSize(1);
+    }
+
+    @Test
+    void simulationRejectsTooManyScenariosAndUnknownCategories() {
+        GoalView lisbon = createLisbon();
+        GoalSimulator.Scenario plain = new GoalSimulator.Scenario(null, null, null, null);
+
+        assertThatThrownBy(() -> ctx.simulateGoal.execute(ctx.anasWorkspaceId(), lisbon.id(),
+                List.of(plain, plain, plain, plain, plain, plain))).isInstanceOf(InvalidValueException.class);
+        assertThatThrownBy(() -> ctx.simulateGoal.execute(ctx.anasWorkspaceId(), lisbon.id(),
+                List.of(new GoalSimulator.Scenario(null, null, "NOPE", "10.00"))))
+                .isInstanceOfSatisfying(InvalidValueException.class,
+                        e -> assertThat(e.reason()).isEqualTo("INVALID"));
+    }
+
+    @Test
+    void previewOfTheDeliveryGoalAndOfTheReserve() {
+        Account empty = ctx.account(ctx.anasWorkspace, "Caixinha Delivery", AccountType.OTHER, "0.00");
+
+        PreviewGoal.Preview delivery = ctx.previewGoal.execute(ctx.anasWorkspaceId(), new PreviewGoal.Command(
+                "CUSTOM", "1800.00", "300.00", "2027-03", empty.id().value()));
+
+        assertThat(delivery.alreadySaved()).isEqualTo(Money.zero(BRL));
+        assertThat(delivery.suggestedTarget()).isNull();
+        SimulationScenario scenario = delivery.simulation().scenarios().getFirst().result();
+        assertThat(scenario.contributions()).isEqualTo(6);
+        assertThat(scenario.firstContribution()).isEqualTo(YearMonth.of(2026, 10));
+        assertThat(scenario.completion()).isEqualTo(YearMonth.of(2027, 3));
+        assertThat(scenario.withinDeadline()).isTrue();
+        assertThat(scenario.incomeShare()).isEqualTo(5);
+
+        PreviewGoal.Preview reserve = ctx.previewGoal.execute(ctx.anasWorkspaceId(), new PreviewGoal.Command(
+                "EMERGENCY_RESERVE", null, "800.00", null, null));
+        assertThat(reserve.alreadySaved()).isEqualTo(Money.of("10000.00", BRL));
+        assertThat(reserve.suggestedTarget()).isEqualTo(Money.of("25152.00", BRL));
+        assertThat(reserve.simulation().scenarios().getFirst().result().completion()).isEqualTo(YearMonth.of(2028, 4));
+        assertThat(ctx.goals.size()).isZero();
+    }
+
+    @Test
+    void withoutForecastTheGoalShowsOnlyFacts() {
+        GoalView lisbon = createLisbon();
+
+        assertThat(lisbon.forecast().status()).isEqualTo(GoalForecastStatus.NO_FORECAST);
+        assertThat(lisbon.forecast().reason()).isEqualTo(GoalForecastReason.FORECAST_NOT_READY);
+        assertThat(lisbon.forecastFreshness()).isEqualTo(GoalForecastFreshness.NOT_BUILT);
+        GoalListView list = ctx.listGoals.execute(ctx.anasWorkspaceId(), null);
+        assertThat(list.forecastCount()).isZero();
+        // 700 ÷ 6.560 ≈ 11% da renda média.
+        assertThat(list.plannedIncomeShare()).isEqualTo(11);
     }
 
     private GoalView createLisbon() {

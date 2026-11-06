@@ -75,6 +75,9 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private static final String GOAL_PLAN_JSON = """
             {"plannedMonthly": {"amount": "2.00", "currency": "BRL"}}
             """;
+    private static final String SIMULATION_JSON = """
+            {"scenarios": [{"monthlyAmount": {"amount": "5.00", "currency": "BRL"}}]}
+            """;
     private static final String ADJUSTMENT_JSON = """
             {"expectedAmount": {"amount": "1.00", "currency": "BRL"}, "expectedDay": 3}
             """;
@@ -269,6 +272,10 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("goals: registrar aporte", HttpMethod.POST, GOAL + "/contributions", f -> ids(f.goal()),
                     idempotent(json(f -> contributionJson(f.account())))),
             op("goals: histórico de aportes", HttpMethod.GET, GOAL + "/contributions", f -> ids(f.goal()), NONE),
+            op("goals: simular", HttpMethod.POST, GOAL + "/simulations", f -> ids(f.goal()), json(f -> SIMULATION_JSON)),
+            op("goals: prévia de criação", HttpMethod.POST, GOALS + "/simulations/preview", f -> new Object[0],
+                    json(f -> previewJson(f.otherAccount()))),
+            op("goals: projeção", HttpMethod.GET, GOAL + "/projection", f -> ids(f.goal()), NONE),
 
             op("cards: listar", HttpMethod.GET, CARDS, f -> new Object[0], NONE),
             op("cards: criar", HttpMethod.POST, CARDS, f -> new Object[0], json(f -> CARD_JSON)),
@@ -538,6 +545,14 @@ class WorkspaceIsolationIT extends IntegrationTest {
                             .content(contributionJson(own.account()))),
             cross("goals: histórico de objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
                     (mvc, own, id) -> mvc.get().uri(GOAL + "/contributions", own.workspace(), id)),
+            cross("goals: simular objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.post().uri(GOAL + "/simulations", own.workspace(), id)
+                            .contentType(MediaType.APPLICATION_JSON).content(SIMULATION_JSON)),
+            cross("goals: projeção de objetivo alheio", HttpStatus.NOT_FOUND, "GOAL_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.get().uri(GOAL + "/projection", own.workspace(), id)),
+            cross("goals: prévia com destino alheio", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
+                    (mvc, own, id) -> mvc.post().uri(GOALS + "/simulations/preview", own.workspace())
+                            .contentType(MediaType.APPLICATION_JSON).content(previewJson(id))),
             cross("goals: destino em conta alheia", HttpStatus.NOT_FOUND, "ACCOUNT_NOT_FOUND", Fixture::account,
                     (mvc, own, id) -> mvc.post().uri(GOALS, own.workspace()).contentType(MediaType.APPLICATION_JSON)
                             .content(goalJson(id, null))),
@@ -677,6 +692,13 @@ class WorkspaceIsolationIT extends IntegrationTest {
                  "plannedMonthly": {"amount": "100.00", "currency": "BRL"}, "destinationAccountId": "%s",
                  "sourceAccountId": %s}
                 """.formatted(destination, source == null ? "null" : "\"" + source + "\"");
+    }
+
+    private static String previewJson(String destination) {
+        return """
+                {"type": "PURCHASE", "targetAmount": {"amount": "1000.00", "currency": "BRL"},
+                 "plannedMonthly": {"amount": "100.00", "currency": "BRL"}, "destinationAccountId": "%s"}
+                """.formatted(destination);
     }
 
     /** Aporte de hoje (data de negócio): o objetivo do seed começa hoje. */
