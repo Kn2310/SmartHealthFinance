@@ -9,6 +9,10 @@ import { ScoreRing } from '@/components/charts/ScoreRing'
 import { Skeleton } from '@/components/ui/Skeleton'
 import type { Health, HealthDimension, HealthEvolution } from '@/lib/api/types'
 import { useRelatedInsights } from '@/features/insights/api'
+import { EstimateBadge } from '@/components/ui/ProjectedValue'
+import { Money } from '@/components/ui/Money'
+import { longMonthYear, monthYear } from '@/features/goals/format'
+import { useReserveGoal } from '@/features/goals/hooks'
 import { useHealth, useHealthEvolution } from './api'
 import {
   CONFIDENCE_LABEL,
@@ -354,6 +358,9 @@ function NextSteps({ health }: { health: Health }) {
   const hasCategoryStep = health.nextSteps.some((step) => step.kind === 'REVIEW_CATEGORY')
   const related = useRelatedInsights(hasCategoryStep ? { dimension: 'SPENDING' } : null)
   const spikes = related.status === 'success' && related.data ? related.data.items : []
+  // Reserva → objetivo de reserva ou a criação dele (adendo de 2026-11-06 ao ADR-0020); a previsão vem do objetivo.
+  const reserveGoal = useReserveGoal(health.nextSteps.some((step) => step.kind === 'BUILD_RESERVE'))
+  const reserveForecast = reserveGoal?.forecast.completion ? reserveGoal : null
   return (
     <section className={styles.panel} aria-labelledby="health-steps-title">
       <h2 id="health-steps-title" className={styles.panelTitle}>
@@ -362,11 +369,19 @@ function NextSteps({ health }: { health: Health }) {
       <p className={styles.muted}>Sugestões com base nos seus dados — você decide</p>
       <ul className={styles.steps}>
         {health.nextSteps.map((step) => {
-          const link = nextStepLink(step, spikes)
+          const link = nextStepLink(step, spikes, reserveGoal)
           return (
             <li key={step.kind} className={styles.step}>
               <p className={styles.stepTitle}>{step.text}</p>
               <p>{step.evidence}</p>
+              {step.kind === 'BUILD_RESERVE' && reserveForecast ? (
+                <p className={styles.stepForecast}>
+                  Com aportes de <Money value={reserveForecast.plannedMonthly} />/mês, sua reserva chega ao alvo de{' '}
+                  <Money value={reserveForecast.targetAmount} /> em <span aria-hidden="true">{monthYear(reserveForecast.forecast.completion)}</span>
+                  <span className="sr-only">{longMonthYear(reserveForecast.forecast.completion)}, estimado</span>{' '}
+                  <EstimateBadge />
+                </p>
+              ) : null}
               {link.href ? (
                 <Link href={link.href} className={styles.stepLink}>
                   {link.label}

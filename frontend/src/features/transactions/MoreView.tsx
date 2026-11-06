@@ -7,7 +7,7 @@ import styles from './Transactions.module.css'
 
 const ITEMS: { href: string; label: string; icon: LucideIcon; soon?: boolean }[] = [
   { href: '/insights', label: 'Insights', icon: Lightbulb },
-  { href: '/goals', label: 'Objetivos', icon: Target, soon: true },
+  { href: '/goals', label: 'Objetivos', icon: Target },
   { href: '/accounts', label: 'Contas', icon: Wallet },
   { href: '/transactions', label: 'Transações', icon: ArrowLeftRight },
   { href: '/recurring', label: 'Recorrências', icon: Repeat },

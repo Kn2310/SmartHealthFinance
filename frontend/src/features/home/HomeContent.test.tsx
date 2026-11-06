@@ -33,6 +33,16 @@ const pending = (overrides: Partial<OverviewTransaction> = {}): OverviewTransact
   ...overrides,
 })
 
+describe('Ações rápidas na Home (ADR-0037)', () => {
+  it('aparecem com contas; sem contas, a Home mostra só o próximo passo', () => {
+    const { unmount } = render(<HomeContent overview={readyOverview()} />)
+    expect(screen.getByRole('region', { name: 'Ações rápidas' })).toBeInTheDocument()
+    unmount()
+    render(<HomeContent overview={noAccountsOverview()} />)
+    expect(screen.queryByRole('region', { name: 'Ações rápidas' })).not.toBeInTheDocument()
+  })
+})
+
 describe('HomeContent — READY', () => {
   it('mostra saldo, fluxo, contas e movimentações', () => {
     render(<HomeContent overview={readyOverview()} />)

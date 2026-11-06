@@ -5,6 +5,7 @@ import { BalanceHero } from './BalanceHero'
 import { InvoicesToPay } from './CardBills'
 import { CashFlowSummary } from './CashFlowSummary'
 import { NoAccounts, NoActivityInPeriod, NoTransactions, UnsupportedState } from './HomeEmpty'
+import { QuickActions } from './QuickActions'
 import { RecentTransactions } from './RecentTransactions'
 import { UpcomingEvents } from './UpcomingEvents'
 import styles from './HomeView.module.css'
@@ -33,7 +34,14 @@ export function HomeContent({ overview, health = null, insights = null }: {
     .filter(Boolean).join(' ')
   const { state, summary, period, cashFlow, accounts, recentTransactions, cards } = overview
   const bills = cards ? <InvoicesToPay bills={cards} /> : null
-  const events = <UpcomingEvents bills={cards} accounts={accounts} />
+  // "O que posso fazer agora?": Próximos eventos + Ações rápidas (03-screens, D-Home; ADR-0037), lado a lado no desktop.
+  // Sem contas, a Home mostra só o próximo passo ("Adicionar conta"): sem Ações rápidas.
+  const events = (
+    <div className={styles.closing}>
+      <div className={styles.events}><UpcomingEvents bills={cards} accounts={accounts} /></div>
+      {state !== 'NO_ACCOUNTS' ? <div className={styles.quick}><QuickActions /></div> : null}
+    </div>
+  )
   const hero = (
     <div className={styles.hero}>
       <div className={styles.heroStack}>

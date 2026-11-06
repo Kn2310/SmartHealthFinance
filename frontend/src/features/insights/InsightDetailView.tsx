@@ -287,7 +287,7 @@ function Recommended({ detail }: { detail: InsightDetail }) {
       ) : null}
       <div className={styles.stack}>
         {actions.map((action) => {
-          const href = actionHref(action)
+          const href = actionHref(action, detail.insight.id)
           const className = action.primary ? styles.button : styles.secondaryButton
           return href ? (
             <Link key={action.kind} href={href} className={className}>

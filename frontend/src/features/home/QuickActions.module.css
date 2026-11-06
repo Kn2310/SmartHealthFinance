@@ -1,0 +1,43 @@
+/* Ações rápidas (D-Home): lista de atalhos com ícone, título, apoio e chevron. Só tokens do DS. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+  padding: var(--space-16);
+  background: var(--color-neutral-surface);
+  border: 1px solid var(--color-neutral-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+}
+.title { font: var(--type-h3); }
+.list { display: flex; flex-direction: column; gap: var(--space-4); margin: 0; padding: 0; list-style: none; }
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--size-touch-min-mobile);
+  padding: var(--space-8);
+  border-radius: var(--radius-md);
+  color: var(--color-neutral-text);
+}
+a.item:hover { background: var(--color-neutral-subtle); }
+.disabled { color: var(--color-neutral-muted); cursor: not-allowed; }
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--space-40);
+  height: var(--space-40);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-subtle);
+  color: var(--color-neutral-text-secondary);
+}
+.text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.name { font: var(--type-body-s); font-weight: 600; overflow-wrap: anywhere; }
+.hint { color: var(--color-neutral-muted); font: var(--type-caption); overflow-wrap: anywhere; }
+.chevron { flex: none; color: var(--color-neutral-muted); }
+
+@media (min-width: 640px) {
+  .card { padding: var(--space-20) var(--space-24); }
+}
