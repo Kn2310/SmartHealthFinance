@@ -248,7 +248,7 @@
   - E2E `cards-frontend.spec.ts` (datas relativas a hoje, 5 larguras).
 - [ ] fatura "por categoria" (D-Invoice): adiada (ADR-0029 §6); precisa de endpoint próprio com a regra de
   agrupamento do D11
-- [ ] estimativa da próxima fatura e das faturas futuras: M9 (ADR-0025 §10, ADR-0029 §4)
+- [x] estimativa da próxima fatura e das faturas futuras: entregue no M9 (ADR-0033 §4)
 
 **M8 completo** (Sessões 6.1 e 6.2), com as duas pendências acima explicitamente adiadas e as do ADR-0025 §14
 (feriados, `INCOME`/`ADJUSTMENT`/`PENDING` no cartão) fora do MVP.
@@ -303,11 +303,21 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - recorrências por id opaco (`V21`): lista, detalhe, `confirm`, `ignore`, `PUT`/`DELETE adjustment`, idempotentes;
   - suíte de isolamento, snapshot OpenAPI e `schema.d.ts`
   - D15 `BALANCE_MAY_GO_NEGATIVE` entregue no backend (`insights-v3`, lê o `ForecastReader`; ação `VIEW_UPCOMING_EVENTS`; os D1–D14 não mudam e a troca de versão herda `seenAt` e feedback); o card na UI fica para a parte D
-- [ ] UI de Forecast nas telas existentes e gestão de recorrências (parte D)
-- [ ] cash flow forecast
-- [ ] bill forecast
-- [ ] freshness
-- [ ] uncertainty
+- [x] UI de Forecast nas telas existentes e gestão de recorrências (parte D — ADR-0033)
+  - fatia A (entregue na branch): BFF do Forecast e das recorrências, componente `ProjectedValue` (Estimado/Confirmado/Parcial), "Próximos eventos" da Home, projeção do mês e próxima receita na Análise, estimativa da próxima fatura e das futuras em Cartões;
+  - fatia B: página `/recurring` (abas Despesas/Receitas; Para revisar, Confirmadas e Ignoradas; confirmar, ignorar com desfazer, ajustar e voltar ao detectado; "Atualizando estimativas…"), item em M-More, ação e evidências do D15 no detalhe do insight, testes Vitest + axe e E2E `forecast.spec.ts` com os valores exatos do `forecast-v1` nas 5 larguras
+- [x] cash flow forecast
+- [x] bill forecast
+- [x] freshness
+- [x] uncertainty
+
+**M9 completo** (Sessão 7.1). Handoff para a 7.2 no ADR-0030, seção "Para a Sessão 7.2":
+- disponível: porta `ForecastReader` (`cashFlow`, `monthlySavingCapacity`, `recurringSeries`, `current`,
+  `state`), evento `forecast.snapshot-updated`, API e o componente `ProjectedValue`;
+- lacunas: virada de mês das recorrências (decisão de produto pendente), faixa por parte, fechamento × vencimento em
+  `/upcoming`, enums como `string` no OpenAPI, só recorrência mensal, D15 sem E2E;
+- E2E completo não rodado nesta parte por falta de disco: só `forecast.spec.ts` passou; rodar `pnpm e2e --workers=1`
+  antes do merge.
 
 ## M10 Goals
 

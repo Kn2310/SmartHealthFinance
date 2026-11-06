@@ -65,3 +65,31 @@ export type InsightHighlights = Schemas['InsightHighlightsResponse']
 export type InsightChange = Schemas['InsightChangeDto']
 export type InsightRelated = Schemas['InsightRelatedResponse']
 export type InsightsFreshness = Schemas['InsightsFreshnessDto']
+
+// Forecast (ADR-0030/0031/0032)
+export type {
+  ForecastBasis,
+  ForecastConfidence,
+  ForecastDataState,
+  ForecastEvidenceKind,
+  ForecastFreshnessState,
+  ForecastLimitation,
+  ForecastSeriesDirection,
+  ForecastSeriesEligibility,
+  ForecastSeriesStatus,
+  ForecastUpcomingEventKind,
+} from './schema'
+export type ForecastValue = Schemas['ForecastValueDto']
+export type ForecastFreshness = Schemas['ForecastFreshnessDto']
+export type ForecastChannel = Schemas['ForecastChannelDto']
+export type ForecastMonthResponse = Schemas['ForecastMonthResponse']
+export type ForecastMonth = Schemas['ForecastMonthDto']
+export type ForecastNextIncomeResponse = Schemas['ForecastNextIncomeResponse']
+export type ForecastNextIncome = Schemas['ForecastNextIncomeDto']
+export type ForecastUpcomingResponse = Schemas['ForecastUpcomingResponse']
+export type ForecastUpcomingEvent = Schemas['ForecastUpcomingEventDto']
+export type ForecastInvoicesResponse = Schemas['ForecastInvoicesResponse']
+export type ForecastInvoice = Schemas['ForecastInvoiceDto']
+export type ForecastRecurringSeries = Schemas['ForecastRecurringSeriesDto']
+export type ForecastRecurringList = Schemas['ForecastRecurringListResponse']
+export type ForecastRecurringAction = Schemas['ForecastRecurringActionResponse']

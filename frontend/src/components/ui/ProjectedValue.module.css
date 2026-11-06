@@ -1,0 +1,32 @@
+/*
+ * Valor projetado (ADR-0033 §1; 01-foundations "Estimado"): "≈" e sublinhado tracejado azul para estimativas, badge
+ * com borda tracejada. Só tokens do DS.
+ */
+.wrap { display: inline-flex; flex-direction: column; align-items: flex-start; gap: var(--space-4); max-width: 100%; }
+.line { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+.visual { font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.approx { color: var(--color-semantic-text-info); }
+.estimated {
+  text-decoration: underline dashed;
+  text-decoration-color: var(--color-semantic-info);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+}
+.range { color: var(--color-neutral-text-secondary); font: var(--type-caption); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-8);
+  border-radius: var(--radius-xs);
+  font: var(--type-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badgeEstimated {
+  background: var(--color-semantic-bg-info);
+  color: var(--color-semantic-text-info);
+  border: 1px dashed var(--color-semantic-info);
+}
+.badgeFact { background: var(--color-semantic-bg-success); color: var(--color-semantic-text-success); }
+.badgePartial { background: var(--color-neutral-subtle); color: var(--color-neutral-text-secondary); }

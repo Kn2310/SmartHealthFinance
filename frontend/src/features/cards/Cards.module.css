@@ -303,3 +303,10 @@
   color: var(--color-semantic-text-warning);
   font: var(--type-body-s);
 }
+
+/* Forecast em Cartões (ADR-0033 §4): fato e estimativa lado a lado, separados. */
+.closingRow { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-4) var(--space-12); }
+.split { display: flex; flex-direction: column; gap: var(--space-4); align-items: flex-end; margin-left: auto; text-align: right; }
+.splitLine { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-end; gap: var(--space-4) var(--space-8); font: var(--type-body-s); font-variant-numeric: tabular-nums; }
+.splitLabel { color: var(--color-neutral-text-secondary); font: var(--type-caption); }
+.forecastNotes { display: flex; flex-direction: column; gap: var(--space-4); }

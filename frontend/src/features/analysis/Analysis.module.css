@@ -61,6 +61,7 @@
 }
 .metricLabel { color: var(--color-neutral-muted); font: var(--type-body-s); font-weight: 600; }
 .metricValue { font: var(--type-h2); }
+.projection { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-8); }
 .metricHint { color: var(--color-neutral-text-secondary); font: var(--type-caption); }
 
 .variation { display: inline-flex; align-items: center; gap: var(--space-4); font: var(--type-caption); color: var(--color-neutral-text-secondary); }

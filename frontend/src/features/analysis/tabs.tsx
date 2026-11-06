@@ -26,6 +26,7 @@ import { useCategoryDetail } from './api'
 import type { TabContext } from './AnalysisView'
 import { formatShare } from './format'
 import { MetricCard, QuietPeriod, Variation } from './parts'
+import { NextIncomeCard, SpendingProjection } from './Projection'
 import { toApiSearch, toPageSearch } from './query'
 import styles from './Analysis.module.css'
 
@@ -181,6 +182,8 @@ export function SpendingTab({ data, context }: { data: AnalysisSpending; context
         </div>
       </div>
 
+      <SpendingProjection month={data.period.month} />
+
       <div className={styles.grid}>
         <Card id="analysis-cumulative" title="Gasto acumulado no mês"
           subtitle={previousMonth ? `${month} comparado a ${previousMonth}` : month}>
@@ -236,6 +239,8 @@ export function IncomeTab({ data, context }: { data: AnalysisIncome; context: Ta
           <span className={styles.metricHint}>Nos meses de comparação, no mesmo recorte de dias.</span>
         </div>
       </div>
+
+      <NextIncomeCard />
 
       <div className={styles.grid}>
         <Card id="analysis-sources" title="Fontes de receita" subtitle={longMonthLabel(data.period.month)}>

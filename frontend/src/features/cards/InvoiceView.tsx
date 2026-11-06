@@ -5,11 +5,16 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Money } from '@/components/ui/Money'
+import { FactBadge, ProjectedValue } from '@/components/ui/ProjectedValue'
 import { magnitude } from '@/components/charts/geometry'
+import { useForecastInvoices } from '@/features/forecast/api'
+import { estimateStatus, evidenceMonths } from '@/features/forecast/format'
+import { ConfidenceNotes, StatusNote } from '@/features/forecast/parts'
 import { useInsightDetail, useInsightList } from '@/features/insights/api'
 import { confidence, figureValue } from '@/features/insights/format'
 import { categoryNames, useCategories } from '@/features/transactions/hooks'
 import { formatLongDate, formatShortDate } from '@/lib/format/date'
+import type { ForecastInvoicesResponse } from '@/lib/api/types'
 import type { Card, Invoice, InvoiceItem } from './api'
 import {
   calculationNote,
@@ -18,6 +23,7 @@ import {
   monthName,
   TRACKING_START_NOTE,
 } from './format'
+import { estimatedPartOf } from './forecast'
 import { useCard, useFutureInvoices, useInvoice, useInvoiceItems } from './hooks'
 import { Badge } from './parts'
 import { BackLink, ErrorPanel, LoadingPanel, NotFoundPanel, PartialNotice } from './states'
@@ -29,7 +35,7 @@ const PAGE_SIZE = 20
 /**
  * D-Invoice / M-Invoice: a fatura de um mês de vencimento (ou a atual, com `dueMonth` nulo). Valor, estado, datas,
  * pago e em aberto vêm do backend (ADR-0025 §5/§7); o mínimo só quando informado no arquivo. A explicação ✦ reaproveita
- * o insight D11 desta fatura, sem IA (ADR-0029 §3); estimativa e "por categoria" não aparecem (ADR-0029 §4 e §6).
+ * o insight D11 desta fatura, sem IA (ADR-0029 §3); a estimativa entra pelo Forecast (ADR-0033 §4) e "por categoria" não aparece (ADR-0029 §6).
  */
 export function InvoiceView({ cardId, dueMonth }: { cardId: string | null; dueMonth: string | null }) {
   if (!cardId) return <CardNotFound />
@@ -82,6 +88,10 @@ function Loaded({ card, cardId, invoice }: { card: Card | null; cardId: string; 
   const status = invoiceStatus(summary.status)
   const name = invoiceName(summary.dueMonth, year)
   const canPay = card?.status === 'ACTIVE' && summary.status !== 'FUTURE' && magnitude(summary.remaining) > 0
+  // Estimativas só na fatura aberta (o "≈ no fechamento" e a próxima fatura); a leitura é uma só para os dois blocos.
+  const forecast = useForecastInvoices(summary.status === 'OPEN' ? cardId : null)
+  const projected = forecast.status === 'success' ? forecast.data : null
+  const closing = projected?.invoices.find((i) => i.kind === 'OPEN' && i.dueMonth === summary.dueMonth)?.total
 
   return (
     <div className={styles.page}>
@@ -126,6 +136,18 @@ function Loaded({ card, cardId, invoice }: { card: Card | null; cardId: string; 
               Parcial até {formatShortDate(invoice.asOf)}: pode mudar até o fechamento em{' '}
               {formatShortDate(summary.closingDate)}.
             </p>
+          ) : null}
+          {closing && closing.basis === 'ESTIMATED' ? (
+            <div className={styles.forecastNotes}>
+              <div className={styles.closingRow}>
+                <span className={styles.caption}>No fechamento</span>
+                <ProjectedValue value={closing} />
+              </div>
+              <ConfidenceNotes value={closing} months={evidenceMonths(closing)} />
+              {projected && estimateStatus(projected.state, projected.freshness) === 'RECALCULATING' ? (
+                <StatusNote status="RECALCULATING" />
+              ) : null}
+            </div>
           ) : null}
           <dl className={styles.facts}>
             <div>
@@ -188,7 +210,7 @@ function Loaded({ card, cardId, invoice }: { card: Card | null; cardId: string; 
 
         <div className={styles.page}>
           <InvoiceExplanation cardId={cardId} dueMonth={summary.dueMonth} />
-          {summary.status === 'OPEN' ? <NextInvoice cardId={cardId} year={year} /> : null}
+          {summary.status === 'OPEN' ? <NextInvoice cardId={cardId} year={year} forecast={projected} /> : null}
         </div>
       </div>
 
@@ -268,28 +290,68 @@ function ExplanationDetail({ insightId, title }: { insightId: string; title: str
   )
 }
 
-/** Próxima fatura: só o que já está comprometido em parcelas, nunca estimativa (ADR-0025 §10, ADR-0029 §4). */
-function NextInvoice({ cardId, year }: { cardId: string; year: string }) {
+/**
+ * Próxima fatura (ADR-0033 §4, adendo ao ADR-0029 §4): "Já comprometido (parcelas)" (fato, Confirmado) e "Novas compras
+ * pelo seu padrão" (estimativa) em linhas separadas; o total só como "≈", com as duas partes à vista. Sem estimativa
+ * (`PARTIAL_CARD_HISTORY`, sem snapshot, histórico curto ou erro), só o comprometido e o aviso do ADR-0025 §10.
+ */
+function NextInvoice({ cardId, year, forecast }: { cardId: string; year: string; forecast: ForecastInvoicesResponse | null }) {
   const future = useFutureInvoices(cardId)
   const next = future.status === 'success' ? future.data?.months[0] : undefined
-  if (future.status === 'error') {
+  const projected = forecast?.invoices.find((i) => i.kind === 'NEXT')
+  const estimate = projected && projected.total.basis === 'ESTIMATED' ? projected.total : null
+  const status = forecast ? estimateStatus(forecast.state, forecast.freshness) : null
+  if (future.status === 'error' && !estimate) {
     return <PartialNotice onRetry={future.retry}>Não conseguimos carregar a próxima fatura.</PartialNotice>
   }
-  if (!next) return null
+  const dueMonth = estimate && projected ? projected.dueMonth : next?.dueMonth
+  if (!dueMonth) return null
   return (
     <section className={styles.panel} aria-labelledby="next-invoice">
       <h2 id="next-invoice" className={styles.caption}>
-        Próxima fatura · {monthName(next.dueMonth, year)}
+        Próxima fatura · {monthName(dueMonth, year)}
       </h2>
       <dl className={styles.facts}>
         <div>
           <dt>Já comprometido (parcelas)</dt>
           <dd>
-            <Money value={next.committed} />
+            {estimate ? (
+              <>
+                <Money value={estimate.factPart} /> <FactBadge />
+              </>
+            ) : (
+              <Money value={next?.committed} />
+            )}
           </dd>
         </div>
+        {estimate ? (
+          <>
+            <div>
+              <dt>Novas compras pelo seu padrão</dt>
+              <dd>
+                <ProjectedValue value={estimatedPartOf(estimate)} range={false} />
+              </dd>
+            </div>
+            <div>
+              <dt>Total estimado</dt>
+              <dd>
+                <ProjectedValue value={estimate} badge={false} />
+              </dd>
+            </div>
+          </>
+        ) : null}
       </dl>
-      <p className={styles.caption}>Novas compras ainda não aparecem aqui.</p>
+      {estimate ? (
+        <div className={styles.forecastNotes}>
+          <ConfidenceNotes value={estimate} months={evidenceMonths(estimate)} />
+          {status === 'RECALCULATING' ? <StatusNote status={status} /> : null}
+        </div>
+      ) : (
+        <>
+          <p className={styles.caption}>Novas compras ainda não aparecem aqui.</p>
+          {status === 'NOT_BUILT' || status === 'INSUFFICIENT_HISTORY' ? <StatusNote status={status} /> : null}
+        </>
+      )}
       <Link href={`/cards/${cardId}/invoices`} className={styles.link}>
         Ver próximas faturas
         <ChevronRight size={16} strokeWidth={1.75} aria-hidden="true" />

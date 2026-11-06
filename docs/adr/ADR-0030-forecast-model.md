@@ -291,7 +291,47 @@ status e métricas).
 
 ## Para a Sessão 7.2
 
-Preenchido ao fim da parte D.
+Handoff do M9 (Sessão 7.1, partes 0 a D) para Goals e Simulation (M10). Registrado em 2026-11-05.
+
+### O que está disponível
+
+- **Porta `ForecastReader`** (`forecast.application.port`), só de leitura, por Workspace, com transação ativa, e sem
+  cálculo na leitura (tudo vem do snapshot `forecast-v1`):
+  - `current(workspace)`: o `ForecastResult` inteiro; vazio sem snapshot;
+  - `cashFlow(workspace)`: `CashFlowProjection` do saldo total na lente de caixa, do mês corrente até + 3, com faixa
+    e o menor saldo (§3.4);
+  - `monthlySavingCapacity(workspace)`: `SavingCapacity`, com `monthly` (`Projected`, sempre `ESTIMATED`, com
+    `factPart` = − mediana das parcelas comprometidas) e `months` (central, low, high e parcelas por mês);
+  - `recurringSeries(workspace)`: as séries elegíveis (`SeriesAssessment`) como estavam no cálculo;
+  - `state(workspace, version)`: `SnapshotState` (dirty, computedAt, built, latestAsOf, pendingEvents) para o
+    freshness.
+- **Evento** `forecast.snapshot-updated` v1 (ADR-0031): o Goals pode assinar para recalcular a projeção de metas, com
+  fila própria, inbox e DLQ, como os Insights.
+- **API** (ADR-0032): `/forecast/{month,next-income,upcoming,invoices,cash-flow,status}` e
+  `/recurring-{expenses,incomes}`, sempre `200` com `state` e `freshness`. O frontend tem o componente
+  `ProjectedValue` (Estimado/Confirmado/Parcial, "≈ sem centavos + faixa") e o BFF `/api/bff/forecast/[view]`.
+
+### Regras que o M10 herda
+
+- Goals e Simulation **leem** o Forecast e aplicam deltas `SIMULATED` por cima. Nada é gravado no Forecast, e o
+  `basis` `SIMULATED` nunca é somado a `FACT` ou `ESTIMATED` sem rótulo (§1).
+- Toda estimativa exibida mostra selo, faixa e confiança (§4 e ADR-0033 §1).
+- O estado do usuário nas séries (`user*`, `status`) nunca é sobrescrito por recálculo ou rebuild.
+- Sem histórico suficiente (`INSUFFICIENT_HISTORY`) ou sem snapshot (`NOT_BUILT`), a meta mostra só fatos.
+
+### Lacunas conhecidas
+
+- **Virada de mês das recorrências:** uma recorrência esperada no dia 1 e paga no dia 30 do mês anterior é contada
+  duas vezes no fluxo de caixa (a regra literal "dentro do mês" do §2). Pendente de decisão de produto.
+- **Faixa por parte:** a API devolve a faixa só do total. A das novas compras na fatura, ou da parte estimada da
+  capacidade de aporte, exige um campo aditivo.
+- **Eventos de fatura em `/upcoming`:** não distinguem fechamento de vencimento. A Home cruza com o Overview
+  (ADR-0033 §8).
+- **Enums como `string`** no OpenAPI do Forecast (`basis`, `confidence`, `state`).
+- **Só recorrência mensal** e horizonte do mês corrente até + 3: outras periodicidades e previsão além do horizonte
+  ficam fora (§9). Uma meta de prazo longo
+  precisa extrapolar `monthlySavingCapacity` e deixar isso explícito como `SIMULATED`.
+- **D15 sem E2E:** coberto só por testes de backend e de componente.
 
 ## Date
 

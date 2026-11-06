@@ -8,15 +8,15 @@ import { plural } from './labels'
 import styles from './CardBills.module.css'
 
 type Bills = NonNullable<Overview['cards']>
-type UpcomingEvent = Bills['upcomingEvents'][number]
+export type UpcomingEvent = Bills['upcomingEvents'][number]
 
-const STATUS: Record<UpcomingEvent['status'], { label: string; className: string }> = {
+export const STATUS: Record<UpcomingEvent['status'], { label: string; className: string }> = {
   PARTIAL: { label: 'Parcial', className: styles.tagPartial! },
   CLOSED: { label: 'Em aberto', className: styles.tagClosed! },
   OVERDUE: { label: 'Vencida', className: styles.tagOverdue! },
 }
 
-const monthName = (dueMonth: string) => longMonthLabel(dueMonth).split(' de ')[0]
+export const monthName = (dueMonth: string) => longMonthLabel(dueMonth).split(' de ')[0]
 
 /**
  * "Faturas a pagar" (ADR-0006 §18, ADR-0025 §4): a dívida dos cartões ativos fica fora do saldo total, sem "saldo
@@ -44,22 +44,20 @@ export function InvoicesToPay({ bills }: { bills: Bills }) {
 }
 
 /**
- * "Próximos eventos" (D-Home) só com fatos: fechamento e vencimento das faturas nos próximos 30 dias e as vencidas
- * com saldo. Estimativas (recorrentes, valor previsto) ficam para o Forecast (M9).
+ * Eventos de fatura do Overview (só fatos): fechamento e vencimento nos próximos 30 dias e as vencidas com saldo.
+ * É a fonte de "Próximos eventos" quando o Forecast não está pronto (ADR-0033 §2); com o Forecast pronto, a lista vem
+ * de `UpcomingEvents`.
  */
-export function UpcomingEvents({ bills }: { bills: Bills }) {
+export function FactEvents({ bills }: { bills: Bills }) {
+  if (bills.upcomingEvents.length === 0) {
+    return <p className={styles.empty}>Nenhum fechamento ou vencimento de fatura nos próximos 30 dias.</p>
+  }
   return (
-    <Card id="events" title="Próximos eventos" subtitle="Próximos 30 dias · faturas dos cartões">
-      {bills.upcomingEvents.length > 0 ? (
-        <ul className={styles.events}>
-          {bills.upcomingEvents.map((event) => (
-            <EventItem key={`${event.card.id}-${event.kind}-${event.dueMonth}`} event={event} />
-          ))}
-        </ul>
-      ) : (
-        <p className={styles.empty}>Nenhum fechamento ou vencimento de fatura nos próximos 30 dias.</p>
-      )}
-    </Card>
+    <ul className={styles.events}>
+      {bills.upcomingEvents.map((event) => (
+        <EventItem key={`${event.card.id}-${event.kind}-${event.dueMonth}`} event={event} />
+      ))}
+    </ul>
   )
 }
 

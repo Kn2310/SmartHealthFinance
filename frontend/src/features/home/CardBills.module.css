@@ -35,3 +35,11 @@
 .tagPartial { background: var(--color-semantic-bg-info); color: var(--color-semantic-text-info); }
 .tagClosed { background: var(--color-neutral-subtle); color: var(--color-neutral-text-secondary); }
 .tagOverdue { background: var(--color-semantic-bg-warning); color: var(--color-semantic-text-warning); }
+
+/* Forecast (ADR-0033 §2): estimativas e fatos lado a lado, com selos. */
+.side > .endAligned { align-items: flex-end; text-align: right; }
+.closing { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-4); color: var(--color-neutral-text-secondary); font: var(--type-caption); }
+.tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-4); }
+.footer { display: flex; flex-direction: column; gap: var(--space-4); margin-top: var(--space-8); }
+.link { color: var(--color-semantic-text-info); font: var(--type-body-s); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.loading { display: flex; flex-direction: column; gap: var(--space-8); }

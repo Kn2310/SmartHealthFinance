@@ -15,6 +15,8 @@ import { actionHref, confidence, dataSourcesText, dayLabel, figureValue, sourceN
 import styles from './Insights.module.css'
 
 const CURRENCY = 'BRL'
+/** Texto da limitação `ESTIMATED_FORECAST` do D15 (ADR-0033 §6). */
+const ESTIMATED_FORECAST_LABEL = 'Baseado em estimativa'
 
 /**
  * Detalhe do insight (`/insights/:id`, D-InsightDetail / M-InsightDetail): título = a frase; Resumo → Evidências →
@@ -156,6 +158,8 @@ function Evidence({ detail }: { detail: InsightDetail }) {
   const otherContributors = contributors.filter((c) => c.kind === 'TRANSACTION' || c.kind === 'CHARGE')
   // Fatores da diferença da fatura (D11, ADR-0028 §2): somam exatamente a diferença; a UI só lista.
   const factors = contributors.filter((c) => c.kind === 'FACTOR')
+  // D15 (ADR-0032 §3): os fatores são os maiores movimentos até a data do menor saldo (entradas +, saídas -).
+  const movements = detail.insight.detector === 'BALANCE_MAY_GO_NEGATIVE'
   if (series.points.length === 0 && contributors.length === 0) return null
   return (
     <section className={styles.panel} aria-labelledby="insight-evidence">
@@ -179,12 +183,13 @@ function Evidence({ detail }: { detail: InsightDetail }) {
       ) : null}
       {factors.length > 0 ? (
         <div className={styles.stack}>
-          <h3 className={styles.sectionTitle}>O que explica a diferença</h3>
-          <ul className={styles.contributors} aria-label="Fatores da diferença">
+          <h3 className={styles.sectionTitle}>{movements ? 'Maiores movimentos até a data' : 'O que explica a diferença'}</h3>
+          <ul className={styles.contributors} aria-label={movements ? 'Maiores movimentos' : 'Fatores da diferença'}>
             {factors.map((c, i) => (
               <li key={`${c.key ?? 'none'}-${i}`} className={styles.contributor}>
                 <span className={styles.contributorName}>
                   <span>{c.name}</span>
+                  {movements && c.day ? <span className={styles.meta}>{dayLabel(`${c.day}T12:00:00`)}</span> : null}
                 </span>
                 <Money value={c.amount} sign="always" />
               </li>
@@ -249,7 +254,7 @@ function Explanation({ detail }: { detail: InsightDetail }) {
       {detail.limitations.map((l) => (
         <p key={l.code} className={styles.notice}>
           <Info size={18} aria-hidden="true" />
-          <span>{l.text}</span>
+          <span>{l.code === 'ESTIMATED_FORECAST' ? <><strong>{ESTIMATED_FORECAST_LABEL}.</strong> {l.text}</> : l.text}</span>
         </p>
       ))}
       <ul className={styles.facts} aria-label="Fontes">

@@ -1,4 +1,4 @@
-import { ArrowLeftRight, ChevronRight, Lightbulb, Target, User, Wallet, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, ChevronRight, Lightbulb, Repeat, Target, User, Wallet, type LucideIcon } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { InsightsBadge } from '@/features/insights/InsightsBadge'
@@ -10,6 +10,7 @@ const ITEMS: { href: string; label: string; icon: LucideIcon; soon?: boolean }[]
   { href: '/goals', label: 'Objetivos', icon: Target, soon: true },
   { href: '/accounts', label: 'Contas', icon: Wallet },
   { href: '/transactions', label: 'Transações', icon: ArrowLeftRight },
+  { href: '/recurring', label: 'Recorrências', icon: Repeat },
 ]
 
 /**
