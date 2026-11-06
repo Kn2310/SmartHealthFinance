@@ -321,6 +321,16 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
 
 ## M10 Goals
 
+- [x] modelo `goals-v1` (Sessão 7.2, parte A — ADR-0034):
+  - progresso = saldo do destino dedicado (fato); aportes e resgates = `TRANSFER` `POSTED` do destino; destino tipado
+    (`ACCOUNT` no v1, `INVESTMENT_POSITION` preparado para o Open Finance);
+  - objetivo de reserva espelha o Reserve (contas `SAVINGS` ativas, máx. 1, nenhum outro objetivo usa `SAVINGS`);
+  - previsão `ESTIMATED` = plano a partir do mês seguinte, faixa pelo ritmo real, confiança com a capacidade do
+    Forecast; sem Forecast pronto, só fatos;
+  - `SimulationEngine` puro (aporte, prazo, redução de categoria), efêmero, `SIMULATED`; "Aplicar" só muda o plano;
+  - eventos `goal.created|plan-changed|status-changed` sem consumidor no M10
+  - adiado: insight acionável D16 (05.13 §9); dívida: "Marcar como transferência" para aportes importados dos dois
+    lados
 - [ ] goal
 - [ ] contributions
 - [ ] progress
