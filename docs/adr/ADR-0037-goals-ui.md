@@ -107,7 +107,7 @@ drift contra o Java. Sem mudança de API nem de backend.
 - A lista faz até três chamadas (objetivos, aportes recentes, simulação da faixa) e o detalhe cinco (objetivo,
   projeção, histórico e duas simulações), todas independentes; uma falha secundária não derruba a tela.
 - A frase da reserva no Health diz "chega ao alvo de R$ Y" em vez de "chega a 6 meses de despesas": o alvo é editável e
-  pode não ser 6 meses. Refinamento de texto do adendo ao ADR-0020.
+  pode não ser 6 meses. Aprovado em 2026-11-06 e registrado como adendo ao ADR-0020.
 - Dívidas: "Ver todos" dos aportes recentes (sem tela própria; o layout tem o link), redução de categoria na UI de
   simulação (o motor aceita), ícone de viagem do layout (os tipos são Reserva/Compra/Outro).
 
