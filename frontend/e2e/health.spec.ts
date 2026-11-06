@@ -91,7 +91,9 @@ test('score e dimensões do health-v2 na Home, em /home/health e na Evolução',
   await reserve.getByRole('button', { name: 'Detalhes' }).click()
   await expect(reserve).toContainText('R$ 9.000,00')
   await expect(main).toContainText('CSV')
-  await expect(main.getByRole('link', { name: 'Ver contas' })).toHaveAttribute('href', '/accounts')
+  // Reserva → criação do objetivo de reserva (adendo de 2026-11-06 ao ADR-0020).
+  await expect(main.getByRole('link', { name: 'Criar objetivo de reserva' })).toHaveAttribute('href',
+    '/goals/new?type=EMERGENCY_RESERVE&origin=HEALTH')
   await expect(main).toContainText('Faltam R$ 9.000,00 para 6 meses de despesas.')
 
   // "Como calculamos?": diálogo modal, Esc fecha e o foco volta ao gatilho.
