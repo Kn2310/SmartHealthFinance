@@ -50,6 +50,8 @@ Fatos do código e do modelo que condicionam a decisão:
 - **Fronteiras (ArchUnit):**
   - nenhum módulo depende de `forecast`, exceto `insights`, que lê só `forecast.application.port.ForecastReader` e
     `forecast.domain` (D15) e, na Sessão 7.2, Goals e Simulation, pela mesma porta;
+    - **Adendo (2026-11-06, ADR-0036 §1):** o módulo `goals` (que contém a Simulation, ADR-0034 §8) é o segundo
+      leitor, só por `ForecastReader` e `forecast.domain`; a regra de ArchUnit passa a permitir `insights` e `goals`;
   - `forecast` lê apenas portas e modelos de domínio: `analytics.application.port` e `analytics.domain`,
     `overview.application.port` e `overview.domain`, `cards.application.port.CardPortfolio` e `cards.domain`,
     `accounts.domain` e `identity` para Workspace e autorização; de Transactions, só os tipos que essas portas expõem;

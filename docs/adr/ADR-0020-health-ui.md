@@ -42,6 +42,11 @@ card Navy usa cores sobre fundo escuro que não existiam como tokens.
      "Em breve" no mini-grid quando estão `OK`; sem cartão, continuam com o motivo do backend.
    - **Adendo (2026-10-27, ADR-0029 §9):** com as telas de cartões, `PAY_OVERDUE_INVOICE` leva a
      `/cards/{cardId}/invoices/{month}` (o mês de vencimento do passo) e `REVIEW_CARD_UTILIZATION` a `/cards/{cardId}`.
+   - **Adendo (2026-11-06, ADR-0036 §5):** com os Objetivos, `BUILD_RESERVE` leva a "Ver objetivo de reserva"
+     (`/goals/{id}`) quando existe uma reserva de emergência ativa ou pausada, e a "Criar objetivo de reserva"
+     (`/goals/new?type=EMERGENCY_RESERVE&origin=HEALTH`) quando não existe. Com a previsão do objetivo pronta, o passo
+     mostra "Com aportes de {R$}/mês, sua reserva chega a 6 meses de despesas em {mês}" com o selo "≈ Estimado"; sem
+     ela, o texto do Health continua. O backend do Health não muda: a ligação é do frontend (parte D).
      Sem `cardId` (ou sem mês, na fatura), o passo continua sem link.
 5. **"Como calculamos?":** `<dialog>` modal nativo, 520 px à direita (bottom sheet no mobile), montado na primeira
    abertura e mantido; abrir e fechar só chamam `showModal()`/`close()`. Foco no botão Fechar ao abrir, preso no
