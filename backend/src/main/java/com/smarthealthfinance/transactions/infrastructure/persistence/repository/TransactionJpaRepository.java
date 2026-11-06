@@ -14,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +29,18 @@ public interface TransactionJpaRepository extends JpaRepository<TransactionJpaEn
     Optional<TransactionJpaEntity> findForUpdate(@Param("id") UUID id, @Param("workspaceId") UUID workspaceId);
 
     List<TransactionJpaEntity> findAllByWorkspaceIdAndRefundOfTransactionId(UUID workspaceId, UUID refundOfTransactionId);
+
+    /** Histórico do destino de um objetivo (ADR-0035): POSTED com a conta na origem ou no destino. */
+    @Query("""
+            select t from TransactionJpaEntity t
+            where t.workspaceId = :workspaceId and t.status = :posted
+              and (t.accountId in :accounts or t.destinationAccountId in :accounts)
+              and t.occurredOn between :from and :to
+            order by t.occurredOn desc, t.createdAt desc, t.id desc
+            """)
+    List<TransactionJpaEntity> findPostedTouchingAccounts(@Param("workspaceId") UUID workspaceId,
+            @Param("accounts") Collection<UUID> accounts, @Param("from") LocalDate from,
+            @Param("to") LocalDate to, @Param("posted") TransactionStatus posted);
 
     /** Pagamentos de fatura que ainda não absorveram um débito importado (ADR-0025 §7, adendo). */
     @Query("""
