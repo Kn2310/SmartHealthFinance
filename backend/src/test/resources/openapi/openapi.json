@@ -1228,6 +1228,67 @@
         },
         "type" : "object"
       },
+      "ChangeConsentRequest" : {
+        "properties" : {
+          "granted" : {
+            "type" : "boolean"
+          },
+          "termsVersion" : {
+            "maxLength" : 40,
+            "minLength" : 0,
+            "type" : "string"
+          }
+        },
+        "required" : [ "granted" ],
+        "type" : "object"
+      },
+      "ConsentListResponse" : {
+        "properties" : {
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/ConsentResponse"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "ConsentResponse" : {
+        "properties" : {
+          "currentTermsVersion" : {
+            "description" : "Versão vigente do termo, a enviar para conceder",
+            "type" : "string"
+          },
+          "grantedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "purpose" : {
+            "enum" : [ "COPILOT_DATA_USE", "COPILOT_HISTORY" ],
+            "type" : "string"
+          },
+          "requires" : {
+            "description" : "Finalidades que precisam estar ativas para conceder esta",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "revokedAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "state" : {
+            "enum" : [ "PENDING", "ACTIVE", "EXPIRED", "REVOKED", "FAILED" ],
+            "type" : "string"
+          },
+          "termsVersion" : {
+            "description" : "Versão do termo concedida por último; nula se nunca concedido",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CreateAccountRequest" : {
         "properties" : {
           "includedInTotal" : {
@@ -6820,7 +6881,7 @@
     },
     "/api/v1/workspaces/{workspaceId}/categories" : {
       "get" : {
-        "operationId" : "list_4",
+        "operationId" : "list_5",
         "parameters" : [ {
           "in" : "path",
           "name" : "workspaceId",
@@ -6854,6 +6915,119 @@
         },
         "summary" : "Catálogo de categorias (do sistema), inclusive as inativas, na ordem de exibição",
         "tags" : [ "Categories" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/consents" : {
+      "get" : {
+        "operationId" : "list_4",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsentListResponse"
+                }
+              }
+            },
+            "description" : "Todas as finalidades"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Lista os consentimentos da pessoa no Workspace (os nunca respondidos como PENDING)",
+        "tags" : [ "Consents" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/consents/{purpose}" : {
+      "put" : {
+        "operationId" : "change",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "purpose",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/ChangeConsentRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ConsentListResponse"
+                }
+              }
+            },
+            "description" : "Todas as finalidades depois da mudança"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou CONSENT_PURPOSE_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "CONSENT_TERMS_OUTDATED, CONSENT_PREREQUISITE_MISSING ou CONFLICT (mudança concorrente)"
+          }
+        },
+        "summary" : "Concede ou revoga um consentimento (idempotente; revogar o uso de dados revoga o histórico)",
+        "tags" : [ "Consents" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/forecast/cash-flow" : {

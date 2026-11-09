@@ -386,6 +386,44 @@ class ArchitectureTest {
 		.because("Overview, Health e Insights leem os cartões só pela porta CardPortfolio e pelos modelos de "
 				+ "domínio de Cards, nunca por casos de uso, serviços ou adapters (ADR-0006 §18, ADR-0027 §1)");
 
+	// Consents (ADR-0038 §1, §6) só conhece a autorização do Identity e nenhum dado financeiro. Outro módulo só usa a
+	// porta ConsentReader e o enum das finalidades.
+
+	@ArchTest
+	static final ArchRule consentsDoesNotKnowFinancialModules = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.consents..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.accounts..", "com.smarthealthfinance.transactions..",
+				"com.smarthealthfinance.ingestion..", "com.smarthealthfinance.overview..",
+				"com.smarthealthfinance.analytics..", "com.smarthealthfinance.health..",
+				"com.smarthealthfinance.insights..", "com.smarthealthfinance.forecast..",
+				"com.smarthealthfinance.goals..", "com.smarthealthfinance.cards..",
+				"com.smarthealthfinance.identity.application.usecase..",
+				"com.smarthealthfinance.identity.infrastructure..", "com.smarthealthfinance.identity.presentation..")
+		.allowEmptyShould(true)
+		.because("os consentimentos só dependem da autorização do Identity e não leem dado financeiro (ADR-0038 §1)");
+
+	@ArchTest
+	static final ArchRule otherModulesUseOnlyTheConsentReader = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance..")
+		.and()
+		.resideOutsideOfPackage("com.smarthealthfinance.consents..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("com.smarthealthfinance.consents.application.usecase..",
+				"com.smarthealthfinance.consents.application.service..",
+				"com.smarthealthfinance.consents.application.dto..",
+				"com.smarthealthfinance.consents.application.exception..",
+				"com.smarthealthfinance.consents.domain.model..",
+				"com.smarthealthfinance.consents.domain.repository..",
+				"com.smarthealthfinance.consents.domain.valueobject..",
+				"com.smarthealthfinance.consents.domain.exception..",
+				"com.smarthealthfinance.consents.infrastructure..", "com.smarthealthfinance.consents.presentation..")
+		.allowEmptyShould(true)
+		.because("outro módulo verifica consentimento só pela porta ConsentReader e pelo enum ConsentPurpose "
+				+ "(ADR-0038 §6)");
+
 	// Goals (ADR-0034 §8, ADR-0035) fica a jusante: lê saldos e movimentos pelas portas do Overview e pelo domínio de
 	// Accounts e Transactions, e lança o aporte só pelo caso de uso CreateTransaction. Ninguém depende de Goals.
 

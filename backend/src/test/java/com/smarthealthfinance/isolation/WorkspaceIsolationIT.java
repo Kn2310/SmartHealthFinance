@@ -68,6 +68,7 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private static final String INCOME = INCOMES + "/{seriesId}";
     private static final String GOALS = WORKSPACE_SCOPE + "/goals";
     private static final String GOAL = GOALS + "/{goalId}";
+    private static final String CONSENTS = WORKSPACE_SCOPE + "/consents";
     private static final String GOAL_UPDATE_JSON = """
             {"name": "Invasor", "targetAmount": {"amount": "10.00", "currency": "BRL"},
              "plannedMonthly": {"amount": "1.00", "currency": "BRL"}}
@@ -258,6 +259,12 @@ class WorkspaceIsolationIT extends IntegrationTest {
             op("imports: linhas", HttpMethod.GET, IMPORT + "/records", f -> ids(f.importId()), NONE),
             op("imports: confirmar", HttpMethod.POST, IMPORT + "/confirm", f -> ids(f.importId()), NONE),
             op("imports: cancelar", HttpMethod.POST, IMPORT + "/cancel", f -> ids(f.importId()), NONE),
+
+            op("consents: listar", HttpMethod.GET, CONSENTS, f -> new Object[0], NONE),
+            op("consents: revogar", HttpMethod.PUT, CONSENTS + "/{purpose}", f -> ids("COPILOT_DATA_USE"),
+                    json(f -> """
+                            {"granted": false}
+                            """)),
 
             op("goals: listar", HttpMethod.GET, GOALS, f -> new Object[0], NONE),
             op("goals: criar", HttpMethod.POST, GOALS, f -> new Object[0], json(f -> goalJson(f.otherAccount(), null))),
@@ -669,6 +676,14 @@ class WorkspaceIsolationIT extends IntegrationTest {
                          "description": "%s", "installmentCount": 3}
                         """.formatted(amount, description)).exchange();
         assertThat(purchase).hasStatus(HttpStatus.CREATED);
+        // Consentimentos ativos: uma revogação vinda de fora mudaria a tabela (ADR-0038).
+        for (String consent : new String[] {"COPILOT_DATA_USE", "COPILOT_HISTORY"}) {
+            assertThat(mvc.put().uri(CONSENTS + "/{purpose}", workspace, consent).with(who)
+                    .contentType(MediaType.APPLICATION_JSON).content("""
+                            {"granted": true, "termsVersion": "%s"}
+                            """.formatted(consent.equals("COPILOT_DATA_USE") ? "copilot-data-v1" : "copilot-history-v1"))
+                    .exchange()).hasStatus(HttpStatus.OK);
+        }
         return new Fixture(workspace, account, other, archived, posted, pending, read(upload, "$.id"),
                 read(card, "$.id"), read(purchase, "$.transaction.id"),
                 seedSeries(workspace, "EXPENSE", description + " (despesa)"),
@@ -757,7 +772,7 @@ class WorkspaceIsolationIT extends IntegrationTest {
                         "outbox_events", "processed_events", "health_workspaces", "health_snapshots", "forecast_workspaces",
                         "forecast_snapshots", "forecast_recurring_series", "forecast_month_outcomes",
                         "insights_workspaces", "insights", "credit_cards", "card_invoices", "card_installments",
-                        "goals")
+                        "goals", "consents", "consent_audit")
                 .map(table -> table + "=" + jdbc.queryForObject(
                         "select coalesce(string_agg(t::text, '|' order by t::text), '') from " + table + " t",
                         String.class))

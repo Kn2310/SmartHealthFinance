@@ -36,6 +36,8 @@ public final class IdentityTables {
 		jdbc.update("delete from transaction_idempotency_keys");
 		jdbc.update("delete from transactions");
 		jdbc.update("delete from category_rules");
+		jdbc.update("delete from consent_audit");
+		jdbc.update("delete from consents");
 		jdbc.update("delete from goals");
 		jdbc.update("delete from credit_cards");
 		jdbc.update("delete from accounts");
