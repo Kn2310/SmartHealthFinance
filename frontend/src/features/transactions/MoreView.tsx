@@ -1,4 +1,17 @@
-import { ArrowLeftRight, ChevronRight, Lightbulb, Repeat, Target, User, Wallet, type LucideIcon } from 'lucide-react'
+import {
+  ArrowLeftRight,
+  Building2,
+  ChevronRight,
+  FileCheck,
+  Lightbulb,
+  Link2,
+  Repeat,
+  ShieldCheck,
+  SlidersHorizontal,
+  Target,
+  Wallet,
+  type LucideIcon,
+} from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { InsightsBadge } from '@/features/insights/InsightsBadge'
@@ -11,6 +24,15 @@ const ITEMS: { href: string; label: string; icon: LucideIcon; soon?: boolean }[]
   { href: '/accounts', label: 'Contas', icon: Wallet },
   { href: '/transactions', label: 'Transações', icon: ArrowLeftRight },
   { href: '/recurring', label: 'Recorrências', icon: Repeat },
+]
+
+/** PERFIL do M-More: só Consentimentos existe; os demais seguem "Em breve" (ADR-0038 §9). */
+const PROFILE_ITEMS: { href?: string; label: string; icon: LucideIcon }[] = [
+  { label: 'Instituições', icon: Building2 },
+  { label: 'Conexões', icon: Link2 },
+  { href: '/profile/consents', label: 'Consentimentos', icon: FileCheck },
+  { label: 'Segurança', icon: ShieldCheck },
+  { label: 'Preferências', icon: SlidersHorizontal },
 ]
 
 /**
@@ -43,16 +65,27 @@ export function MoreView() {
           Perfil
         </h2>
         <ul className={styles.menu}>
-          <li className={styles.menuItem}>
-            <Link href="/profile" className={styles.menuLink}>
-              <span className={`${styles.tile} ${styles.neutral}`} aria-hidden="true">
-                <User size={20} strokeWidth={1.75} />
-              </span>
-              <span className={styles.menuLabel}>Perfil e configurações</span>
-              <span className={accountStyles.soonBadge}>Em breve</span>
-              <ChevronRight size={18} className={styles.menuChevron} aria-hidden="true" />
-            </Link>
-          </li>
+          {PROFILE_ITEMS.map(({ href, label, icon: Icon }) => (
+            <li key={label} className={styles.menuItem}>
+              {href ? (
+                <Link href={href} className={styles.menuLink}>
+                  <span className={`${styles.tile} ${styles.neutral}`} aria-hidden="true">
+                    <Icon size={20} strokeWidth={1.75} />
+                  </span>
+                  <span className={styles.menuLabel}>{label}</span>
+                  <ChevronRight size={18} className={styles.menuChevron} aria-hidden="true" />
+                </Link>
+              ) : (
+                <span className={styles.menuLink} aria-disabled="true">
+                  <span className={`${styles.tile} ${styles.neutral}`} aria-hidden="true">
+                    <Icon size={20} strokeWidth={1.75} />
+                  </span>
+                  <span className={styles.menuLabel}>{label}</span>
+                  <span className={accountStyles.soonBadge}>Em breve</span>
+                </span>
+              )}
+            </li>
+          ))}
         </ul>
         <form action="/auth/logout" method="post">
           <Button type="submit" variant="secondary">

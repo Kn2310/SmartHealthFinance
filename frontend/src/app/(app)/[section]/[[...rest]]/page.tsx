@@ -5,7 +5,6 @@ const SECTIONS: Record<string, string> = {
   cards: 'Cartões',
   goals: 'Objetivos',
   copilot: 'Copilot',
-  profile: 'Perfil',
 }
 
 /**
@@ -16,5 +15,5 @@ export default async function SectionPlaceholder({ params }: { params: Promise<{
   const { section } = await params
   const title = SECTIONS[section]
   if (!title) notFound()
-  return <ComingSoon title={title} showLogout={section === 'profile'} />
+  return <ComingSoon title={title} />
 }

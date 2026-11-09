@@ -254,6 +254,8 @@ Cada insight guarda, com dinheiro e razões como **strings decimais**:
 - "Insights limitados" no Free (05.4.1): não implementado; a ordenação do §3 permite um corte por entitlement na
   leitura sem mudar o modelo.
 - Consentimento "gerar insights" (`D-ProfileConsents`): não existe módulo de consentimento; fica para quando ele existir.
+  **Adendo (2026-11-09, ADR-0038 §2):** o módulo `consents` passou a existir, mas `INSIGHTS_GENERATION` segue adiado
+  (nome reservado); Insights e Health continuam gerados sem consentimento até a dívida do backlog ser paga.
 
 ## Alternatives
 

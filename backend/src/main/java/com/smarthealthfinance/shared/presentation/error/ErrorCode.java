@@ -56,6 +56,12 @@ public enum ErrorCode {
 	GOAL_RESERVE_ALREADY_EXISTS(HttpStatus.CONFLICT, "Já existe um objetivo de reserva de emergência."),
 	/** A conta já é destino de outro objetivo ativo ou pausado (ADR-0034 §2.1). */
 	GOAL_DESTINATION_IN_USE(HttpStatus.CONFLICT, "A conta já é o destino de outro objetivo."),
+	/** Finalidade de consentimento desconhecida (ADR-0038 §7). */
+	CONSENT_PURPOSE_NOT_FOUND(HttpStatus.NOT_FOUND, "Finalidade de consentimento não encontrada."),
+	/** Conceder exige a versão vigente do termo (ADR-0038 §3). */
+	CONSENT_TERMS_OUTDATED(HttpStatus.CONFLICT, "A versão do termo não é a vigente."),
+	/** Ex.: guardar o histórico exige o uso de dados pelo Copilot ativo (ADR-0038 §2). */
+	CONSENT_PREREQUISITE_MISSING(HttpStatus.CONFLICT, "Conceda antes o consentimento do qual este depende."),
 	/** Mesma Idempotency-Key com conteúdo diferente (spec 05.6). */
 	IDEMPOTENCY_KEY_REUSED(HttpStatus.UNPROCESSABLE_CONTENT,
 			"A Idempotency-Key já foi usada em uma requisição com outro conteúdo.");
