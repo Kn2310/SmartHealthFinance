@@ -51,6 +51,13 @@ export const GOAL_ORIGIN_KINDS = ['MANUAL', 'INSIGHT', 'HEALTH'] as const
 export const GOAL_NAME_MAX_LENGTH = 60
 /** `GoalSimulator.MAX_SCENARIOS` do backend. */
 export const GOAL_MAX_SCENARIOS = 5
+/** Consentimentos (ADR-0038 §2–§3): finalidades, estados e a versão vigente do termo de cada finalidade. */
+export const CONSENT_PURPOSES = ['COPILOT_DATA_USE', 'COPILOT_HISTORY'] as const
+export const CONSENT_STATES = ['PENDING', 'ACTIVE', 'EXPIRED', 'REVOKED', 'FAILED'] as const
+export const CONSENT_TERMS_VERSIONS = {
+  COPILOT_DATA_USE: 'copilot-data-v1',
+  COPILOT_HISTORY: 'copilot-history-v1',
+} as const satisfies Record<(typeof CONSENT_PURPOSES)[number], string>
 
 /** `AccountName.MAX_LENGTH` e `InstitutionName.MAX_LENGTH` do backend: o BFF e o formulário recusam antes. */
 export const ACCOUNT_NAME_MAX_LENGTH = 100
@@ -113,6 +120,8 @@ export type EnumChecks = [
   Assert<Equals<Values<typeof GOAL_TYPES>, S['CreateGoalRequest']['type']>>,
   Assert<Equals<Values<typeof GOAL_STATUSES>, S['GoalResponse']['status']>>,
   Assert<Equals<Values<typeof GOAL_ORIGIN_KINDS>, S['GoalOriginRequest']['kind']>>,
+  Assert<Equals<Values<typeof CONSENT_PURPOSES>, S['ConsentResponse']['purpose']>>,
+  Assert<Equals<Values<typeof CONSENT_STATES>, S['ConsentResponse']['state']>>,
 ]
 
 /** Campos de cada record Java (nomes iguais aos do backend) ↔ chaves do tipo TS correspondente. */

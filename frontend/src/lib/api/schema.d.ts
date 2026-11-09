@@ -1163,6 +1163,22 @@ export interface components {
       sourceAccountId: string | null
     }
     RecentContributionsResponse: { contributions: components['schemas']['RecentContributionItem'][] }
+    /** Consentimento da própria pessoa no Workspace (ADR-0038 §7); sem resposta = PENDING. */
+    ConsentResponse: {
+      purpose: ConsentPurpose
+      state: ConsentState
+      /** Versão do termo concedida por último; nula se nunca concedido. */
+      termsVersion: string | null
+      /** Versão vigente, a enviar para conceder. */
+      currentTermsVersion: string
+      grantedAt: string | null
+      revokedAt: string | null
+      /** Finalidades que precisam estar ativas para conceder esta. */
+      requires: ConsentPurpose[]
+    }
+    ConsentListResponse: { items: components['schemas']['ConsentResponse'][] }
+    /** `termsVersion` obrigatória (a vigente) para conceder; ignorada para revogar. */
+    ChangeConsentRequest: { granted: boolean; termsVersion?: string | null }
     /** De 1 a 5 cenários (ADR-0036 §2); campos ausentes usam o plano do objetivo. */
     SimulateGoalRequest: { scenarios: components['schemas']['SimulationScenarioRequest'][] }
     SimulationScenarioRequest: {
@@ -1304,6 +1320,8 @@ export type HealthFreshnessState = 'UP_TO_DATE' | 'RECALCULATING' | 'NOT_BUILT'
 export type InsightsFreshnessState = 'UP_TO_DATE' | 'UPDATING' | 'NOT_BUILT'
 export type InsightDataState = 'NO_DATA' | 'INSUFFICIENT_HISTORY' | 'READY'
 export type InsightType = 'SPENDING' | 'INCOME' | 'HEALTH' | 'CARDS'
+export type ConsentPurpose = 'COPILOT_DATA_USE' | 'COPILOT_HISTORY'
+export type ConsentState = 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'FAILED'
 export type InsightImportance = 'IMPORTANT' | 'INFORMATIVE'
 export type InsightStatus = 'ACTIVE' | 'RESOLVED' | 'EXPIRED' | 'DISMISSED'
 export type InsightConfidence = 'HIGH' | 'MEDIUM' | 'LOW'
@@ -2017,6 +2035,29 @@ export interface paths {
       parameters: { path: { workspaceId: string } }
       requestBody: { content: { 'application/json': components['schemas']['CreateGoalRequest'] } }
       responses: { 201: { content: { 'application/json': components['schemas']['GoalResponse'] } } } & GoalErrors
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/consents': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['ConsentListResponse'] } }
+        401: { content: { 'application/json': components['schemas']['ApiError'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/consents/{purpose}': {
+    put: {
+      parameters: { path: { workspaceId: string; purpose: string } }
+      requestBody: { content: { 'application/json': components['schemas']['ChangeConsentRequest'] } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['ConsentListResponse'] } }
+        400: { content: { 'application/json': components['schemas']['ApiError'] } }
+        401: { content: { 'application/json': components['schemas']['ApiError'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+        409: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
     }
   }
   '/api/v1/workspaces/{workspaceId}/goals/recent-contributions': {

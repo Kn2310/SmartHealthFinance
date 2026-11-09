@@ -7,6 +7,9 @@ import {
   CARD_BRANDS,
   CARD_NICKNAME_MAX_LENGTH,
   CARD_STATUSES,
+  CONSENT_PURPOSES,
+  CONSENT_STATES,
+  CONSENT_TERMS_VERSIONS,
   GOAL_MAX_SCENARIOS,
   GOAL_NAME_MAX_LENGTH,
   GOAL_ORIGIN_KINDS,
@@ -257,5 +260,20 @@ describe.skipIf(!hasBackend)('contrato de Objetivos × backend (drift)', () => {
   it('limites do nome e dos cenários são os do backend', () => {
     expect(read('goals/domain/valueobject/GoalName.java')).toContain(`MAX_LENGTH = ${GOAL_NAME_MAX_LENGTH};`)
     expect(read('goals/application/service/GoalSimulator.java')).toContain(`MAX_SCENARIOS = ${GOAL_MAX_SCENARIOS};`)
+  })
+})
+
+describe.skipIf(!hasBackend)('contrato de Consentimentos × backend (drift)', () => {
+  it('estados são os do backend', () => {
+    expect(sorted(CONSENT_STATES)).toEqual(sorted(javaEnum('consents/domain/enums/ConsentState.java')))
+  })
+
+  it('finalidades e versões vigentes dos termos são as do backend', () => {
+    const source = read('consents/domain/enums/ConsentPurpose.java')
+    const declared = [...source.matchAll(/^\s{4}([A-Z][A-Z0-9_]*)\(/gm)].map((match) => match[1] ?? '')
+    expect(sorted(CONSENT_PURPOSES)).toEqual(sorted(declared))
+    for (const purpose of CONSENT_PURPOSES) {
+      expect(source).toMatch(new RegExp(`${purpose}\\("${CONSENT_TERMS_VERSIONS[purpose]}"`))
+    }
   })
 })
