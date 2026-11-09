@@ -376,6 +376,14 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
 
 ## M11 Copilot
 
+- [x] consents (Sessão 8.1 Parte 0, ADR-0038): módulo `consents` (V23, `consents` + `consent_audit` só de inserção),
+  `GET`/`PUT /workspaces/{id}/consents[/{purpose}]`, eventos `consent.granted`/`consent.revoked`, porta
+  `ConsentReader` para o pipeline do Copilot; tela `/profile/consents` (submenu de Perfil, demais seções "Em breve")
+  e item "Consentimentos" do M-More
+  - dívidas: `INSIGHTS_GENERATION` adiado (Insights e Health seguem sem consentimento; a tela mostra 2 dos 3 switches
+    do layout); consumidor de `consent.revoked` que apaga o histórico do Copilot (Sessão 8.2, com o histórico);
+    cabeçalho do submenu de Perfil sem nome/e-mail (Dados pessoais é "Em breve"); no submenu, "Contas" já leva a
+    `/accounts` (a rota existe), os demais itens seguem "Em breve"
 - [ ] AI Gateway
 - [ ] context builder
 - [ ] tools
