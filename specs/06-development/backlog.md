@@ -394,10 +394,19 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   (SDK 3.7.0, um cliente por papel, sem retries do SDK) e `SimulatedAiProvider` (padrão local/CI, modos de falha);
   `ResilientAiGateway` com Resilience4j (retry só em 429/5xx/conexão, circuit breaker `copilot-ai`, bulkhead 16);
   `CopilotAdmission` (Workspace → ligado → consentimento → rate limit → quota); runbook `docs/runbooks/copilot.md`
-- [ ] context builder
-- [ ] tools
-- [ ] structured output
-- [ ] claim validation
+- [x] context builder (Sessão 8.1 Parte C, ADR-0039 §5): contexto `context-v1` (valores com ref, rótulo, unidade,
+  `FACT`/`ESTIMATED`/`SIMULATED`, período e fonte; dinheiro como decimal), `dataQuality`, teto de 12K tokens
+  estimados, pseudônimos `conta_N`/`cartao_N`/`objetivo_N`/`insight_N`/`categoria_N` só em memória; catálogo da
+  intenção (categorias + alvos pseudonimizados)
+- [x] tools (Parte C, ADR-0039 §4): 10 adapters somente leitura sobre a lista fechada de casos de uso (+
+  `ListCategories`, adendo), ArchUnit fechado; dados ausentes → `INSUFFICIENT_DATA` sem chamar o modelo
+- [x] structured output (Parte C, §6): esquemas `intents-v1`/`answer-v1` e prompts `intent-v1`/`answer-v1`
+  versionados com SHA-256; V25 `ai_usage.prompt_version`/`schema_version`; leitura estrita da saída
+- [x] claim validation (Parte C, §7): `claims-v1` (refs `{{v:REF}}`, nenhum dígito, número por extenso, `R$` ou `%`
+  fora de referência), regenera uma vez e depois modo seguro; confiança `confidence-v1`; caso de uso interno
+  `AskCopilot` + `CopilotPipeline` com orçamento de 30 s; endpoint de diagnóstico só no perfil `local`
+  - handoff da Sessão 8.2 no ADR-0039 ("Para a Sessão 8.2"): API de conversa, histórico, suíte de avaliação, telas,
+    smoke test com a chave real; a continuidade da conversa não pode mandar ao modelo os nomes renderizados
 - [x] usage ledger (Parte B, ADR-0039 §10): V24 `ai_usage` (só metadados, custo USD `numeric(19,6)` pela tabela
   `pricing-2026-11`), quotas provisórias contadas no ledger no fuso de negócio, token bucket por pessoa no Redis (Lua),
   métricas `shf.copilot.*`
