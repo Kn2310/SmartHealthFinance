@@ -1,0 +1,55 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["answer", "type", "financialData", "explanation", "confidence", "actions", "sources"],
+  "properties": {
+    "answer": {"type": "string"},
+    "type": {
+      "type": "string",
+      "enum": ["analysis", "explanation", "comparison", "simulation", "out_of_scope", "insufficient_data"]
+    },
+    "financialData": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "label", "kind"],
+        "properties": {
+          "ref": {"type": "string"},
+          "label": {"type": "string"},
+          "kind": {"type": "string", "enum": ["FACT", "ESTIMATED", "SIMULATED"]}
+        }
+      }
+    },
+    "explanation": {"type": "array", "items": {"type": "string"}},
+    "confidence": {"type": "string", "enum": ["high", "medium", "low"]},
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "target"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["OPEN_INVOICE", "OPEN_INSTALLMENTS", "OPEN_HEALTH", "OPEN_INSIGHT", "OPEN_GOAL",
+                     "OPEN_ANALYSIS_CATEGORY", "OPEN_FORECAST"]
+          },
+          "target": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tool", "version"],
+        "properties": {
+          "tool": {"type": "string"},
+          "version": {"type": "string"}
+        }
+      }
+    }
+  }
+}

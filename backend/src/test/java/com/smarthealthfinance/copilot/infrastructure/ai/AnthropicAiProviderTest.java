@@ -90,8 +90,8 @@ class AnthropicAiProviderTest {
         AnthropicOkHttpClient.Builder builder = AnthropicOkHttpClient.builder()
                 .apiKey(FAKE_KEY).baseUrl(baseUrl).maxRetries(0).timeout(timeout);
         return new AnthropicAiProvider(
-                new AnthropicAiProvider.Route(builder.build(), "claude-haiku-5-5", 1024),
-                new AnthropicAiProvider.Route(builder.build(), "claude-sonnet-5-5", 4096),
+                new AnthropicAiProvider.Route(builder.build(), "claude-haiku-5-5", 1024, timeout),
+                new AnthropicAiProvider.Route(builder.build(), "claude-sonnet-5-5", 4096, timeout),
                 OutputConfig.Effort.LOW, json);
     }
 
@@ -232,6 +232,48 @@ class AnthropicAiProviderTest {
                     assertThat(e.outcome()).isEqualTo(AiOutcome.TIMEOUT);
                     assertThat(e.retryable()).isFalse();
                 });
+    }
+
+    @Test
+    void theDeadlineOfThePipelineShortensTheRoleTimeout() {
+        responder.set(() -> {
+            Thread.sleep(3_000);
+            return new Response(200, message("claude-sonnet-5-5", "{}", "end_turn"));
+        });
+        AnthropicAiProvider provider = provider(Duration.ofSeconds(25));
+        AiRequest withDeadline = new AiRequest("s", "u", "{}", java.time.Instant.now().plusMillis(1_500));
+
+        long started = System.nanoTime();
+        assertThatThrownBy(() -> provider.call(AiRole.ANSWER, withDeadline))
+                .isInstanceOfSatisfying(AiProviderException.class, e -> {
+                    assertThat(e.outcome()).isEqualTo(AiOutcome.TIMEOUT);
+                    assertThat(e.retryable()).isFalse();
+                });
+        assertThat(Duration.ofNanos(System.nanoTime() - started)).isLessThan(Duration.ofMillis(2_800));
+    }
+
+    @Test
+    void timeoutIsRecomputedPerAttemptAndAnExhaustedBudgetNeverReachesTheNetwork() {
+        java.time.Instant now = java.time.Instant.parse("2026-11-10T15:00:00Z");
+        java.time.Clock clock = java.time.Clock.fixed(now, java.time.ZoneOffset.UTC);
+        AnthropicAiProvider.Route route = new AnthropicAiProvider.Route(
+                com.anthropic.client.okhttp.AnthropicOkHttpClient.builder().apiKey(FAKE_KEY)
+                        .baseUrl("http://127.0.0.1:" + server.getAddress().getPort()).maxRetries(0).build(),
+                "claude-sonnet-5-5", 4096, Duration.ofSeconds(25));
+        AnthropicAiProvider provider = new AnthropicAiProvider(route, route, OutputConfig.Effort.LOW, json, clock);
+
+        assertThat(provider.timeout(route, new AiRequest("s", "u", "{}"))).isEqualTo(Duration.ofSeconds(25));
+        assertThat(provider.timeout(route, new AiRequest("s", "u", "{}", now.plusSeconds(60))))
+                .isEqualTo(Duration.ofSeconds(25));
+        assertThat(provider.timeout(route, new AiRequest("s", "u", "{}", now.plusSeconds(7))))
+                .isEqualTo(Duration.ofSeconds(7));
+        AiRequest late = new AiRequest("s", "u", "{}", now.plusMillis(500));
+        assertThatThrownBy(() -> provider.call(AiRole.ANSWER, late))
+                .isInstanceOfSatisfying(AiProviderException.class, e -> {
+                    assertThat(e.outcome()).isEqualTo(AiOutcome.TIMEOUT);
+                    assertThat(e.retryable()).isFalse();
+                });
+        assertThat(bodies).as("sem orçamento, nada vai à rede").isEmpty();
     }
 
     @Test

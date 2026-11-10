@@ -88,7 +88,7 @@ class CopilotAdmissionTest {
     private void question(Instant at, long inputTokens) {
         ledger.append(new AiUsage(UUID.randomUUID(), anasWorkspace.id(), ana.id(), UUID.randomUUID(),
                 AiRequestType.INTENT, "simulated", "simulated-v1", new TokenUsage(inputTokens, 0, 0, 0),
-                BigDecimal.ZERO, "pricing-test", 1, AiOutcome.OK, at));
+                BigDecimal.ZERO, "pricing-test", "", "", 1, AiOutcome.OK, at));
     }
 
     @Test
@@ -184,7 +184,7 @@ class CopilotAdmissionTest {
     void anotherWorkspaceUsageDoesNotCount() {
         Workspace bobs = workspaces.findById(personalWorkspace(bob).id()).orElseGet(() -> personalWorkspace(bob));
         ledger.append(new AiUsage(UUID.randomUUID(), bobs.id(), bob.id(), UUID.randomUUID(), AiRequestType.INTENT,
-                "simulated", "simulated-v1", new TokenUsage(10, 0, 0, 0), BigDecimal.ZERO, "pricing-test", 1,
+                "simulated", "simulated-v1", new TokenUsage(10, 0, 0, 0), BigDecimal.ZERO, "pricing-test", "", "", 1,
                 AiOutcome.OK, Instant.parse("2026-11-15T12:00:00Z")));
 
         assertThat(admit(limits(1, 100, 1_000_000)).code()).isEqualTo(AdmissionCode.ADMITTED);
