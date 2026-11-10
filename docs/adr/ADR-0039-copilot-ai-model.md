@@ -37,7 +37,14 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
     estruturada com o enum de intenções.
   - Resposta: `claude-sonnet-5-5` ($2 / $10 por MTok; cache read $0,20), esforço `low`, saída estruturada §6.
   - Modelos ficam em configuração (`shf.copilot.models.*`), com a tabela de preços versionada (`pricing-2026-11`).
+  - **Adendo (2026-11-10, Parte B):** a página oficial de preços dá o cache read do Sonnet 5.5 a **$0,10/MTok** (5% do
+    input), não $0,20. A tabela `pricing-2026-11` usa os valores da página: Haiku 5.5 $0,10 / $0,50 / cache read
+    $0,01 / cache write $0,125, com a faixa acima de 100.000 tokens de prompt a $0,50 / $2,50 / $0,05 / $0,625;
+    Sonnet 5.5 $2 / $10 / $0,10 / $2,50. A estimativa de custo das Consequences não muda.
 - **SDK:** oficial `com.anthropic:anthropic-java` (versão estável mais recente na Parte B; ≥ 3.2.0), só no adapter.
+  - **Adendo (2026-11-10, Parte B):** fixado `anthropic-java` 3.7.0 e Resilience4j 2.4.0 (core: circuitbreaker,
+    retry, bulkhead, micrometer), aprovados pelo usuário. O SDK traz Jackson 2, Kotlin stdlib e OkHttp, com as
+    versões gerenciadas pelo Spring Boot; o projeto segue em Jackson 3 (pacotes diferentes).
   Spring AI foi avaliado e fica de fora (ver Alternatives).
 - **Sem** recursos que mantêm estado no provedor: Message Threads, Files API, Managed Agents, memory tool, web search,
   code execution. O contexto vai inteiro em cada chamada.
@@ -256,6 +263,11 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
   - 100 por mês;
   - 1M tokens de entrada por mês;
   - estouro → `QUOTA_EXCEEDED` com a data de liberação (05-states "Locked").
+  - **Adendo (2026-11-10, Parte B, aprovado pelo usuário):** conta como pergunta a chamada de intenção registrada no
+    ledger, **exceto** as que falharam do lado do provedor (`UNAVAILABLE`, `TIMEOUT`, `RATE_LIMITED`): queda do
+    provedor não consome a quota. Recusa e saída inválida contam (o provedor respondeu e cobrou). O ledger registra
+    tudo, com custo. Limitações aceitas até o M12: a checagem não é atômica com o registro (perguntas simultâneas
+    podem passar, limitadas pelo token bucket de 3 por pessoa), e o token do balde é gasto antes da checagem de quota.
 - **Rate limit:**
   - Redis, token bucket por `(workspace, user)`: 3 perguntas por minuto (capacidade 3, recarga de 1 a cada 20 s),
     script Lua atômico
