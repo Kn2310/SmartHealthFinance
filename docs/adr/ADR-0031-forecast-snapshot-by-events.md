@@ -52,6 +52,9 @@ Fatos do código e do modelo que condicionam a decisão:
     `forecast.domain` (D15) e, na Sessão 7.2, Goals e Simulation, pela mesma porta;
     - **Adendo (2026-11-06, ADR-0036 §1):** o módulo `goals` (que contém a Simulation, ADR-0034 §8) é o segundo
       leitor, só por `ForecastReader` e `forecast.domain`; a regra de ArchUnit passa a permitir `insights` e `goals`;
+    - **Adendo (2026-11-10, ADR-0039 §4):** o módulo `copilot` é a exceção: lê `forecast` (`ForecastQueries`) por uma lista fechada de
+      casos de uso de leitura (e seus DTOs), verificada no ArchUnit, para as tools somente leitura do Copilot. Nunca
+      repositórios, infraestrutura, presentation nem casos de uso de escrita; nenhum módulo depende do `copilot`.
   - `forecast` lê apenas portas e modelos de domínio: `analytics.application.port` e `analytics.domain`,
     `overview.application.port` e `overview.domain`, `cards.application.port.CardPortfolio` e `cards.domain`,
     `accounts.domain` e `identity` para Workspace e autorização; de Transactions, só os tipos que essas portas expõem;
