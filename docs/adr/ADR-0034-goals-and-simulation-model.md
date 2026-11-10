@@ -253,6 +253,9 @@ ADR-0024 nas partes C e D), e os eventos ficam prontos para o Copilot (M11) e pa
   - renda e despesa médias (Analytics/Health, a fixar na parte B).
 - O `goals` cria a transferência pelo caso de uso de Transactions.
 - Ninguém depende do `goals`. A parte B fixa as regras de ArchUnit.
+  - **Adendo (2026-11-10, ADR-0039 §4):** o módulo `copilot` é a exceção: lê `goals` (`ListGoals`, `GetGoal`,
+    `GetGoalProjection`, `SimulateGoal`) por uma lista fechada de casos de uso de leitura e simulação (e seus DTOs),
+    verificada no ArchUnit. Simular continua sem gravar nada (ADR-0036 §2); nenhum módulo depende do `copilot`.
 - O progresso vem de uma porta própria (`GoalBalanceSource`, nome a confirmar na parte B), que responde o saldo e os
   movimentos de um destino. É o ponto de extensão do §9.
 

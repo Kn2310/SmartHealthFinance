@@ -384,6 +384,12 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
     do layout); consumidor de `consent.revoked` que apaga o histórico do Copilot (Sessão 8.2, com o histórico);
     cabeçalho do submenu de Perfil sem nome/e-mail (Dados pessoais é "Em breve"); no submenu, "Contas" já leva a
     `/accounts` (a rota existe), os demais itens seguem "Em breve"
+- [x] modelo de IA (Sessão 8.1 Parte A, ADR-0039): Anthropic + SDK Java oficial; Haiku 5.5 (intenção) e Sonnet 5.5
+  (resposta); porta `AiGateway` com adapter simulado padrão no local/CI; Resilience4j; minimização (só comerciante
+  normalizado como texto de origem, pseudônimos locais); 10 intenções e tools somente leitura por lista fechada
+  (adendos ADR-0022/0031/0034); valores por referência `{{v:ref}}` + modo seguro; quotas provisórias 10/dia, 100/mês,
+  1M tokens/mês, 3/min; histórico 90 dias (8.2)
+  - pendente de produção: DPA (retenção, ZDR, cláusulas de transferência internacional) e PIA (05.12)
 - [ ] AI Gateway
 - [ ] context builder
 - [ ] tools

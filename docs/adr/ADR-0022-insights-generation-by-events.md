@@ -32,6 +32,9 @@ Restrições do código atual:
 - `insights.infrastructure`: JDBC, mensageria, jobs e runner. `insights.presentation`: só o `status` nesta parte.
 - **Fronteiras (ArchUnit):**
   - nenhum módulo depende de `insights`;
+  - **Adendo (2026-11-10, ADR-0039 §4):** o módulo `copilot` é a exceção: lê `insights` (`InsightQueries`) por uma lista fechada de
+    casos de uso de leitura (e seus DTOs), verificada no ArchUnit, para as tools somente leitura do Copilot. Nunca
+    repositórios, infraestrutura, presentation nem casos de uso de escrita; nenhum módulo depende do `copilot`.
   - `insights` lê apenas portas e modelos de domínio: `analytics.application.port` e `analytics.domain`,
     `health.application.port.HealthSnapshotReader` (nova porta só de leitura, §2) e `health.domain`,
     `transactions.domain` (os tipos que as portas expõem) e `identity` para Workspace e autorização;
