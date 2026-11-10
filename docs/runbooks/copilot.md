@@ -107,7 +107,7 @@ vale com `COPILOT_PROVIDER=simulated`.
 - **Smoke test com a chave real.** O `anthropic-java` 3.7.0, com `.apiKey(...)`, manda a chave em
   `Authorization: Bearer <chave>` e não em `x-api-key`, verificado contra o servidor falso do
   `AnthropicAiProviderTest`. A aceitação pela API real ainda não foi conferida. Com `COPILOT_PROVIDER=anthropic` e a
-  chave no `backend/.env`, faça uma chamada e confira `outcome=OK` no ledger. Um 401 aparece no log como `status=401`.
+  chave no `backend/.env` (descomente a linha `ANTHROPIC_API_KEY`), faça uma chamada e confira `outcome=OK` no ledger. Um 401 aparece no log como `status=401`.
 - Com `COPILOT_PROVIDER=anthropic` e sem chave, a API não sobe, mesmo com `COPILOT_ENABLED=false`. Para desligar sem
   chave, volte também a `COPILOT_PROVIDER=simulated`.
 - DPA com o provedor: retenção, zero data retention, cláusulas de transferência internacional.
