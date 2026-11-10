@@ -65,7 +65,7 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
   - intenção: 5 s;
   - resposta: 25 s;
   - orçamento total do pipeline: 30 s.
-  - **Adendo (2026-11-10, Parte C):** cada chamada leva o prazo final do orçamento (`AiRequest.deadline`).
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário):** cada chamada leva o prazo final do orçamento (`AiRequest.deadline`).
     - A cada tentativa, inclusive no retry do Resilience4j, o adapter usa o menor entre o que resta até o prazo e o
       timeout do papel (`RequestOptions` do SDK).
     - Com menos de 1 s restante, a tentativa falha como `TIMEOUT` sem ir à rede e sem retry.
@@ -164,7 +164,7 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
   - **Adendo (2026-11-10, Parte C, aprovado pelo usuário):** `ListCategories` (transactions, só leitura, com
     `requireMember`) entra na lista fechada. É o catálogo do sistema, igual para todos os Workspaces e sem dado pessoal:
     dá os nomes pt-BR das categorias à resposta e ao modelo de intenção.
-  - **Adendo (2026-11-10, Parte C): forma da lista fechada no ArchUnit.** Valem as classes exatas dos casos de uso,
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário): forma da lista fechada no ArchUnit.** Valem as classes exatas dos casos de uso,
     os records aninhados delas (`GetFinancialOverview.Query`, `GetGoalProjection.Projection`) e dois records de entrada
     que ficam fora de `usecase`: `AnalysisContextLoader.Query` e `GoalSimulator.Scenario` (entrada de `SimulateGoal`).
     Valem também os pacotes `application.dto` e `domain.enums`/`model`/`valueobject` dos módulos lidos, porque são o
@@ -247,7 +247,7 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
    - nenhum arredondamento novo: a formatação usa o valor como o caso de uso o entrega (dinheiro com 2 casas, como
      nas telas; percentuais com a escala calculada no backend). Valores derivados são calculados com `BigDecimal` e o
      arredondamento declarado na etapa Deterministic Calculations.
-   - **Adendo (2026-11-10, Parte C): detalhes do `claims-v1`.**
+   - **Adendo (2026-11-10, Parte C, aprovado pelo usuário): detalhes do `claims-v1`.**
      - A referência é `{{v:REF}}` com o `ref` do contexto (`{{v:v3}}`).
      - A lista fechada de exceções a "nenhum dígito" é só a dos pseudônimos (`cartao_1`). Vale para qualquer
        caractere numérico (`\p{N}`: frações e sobrescritos também). Não há exceção para "1"/"2": ordinais por extenso
@@ -359,7 +359,7 @@ Códigos de resultado:
 | `VALIDATION_FAILED` | só interno: vira `SAFE_MODE` |
 | `PROVIDER_UNAVAILABLE` | provedor fora ou circuito aberto, sem dados para o modo seguro |
 
-**Adendo (2026-11-10, Parte C): como cada situação vira código.**
+**Adendo (2026-11-10, Parte C, aprovado pelo usuário): como cada situação vira código.**
 
 - Admissão `UNAVAILABLE` (Copilot desligado ou Redis fora) → `PROVIDER_UNAVAILABLE`.
 - Intenção recusada pelo modelo → `OUT_OF_SCOPE`.
