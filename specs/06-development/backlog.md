@@ -390,12 +390,19 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   (adendos ADR-0022/0031/0034); valores por referência `{{v:ref}}` + modo seguro; quotas provisórias 10/dia, 100/mês,
   1M tokens/mês, 3/min; histórico 90 dias (8.2)
   - pendente de produção: DPA (retenção, ZDR, cláusulas de transferência internacional) e PIA (05.12)
-- [ ] AI Gateway
+- [x] AI Gateway (Sessão 8.1 Parte B, ADR-0039 §2): módulo `copilot`, porta `AiGateway` com `AnthropicAiProvider`
+  (SDK 3.7.0, um cliente por papel, sem retries do SDK) e `SimulatedAiProvider` (padrão local/CI, modos de falha);
+  `ResilientAiGateway` com Resilience4j (retry só em 429/5xx/conexão, circuit breaker `copilot-ai`, bulkhead 16);
+  `CopilotAdmission` (Workspace → ligado → consentimento → rate limit → quota); runbook `docs/runbooks/copilot.md`
 - [ ] context builder
 - [ ] tools
 - [ ] structured output
 - [ ] claim validation
-- [ ] usage ledger
+- [x] usage ledger (Parte B, ADR-0039 §10): V24 `ai_usage` (só metadados, custo USD `numeric(19,6)` pela tabela
+  `pricing-2026-11`), quotas provisórias contadas no ledger no fuso de negócio, token bucket por pessoa no Redis (Lua),
+  métricas `shf.copilot.*`
+  - dívidas (até o M12): quota não atômica com o registro e token do balde gasto antes da quota (adendo ADR-0039
+    §10); smoke test com a chave real (o SDK 3.7.0 manda `Authorization: Bearer`); DPA e PIA
 - [ ] evaluation
 
 ## M12 Monetization

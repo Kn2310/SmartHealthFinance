@@ -386,6 +386,53 @@ class ArchitectureTest {
 		.because("Overview, Health e Insights leem os cartões só pela porta CardPortfolio e pelos modelos de "
 				+ "domínio de Cards, nunca por casos de uso, serviços ou adapters (ADR-0006 §18, ADR-0027 §1)");
 
+	// Copilot (ADR-0039 §2, §4) fica na ponta: ninguém depende dele, ele não toca banco fora do próprio ledger e só lê
+	// os outros módulos por uma lista fechada (a Parte C acrescenta os casos de uso de leitura das tools).
+
+	/** Pacotes do produto que o Copilot pode usar. Fora do produto (JDK, Spring, SDK), sem restrição aqui. */
+	static final String[] COPILOT_ALLOWED = {"com.smarthealthfinance.copilot..", "com.smarthealthfinance.shared..",
+			"com.smarthealthfinance.identity.application.exception..",
+			"com.smarthealthfinance.identity.domain.valueobject..",
+			"com.smarthealthfinance.consents.application.port..", "com.smarthealthfinance.consents.domain.enums.."};
+
+	@ArchTest
+	static final ArchRule nothingDependsOnCopilot = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance..")
+		.and()
+		.resideOutsideOfPackage("com.smarthealthfinance.copilot..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAPackage("com.smarthealthfinance.copilot..")
+		.allowEmptyShould(true)
+		.because("o Copilot só consome; falha de IA nunca pode alcançar o núcleo financeiro (ADR-0039 §2)");
+
+	@ArchTest
+	static final ArchRule copilotOnlyUsesTheClosedList = classes().that()
+		.resideInAPackage("com.smarthealthfinance.copilot..")
+		.should()
+		.onlyDependOnClassesThat(JavaClass.Predicates.resideOutsideOfPackage("com.smarthealthfinance..")
+			.or(JavaClass.Predicates.resideInAnyPackage(COPILOT_ALLOWED))
+			// Do Identity, só a autorização: usuário corrente e guard de membership.
+			.or(JavaClass.Predicates.equivalentTo(
+					com.smarthealthfinance.identity.application.service.CurrentUserService.class))
+			.or(JavaClass.Predicates.equivalentTo(
+					com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard.class)))
+		.allowEmptyShould(true)
+		.because("o Copilot lê os outros módulos só por uma lista fechada: autorização, a porta de consentimento e, na "
+				+ "Parte C, os casos de uso de leitura das tools; nunca repositórios, adapters ou escrita (ADR-0039 §4)");
+
+	@ArchTest
+	static final ArchRule copilotTouchesTheDatabaseOnlyInItsLedgerAdapter = noClasses().that()
+		.resideInAPackage("com.smarthealthfinance.copilot..")
+		.and()
+		.resideOutsideOfPackage("com.smarthealthfinance.copilot.infrastructure.persistence..")
+		.should()
+		.dependOnClassesThat()
+		.resideInAnyPackage("org.springframework.jdbc..", "jakarta.persistence..", "org.springframework.data.jpa..",
+				"org.springframework.data.repository..", "java.sql..", "javax.sql..")
+		.allowEmptyShould(true)
+		.because("a IA nunca acessa o banco: só o adapter do usage ledger grava na própria tabela (ADR-0039 §2, §10)");
+
 	// Consents (ADR-0038 §1, §6) só conhece a autorização do Identity e nenhum dado financeiro. Outro módulo só usa a
 	// porta ConsentReader e o enum das finalidades.
 

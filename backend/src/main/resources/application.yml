@@ -27,6 +27,9 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      # Redis lento não pode segurar requisições (rate limit do Copilot falha fechado, ADR-0039 §10).
+      timeout: 1s
+      connect-timeout: 1s
       # Redis é só cache/rate limit/locks (nunca source of truth): sem repositórios Spring Data Redis.
       repositories:
         enabled: false
@@ -151,6 +154,66 @@ shf:
         delay: 1s
         max-delay: 30s
         jitter: 500ms
+  # Financial Copilot / AI Gateway (ADR-0039). Simulado por padrão: o provedor real só com COPILOT_PROVIDER=anthropic e
+  # ANTHROPIC_API_KEY vinda de variável de ambiente ou secret (nunca versionada). CI e testes usam sempre o simulado.
+  copilot:
+    enabled: ${COPILOT_ENABLED:true}
+    provider: ${COPILOT_PROVIDER:simulated}
+    # Quotas contam no fuso de negócio (o mesmo "hoje" do Overview).
+    zone: ${shf.overview.zone}
+    models:
+      intent: claude-haiku-5-5
+      answer: claude-sonnet-5-5
+      intent-max-tokens: 1024
+      answer-max-tokens: 4096
+      effort: low
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      intent-timeout: 5s
+      answer-timeout: 25s
+    simulated:
+      # ok, refused, invalid_output, timeout, rate_limited ou unavailable (simula o provedor real).
+      mode: ${COPILOT_SIMULATED_MODE:ok}
+    resilience:
+      retry-max-attempts: 2
+      retry-initial-wait: 500ms
+      failure-rate-threshold: 50
+      sliding-window-size: 20
+      minimum-number-of-calls: 5
+      open-state-duration: 30s
+      half-open-calls: 1
+      max-concurrent-calls: 16
+    # Provisórios até o M12 (ADR-0039 §10): por Workspace; rate limit por pessoa.
+    limits:
+      daily-questions: 10
+      monthly-questions: 100
+      monthly-input-tokens: 1000000
+      bucket-capacity: 3
+      refill-interval: 20s
+    # USD por milhão de tokens, da página oficial de preços em 2026-11-10 (runbook: como atualizar).
+    pricing:
+      version: pricing-2026-11
+      models:
+        - model: claude-haiku-5-5
+          input: 0.10
+          output: 0.50
+          cache-read: 0.01
+          cache-write: 0.125
+          long-prompt-threshold: 100000
+          long-input: 0.50
+          long-output: 2.50
+          long-cache-read: 0.05
+          long-cache-write: 0.625
+        - model: claude-sonnet-5-5
+          input: 2.00
+          output: 10.00
+          cache-read: 0.10
+          cache-write: 2.50
+        - model: simulated-v1
+          input: 0
+          output: 0
+          cache-read: 0
+          cache-write: 0
 
 springdoc:
   api-docs:
