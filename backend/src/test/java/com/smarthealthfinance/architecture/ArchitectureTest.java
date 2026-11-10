@@ -260,14 +260,15 @@ class ArchitectureTest {
 
 	@ArchTest
 	static final ArchRule nothingDependsOnInsights = noClasses().that()
-		.resideOutsideOfPackage("com.smarthealthfinance.insights..")
+		.resideOutsideOfPackages("com.smarthealthfinance.insights..", "com.smarthealthfinance.copilot..")
 		.and()
 		.resideInAPackage("com.smarthealthfinance..")
 		.should()
 		.dependOnClassesThat()
 		.resideInAPackage("com.smarthealthfinance.insights..")
 		.allowEmptyShould(true)
-		.because("os Insights são derivados; nenhum módulo depende deles (ADR-0022 §1)");
+		.because("os Insights são derivados; nenhum módulo depende deles, salvo as tools de leitura do Copilot "
+				+ "(ADR-0022 §1, adendo ADR-0039)");
 
 	@ArchTest
 	static final ArchRule insightsOnlyReadPortsAndDomainModels = noClasses().that()
@@ -304,13 +305,13 @@ class ArchitectureTest {
 		.resideInAPackage("com.smarthealthfinance..")
 		.and()
 		.resideOutsideOfPackages("com.smarthealthfinance.forecast..", "com.smarthealthfinance.insights..",
-				"com.smarthealthfinance.goals..")
+				"com.smarthealthfinance.goals..", "com.smarthealthfinance.copilot..")
 		.should()
 		.dependOnClassesThat()
 		.resideInAPackage("com.smarthealthfinance.forecast..")
 		.allowEmptyShould(true)
-		.because("o Forecast é derivado; só os Insights e os Goals leem o snapshot dele (ADR-0031 §1, adendo "
-				+ "ADR-0036)");
+		.because("o Forecast é derivado; só os Insights, os Goals e as tools do Copilot o leem (ADR-0031 §1, "
+				+ "adendos ADR-0036 e ADR-0039)");
 
 	@ArchTest
 	static final ArchRule goalsOnlyReadTheForecastThroughItsReaderAndDomain = noClasses().that()
@@ -393,7 +394,35 @@ class ArchitectureTest {
 	static final String[] COPILOT_ALLOWED = {"com.smarthealthfinance.copilot..", "com.smarthealthfinance.shared..",
 			"com.smarthealthfinance.identity.application.exception..",
 			"com.smarthealthfinance.identity.domain.valueobject..",
-			"com.smarthealthfinance.consents.application.port..", "com.smarthealthfinance.consents.domain.enums.."};
+			"com.smarthealthfinance.consents.application.port..", "com.smarthealthfinance.consents.domain.enums..",
+			// Parte C: o que os casos de uso das tools devolvem (DTOs e os tipos de domínio dentro deles).
+			"com.smarthealthfinance.overview.application.dto..", "com.smarthealthfinance.analytics.application.dto..",
+			"com.smarthealthfinance.health.application.dto..", "com.smarthealthfinance.insights.application.dto..",
+			"com.smarthealthfinance.cards.application.dto..", "com.smarthealthfinance.forecast.application.dto..",
+			"com.smarthealthfinance.goals.application.dto..", "com.smarthealthfinance.transactions.application.dto..",
+			"com.smarthealthfinance.(overview|analytics|health|insights|cards|forecast|goals|accounts|transactions)"
+					+ ".domain.(enums|model|valueobject).."};
+
+	/** Casos de uso de leitura e simulação das tools (ADR-0039 §4 e adendos da Parte C) e os records de entrada deles. */
+	static final Class<?>[] COPILOT_TOOL_USE_CASES = {
+			com.smarthealthfinance.overview.application.usecase.GetFinancialOverview.class,
+			com.smarthealthfinance.analytics.application.usecase.AnalysisQueries.class,
+			com.smarthealthfinance.analytics.application.service.AnalysisContextLoader.Query.class,
+			com.smarthealthfinance.health.application.usecase.HealthQueries.class,
+			com.smarthealthfinance.health.application.usecase.GetHealthStatus.class,
+			com.smarthealthfinance.insights.application.usecase.InsightQueries.class,
+			com.smarthealthfinance.cards.application.usecase.GetCardsSummary.class,
+			com.smarthealthfinance.cards.application.usecase.GetInvoice.class,
+			com.smarthealthfinance.cards.application.usecase.GetFutureInvoices.class,
+			com.smarthealthfinance.cards.application.usecase.GetInstallmentPlans.class,
+			com.smarthealthfinance.cards.application.usecase.GetCardUtilization.class,
+			com.smarthealthfinance.forecast.application.usecase.ForecastQueries.class,
+			com.smarthealthfinance.goals.application.usecase.ListGoals.class,
+			com.smarthealthfinance.goals.application.usecase.GetGoal.class,
+			com.smarthealthfinance.goals.application.usecase.GetGoalProjection.class,
+			com.smarthealthfinance.goals.application.usecase.SimulateGoal.class,
+			com.smarthealthfinance.goals.application.service.GoalSimulator.Scenario.class,
+			com.smarthealthfinance.transactions.application.usecase.ListCategories.class};
 
 	@ArchTest
 	static final ArchRule nothingDependsOnCopilot = noClasses().that()
@@ -416,10 +445,24 @@ class ArchitectureTest {
 			.or(JavaClass.Predicates.equivalentTo(
 					com.smarthealthfinance.identity.application.service.CurrentUserService.class))
 			.or(JavaClass.Predicates.equivalentTo(
-					com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard.class)))
+					com.smarthealthfinance.identity.application.service.WorkspaceAccessGuard.class))
+			.or(copilotToolUseCase()))
 		.allowEmptyShould(true)
 		.because("o Copilot lê os outros módulos só por uma lista fechada: autorização, a porta de consentimento e, na "
 				+ "Parte C, os casos de uso de leitura das tools; nunca repositórios, adapters ou escrita (ADR-0039 §4)");
+
+	private static com.tngtech.archunit.base.DescribedPredicate<JavaClass> copilotToolUseCase() {
+		java.util.Set<String> names = java.util.Arrays.stream(COPILOT_TOOL_USE_CASES).map(Class::getName)
+			.collect(java.util.stream.Collectors.toSet());
+		return com.tngtech.archunit.base.DescribedPredicate.describe("a closed-list tool use case or its nested record",
+				javaClass -> names.contains(javaClass.getName()) || names.contains(topLevel(javaClass.getName())));
+	}
+
+	/** Records aninhados de um caso de uso da lista (Query, Projection) valem como o próprio caso de uso. */
+	private static String topLevel(String className) {
+		int nested = className.indexOf('$');
+		return nested < 0 ? className : className.substring(0, nested);
+	}
 
 	@ArchTest
 	static final ArchRule copilotTouchesTheDatabaseOnlyInItsLedgerAdapter = noClasses().that()
@@ -478,13 +521,13 @@ class ArchitectureTest {
 	static final ArchRule nothingDependsOnGoals = noClasses().that()
 		.resideInAPackage("com.smarthealthfinance..")
 		.and()
-		.resideOutsideOfPackage("com.smarthealthfinance.goals..")
+		.resideOutsideOfPackages("com.smarthealthfinance.goals..", "com.smarthealthfinance.copilot..")
 		.should()
 		.dependOnClassesThat()
 		.resideInAPackage("com.smarthealthfinance.goals..")
 		.allowEmptyShould(true)
-		.because("os objetivos são lidos só pela própria API; Health e Insights se ligam a eles pelo frontend "
-				+ "(ADR-0034 §7)");
+		.because("os objetivos são lidos só pela própria API e pelas tools do Copilot; Health e Insights se "
+				+ "ligam a eles pelo frontend (ADR-0034 §7, adendo ADR-0039)");
 
 	@ArchTest
 	static final ArchRule goalsOnlyUseCorePortsDomainAndTheTransferUseCase = noClasses().that()
