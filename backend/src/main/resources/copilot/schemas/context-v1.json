@@ -1,0 +1,62 @@
+{
+  "$comment": "Contexto que vai ao modelo de resposta dentro de <dados_financeiros> (ADR-0039 §5). Documenta o formato; o JacksonCopilotCodec é conferido contra ele em teste.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "intent", "today", "currency", "values", "dataQuality", "sources", "actions"],
+  "properties": {
+    "version": {"const": "context-v1"},
+    "intent": {"type": "string"},
+    "today": {"type": "string", "format": "date"},
+    "currency": {"type": "string"},
+    "values": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "label", "value", "unit", "kind", "period", "source"],
+        "properties": {
+          "ref": {"type": "string"},
+          "label": {"type": "string"},
+          "value": {"type": "string"},
+          "unit": {"enum": ["MONEY", "PERCENT", "SCORE", "COUNT", "MONTH", "DATE", "TEXT"]},
+          "kind": {"enum": ["FACT", "ESTIMATED", "SIMULATED"]},
+          "period": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+          "source": {"type": "string"}
+        }
+      }
+    },
+    "dataQuality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["monthsWithData", "partialPeriod", "gaps", "freshness", "sources"],
+      "properties": {
+        "monthsWithData": {"anyOf": [{"type": "integer"}, {"type": "null"}]},
+        "partialPeriod": {"type": "boolean"},
+        "gaps": {"type": "array", "items": {"type": "string"}},
+        "freshness": {"enum": ["UP_TO_DATE", "UPDATING", "NOT_BUILT"]},
+        "sources": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tool", "version"],
+        "properties": {"tool": {"type": "string"}, "version": {"type": "string"}}
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "target"],
+        "properties": {
+          "kind": {"type": "string"},
+          "target": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+        }
+      }
+    }
+  }
+}

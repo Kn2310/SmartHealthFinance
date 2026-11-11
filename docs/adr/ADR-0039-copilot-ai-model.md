@@ -65,6 +65,11 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
   - intenção: 5 s;
   - resposta: 25 s;
   - orçamento total do pipeline: 30 s.
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário):** cada chamada leva o prazo final do orçamento (`AiRequest.deadline`).
+    - A cada tentativa, inclusive no retry do Resilience4j, o adapter usa o menor entre o que resta até o prazo e o
+      timeout do papel (`RequestOptions` do SDK).
+    - Com menos de 1 s restante, a tentativa falha como `TIMEOUT` sem ir à rede e sem retry.
+    - O pipeline só chama o modelo com ao menos 3 s restantes; senão, responde em modo seguro.
 - Resiliência com **Resilience4j** (dependência nova, aprovada): os módulos core `resilience4j-circuitbreaker`,
   `resilience4j-retry` e `resilience4j-bulkhead`, configurados programaticamente no adapter, sem o starter (que não
   depende da compatibilidade com o Boot 4). Métricas pelo binder Micrometer do Resilience4j.
@@ -151,6 +156,30 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
   - dados fora do app.
 - Pré-requisito da Parte C: confirmar que `HealthQueries.summary` e `evolution` (`@Transactional` sem `readOnly`) não
   gravam. Se gravarem, a tool usa a leitura do snapshot.
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário):** gravam, assim como `ForecastQueries` e `InsightQueries`.
+    Quando o snapshot é de um dia anterior, a freshness marca o Workspace para recálculo (`markDirty`: só
+    `dirty_since`/`due_at` do job, nenhum dado financeiro). As tools chamam as mesmas consultas das telas: abrir a tela
+    já faz a mesma marcação, idempotente. Ler os stores direto quebraria a fronteira e pularia o `requireMember`. O §12
+    segue valendo: nenhuma gravação financeira.
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário):** `ListCategories` (transactions, só leitura, com
+    `requireMember`) entra na lista fechada. É o catálogo do sistema, igual para todos os Workspaces e sem dado pessoal:
+    dá os nomes pt-BR das categorias à resposta e ao modelo de intenção.
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário): forma da lista fechada no ArchUnit.** Valem as classes exatas dos casos de uso,
+    os records aninhados delas (`GetFinancialOverview.Query`, `GetGoalProjection.Projection`) e dois records de entrada
+    que ficam fora de `usecase`: `AnalysisContextLoader.Query` e `GoalSimulator.Scenario` (entrada de `SimulateGoal`).
+    Valem também os pacotes `application.dto` e `domain.enums`/`model`/`valueobject` dos módulos lidos, porque são o
+    que os casos de uso devolvem. Repositórios, serviços de domínio, infraestrutura, apresentação e outros casos de
+    uso continuam proibidos. A tool de insights usa `InsightQueries.list` e não `highlights`, que carrega textos
+    prontos.
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário): catálogo da intenção.** Antes da intenção, o pipeline monta
+    o catálogo da pergunta com `ListCategories`, `ListGoals` e `GetCardsSummary`: categorias (código e nome) e alvos
+    pseudonimizados (`objetivo_N` com tipo, prazo e status; `cartao_N` com a bandeira). O modelo de intenção pode
+    escolher um alvo. Sem alvo válido, um único item do tipo é usado; com vários, `GOALS`/`CARDS` cobrem até 5, e
+    `GOAL_SIMULATION` volta `INSUFFICIENT_DATA` pedindo o objetivo e o que mudar.
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário): insights só com campos estruturados.** Detector,
+    importância, período, impacto (dinheiro e pontos) como refs, e o assunto só quando é categoria do catálogo ou
+    comerciante normalizado. Nunca `title`, `support`, `changeLine`, `recommendation` nem `evidence`. Pela mesma razão,
+    os textos prontos do Health (`summary`, `explanation`, fatores, próximos passos) não vão ao modelo.
 - **Fronteiras (ArchUnit, aprovado em 2026-11-10):**
   - o `copilot` depende só de uma **lista fechada** de casos de uso de leitura e simulação (as classes da tabela acima)
     e dos DTOs que eles devolvem, mais `identity` (guard e usuário corrente), `consents.application.port.ConsentReader`
@@ -218,6 +247,19 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
    - nenhum arredondamento novo: a formatação usa o valor como o caso de uso o entrega (dinheiro com 2 casas, como
      nas telas; percentuais com a escala calculada no backend). Valores derivados são calculados com `BigDecimal` e o
      arredondamento declarado na etapa Deterministic Calculations.
+   - **Adendo (2026-11-10, Parte C, aprovado pelo usuário): detalhes do `claims-v1`.**
+     - A referência é `{{v:REF}}` com o `ref` do contexto (`{{v:v3}}`).
+     - A lista fechada de exceções a "nenhum dígito" é só a dos pseudônimos (`cartao_1`). Vale para qualquer
+       caractere numérico (`\p{N}`: frações e sobrescritos também). Não há exceção para "1"/"2": ordinais por extenso
+       ("primeiro", "segundo") são permitidos. É mais estrito que o texto acima.
+     - Também reprovam números por extenso, exceto "um"/"uma", que são também artigos. Isso vale de "zero" e "dois"
+       em diante, e inclui quantidades ("dezena", "centena", "metade", "dobro").
+     - Reprovam ainda "reais", "centavos", "por cento", e `R$` ou `%` fora de referência. Isso fecha os contornos do
+       bloqueio de dígitos.
+     - Risco residual aceito: "um cartão" como quantidade não é detectável.
+     - Rótulos do contexto não podem ter dígito fora de pseudônimo (o modelo os copiaria).
+     - Pseudônimo desconhecido reprova. Na renderização, cada pseudônimo vira o nome que a pessoa conhece (apelido,
+       nome do objetivo), numa passada só com as refs, para nenhum texto substituído ser reinterpretado.
 3. **Falha:** regenera uma vez com o erro de validação no prompt. Se falhar de novo, responde em **modo seguro**:
    texto de template determinístico por intenção com os valores do contexto, `confidence` calculada e
    `validation: SAFE_MODE`. A resposta inválida nunca chega à pessoa.
@@ -282,6 +324,12 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
 - Esquemas em `copilot/schemas/` (`intents-v1`, `context-v1`, `answer-v1`).
 - Algoritmos versionados como constantes (`confidence-v1`, `claims-v1`).
 - Cada resposta registra no ledger e no resultado as versões de prompt, esquemas e algoritmos.
+  - **Adendo (2026-11-10, Parte C, aprovado pelo usuário):** migration `V25` acrescenta a `ai_usage` as colunas
+    `prompt_version` (ex.: `answer-v1@3fa1c2d9`, com os 8 primeiros caracteres do SHA-256) e `schema_version`
+    (`answer-v1`), `not null default ''` (as linhas da Parte B ficam vazias). O hash é calculado com quebras de linha
+    normalizadas para LF, igual no Windows e na CI. As versões de algoritmos (`claims-v1`, `confidence-v1`,
+    `context-v1`, `intents-v1`) vão no resultado. `context-v1.json` documenta o formato do contexto; um teste confere
+    o codec contra ele.
 - Mudar texto de prompt exige nova versão do arquivo e passar pela suíte de avaliação da 8.2.
 
 ### 12. Permissões
@@ -311,9 +359,102 @@ Códigos de resultado:
 | `VALIDATION_FAILED` | só interno: vira `SAFE_MODE` |
 | `PROVIDER_UNAVAILABLE` | provedor fora ou circuito aberto, sem dados para o modo seguro |
 
+**Adendo (2026-11-10, Parte C, aprovado pelo usuário): como cada situação vira código.**
+
+- Admissão `UNAVAILABLE` (Copilot desligado ou Redis fora) → `PROVIDER_UNAVAILABLE`.
+- Intenção recusada pelo modelo → `OUT_OF_SCOPE`.
+- Intenção com falha do provedor, ou fora do esquema → `PROVIDER_UNAVAILABLE`.
+- `UNSUPPORTED_ACTION` → `OUT_OF_SCOPE` com `intent = UNSUPPORTED_ACTION` e texto fixo: não há código novo.
+  Diferente do §12, a resposta ainda não traz o link da tela: o modelo de intenção não diz qual tela, e escolher uma
+  por palavra-chave seria adivinhar. Fica para a 8.2, com a UI do Copilot.
+- Outras exceções de uma tool ou do catálogo (ex.: um objetivo apagado entre o catálogo e a tool) propagam como erro
+  da requisição, com a intenção já no ledger. É risco aceito até a 8.2 mapear o not-found.
+- Tool sem dados (`NO_DATA`, `NOT_BUILT`, alvo faltando) ou parâmetro inválido para o caso de uso
+  (`InvalidValueException`) → `INSUFFICIENT_DATA`, sem chamar o modelo de resposta.
+- Resposta com falha do provedor (inclusive recusa e timeout) → `SAFE_MODE`, sem regenerar.
+
+**Adendo (2026-11-10, Parte C, aprovado pelo usuário): endpoint de diagnóstico.**
+
+- `POST /api/v1/workspaces/{id}/copilot/diagnostic`, só no perfil `local` (`@Profile("local")`) e fora do OpenAPI
+  (`@Hidden`).
+- Passa pela mesma autenticação, membership, consentimento, rate limit e quota do caso de uso.
+- Serve para o smoke test com a chave real. A API de conversa da 8.2 o substitui.
+
 ## Para a Sessão 8.2
 
-A preencher ao fim da Parte C: interface do caso de uso, esquema `answer-v1` final, códigos de erro e lacunas.
+Preenchido ao fim da Parte C (2026-11-10).
+
+### Interface do caso de uso
+
+```java
+// copilot.application.usecase.AskCopilot — sem @Transactional; nunca chamar dentro de uma transação
+CopilotResult ask(UUID workspaceId, String question);
+// lança WorkspaceNotFoundException (não membro → 404) antes de tudo,
+// e InvalidValueException("question", REQUIRED | TOO_LONG) depois da autorização (máx. 500 caracteres)
+
+record CopilotResult(UUID requestId, ResultCode code, Intent intent, RenderedAnswer answer,
+                     AnswerConfidence confidence, ValidationStatus validation,
+                     Duration retryAfter, Instant resetsAt, Map<String, String> versions)
+
+record RenderedAnswer(AnswerType type, String text, List<String> explanation,
+                      List<Value> financialData, List<Action> actions)
+record Value(String ref, String label, String formatted, ValueKind kind, String period, String source)
+record Action(ActionKind kind, String targetId, String targetName)  // targetId = UUID ou código; nulo em telas
+                                                                    // do Workspace
+```
+
+- `answer` existe com `OK`, `SAFE_MODE`, `INSUFFICIENT_DATA` e `OUT_OF_SCOPE`.
+- `intent` é nulo quando a pergunta não chegou à classificação.
+- `confidence` só existe com contexto financeiro (`OK`, `SAFE_MODE`).
+- `validation`: `VALID`, `REGENERATED`, `SAFE_MODE` ou `NOT_APPLICABLE`.
+- `versions`: `intents`, `intentPrompt`, `intentSchema`, `answerPrompt`, `answerSchema`, `context`, `claims`,
+  `confidence`.
+- O texto já vem renderizado em pt-BR. `targetName` e os rótulos podem trazer nomes digitados pela pessoa (só para
+  ela).
+
+### Esquema `answer-v1` final
+
+O de §6, em `backend/src/main/resources/copilot/schemas/answer-v1.json`, com campos obrigatórios e
+`additionalProperties: false`. Opcionais usam `anyOf` com `null`, porque a saída estruturada não aceita `maxLength` nem
+`maxItems`; os limites ficam na validação do servidor (resposta até 2.000 caracteres, até 6 passos, até 3 ações). O
+esquema de intenção é `intents-v1.json`.
+
+### Códigos para a API
+
+| `ResultCode` | HTTP sugerido | Observação |
+|---|---|---|
+| `OK`, `SAFE_MODE`, `INSUFFICIENT_DATA`, `OUT_OF_SCOPE` | 200 | corpo com `answer` |
+| `CONSENT_REQUIRED` | 403 | levar para `/profile/consents` |
+| `RATE_LIMITED` | 429 | `Retry-After` = `retryAfter` |
+| `QUOTA_EXCEEDED` | 429 | estado "Limite" com `resetsAt` |
+| `PROVIDER_UNAVAILABLE` | 503 | provedor fora, circuito aberto, Copilot desligado ou Redis fora |
+| (exceção) `WorkspaceNotFoundException` | 404 | `WORKSPACE_NOT_FOUND` |
+| (exceção) `InvalidValueException` | 400 | `question` `REQUIRED` / `TOO_LONG` |
+
+`VALIDATION_FAILED` nunca sai: vira `SAFE_MODE`.
+
+### Lacunas para a 8.2
+
+- **API de conversa:** endpoint, contrato OpenAPI, `schema.d.ts`, BFF e suíte de isolamento. Remover o endpoint de
+  diagnóstico local.
+- **Histórico (`COPILOT_HISTORY`):** tabelas, retenção de 90 dias por job, hard delete na revogação. A continuidade
+  manda as últimas 3 trocas como texto. Atenção: o texto renderizado tem nomes digitados (apelido, nome do objetivo).
+  Para ir ao modelo, a 8.2 guarda ou reconstrói a versão com pseudônimos, ou não manda os nomes.
+- **Suíte de avaliação:** perguntas reais por intenção contra o provedor real, com custo medido. É pré-requisito para
+  mudar prompt (§11). Não há uma ainda: só os testes determinísticos com o simulado.
+- **Smoke test com a chave real** (`Authorization: Bearer` do SDK 3.7.0), pelo endpoint de diagnóstico local.
+- **Telas:** estados de `05-states` (consentimento, limite com data, dados insuficientes, modo seguro com os valores,
+  indisponível) e a renderização de `financialData` com o rótulo de estimado ou simulado.
+- **Calibração (M12):** quotas, preços e o teto de contexto (12K tokens estimados por caracteres ÷ 4, não pelo
+  tokenizador).
+- **Limites conhecidos da Parte C:**
+  - o simulado escolhe a intenção por palavras-chave e não preenche parâmetros (mês, categoria, alvo, cenário);
+  - `UNSUPPORTED_ACTION` sem link de tela, e not-found de tool como erro (adendo do §13);
+  - pergunta vazia ou longa demais é rejeitada depois da admissão: gasta um token do balde (ADR-0003, autorizar
+    antes de validar). A tela da 8.2 pode validar antes de enviar;
+  - nenhum valor derivado novo é calculado no Copilot: diferenças e variações vêm dos casos de uso (`Variation`),
+    que já são determinísticos;
+  - DPA e PIA continuam pendentes para produção.
 
 ## Alternatives
 

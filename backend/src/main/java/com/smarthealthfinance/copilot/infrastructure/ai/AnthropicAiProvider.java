@@ -2,6 +2,7 @@ package com.smarthealthfinance.copilot.infrastructure.ai;
 
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.core.JsonValue;
+import com.anthropic.core.RequestOptions;
 import com.anthropic.errors.AnthropicIoException;
 import com.anthropic.errors.AnthropicRetryableException;
 import com.anthropic.errors.AnthropicServiceException;
@@ -23,6 +24,8 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.InterruptedIOException;
+import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,11 +44,12 @@ public final class AnthropicAiProvider implements AiProvider {
     private static final TypeReference<Map<String, Object>> SCHEMA = new TypeReference<>() {
     };
 
-    /** Um papel: cliente com timeout próprio, modelo e teto de saída. */
-    public record Route(AnthropicClient client, String model, long maxOutputTokens) {
+    /** Um papel: cliente com timeout próprio ({@code timeout}, o mesmo do cliente), modelo e teto de saída. */
+    public record Route(AnthropicClient client, String model, long maxOutputTokens, Duration timeout) {
         public Route {
             Objects.requireNonNull(client, "client");
             Objects.requireNonNull(model, "model");
+            Objects.requireNonNull(timeout, "timeout");
         }
     }
 
@@ -53,12 +57,21 @@ public final class AnthropicAiProvider implements AiProvider {
     private final Route answer;
     private final OutputConfig.Effort effort;
     private final JsonMapper json;
+    private final Clock clock;
+
+    /** Tempo mínimo para valer a pena chamar a API num retry; o pipeline já exige 3 s na primeira tentativa. */
+    static final Duration MINIMUM_CALL = Duration.ofSeconds(1);
 
     public AnthropicAiProvider(Route intent, Route answer, OutputConfig.Effort effort, JsonMapper json) {
+        this(intent, answer, effort, json, Clock.systemUTC());
+    }
+
+    AnthropicAiProvider(Route intent, Route answer, OutputConfig.Effort effort, JsonMapper json, Clock clock) {
         this.intent = Objects.requireNonNull(intent, "intent");
         this.answer = Objects.requireNonNull(answer, "answer");
         this.effort = Objects.requireNonNull(effort, "effort");
         this.json = Objects.requireNonNull(json, "json");
+        this.clock = Objects.requireNonNull(clock, "clock");
     }
 
     @Override
@@ -74,18 +87,37 @@ public final class AnthropicAiProvider implements AiProvider {
     @Override
     public Reply call(AiRole role, AiRequest request) {
         Route route = route(role);
+        Duration timeout = timeout(route, request);
         Message message;
         try {
-            message = route.client().messages().create(params(route, request));
+            message = timeout.equals(route.timeout())
+                    ? route.client().messages().create(params(route, request))
+                    : route.client().messages().create(params(route, request),
+                    RequestOptions.builder().timeout(timeout).build());
         } catch (AnthropicServiceException e) {
             throw translate(e);
         } catch (AnthropicIoException | AnthropicRetryableException e) {
-            boolean timeout = causedByReadTimeout(e);
-            log.warn("Copilot provider transport failure provider={} role={} timeout={}", NAME, role, timeout);
-            throw new AiProviderException(timeout ? AiOutcome.TIMEOUT : AiOutcome.UNAVAILABLE, !timeout,
-                    timeout ? "timeout" : "transport");
+            boolean readTimeout = causedByReadTimeout(e);
+            log.warn("Copilot provider transport failure provider={} role={} timeout={}", NAME, role, readTimeout);
+            throw new AiProviderException(readTimeout ? AiOutcome.TIMEOUT : AiOutcome.UNAVAILABLE, !readTimeout,
+                    readTimeout ? "timeout" : "transport");
         }
         return reply(route, message);
+    }
+
+    /**
+     * O menor entre o timeout do papel e o que resta até o prazo do pipeline (ADR-0039 §2), recalculado a cada
+     * tentativa, inclusive no retry. Sem tempo para uma chamada útil, falha como timeout sem ir à rede e sem retry.
+     */
+    Duration timeout(Route route, AiRequest request) {
+        if (request.deadlineValue().isEmpty()) {
+            return route.timeout();
+        }
+        Duration left = Duration.between(clock.instant(), request.deadline());
+        if (left.compareTo(MINIMUM_CALL) < 0) {
+            throw new AiProviderException(AiOutcome.TIMEOUT, false, "budget exhausted");
+        }
+        return left.compareTo(route.timeout()) < 0 ? left : route.timeout();
     }
 
     MessageCreateParams params(Route route, AiRequest request) {

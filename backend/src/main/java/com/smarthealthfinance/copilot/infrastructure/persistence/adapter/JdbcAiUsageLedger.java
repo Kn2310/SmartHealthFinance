@@ -28,12 +28,14 @@ public class JdbcAiUsageLedger implements AiUsageLedger {
         jdbc.update("""
                 insert into ai_usage (id, workspace_id, user_id, request_id, request_type, provider, model,
                                       input_tokens, output_tokens, cache_read_tokens, cache_write_tokens, cost,
-                                      pricing_version, latency_ms, outcome, created_at)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      pricing_version, prompt_version, schema_version, latency_ms, outcome,
+                                      created_at)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, usage.id(), usage.workspaceId().value(), usage.userId().value(), usage.requestId(),
                 usage.requestType().name(), usage.provider(), usage.model(), usage.tokens().input(),
                 usage.tokens().output(), usage.tokens().cacheRead(), usage.tokens().cacheWrite(), usage.cost(),
-                usage.pricingVersion(), usage.latencyMs(), usage.outcome().name(), Timestamp.from(usage.createdAt()));
+                usage.pricingVersion(), usage.promptVersion(), usage.schemaVersion(), usage.latencyMs(),
+                usage.outcome().name(), Timestamp.from(usage.createdAt()));
     }
 
     @Override

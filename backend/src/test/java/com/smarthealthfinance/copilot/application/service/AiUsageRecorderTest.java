@@ -48,11 +48,14 @@ class AiUsageRecorderTest {
         AiResult result = AiResult.ok("{\"answer\":\"segredo\"}", "anthropic", "claude-sonnet-5-5",
                 new TokenUsage(6_000, 600, 2_000, 0), Duration.ofMillis(1_234));
 
-        AiUsage usage = recorder.record(WORKSPACE, USER, requestId, AiRequestType.ANSWER, result);
+        AiUsage usage = recorder.record(WORKSPACE, USER, requestId, AiRequestType.ANSWER, result,
+                "answer-v1@0123abcd", "answer-v1");
 
         assertThat(ledger.rows).containsExactly(usage);
         assertThat(usage.cost()).isEqualByComparingTo("0.018200");
         assertThat(usage.pricingVersion()).isEqualTo("pricing-2026-11");
+        assertThat(usage.promptVersion()).isEqualTo("answer-v1@0123abcd");
+        assertThat(usage.schemaVersion()).isEqualTo("answer-v1");
         assertThat(usage.requestId()).isEqualTo(requestId);
         assertThat(usage.latencyMs()).isEqualTo(1_234);
         assertThat(usage.outcome()).isEqualTo(AiOutcome.OK);
@@ -69,7 +72,8 @@ class AiUsageRecorderTest {
         AiResult result = AiResult.failed(AiOutcome.TIMEOUT, "anthropic", "claude-sonnet-5-5", TokenUsage.NONE,
                 Duration.ofSeconds(25));
 
-        AiUsage usage = recorder.record(WORKSPACE, USER, UUID.randomUUID(), AiRequestType.ANSWER, result);
+        AiUsage usage = recorder.record(WORKSPACE, USER, UUID.randomUUID(), AiRequestType.ANSWER, result,
+                "answer-v1@0123abcd", "answer-v1");
 
         assertThat(usage.cost()).isEqualByComparingTo("0");
         assertThat(usage.outcome()).isEqualTo(AiOutcome.TIMEOUT);
@@ -80,7 +84,8 @@ class AiUsageRecorderTest {
         AiResult result = AiResult.ok("{\"answer\":\"R$ 9.999,99\"}", "anthropic", "claude-new-model",
                 new TokenUsage(10, 10, 0, 0), Duration.ofMillis(5));
 
-        AiUsage usage = recorder.record(WORKSPACE, USER, UUID.randomUUID(), AiRequestType.INTENT, result);
+        AiUsage usage = recorder.record(WORKSPACE, USER, UUID.randomUUID(), AiRequestType.INTENT, result,
+                "answer-v1@0123abcd", "answer-v1");
 
         assertThat(usage.cost()).isEqualByComparingTo("0");
         assertThat(meters.counter("shf.copilot.ai.unpriced", "model", "claude-new-model").count()).isEqualTo(1.0);

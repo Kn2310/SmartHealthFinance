@@ -58,7 +58,8 @@ class JdbcAiUsageLedgerIT extends IntegrationTest {
 
     private AiUsage usage(WorkspaceId workspace, UserId user, AiRequestType type, TokenUsage tokens, Instant at) {
         return new AiUsage(UUID.randomUUID(), workspace, user, UUID.randomUUID(), type, "simulated", "simulated-v1",
-                tokens, new BigDecimal("0.018200"), "pricing-2026-11", 1_234, AiOutcome.OK, at);
+                tokens, new BigDecimal("0.018200"), "pricing-2026-11", "answer-v1@0123abcd", "answer-v1", 1_234,
+                AiOutcome.OK, at);
     }
 
     @Test
@@ -78,6 +79,8 @@ class JdbcAiUsageLedgerIT extends IntegrationTest {
         assertThat((BigDecimal) row.get("cost")).isEqualByComparingTo("0.018200");
         assertThat(((BigDecimal) row.get("cost")).scale()).isEqualTo(6);
         assertThat(row.get("pricing_version")).isEqualTo("pricing-2026-11");
+        assertThat(row.get("prompt_version")).isEqualTo("answer-v1@0123abcd");
+        assertThat(row.get("schema_version")).isEqualTo("answer-v1");
         assertThat(row.get("latency_ms")).isEqualTo(1_234L);
         assertThat(row.get("outcome")).isEqualTo("OK");
         assertThat(row.keySet()).doesNotContain("prompt", "question", "answer", "content");
@@ -102,7 +105,8 @@ class JdbcAiUsageLedgerIT extends IntegrationTest {
     void providerFailuresDoNotCountAsQuestionsButRefusalsDo() {
         for (AiOutcome outcome : AiOutcome.values()) {
             ledger.append(new AiUsage(UUID.randomUUID(), anasWorkspace, ana, UUID.randomUUID(), AiRequestType.INTENT,
-                    "simulated", "simulated-v1", TokenUsage.NONE, BigDecimal.ZERO, "pricing-2026-11", 1, outcome, T));
+                    "simulated", "simulated-v1", TokenUsage.NONE, BigDecimal.ZERO, "pricing-2026-11", "", "", 1,
+                    outcome, T));
         }
 
         // OK, REFUSED e INVALID_OUTPUT contam; UNAVAILABLE, TIMEOUT e RATE_LIMITED não.

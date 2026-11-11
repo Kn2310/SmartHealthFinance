@@ -42,9 +42,10 @@ public class AiUsageRecorder {
         this.meters = meters;
     }
 
+    /** {@code promptVersion} e {@code schemaVersion}: o que foi enviado (ADR-0039 §11), ou vazio. */
     @Transactional
     public AiUsage record(WorkspaceId workspaceId, UserId userId, UUID requestId, AiRequestType type,
-                          AiResult result) {
+                          AiResult result, String promptVersion, String schemaVersion) {
         BigDecimal cost = pricing.find(result.model())
                 .map(price -> CostCalculator.cost(price, result.usage()))
                 .orElseGet(() -> {
@@ -55,7 +56,8 @@ public class AiUsageRecorder {
                 });
         Instant now = clock.instant();
         AiUsage usage = new AiUsage(UuidV7.generate(now), workspaceId, userId, requestId, type, result.provider(),
-                result.model(), result.usage(), cost, pricing.version(), result.latency().toMillis(),
+                result.model(), result.usage(), cost, pricing.version(), promptVersion, schemaVersion,
+                result.latency().toMillis(),
                 result.outcome(), now);
         ledger.append(usage);
 

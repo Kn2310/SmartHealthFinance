@@ -7,12 +7,14 @@ import com.smarthealthfinance.copilot.application.port.AiGateway;
 import com.smarthealthfinance.copilot.domain.enums.AiRole;
 import com.smarthealthfinance.copilot.domain.model.CopilotLimits;
 import com.smarthealthfinance.copilot.domain.model.ModelPrice;
+import com.smarthealthfinance.copilot.domain.model.PipelineSettings;
 import com.smarthealthfinance.copilot.domain.model.PricingTable;
 import com.smarthealthfinance.copilot.infrastructure.ai.AiProvider;
 import com.smarthealthfinance.copilot.infrastructure.ai.AiProviderException;
 import com.smarthealthfinance.copilot.infrastructure.ai.AnthropicAiProvider;
 import com.smarthealthfinance.copilot.infrastructure.ai.ResilientAiGateway;
 import com.smarthealthfinance.copilot.infrastructure.ai.SimulatedAiProvider;
+import com.smarthealthfinance.copilot.infrastructure.ai.SimulatedResponder;
 import io.github.resilience4j.bulkhead.Bulkhead;
 import io.github.resilience4j.bulkhead.BulkheadConfig;
 import io.github.resilience4j.bulkhead.BulkheadRegistry;
@@ -62,12 +64,17 @@ class CopilotConfiguration {
     }
 
     @Bean
+    PipelineSettings copilotPipelineSettings() {
+        return PipelineSettings.DEFAULT;
+    }
+
+    @Bean
     AiProvider copilotAiProvider(CopilotProperties properties, JsonMapper json) {
         String provider = properties.provider().strip().toLowerCase(Locale.ROOT);
         AiProvider selected = switch (provider) {
             case SimulatedAiProvider.NAME -> new SimulatedAiProvider(
                     SimulatedAiProvider.Mode.valueOf(properties.simulated().mode().strip().toUpperCase(Locale.ROOT)),
-                    SimulatedAiProvider.EMPTY_OBJECT);
+                    new SimulatedResponder(json)::respond);
             case AnthropicAiProvider.NAME -> anthropic(properties, json);
             default -> throw new IllegalStateException("shf.copilot.provider must be simulated or anthropic");
         };
@@ -118,9 +125,9 @@ class CopilotConfiguration {
         OutputConfig.Effort effort = OutputConfig.Effort.of(models.effort().strip().toLowerCase(Locale.ROOT));
         return new AnthropicAiProvider(
                 new AnthropicAiProvider.Route(client(config, config.intentTimeout()), models.intent(),
-                        models.intentMaxTokens()),
+                        models.intentMaxTokens(), config.intentTimeout()),
                 new AnthropicAiProvider.Route(client(config, config.answerTimeout()), models.answer(),
-                        models.answerMaxTokens()),
+                        models.answerMaxTokens(), config.answerTimeout()),
                 effort, json);
     }
 

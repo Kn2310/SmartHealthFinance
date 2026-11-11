@@ -97,6 +97,42 @@ Métricas da aplicação:
 | `shf.copilot.ai.bulkhead_full` | — |
 | `shf.copilot.ai.unpriced` | — |
 
+## Pipeline (Parte C)
+
+- Caso de uso `AskCopilot` → `CopilotPipeline` (ADR-0039 §13). Cada pergunta grava no ledger a intenção, a resposta e,
+  se houve, a regeneração, todas com o mesmo `request_id`, `prompt_version` (`answer-v1@<hash>`) e `schema_version`.
+- Resultados: `OK`, `SAFE_MODE`, `INSUFFICIENT_DATA`, `OUT_OF_SCOPE`, `CONSENT_REQUIRED`, `RATE_LIMITED`,
+  `QUOTA_EXCEEDED` e `PROVIDER_UNAVAILABLE`.
+- **Modo seguro:** a resposta do modelo reprovou duas vezes na validação de claims, o provedor falhou na resposta ou o
+  orçamento de 30 s acabou. A pessoa recebe os valores calculados, sem texto do modelo. Um aumento de
+  `shf.copilot.validation{status="SAFE_MODE"}` depois de trocar prompt ou modelo indica regressão.
+- **Prompts:** `backend/src/main/resources/copilot/prompts/*-vN.md` e `.../schemas/*.json`. Nunca edite um arquivo
+  publicado: crie `-v2`, troque o nome em `ClasspathCopilotPrompts` e rode a suíte de avaliação (8.2).
+
+| Métrica | Tags |
+|---|---|
+| `shf.copilot.pipeline` | `code`, `intent` |
+| `shf.copilot.pipeline.latency` | `code` |
+| `shf.copilot.validation` | `status` |
+| `shf.copilot.validation.violation` | `code` (ex.: `DIGIT_OUTSIDE_REF`, `INTENT_SCHEMA`) |
+| `shf.copilot.tool` | `intent`, `status` |
+| `shf.copilot.budget_exhausted` | — |
+
+```sql
+-- violações não ficam no banco; custo e regenerações por versão de prompt
+select prompt_version, request_type, outcome, count(*), sum(cost) as custo_usd
+from ai_usage
+where created_at >= now() - interval '7 days'
+group by prompt_version, request_type, outcome
+order by prompt_version, request_type;
+```
+
+## Endpoint de diagnóstico (só perfil `local`)
+
+`POST /api/v1/workspaces/{workspaceId}/copilot/diagnostic` com `{"question": "Qual é o meu saldo?"}`. Exige token
+de quem é membro e o consentimento `COPILOT_DATA_USE` ativo (Perfil → Consentimentos). Não existe fora do perfil
+`local` e não está no OpenAPI. A Sessão 8.2 o substitui pela API de conversa.
+
 ## Simular falhas localmente
 
 Use `COPILOT_SIMULATED_MODE`: `ok`, `refused`, `invalid_output`, `timeout`, `rate_limited` ou `unavailable`. Ele só
@@ -107,7 +143,8 @@ vale com `COPILOT_PROVIDER=simulated`.
 - **Smoke test com a chave real.** O `anthropic-java` 3.7.0, com `.apiKey(...)`, manda a chave em
   `Authorization: Bearer <chave>` e não em `x-api-key`, verificado contra o servidor falso do
   `AnthropicAiProviderTest`. A aceitação pela API real ainda não foi conferida. Com `COPILOT_PROVIDER=anthropic` e a
-  chave no `backend/.env` (descomente a linha `ANTHROPIC_API_KEY`), faça uma chamada e confira `outcome=OK` no ledger. Um 401 aparece no log como `status=401`.
+  chave no `backend/.env` (descomente a linha `ANTHROPIC_API_KEY`), suba a API no perfil `local`, faça uma pergunta
+  pelo endpoint de diagnóstico e confira `outcome=OK` no ledger. Um 401 aparece no log como `status=401`.
 - Com `COPILOT_PROVIDER=anthropic` e sem chave, a API não sobe, mesmo com `COPILOT_ENABLED=false`. Para desligar sem
   chave, volte também a `COPILOT_PROVIDER=simulated`.
 - DPA com o provedor: retenção, zero data retention, cláusulas de transferência internacional.

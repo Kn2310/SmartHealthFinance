@@ -1,0 +1,31 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["intent", "month", "category", "target", "scenario"],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "enum": ["OVERVIEW", "CASH_FLOW", "CATEGORY", "MERCHANT", "HEALTH", "INSIGHTS", "CARDS", "FORECAST", "GOALS",
+               "GOAL_SIMULATION", "OUT_OF_SCOPE", "UNSUPPORTED_ACTION"]
+    },
+    "month": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "category": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "target": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+    "scenario": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["monthlyAmount", "deadline", "reductionCategory", "reductionAmount"],
+          "properties": {
+            "monthlyAmount": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "deadline": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "reductionCategory": {"anyOf": [{"type": "string"}, {"type": "null"}]},
+            "reductionAmount": {"anyOf": [{"type": "string"}, {"type": "null"}]}
+          }
+        },
+        {"type": "null"}
+      ]
+    }
+  }
+}
