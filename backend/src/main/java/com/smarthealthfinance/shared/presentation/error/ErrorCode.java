@@ -82,7 +82,9 @@ public enum ErrorCode {
 	/** Replay de uma chave ainda em processamento (ADR-0040 §5). */
 	COPILOT_REQUEST_IN_PROGRESS(HttpStatus.CONFLICT, "A pergunta ainda está sendo respondida."),
 	/** Replay de uma pergunta já respondida numa conversa sem histórico (ADR-0040 §5). */
-	COPILOT_ALREADY_ANSWERED(HttpStatus.CONFLICT, "Esta pergunta já foi respondida. Pergunte de novo.");
+	COPILOT_ALREADY_ANSWERED(HttpStatus.CONFLICT, "Esta pergunta já foi respondida. Pergunte de novo."),
+	/** Feedback sobre uma pergunta que não é da pessoa no Workspace, ou inexistente (ADR-0040 §8). */
+	COPILOT_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "Pergunta não encontrada.");
 
 	private final HttpStatus status;
 	private final String defaultMessage;

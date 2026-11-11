@@ -15,8 +15,12 @@ public interface CopilotIdempotency {
     /** Reserva a chave de forma atômica ({@code SET NX}), ou diz por que não foi possível. */
     Reservation reserve(WorkspaceId workspaceId, UserId userId, String key, String bodyHash, UUID requestId);
 
-    /** Marca a chave como respondida; vale pelo restante da janela. */
-    void complete(WorkspaceId workspaceId, UserId userId, String key, String bodyHash, UUID requestId);
+    /**
+     * Marca a chave como respondida; vale pelo restante da janela. {@code messageId} é a mensagem guardada no
+     * histórico (ADR-0040 §5), ou nulo na conversa efêmera.
+     */
+    void complete(WorkspaceId workspaceId, UserId userId, String key, String bodyHash, UUID requestId,
+                  UUID messageId);
 
     /** Libera a chave (resultados 403, 429, 503 e exceções), para a pessoa tentar de novo com a mesma chave. */
     void release(WorkspaceId workspaceId, UserId userId, String key);
@@ -31,8 +35,8 @@ public interface CopilotIdempotency {
         record InProgress(UUID requestId) implements Reservation {
         }
 
-        /** Replay de uma chave já respondida, com o mesmo corpo. */
-        record Done(UUID requestId) implements Reservation {
+        /** Replay de uma chave já respondida, com o mesmo corpo; {@code messageId} é nulo sem histórico. */
+        record Done(UUID requestId, UUID messageId) implements Reservation {
         }
 
         /** A mesma chave com outro corpo. */

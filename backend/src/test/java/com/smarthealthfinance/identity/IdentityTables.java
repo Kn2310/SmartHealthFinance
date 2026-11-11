@@ -36,6 +36,9 @@ public final class IdentityTables {
 		jdbc.update("delete from transaction_idempotency_keys");
 		jdbc.update("delete from transactions");
 		jdbc.update("delete from category_rules");
+		jdbc.update("delete from copilot_feedback");
+		jdbc.update("delete from copilot_messages");
+		jdbc.update("delete from copilot_conversations");
 		jdbc.update("delete from ai_usage");
 		jdbc.update("delete from consent_audit");
 		jdbc.update("delete from consents");
@@ -71,6 +74,9 @@ public final class IdentityTables {
 					                                'card.archived', 'card.reactivated', 'invoice.closed')
 					               and not exists (select 1 from processed_events p
 					                               where p.consumer = 'forecast.snapshot' and p.event_id = o.id))
+					           or (o.event_type = 'consent.revoked'
+					               and not exists (select 1 from processed_events p
+					                               where p.consumer = 'copilot.history-revocation' and p.event_id = o.id))
 					           or (o.event_type in ('health.snapshot-updated', 'forecast.snapshot-updated')
 					               and not exists (select 1 from processed_events p
 					                               where p.consumer = 'insights.generation' and p.event_id = o.id)))

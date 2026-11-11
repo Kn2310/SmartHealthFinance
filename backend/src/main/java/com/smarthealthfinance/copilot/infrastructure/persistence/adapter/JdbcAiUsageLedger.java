@@ -8,7 +8,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
+import com.smarthealthfinance.identity.domain.valueobject.UserId;
+
 import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Usage ledger em {@code ai_usage} (ADR-0039 §10), só de inserção. É o único acesso a banco do módulo, e só à própria
@@ -47,6 +54,29 @@ public class JdbcAiUsageLedger implements AiUsageLedger {
                 """, Long.class, workspaceId.value(), AiRequestType.INTENT.name(), Timestamp.from(from),
                 Timestamp.from(to));
         return count == null ? 0 : count;
+    }
+
+    @Override
+    public Optional<Map<String, String>> findRequestVersions(WorkspaceId workspaceId, UserId userId, UUID requestId) {
+        List<Map.Entry<String, String>> rows = jdbc.query("""
+                select request_type, prompt_version from ai_usage
+                where workspace_id = ? and user_id = ? and request_id = ?
+                order by created_at
+                """, (rs, row) -> Map.entry(rs.getString("request_type"), rs.getString("prompt_version")),
+                workspaceId.value(), userId.value(), requestId);
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+        Map<String, String> versions = new LinkedHashMap<>();
+        for (Map.Entry<String, String> row : rows) {
+            if (row.getValue().isEmpty()) {
+                continue;
+            }
+            // A regeneração usa o prompt de resposta; a última chamada de cada papel vale.
+            versions.put(AiRequestType.INTENT.name().equals(row.getKey()) ? "intentPrompt" : "answerPrompt",
+                    row.getValue());
+        }
+        return Optional.of(versions);
     }
 
     @Override

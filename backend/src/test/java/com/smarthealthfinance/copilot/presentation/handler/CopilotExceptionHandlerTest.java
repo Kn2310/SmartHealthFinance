@@ -13,6 +13,8 @@ import com.smarthealthfinance.copilot.application.exception.CopilotRequestInProg
 import com.smarthealthfinance.copilot.application.exception.CopilotUnavailableException;
 import com.smarthealthfinance.copilot.application.service.SubmitCopilotQuestion;
 import com.smarthealthfinance.copilot.application.usecase.GetCopilotUsage;
+import com.smarthealthfinance.copilot.application.usecase.ManageConversations;
+import com.smarthealthfinance.copilot.application.usecase.SubmitFeedback;
 import com.smarthealthfinance.copilot.presentation.controller.CopilotController;
 import com.smarthealthfinance.shared.presentation.error.GlobalExceptionHandler;
 import org.junit.jupiter.api.Test;
@@ -43,7 +45,7 @@ class CopilotExceptionHandlerTest {
 
     private final SubmitCopilotQuestion submit = mock(SubmitCopilotQuestion.class);
     private final GetCopilotUsage usage = mock(GetCopilotUsage.class);
-    private final MockMvcTester mvc = MockMvcTester.of(List.of(new CopilotController(submit, usage)),
+    private final MockMvcTester mvc = MockMvcTester.of(List.of(new CopilotController(submit, usage, mock(ManageConversations.class), mock(SubmitFeedback.class))),
             builder -> {
                 builder.setControllerAdvice(new CopilotExceptionHandler(), new GlobalExceptionHandler());
                 return builder.build();

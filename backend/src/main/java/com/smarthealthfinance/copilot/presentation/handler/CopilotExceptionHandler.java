@@ -8,6 +8,7 @@ import com.smarthealthfinance.copilot.application.exception.CopilotKeyReusedExce
 import com.smarthealthfinance.copilot.application.exception.CopilotQuotaExceededException;
 import com.smarthealthfinance.copilot.application.exception.CopilotRateLimitedException;
 import com.smarthealthfinance.copilot.application.exception.CopilotRequestInProgressException;
+import com.smarthealthfinance.copilot.application.exception.CopilotRequestNotFoundException;
 import com.smarthealthfinance.copilot.application.exception.CopilotUnavailableException;
 import com.smarthealthfinance.shared.presentation.error.ApiError;
 import com.smarthealthfinance.shared.presentation.error.ApiErrors;
@@ -68,6 +69,11 @@ public class CopilotExceptionHandler {
     @ExceptionHandler(ConversationNotFoundException.class)
     ResponseEntity<ApiError> conversationNotFound() {
         return respond(ErrorCode.COPILOT_CONVERSATION_NOT_FOUND);
+    }
+
+    @ExceptionHandler(CopilotRequestNotFoundException.class)
+    ResponseEntity<ApiError> requestNotFound() {
+        return respond(ErrorCode.COPILOT_REQUEST_NOT_FOUND);
     }
 
     @ExceptionHandler(CopilotRequestInProgressException.class)

@@ -33,6 +33,14 @@ public final class InMemoryAiUsageLedger implements AiUsageLedger {
     }
 
     @Override
+    public java.util.Optional<java.util.Map<String, String>> findRequestVersions(WorkspaceId workspaceId,
+            com.smarthealthfinance.identity.domain.valueobject.UserId userId, java.util.UUID requestId) {
+        boolean found = rows.stream().anyMatch(row -> row.workspaceId().equals(workspaceId)
+                && row.userId().equals(userId) && row.requestId().equals(requestId));
+        return found ? java.util.Optional.of(java.util.Map.of()) : java.util.Optional.empty();
+    }
+
+    @Override
     public long sumInputTokens(WorkspaceId workspaceId, Instant from, Instant to) {
         return rows.stream()
                 .filter(row -> row.workspaceId().equals(workspaceId))

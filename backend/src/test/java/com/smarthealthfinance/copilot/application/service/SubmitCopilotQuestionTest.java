@@ -61,7 +61,8 @@ class SubmitCopilotQuestionTest {
     private final AskCopilot askCopilot = mock(AskCopilot.class);
     private final InMemoryIdempotency idempotency = new InMemoryIdempotency();
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
-    private final SubmitCopilotQuestion service = new SubmitCopilotQuestion(admission, idempotency, askCopilot,
+    private final CopilotHistory history = mock(CopilotHistory.class);
+    private final SubmitCopilotQuestion service = new SubmitCopilotQuestion(admission, idempotency, askCopilot, history,
             Clock.fixed(NOW, ZoneOffset.UTC), meters);
 
     private static CopilotResult result(ResultCode code) {
@@ -201,8 +202,9 @@ class SubmitCopilotQuestionTest {
         }
         assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, UUID.randomUUID(),
                 new AskCommand("Pergunta", List.of("anterior"), null))).isInstanceOf(InvalidValueException.class);
+        when(history.continueFrom(any(), any())).thenThrow(new ConversationNotFoundException());
         assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, UUID.randomUUID(), AskCommand.of("Pergunta")))
-                .as("sem COPILOT_HISTORY (Parte D2) não existe conversa guardada")
+                .as("sem COPILOT_HISTORY ou conversa alheia: 404 antes do Redis e do pipeline")
                 .isInstanceOf(ConversationNotFoundException.class);
 
         assertThat(idempotency.calls).isZero();
@@ -227,9 +229,9 @@ class SubmitCopilotQuestionTest {
     }
 
     /** Mesma semântica do adapter Redis: reserva atômica por chave, só hash e estado. */
-    private static final class InMemoryIdempotency implements CopilotIdempotency {
+    static final class InMemoryIdempotency implements CopilotIdempotency {
 
-        record State(String bodyHash, UUID requestId, boolean done) {
+        record State(String bodyHash, UUID requestId, boolean done, UUID messageId) {
         }
 
         final Map<String, State> states = new HashMap<>();
@@ -250,20 +252,21 @@ class SubmitCopilotQuestionTest {
             String id = key(workspaceId, userId, key);
             State existing = states.get(id);
             if (existing == null) {
-                states.put(id, new State(bodyHash, requestId, false));
+                states.put(id, new State(bodyHash, requestId, false, null));
                 return new Reservation.Reserved();
             }
             if (!existing.bodyHash().equals(bodyHash)) {
                 return new Reservation.Mismatch();
             }
-            return existing.done() ? new Reservation.Done(existing.requestId())
+            return existing.done() ? new Reservation.Done(existing.requestId(), existing.messageId())
                     : new Reservation.InProgress(existing.requestId());
         }
 
         @Override
-        public void complete(WorkspaceId workspaceId, UserId userId, String key, String bodyHash, UUID requestId) {
+        public void complete(WorkspaceId workspaceId, UserId userId, String key, String bodyHash, UUID requestId,
+                         UUID messageId) {
             calls++;
-            states.put(key(workspaceId, userId, key), new State(bodyHash, requestId, true));
+            states.put(key(workspaceId, userId, key), new State(bodyHash, requestId, true, messageId));
         }
 
         @Override

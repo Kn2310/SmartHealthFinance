@@ -41,10 +41,11 @@ class RedisCopilotIdempotencyIT extends IntegrationTest {
                 .isInstanceOf(Reservation.Mismatch.class);
 
         UUID answered = UUID.randomUUID();
-        idempotency.complete(workspace, user, "k1", "hash-a", answered);
+        UUID message = UUID.randomUUID();
+        idempotency.complete(workspace, user, "k1", "hash-a", answered, message);
 
         assertThat(idempotency.reserve(workspace, user, "k1", "hash-a", UUID.randomUUID()))
-                .isEqualTo(new Reservation.Done(answered));
+                .isEqualTo(new Reservation.Done(answered, message));
         assertThat(idempotency.reserve(workspace, user, "k1", "hash-b", UUID.randomUUID()))
                 .as("outro corpo vale mesmo depois de concluído").isInstanceOf(Reservation.Mismatch.class);
     }
@@ -73,11 +74,11 @@ class RedisCopilotIdempotencyIT extends IntegrationTest {
         assertThat(redisKey).startsWith("shf:copilot:idem:" + workspace.value() + ":" + user.value() + ":")
                 .doesNotContain("minha-chave");
         assertThat(redisKey.substring(redisKey.lastIndexOf(':') + 1)).matches("[0-9a-f]{64}");
-        assertThat(redis.opsForValue().get(redisKey)).isEqualTo("IN_PROGRESS|hash-do-corpo|" + requestId);
+        assertThat(redis.opsForValue().get(redisKey)).isEqualTo("IN_PROGRESS|hash-do-corpo|" + requestId + "|-");
         assertThat(redis.getExpire(redisKey)).isBetween(590L, 600L);
 
-        idempotency.complete(workspace, user, "web:minha-chave", "hash-do-corpo", requestId);
-        assertThat(redis.opsForValue().get(redisKey)).isEqualTo("DONE|hash-do-corpo|" + requestId);
+        idempotency.complete(workspace, user, "web:minha-chave", "hash-do-corpo", requestId, null);
+        assertThat(redis.opsForValue().get(redisKey)).isEqualTo("DONE|hash-do-corpo|" + requestId + "|-");
         assertThat(redis.getExpire(redisKey)).isBetween(590L, 600L);
     }
 

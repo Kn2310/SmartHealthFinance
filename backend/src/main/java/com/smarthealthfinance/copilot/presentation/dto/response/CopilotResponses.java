@@ -1,6 +1,11 @@
 package com.smarthealthfinance.copilot.presentation.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.smarthealthfinance.copilot.application.dto.ConversationDetail;
+import com.smarthealthfinance.copilot.application.dto.ConversationPage;
+import com.smarthealthfinance.copilot.application.dto.ConversationSummary;
+import com.smarthealthfinance.copilot.application.dto.CopilotResult;
+import com.smarthealthfinance.copilot.application.dto.StoredMessage;
 import com.smarthealthfinance.copilot.application.service.SubmitCopilotQuestion;
 import com.smarthealthfinance.copilot.application.usecase.GetCopilotUsage;
 import com.smarthealthfinance.copilot.domain.enums.Notice;
@@ -38,13 +43,24 @@ public final class CopilotResponses {
             Instant createdAt) {
 
         public static CopilotAnswerResponse from(SubmitCopilotQuestion.Outcome outcome) {
-            var result = outcome.result();
+            return of(outcome.result(), outcome.conversationId(), outcome.messageId(), outcome.question(),
+                    outcome.createdAt());
+        }
+
+        /** A resposta de uma mensagem guardada no histórico (ADR-0040 §6). */
+        public static CopilotAnswerResponse from(StoredMessage message) {
+            return of(message.result(), message.conversationId(), message.id(), message.question(),
+                    message.createdAt());
+        }
+
+        private static CopilotAnswerResponse of(CopilotResult result, UUID conversationId, UUID messageId,
+                                                String question, Instant createdAt) {
             RenderedAnswer answer = result.answerValue().orElseThrow();
-            return new CopilotAnswerResponse(result.requestId(), null, null, result.code().name(),
-                    result.intent() == null ? null : result.intent().name(), outcome.question(), Answer.from(answer),
+            return new CopilotAnswerResponse(result.requestId(), conversationId, messageId, result.code().name(),
+                    result.intent() == null ? null : result.intent().name(), question, Answer.from(answer),
                     result.confidence() == null ? null : result.confidence().name().toLowerCase(java.util.Locale.ROOT),
                     result.validation().name(), result.notices().stream().map(Notice::name).toList(),
-                    result.versions(), outcome.createdAt());
+                    result.versions(), createdAt);
         }
 
         /** Sem conteúdo: resposta e pergunta não vão para logs. */
@@ -166,6 +182,66 @@ public final class CopilotResponses {
 
         static UsageWindow from(GetCopilotUsage.Window window) {
             return new UsageWindow(window.used(), window.limit(), window.resetsAt());
+        }
+    }
+
+    /** Uma conversa na listagem; o título é a primeira pergunta cortada em 80 caracteres. */
+    @Schema(name = "CopilotConversationSummary")
+    public record ConversationItem(UUID id, String title, Instant createdAt, Instant lastMessageAt, int messageCount) {
+
+        static ConversationItem from(ConversationSummary summary) {
+            return new ConversationItem(summary.id(), summary.title(), summary.createdAt(), summary.lastMessageAt(),
+                    summary.messageCount());
+        }
+
+        /** Sem o título. */
+        @Override
+        public String toString() {
+            return "ConversationItem[" + id + "]";
+        }
+    }
+
+    /** Página de conversas; sem COPILOT_HISTORY, {@code historyEnabled} é falso e {@code items} vazio. */
+    @Schema(name = "CopilotConversationPage")
+    public record ConversationPageResponse(boolean historyEnabled, List<ConversationItem> items,
+                                           @Schema(description = "Cursor opaco para o parâmetro before; nulo na última página", nullable = true) String nextCursor) {
+
+        public static ConversationPageResponse from(ConversationPage page) {
+            return new ConversationPageResponse(page.historyEnabled(),
+                    page.items().stream().map(ConversationItem::from).toList(), page.nextCursor());
+        }
+    }
+
+    /** Uma pergunta e a resposta guardadas: uma foto daquele momento, com a data. */
+    @Schema(name = "CopilotConversationMessage")
+    public record MessageResponse(UUID id, UUID requestId, String question, Instant createdAt,
+                                  CopilotAnswerResponse answer) {
+
+        static MessageResponse from(StoredMessage message) {
+            return new MessageResponse(message.id(), message.result().requestId(), message.question(),
+                    message.createdAt(), CopilotAnswerResponse.from(message));
+        }
+
+        /** Sem a pergunta nem a resposta. */
+        @Override
+        public String toString() {
+            return "MessageResponse[" + id + "]";
+        }
+    }
+
+    /** Uma conversa guardada, com as mensagens não expiradas da mais antiga para a mais nova. */
+    @Schema(name = "CopilotConversation")
+    public record ConversationResponse(UUID id, String title, Instant createdAt, List<MessageResponse> messages) {
+
+        public static ConversationResponse from(ConversationDetail detail) {
+            return new ConversationResponse(detail.id(), detail.title(), detail.createdAt(),
+                    detail.messages().stream().map(MessageResponse::from).toList());
+        }
+
+        /** Sem o título nem as mensagens. */
+        @Override
+        public String toString() {
+            return "ConversationResponse[" + id + "]";
         }
     }
 
