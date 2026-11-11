@@ -171,6 +171,9 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
     que os casos de uso devolvem. Repositórios, serviços de domínio, infraestrutura, apresentação e outros casos de
     uso continuam proibidos. A tool de insights usa `InsightQueries.list` e não `highlights`, que carrega textos
     prontos.
+    - **Adendo (2026-11-11, ADR-0040, aprovado pelo usuário):** a lista passa a incluir os pacotes
+      `application.exception` de `cards`, `goals`, `insights` e `transactions`. São só os tipos de "não encontrado"
+      que o contexto de entrada traduz para 404 e o pipeline, para `INSUFFICIENT_DATA`. Nenhum caso de uso novo entra.
   - **Adendo (2026-11-10, Parte C, aprovado pelo usuário): catálogo da intenção.** Antes da intenção, o pipeline monta
     o catálogo da pergunta com `ListCategories`, `ListGoals` e `GetCardsSummary`: categorias (código e nome) e alvos
     pseudonimizados (`objetivo_N` com tipo, prazo e status; `cartao_N` com a bandeira). O modelo de intenção pode

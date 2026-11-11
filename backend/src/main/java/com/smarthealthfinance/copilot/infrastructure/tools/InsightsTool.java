@@ -20,7 +20,9 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * {@code INSIGHTS} (ADR-0039 §4) sobre {@link InsightQueries#list} (primeira página, até 8 insights ativos, na ordem
@@ -49,6 +51,12 @@ public class InsightsTool implements FinancialTool {
 
     @Override
     public Result collect(Request request) {
+        Optional<UUID> target = request.decision().targetValue()
+                .flatMap(value -> request.pseudonyms().find(PseudonymKind.INSIGHT, value))
+                .map(entry -> UUID.fromString(entry.id()));
+        if (target.isPresent()) {
+            return targeted(request, target.get());
+        }
         InsightViews.Page page = insights.list(request.workspaceId(), null, null, null, 0, MAX_INSIGHTS);
         if (page.freshness().state() == InsightsFreshnessState.NOT_BUILT) {
             return Result.of(Status.NOT_BUILT);
@@ -56,13 +64,28 @@ public class InsightsTool implements FinancialTool {
         if (page.state() == InsightViews.DataState.NO_DATA || page.items().isEmpty()) {
             return Result.of(Status.NO_DATA);
         }
-        String period = ToolValues.month(page.period().month());
+        return build(request.pseudonyms(), page.items().stream().limit(MAX_INSIGHTS).toList(),
+                ToolValues.month(page.period().month()), page.period().partial(), page.freshness().state());
+    }
+
+    /** Com um insight alvo (contexto de entrada), só ele: o detalhe do caso de uso, que autoriza o membro. */
+    private Result targeted(Request request, UUID insightId) {
+        InsightViews.Detail detail = ToolSupport.lookup(() -> insights.detail(request.workspaceId(), insightId));
+        if (detail.freshness().state() == InsightsFreshnessState.NOT_BUILT) {
+            return Result.of(Status.NOT_BUILT);
+        }
+        Insight insight = detail.insight();
+        return build(request.pseudonyms(), List.of(insight), insight.periodKey(), insight.partial(),
+                detail.freshness().state());
+    }
+
+    private static Result build(Pseudonyms pseudonyms, List<Insight> items, String period, boolean partial,
+                                InsightsFreshnessState state) {
         ToolValues.Builder values = new ToolValues.Builder(SOURCE);
         List<OfferedAction> actions = new ArrayList<>();
-        List<Insight> items = page.items().stream().limit(MAX_INSIGHTS).toList();
         for (int i = 0; i < items.size(); i++) {
             Insight insight = items.get(i);
-            String pseudonym = request.pseudonyms().assign(PseudonymKind.INSIGHT, insight.id().toString(),
+            String pseudonym = pseudonyms.assign(PseudonymKind.INSIGHT, insight.id().toString(),
                     insight.detector().name(), insight.content().title());
             String subject = pseudonym + ", " + describe(insight.detector()) + ", "
                     + (insight.importance() == Importance.IMPORTANT ? "importante" : "informativo");
@@ -82,14 +105,13 @@ public class InsightsTool implements FinancialTool {
                 actions.add(new OfferedAction(ActionKind.OPEN_INSIGHT, pseudonym));
             }
         }
-        DataQuality quality = new DataQuality(null, page.period().partial(), List.of(), freshness(page),
-                Set.of());
+        DataQuality quality = new DataQuality(null, partial, List.of(), freshness(state), Set.of());
         return new Result(Status.DATA, values.build(), quality, List.of(new SourceRef("InsightQueries", SOURCE)),
                 actions);
     }
 
-    private static DataFreshness freshness(InsightViews.Page page) {
-        return switch (page.freshness().state()) {
+    private static DataFreshness freshness(InsightsFreshnessState state) {
+        return switch (state) {
             case UP_TO_DATE -> DataFreshness.UP_TO_DATE;
             case UPDATING -> DataFreshness.UPDATING;
             case NOT_BUILT -> DataFreshness.NOT_BUILT;

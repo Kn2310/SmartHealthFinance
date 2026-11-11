@@ -136,4 +136,40 @@ class InsightsToolTest {
                 InsightViews.DataState.NO_DATA, InsightsFreshnessState.NOT_BUILT, List.of()));
         assertThat(tool.collect(request(Intent.INSIGHTS)).status()).isEqualTo(FinancialTool.Status.NOT_BUILT);
     }
+
+    @Test
+    void withATargetInsightOnlyThatInsightIsDescribedFromItsDetail() {
+        Insight target = insight(INSIGHT_ID, InsightDetector.CATEGORY_SPIKE, Importance.IMPORTANT, "Alimentação",
+                "320.5", null);
+        when(insights.detail(WORKSPACE, INSIGHT_ID)).thenReturn(new InsightViews.Detail(
+                new InsightsFreshness(InsightsFreshnessState.UP_TO_DATE, null, null), target, List.of(), null,
+                java.util.Set.of()));
+        Pseudonyms pseudonyms = new Pseudonyms();
+        pseudonyms.assign(com.smarthealthfinance.copilot.domain.enums.PseudonymKind.INSIGHT, INSIGHT_ID.toString(),
+                "CATEGORY_SPIKE", TITLE);
+
+        var result = tool.collect(request(new com.smarthealthfinance.copilot.domain.model.IntentDecision(
+                Intent.INSIGHTS, null, null, "insight_1", null), pseudonyms));
+
+        assertThat(result.status()).isEqualTo(FinancialTool.Status.DATA);
+        assertThat(value(result, "Impacto financeiro de insight_1, alta de gasto em uma categoria, importante")
+                .value()).isEqualTo("320.5");
+        assertThat(result.actions()).containsExactly(new OfferedAction(ActionKind.OPEN_INSIGHT, "insight_1"));
+        verify(insights, org.mockito.Mockito.never()).list(any(), any(), any(), any(), any(), any());
+        assertNoLeak(result, TITLE, SUPPORT, INSIGHT_ID.toString());
+    }
+
+    @Test
+    void aTargetInsightThatVanishedBecomesATargetNotFound() {
+        when(insights.detail(WORKSPACE, INSIGHT_ID))
+                .thenThrow(new com.smarthealthfinance.insights.application.exception.InsightNotFoundException());
+        Pseudonyms pseudonyms = new Pseudonyms();
+        pseudonyms.assign(com.smarthealthfinance.copilot.domain.enums.PseudonymKind.INSIGHT, INSIGHT_ID.toString(),
+                "CATEGORY_SPIKE", TITLE);
+
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> tool.collect(request(
+                new com.smarthealthfinance.copilot.domain.model.IntentDecision(Intent.INSIGHTS, null, null,
+                        "insight_1", null), pseudonyms)))
+                .isInstanceOf(com.smarthealthfinance.copilot.application.exception.TargetNotFoundException.class);
+    }
 }

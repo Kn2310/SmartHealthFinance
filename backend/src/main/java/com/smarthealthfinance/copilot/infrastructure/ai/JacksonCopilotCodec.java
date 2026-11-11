@@ -51,7 +51,8 @@ public class JacksonCopilotCodec implements CopilotCodec {
     }
 
     @Override
-    public String intentInput(String question, LocalDate today, RequestCatalog.Catalog catalog) {
+    public String intentInput(String question, List<String> previousQuestions, LocalDate today,
+                              RequestCatalog.Catalog catalog) {
         List<Map<String, String>> categories = new TreeMap<>(catalog.categoryNames()).entrySet().stream()
                 .map(entry -> Map.of("codigo", entry.getKey(), "nome", entry.getValue()))
                 .toList();
@@ -61,14 +62,16 @@ public class JacksonCopilotCodec implements CopilotCodec {
         Map<String, Object> block = new LinkedHashMap<>();
         block.put("categorias", categories);
         block.put("alvos", targets);
-        return "<hoje>" + today + "</hoje>\n<catalogo>" + jsonText(block) + "</catalogo>\n<pergunta>"
-                + jsonText(question) + "</pergunta>";
+        return "<hoje>" + today + "</hoje>\n<catalogo>" + jsonText(block) + "</catalogo>\n"
+                + previous(previousQuestions) + "<pergunta>" + jsonText(question) + "</pergunta>";
     }
 
     @Override
-    public String answerInput(String question, CopilotContext context, List<String> previousViolations) {
-        StringBuilder out = new StringBuilder("<pergunta>").append(jsonText(question))
-                .append("</pergunta>\n<dados_financeiros>").append(jsonText(context(context)))
+    public String answerInput(String question, List<String> previousQuestions, CopilotContext context,
+                              List<String> previousViolations) {
+        StringBuilder out = new StringBuilder(previous(previousQuestions)).append("<pergunta>")
+                .append(jsonText(question)).append("</pergunta>\n<dados_financeiros>")
+                .append(jsonText(context(context)))
                 .append("</dados_financeiros>");
         if (!previousViolations.isEmpty()) {
             out.append("\n<correcao>");
@@ -173,6 +176,14 @@ public class JacksonCopilotCodec implements CopilotCodec {
         } catch (JacksonException e) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * Bloco com as perguntas anteriores da pessoa (ADR-0040 §7), vazio sem elas. Texto da pessoa, escapado como a
+     * pergunta atual; nunca uma resposta do Copilot.
+     */
+    private String previous(List<String> questions) {
+        return questions.isEmpty() ? "" : "<perguntas_anteriores>" + jsonText(questions) + "</perguntas_anteriores>\n";
     }
 
     /**

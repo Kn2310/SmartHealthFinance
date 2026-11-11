@@ -16,6 +16,7 @@ import com.smarthealthfinance.health.domain.model.HealthResult;
 import org.springframework.stereotype.Component;
 
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -62,8 +63,10 @@ public class HealthTool implements FinancialTool {
         ToolValues.Builder values = new ToolValues.Builder(source)
                 .score("Score geral de saúde financeira", result.score(), scoreKind, period)
                 .score("Variação do score contra o mês anterior", result.variation(), scoreKind, period);
+        List<BreakdownDraft.Row> rows = new ArrayList<>();
         for (DimensionResult dimension : result.dimensions()) {
             if (dimension.isOk()) {
+                rows.add(new BreakdownDraft.Row(dimension.dimension().label(), values.size(), null));
                 values.score("Nota da dimensão " + dimension.dimension().label(), dimension.score(),
                         ValueKind.FACT, period);
             }
@@ -80,9 +83,11 @@ public class HealthTool implements FinancialTool {
         Set<String> sources = summary.sources().stream().map(Enum::name).collect(Collectors.toSet());
         DataQuality quality = new DataQuality(result.monthsUsed(), result.partial(), List.of(),
                 freshness(summary.freshness().state()), sources);
+        BreakdownDraft breakdown = rows.isEmpty() ? null
+                : new BreakdownDraft("Notas por dimensão", rows, null);
         return new Result(Status.DATA, values.build(), quality,
                 List.of(new SourceRef("HealthQueries", source)), List.of(new OfferedAction(ActionKind.OPEN_HEALTH,
-                null)));
+                null)), breakdown);
     }
 
     private static DataFreshness freshness(HealthFreshnessState state) {

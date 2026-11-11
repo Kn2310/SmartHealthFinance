@@ -90,6 +90,12 @@ class HealthToolTest {
         assertThat(result.quality().freshness()).isEqualTo(DataFreshness.UPDATING);
         assertThat(result.quality().sources()).containsExactlyInAnyOrder("OFX", "MANUAL");
         assertThat(result.sources().getFirst().version()).isEqualTo("health-v2");
+        assertThat(result.breakdown().title()).isEqualTo("Notas por dimensão");
+        assertThat(result.breakdown().totalIndex()).as("dimensões não têm total").isNull();
+        assertThat(result.breakdown().rows()).extracting(row -> row.label())
+                .containsExactly("Fluxo de caixa", "Reserva");
+        assertThat(result.breakdown().rows()).extracting(row -> result.values().get(row.valueIndex()).label())
+                .containsExactly("Nota da dimensão Fluxo de caixa", "Nota da dimensão Reserva");
         assertThat(result.actions()).containsExactly(new OfferedAction(ActionKind.OPEN_HEALTH, null));
         assertNoLeak(result, SUMMARY_TEXT, EXPLANATION);
     }

@@ -127,11 +127,12 @@ group by prompt_version, request_type, outcome
 order by prompt_version, request_type;
 ```
 
-## Endpoint de diagnóstico (só perfil `local`)
+## Smoke test pela API de conversa
 
-`POST /api/v1/workspaces/{workspaceId}/copilot/diagnostic` com `{"question": "Qual é o meu saldo?"}`. Exige token
-de quem é membro e o consentimento `COPILOT_DATA_USE` ativo (Perfil → Consentimentos). Não existe fora do perfil
-`local` e não está no OpenAPI. A Sessão 8.2 o substitui pela API de conversa.
+O endpoint de diagnóstico foi removido (ADR-0040 §2). Para o smoke test local, use `POST
+/api/v1/workspaces/{workspaceId}/copilot/questions` com o header `Idempotency-Key` e `{"question": "Qual é o meu saldo?"}`.
+Exige token de quem é membro e o consentimento `COPILOT_DATA_USE` ativo (Perfil → Consentimentos). `GET
+/api/v1/workspaces/{workspaceId}/copilot/usage` mostra o consumo das quotas (só membership).
 
 ## Simular falhas localmente
 

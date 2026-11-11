@@ -3,6 +3,7 @@ package com.smarthealthfinance.copilot.domain.service;
 import com.smarthealthfinance.copilot.domain.enums.ActionKind;
 import com.smarthealthfinance.copilot.domain.enums.AnswerType;
 import com.smarthealthfinance.copilot.domain.model.AnswerDraft;
+import com.smarthealthfinance.copilot.domain.model.AnswerSegment;
 import com.smarthealthfinance.copilot.domain.model.ContextValue;
 import com.smarthealthfinance.copilot.domain.model.CopilotContext;
 import com.smarthealthfinance.copilot.domain.model.OfferedAction;
@@ -20,7 +21,9 @@ import java.util.regex.Pattern;
 /**
  * Renderiza uma resposta já aprovada pelo {@link ClaimValidator} (ADR-0039 §7.1): cada {@code {{v:ref}}} vira o valor
  * do contexto formatado em pt-BR (com o rótulo de estimado ou simulado) e cada pseudônimo vira o nome que a pessoa
- * conhece. Ações fora da lista oferecida pelo contexto, ou com alvo desconhecido, são descartadas (§6).
+ * conhece. Ações fora da lista oferecida pelo contexto, ou com alvo desconhecido, são descartadas (§6). Na mesma
+ * passada, o texto também sai como segmentos tipados (ADR-0040 §3): o valor vira {@code VALUE{ref}} e o pseudônimo
+ * vira texto com o nome que a pessoa conhece.
  */
 public final class AnswerRenderer {
 
@@ -32,11 +35,15 @@ public final class AnswerRenderer {
     private AnswerRenderer() {
     }
 
+    /** Um texto renderizado: plano e em segmentos. */
+    public record Rendered(String text, List<AnswerSegment> segments) {
+    }
+
     public static RenderedAnswer render(AnswerDraft draft, CopilotContext context, Pseudonyms pseudonyms) {
         AnswerType type = AnswerType.fromJson(draft.type()).orElseThrow();
         Set<String> cited = new LinkedHashSet<>(draft.financialData());
-        String text = text(draft.answer(), context, pseudonyms, cited);
-        List<String> explanation = draft.explanation().stream()
+        Rendered answer = text(draft.answer(), context, pseudonyms, cited);
+        List<Rendered> steps = draft.explanation().stream()
                 .map(step -> text(step, context, pseudonyms, cited))
                 .toList();
         List<RenderedAnswer.Value> values = cited.stream()
@@ -44,7 +51,9 @@ public final class AnswerRenderer {
                 .flatMap(Optional::stream)
                 .map(value -> value(value, context, pseudonyms))
                 .toList();
-        return new RenderedAnswer(type, text, explanation, values, actions(draft.actions(), context, pseudonyms));
+        return new RenderedAnswer(type, answer.text(), answer.segments(),
+                steps.stream().map(Rendered::text).toList(), steps.stream().map(Rendered::segments).toList(), values,
+                actions(draft.actions(), context, pseudonyms), null, List.of());
     }
 
     /** Um valor do contexto como a tela mostra; usado também pelo modo seguro. */
@@ -61,36 +70,73 @@ public final class AnswerRenderer {
                 break;
             }
             if (action.target() == null) {
-                resolved.add(new RenderedAnswer.Action(action.kind(), null, null));
+                resolved.add(new RenderedAnswer.Action(action.kind(), null, null, action.params()));
                 continue;
             }
-            pseudonyms.find(action.target()).ifPresent(entry ->
-                    resolved.add(new RenderedAnswer.Action(action.kind(), entry.id(), entry.displayName())));
+            pseudonyms.find(action.target()).ifPresent(entry -> resolved.add(
+                    new RenderedAnswer.Action(action.kind(), entry.id(), entry.displayName(), action.params())));
         }
         return List.copyOf(resolved);
     }
 
     /**
      * Uma passada só para refs e pseudônimos: o que entra na substituição (nome digitado, comerciante) nunca é
-     * reinterpretado como ref ou pseudônimo.
+     * reinterpretado como ref ou pseudônimo. Texto vizinho vira um único segmento.
      */
-    private static String text(String raw, CopilotContext context, Pseudonyms pseudonyms, Set<String> cited) {
+    private static Rendered text(String raw, CopilotContext context, Pseudonyms pseudonyms, Set<String> cited) {
         Matcher matcher = TOKENS.matcher(raw);
-        StringBuilder out = new StringBuilder();
+        StringBuilder plain = new StringBuilder();
+        Segments segments = new Segments();
+        int last = 0;
         while (matcher.find()) {
-            String replacement;
+            segments.text(raw.substring(last, matcher.start()));
+            plain.append(raw, last, matcher.start());
+            last = matcher.end();
             if (matcher.group(1) != null) {
                 ContextValue value = context.find(matcher.group(1)).orElseThrow();
                 cited.add(value.ref());
-                replacement = ValueFormatter.format(value, context.currency());
+                plain.append(ValueFormatter.format(value, context.currency()));
+                segments.value(value.ref());
             } else {
-                replacement = pseudonyms.find(matcher.group(2)).map(Pseudonyms.Entry::displayName)
+                String name = pseudonyms.find(matcher.group(2)).map(Pseudonyms.Entry::displayName)
                         .orElse(matcher.group(2));
+                plain.append(name);
+                segments.text(name);
             }
-            matcher.appendReplacement(out, Matcher.quoteReplacement(replacement));
         }
-        matcher.appendTail(out);
-        return out.toString();
+        segments.text(raw.substring(last));
+        plain.append(raw, last, raw.length());
+        return new Rendered(plain.toString(), segments.build());
+    }
+
+    /** Acumula segmentos juntando textos vizinhos e descartando vazios. */
+    public static final class Segments {
+
+        private final List<AnswerSegment> list = new ArrayList<>();
+        private final StringBuilder pending = new StringBuilder();
+
+        public Segments text(String value) {
+            pending.append(value);
+            return this;
+        }
+
+        public Segments value(String ref) {
+            flush();
+            list.add(new AnswerSegment.Value(ref));
+            return this;
+        }
+
+        public List<AnswerSegment> build() {
+            flush();
+            return List.copyOf(list);
+        }
+
+        private void flush() {
+            if (!pending.isEmpty()) {
+                list.add(new AnswerSegment.Text(pending.toString()));
+                pending.setLength(0);
+            }
+        }
     }
 
     private static List<RenderedAnswer.Action> actions(List<AnswerDraft.Action> proposed, CopilotContext context,

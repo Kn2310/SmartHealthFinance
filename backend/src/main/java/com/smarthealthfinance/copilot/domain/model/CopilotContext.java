@@ -15,12 +15,20 @@ import java.util.Set;
 
 /**
  * Contexto {@value #VERSION} de uma pergunta (ADR-0039 §5): só valores calculados pelo sistema, já minimizados e com
- * pseudônimos. É a única fonte de números da resposta (§7). Refs são únicas.
+ * pseudônimos. É a única fonte de números da resposta (§7). Refs são únicas. {@code breakdown} é o quadro que o sistema
+ * monta para a tela (ADR-0040 §3); nunca vai ao modelo, e suas linhas apontam para refs deste contexto.
  */
 public record CopilotContext(Intent intent, LocalDate today, Currency currency, List<ContextValue> values,
-                             DataQuality quality, List<SourceRef> sources, List<OfferedAction> actions) {
+                             DataQuality quality, List<SourceRef> sources, List<OfferedAction> actions,
+                             Breakdown breakdown) {
 
     public static final String VERSION = "context-v1";
+
+    /** Sem quadro de decomposição. */
+    public CopilotContext(Intent intent, LocalDate today, Currency currency, List<ContextValue> values,
+                          DataQuality quality, List<SourceRef> sources, List<OfferedAction> actions) {
+        this(intent, today, currency, values, quality, sources, actions, null);
+    }
 
     public CopilotContext {
         Objects.requireNonNull(intent, "intent");

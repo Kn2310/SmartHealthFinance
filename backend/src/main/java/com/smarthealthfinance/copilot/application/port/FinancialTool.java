@@ -57,9 +57,38 @@ public interface FinancialTool {
      */
     enum Status { DATA, NO_DATA, NOT_BUILT, NEEDS_TARGET }
 
+    /**
+     * Quadro de decomposição que a tool monta para a tela (ADR-0040 §3), nunca para o modelo. Linhas e total apontam
+     * para a posição do valor em {@link Result#values()} (ainda sem ref); o Context Builder troca pelo ref e descarta
+     * o que o corte por teto de contexto tirou. {@code totalIndex} nulo: sem total.
+     */
+    record BreakdownDraft(String title, List<Row> rows, Integer totalIndex) {
+
+        /** Uma linha: rótulo de exibição (pode ter nome de comerciante), posição do valor e detalhe opcional. */
+        public record Row(String label, int valueIndex, String detail) {
+
+            /** Sem rótulo nem detalhe. */
+            @Override
+            public String toString() {
+                return "Row[" + valueIndex + "]";
+            }
+        }
+
+        public BreakdownDraft {
+            Objects.requireNonNull(title, "title");
+            rows = List.copyOf(rows);
+        }
+
+        /** Sem linhas. */
+        @Override
+        public String toString() {
+            return "BreakdownDraft[" + rows.size() + " rows]";
+        }
+    }
+
     /** Valores em ordem de prioridade (o corte por teto de contexto tira do fim); refs ainda não numeradas. */
     record Result(Status status, List<ContextValue> values, DataQuality quality, List<SourceRef> sources,
-                  List<OfferedAction> actions) {
+                  List<OfferedAction> actions, BreakdownDraft breakdown) {
 
         public Result {
             Objects.requireNonNull(status, "status");
@@ -69,8 +98,18 @@ public interface FinancialTool {
             actions = List.copyOf(actions);
         }
 
+        /** Sem quadro de decomposição. */
+        public Result(Status status, List<ContextValue> values, DataQuality quality, List<SourceRef> sources,
+                      List<OfferedAction> actions) {
+            this(status, values, quality, sources, actions, null);
+        }
+
         public static Result of(Status status) {
             return new Result(status, List.of(), DataQuality.EMPTY, List.of(), List.of());
+        }
+
+        public Result withBreakdown(BreakdownDraft draft) {
+            return new Result(status, values, quality, sources, actions, draft);
         }
 
         /** Sem os valores. */

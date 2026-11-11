@@ -3,11 +3,14 @@ package com.smarthealthfinance.copilot.application.service;
 import com.smarthealthfinance.copilot.domain.enums.PseudonymKind;
 import com.smarthealthfinance.copilot.application.InMemoryAiUsageLedger;
 import com.smarthealthfinance.copilot.application.dto.Admission;
+import com.smarthealthfinance.copilot.application.dto.AskCommand;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
 import com.smarthealthfinance.copilot.application.port.AiGateway;
 import com.smarthealthfinance.copilot.application.port.AiRequest;
 import com.smarthealthfinance.copilot.application.port.AiResult;
+import com.smarthealthfinance.copilot.application.exception.TargetNotFoundException;
 import com.smarthealthfinance.copilot.application.port.CopilotPrompts;
+import com.smarthealthfinance.copilot.application.port.EntryContextResolver;
 import com.smarthealthfinance.copilot.application.port.FinancialTool;
 import com.smarthealthfinance.copilot.application.port.RequestCatalog;
 import com.smarthealthfinance.copilot.domain.enums.ActionKind;
@@ -17,6 +20,7 @@ import com.smarthealthfinance.copilot.domain.enums.AiRequestType;
 import com.smarthealthfinance.copilot.domain.enums.AnswerConfidence;
 import com.smarthealthfinance.copilot.domain.enums.DataFreshness;
 import com.smarthealthfinance.copilot.domain.enums.Intent;
+import com.smarthealthfinance.copilot.domain.enums.Notice;
 import com.smarthealthfinance.copilot.domain.enums.ResultCode;
 import com.smarthealthfinance.copilot.domain.enums.ValidationStatus;
 import com.smarthealthfinance.copilot.domain.enums.ValueKind;
@@ -24,7 +28,9 @@ import com.smarthealthfinance.copilot.domain.enums.ValueUnit;
 import com.smarthealthfinance.copilot.domain.model.AiUsage;
 import com.smarthealthfinance.copilot.domain.model.ContextValue;
 import com.smarthealthfinance.copilot.domain.model.CopilotLimits;
+import com.smarthealthfinance.copilot.domain.model.AnswerSegment;
 import com.smarthealthfinance.copilot.domain.model.DataQuality;
+import com.smarthealthfinance.copilot.domain.model.EntryContext;
 import com.smarthealthfinance.copilot.domain.model.OfferedAction;
 import com.smarthealthfinance.copilot.domain.model.PipelineSettings;
 import com.smarthealthfinance.copilot.domain.model.PricingTable;
@@ -43,6 +49,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.YearMonth;
 import java.time.ZoneOffset;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -83,13 +90,14 @@ class CopilotPipelineTest {
     private final SimpleMeterRegistry meters = new SimpleMeterRegistry();
     private final ScriptedGateway gateway = new ScriptedGateway();
     private final FakeTool tool = new FakeTool();
+    private final FakeContexts contexts = new FakeContexts();
 
     private CopilotPipeline pipeline() {
         AiUsageRecorder recorder = new AiUsageRecorder(ledger, PricingTable.of("pricing-test", List.of()), clock,
                 meters);
         CopilotLimits limits = new CopilotLimits(true, ZoneId.of("America/Sao_Paulo"), 10, 100, 1_000_000, 3,
                 Duration.ofSeconds(20));
-        return new CopilotPipeline(catalog(), gateway, recorder, new JacksonCopilotCodec(JsonMapper.builder().build()),
+        return new CopilotPipeline(catalog(), contexts, gateway, recorder, new JacksonCopilotCodec(JsonMapper.builder().build()),
                 new FakePrompts(), List.of(tool), PipelineSettings.DEFAULT, limits, clock, meters);
     }
 
@@ -102,8 +110,12 @@ class CopilotPipelineTest {
     }
 
     private CopilotResult ask(String question) {
+        return ask(AskCommand.of(question));
+    }
+
+    private CopilotResult ask(AskCommand command) {
         return pipeline().run(UUID.randomUUID(), new Admission(AdmissionCode.ADMITTED, WORKSPACE, USER, null, null),
-                question);
+                command);
     }
 
     @Test
@@ -292,12 +304,159 @@ class CopilotPipelineTest {
         assertThat(ledger.rows).isEmpty();
     }
 
+    private static final String INVOICE_CARD = "cartao_1";
+
+    @Test
+    void validAnswerSegmentsKeepTheValueByRefAndTheKnownName() {
+        gateway.intent("CARDS").answers(VALID);
+
+        CopilotResult result = ask("Quanto está a fatura?");
+
+        assertThat(result.answer().segments()).containsExactly(
+                new AnswerSegment.Text("A fatura de " + NICKNAME + " é "), new AnswerSegment.Value("v1"),
+                new AnswerSegment.Text("."));
+        assertThat(result.answer().text()).isEqualTo("A fatura de " + NICKNAME + " é R$ 1.234,56.");
+        assertThat(result.answer().financialData()).extracting(value -> value.ref()).containsExactly("v1");
+    }
+
+    @Test
+    void safeModeAlsoCarriesSegmentsAndTheSafeModeNotice() {
+        gateway.intent("CARDS").answerFails(AiOutcome.UNAVAILABLE);
+
+        CopilotResult result = ask("Quanto está a fatura?");
+
+        assertThat(result.code()).isEqualTo(ResultCode.SAFE_MODE);
+        assertThat(result.answer().explanationSegments().getFirst()).containsExactly(
+                new AnswerSegment.Text("Fatura atual de " + NICKNAME + ": "), new AnswerSegment.Value("v1"));
+        assertThat(result.notices()).containsExactly(Notice.ESTIMATED, Notice.SAFE_MODE);
+    }
+
+    @Test
+    void noticesAreDerivedFromTheContextAndTheValidation() {
+        tool.quality = new DataQuality(6, true, List.of(), DataFreshness.UPDATING, Set.of("OFX"));
+        gateway.intent("CARDS").answers(VALID);
+
+        CopilotResult result = ask("Quanto está a fatura?");
+
+        assertThat(result.notices()).containsExactly(Notice.PARTIAL_PERIOD, Notice.ESTIMATED, Notice.UPDATING);
+        assertThat(result.answer().dataUsed()).singleElement().satisfies(item -> {
+            assertThat(item.label()).isEqualTo("Fatura nov/2026 a dez/2026");
+            assertThat(item.partial()).isTrue();
+        });
+    }
+
+    @Test
+    void systemBreakdownPointsToContextRefsAndItsValuesJoinTheAnswerValues() {
+        tool.breakdown = new FinancialTool.BreakdownDraft("Fatores", List.of(
+                new FinancialTool.BreakdownDraft.Row("Parcela de Loja Tech (3/10)", 1, null)), 0);
+        gateway.intent("CARDS").answers(VALID);
+
+        CopilotResult result = ask("Quanto está a fatura?");
+
+        assertThat(result.answer().breakdown().rows()).singleElement().satisfies(row -> {
+            assertThat(row.label()).isEqualTo("Parcela de Loja Tech (3/10)");
+            assertThat(row.valueRef()).isEqualTo("v2");
+        });
+        assertThat(result.answer().breakdown().totalRef()).isEqualTo("v1");
+        assertThat(result.answer().financialData()).extracting(value -> value.ref()).containsExactly("v1", "v2");
+        assertThat(gateway.answerRequests.getFirst().userContent()).doesNotContain("Loja Tech", "Fatores");
+    }
+
+    @Test
+    void previousQuestionsGoToBothModelsInsideTheirOwnBlockAndNeverAsAnswers() {
+        gateway.intent("CARDS").answers(WITH_DIGITS, VALID);
+
+        ask(new AskCommand("E em agosto?", List.of("Quanto gastei no mercado?", "E o cartão?"), null));
+
+        for (AiRequest request : List.of(gateway.intentRequests.getFirst(), gateway.answerRequests.getFirst(),
+                gateway.answerRequests.get(1))) {
+            assertThat(request.userContent()).contains("<perguntas_anteriores>[\"Quanto gastei no mercado?\","
+                    + "\"E o cartão?\"]</perguntas_anteriores>").contains("<pergunta>\"E em agosto?\"</pergunta>");
+            assertThat(request.userContent().indexOf("<perguntas_anteriores>"))
+                    .isLessThan(request.userContent().indexOf("<pergunta>"));
+        }
+        assertThat(gateway.answerRequests.get(1).userContent()).doesNotContain("A fatura de");
+    }
+
+    @Test
+    void entryContextForcesTheTargetAndTheMonthInPlaceOfTheModelChoice() {
+        contexts.resolved = new EntryContextResolver.Resolved(Map.of(PseudonymKind.CARD, INVOICE_CARD),
+                YearMonth.of(2026, 10), OfferedAction.invoice(INVOICE_CARD, "2026-10"));
+        gateway.intentJson("{\"intent\":\"CARDS\",\"month\":\"2026-09\",\"category\":null,\"target\":null,"
+                + "\"scenario\":null}").answers(VALID);
+
+        ask(new AskCommand("Por que a fatura subiu?", List.of(), new EntryContext.Invoice(UUID.randomUUID(),
+                YearMonth.of(2026, 10))));
+
+        assertThat(tool.lastRequest.decision().targetValue()).contains(INVOICE_CARD);
+        assertThat(tool.lastRequest.decision().monthValue()).contains(YearMonth.of(2026, 10));
+    }
+
+    @Test
+    void unsupportedActionWithContextCarriesTheScreenLinkAndWithoutItNoLink() {
+        contexts.resolved = new EntryContextResolver.Resolved(Map.of(PseudonymKind.CARD, INVOICE_CARD),
+                YearMonth.of(2026, 10), OfferedAction.invoice(INVOICE_CARD, "2026-10"));
+        gateway.intent("UNSUPPORTED_ACTION").intent("UNSUPPORTED_ACTION");
+
+        CopilotResult withContext = ask(new AskCommand("Pague esta fatura", List.of(),
+                new EntryContext.Invoice(UUID.randomUUID(), YearMonth.of(2026, 10))));
+        CopilotResult without = ask("Pague esta fatura");
+
+        assertThat(withContext.answer().actions()).singleElement().satisfies(action -> {
+            assertThat(action.kind()).isEqualTo(ActionKind.OPEN_INVOICE);
+            assertThat(action.targetId()).isEqualTo(CARD_ID);
+            assertThat(action.params()).containsEntry("month", "2026-10");
+            assertThat(action.label()).isEqualTo("Ver fatura");
+        });
+        assertThat(without.answer().actions()).isEmpty();
+        assertThat(gateway.answerRequests).isEmpty();
+    }
+
+    @Test
+    void targetThatVanishesInTheToolOrBeforeItIsInsufficientDataWithoutTheAnswerModel() {
+        gateway.intent("CARDS");
+        tool.failure = new TargetNotFoundException();
+        assertThat(ask("Fatura?").code()).isEqualTo(ResultCode.INSUFFICIENT_DATA);
+
+        tool.failure = null;
+        contexts.failure = new TargetNotFoundException();
+        gateway.reset().intent("CARDS");
+        CopilotResult beforeTheTool = ask(new AskCommand("Fatura?", List.of(),
+                new EntryContext.Goal(UUID.randomUUID())));
+        assertThat(beforeTheTool.code()).isEqualTo(ResultCode.INSUFFICIENT_DATA);
+        assertThat(beforeTheTool.intent()).isEqualTo(Intent.CARDS);
+
+        assertThat(gateway.answerRequests).isEmpty();
+    }
+
+    /** Resolve o contexto de entrada com um resultado fixo, ou falha. */
+    private static final class FakeContexts implements EntryContextResolver {
+
+        Resolved resolved;
+        RuntimeException failure;
+
+        @Override
+        public void verify(UUID workspaceId, EntryContext context) {
+        }
+
+        @Override
+        public Resolved resolve(UUID workspaceId, EntryContext context, Pseudonyms pseudonyms) {
+            if (failure != null) {
+                throw failure;
+            }
+            return resolved;
+        }
+    }
+
     /** Tool de cartões com um texto importado hostil no nome do comerciante. */
     private static final class FakeTool implements FinancialTool {
 
         Status status = Status.DATA;
         RuntimeException failure;
         int calls;
+        Request lastRequest;
+        BreakdownDraft breakdown;
+        DataQuality quality = new DataQuality(6, false, List.of(), DataFreshness.UP_TO_DATE, Set.of("OFX"));
 
         @Override
         public Intent intent() {
@@ -307,6 +466,7 @@ class CopilotPipelineTest {
         @Override
         public Result collect(Request request) {
             calls++;
+            lastRequest = request;
             if (failure != null) {
                 throw failure;
             }
@@ -321,9 +481,8 @@ class CopilotPipelineTest {
                             "2026-12", "cards-v1"),
                     ContextValue.draft("Maior comerciante", INJECTION, ValueUnit.TEXT, ValueKind.FACT, null,
                             "cards-v1")),
-                    new DataQuality(6, false, List.of(), DataFreshness.UP_TO_DATE, Set.of("OFX")),
-                    List.of(new SourceRef("GetCardsSummary", "cards-v1")),
-                    List.of(new OfferedAction(ActionKind.OPEN_INVOICE, card)));
+                    quality, List.of(new SourceRef("GetCardsSummary", "cards-v1")),
+                    List.of(new OfferedAction(ActionKind.OPEN_INVOICE, card)), breakdown);
         }
     }
 

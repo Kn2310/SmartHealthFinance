@@ -113,6 +113,11 @@ final class ToolValues {
             return this;
         }
 
+        /** Posição do próximo valor, para o quadro de decomposição apontar para ele. */
+        int size() {
+            return values.size();
+        }
+
         List<ContextValue> build() {
             return List.copyOf(values);
         }
