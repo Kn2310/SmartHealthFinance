@@ -3,6 +3,7 @@ package com.smarthealthfinance.copilot.application.service;
 import com.smarthealthfinance.consents.application.port.ConsentReader;
 import com.smarthealthfinance.consents.domain.enums.ConsentPurpose;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
 import com.smarthealthfinance.copilot.application.dto.NewMessage;
 import com.smarthealthfinance.copilot.application.dto.StoredMessage;
 import com.smarthealthfinance.copilot.application.exception.ConversationNotFoundException;
@@ -51,13 +52,13 @@ public class CopilotHistory {
 
     /**
      * As até {@link AskCopilot#MAX_PREVIOUS_QUESTIONS} últimas perguntas da conversa (continuidade, ADR-0040 §7), da
-     * mais antiga para a mais nova; nunca respostas.
+     * mais antiga para a mais nova, com a intenção gravada; nunca respostas.
      *
      * @throws ConversationNotFoundException sem {@code COPILOT_HISTORY}, conversa inexistente, de outra pessoa ou
      *         expirada
      */
     @Transactional(readOnly = true)
-    public List<String> continueFrom(CopilotAdmission.Member member, UUID conversationId) {
+    public List<PreviousQuestion> continueFrom(CopilotAdmission.Member member, UUID conversationId) {
         Instant now = clock.instant();
         if (!historyActive(member) || !store.isVisible(member.workspaceId(), member.userId(), conversationId, now)) {
             throw new ConversationNotFoundException();

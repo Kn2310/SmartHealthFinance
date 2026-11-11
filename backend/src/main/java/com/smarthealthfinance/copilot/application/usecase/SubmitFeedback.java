@@ -69,6 +69,6 @@ public class SubmitFeedback {
         message.ifPresent(stored -> versions.putAll(stored.result().versions()));
         feedback.upsert(new FeedbackStore.Feedback(requestId, member.workspaceId(), member.userId(), rating, reason,
                 intent, versions, now, now.plus(CopilotHistory.RETENTION)));
-        meters.counter("shf.copilot.feedback", "rating", rating.name()).increment();
+        meters.counter("shf.copilot.api.feedback", "rating", rating.name()).increment();
     }
 }

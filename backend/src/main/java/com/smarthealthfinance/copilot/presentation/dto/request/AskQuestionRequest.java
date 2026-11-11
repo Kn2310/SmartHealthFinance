@@ -47,7 +47,7 @@ public record AskQuestionRequest(
 
     /** O comando do caso de uso; {@code context} mal formado é {@code VALIDATION_FAILED}. */
     public AskCommand toCommand() {
-        return new AskCommand(question, previousQuestions, context == null ? null : entryContext(context));
+        return AskCommand.ofTexts(question, previousQuestions, context == null ? null : entryContext(context));
     }
 
     /** {@code conversationId} como UUID, ou nulo. */

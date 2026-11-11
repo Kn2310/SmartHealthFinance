@@ -667,7 +667,25 @@ class WorkspaceIsolationIT extends IntegrationTest {
                                     """.formatted(id))),
             cross("copilot: feedback de pergunta alheia", HttpStatus.NOT_FOUND, "COPILOT_REQUEST_NOT_FOUND",
                     Fixture::copilotRequest, (mvc, own, id) -> mvc.put().uri(COPILOT_FEEDBACK, own.workspace(), id)
-                            .contentType(MediaType.APPLICATION_JSON).content(COPILOT_FEEDBACK_JSON)));
+                            .contentType(MediaType.APPLICATION_JSON).content(COPILOT_FEEDBACK_JSON)),
+
+            // ADR-0040 §3: contexto de entrada apontando para objetivo ou cartão de outro Workspace = inexistente
+            // (a Ana tem COPILOT_DATA_USE ativo, então a pergunta chega à checagem do contexto).
+            cross("copilot: perguntar com objetivo alheio como contexto", HttpStatus.NOT_FOUND,
+                    "COPILOT_CONTEXT_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.post().uri(COPILOT_QUESTIONS, own.workspace())
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"question": "Como está este objetivo?",
+                                     "context": {"kind": "GOAL", "goalId": "%s"}}
+                                    """.formatted(id))),
+            cross("copilot: perguntar com fatura de cartão alheio como contexto", HttpStatus.NOT_FOUND,
+                    "COPILOT_CONTEXT_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.post().uri(COPILOT_QUESTIONS, own.workspace())
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"question": "Por que a fatura subiu?",
+                                     "context": {"kind": "INVOICE", "cardId": "%s", "month": "2026-10"}}
+                                    """.formatted(id))));
+
 
     static Stream<CrossOp> foreignReferenceOperations() {
         return FOREIGN_REFERENCE.stream();

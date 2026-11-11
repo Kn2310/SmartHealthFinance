@@ -3,6 +3,7 @@ package com.smarthealthfinance.copilot.application.usecase;
 import com.smarthealthfinance.copilot.application.dto.Admission;
 import com.smarthealthfinance.copilot.application.dto.AskCommand;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
 import com.smarthealthfinance.copilot.application.service.CopilotAdmission;
 import com.smarthealthfinance.copilot.application.service.CopilotPipeline;
 import com.smarthealthfinance.copilot.domain.model.PipelineSettings;
@@ -69,20 +70,20 @@ public class AskCopilot {
                 new AskCommand(text, previous(command.previousQuestions()), command.context()));
     }
 
-    private List<String> previous(List<String> questions) {
+    private List<PreviousQuestion> previous(List<PreviousQuestion> questions) {
         if (questions.size() > MAX_PREVIOUS_QUESTIONS) {
             throw new InvalidValueException("previousQuestions", "TOO_MANY");
         }
-        List<String> normalized = new ArrayList<>();
-        for (String question : questions) {
-            String text = question == null ? "" : question.strip();
+        List<PreviousQuestion> normalized = new ArrayList<>();
+        for (PreviousQuestion previous : questions) {
+            String text = previous == null || previous.question() == null ? "" : previous.question().strip();
             if (text.isEmpty()) {
                 throw new InvalidValueException("previousQuestions", "REQUIRED");
             }
             if (text.length() > settings.maxQuestionChars()) {
                 throw new InvalidValueException("previousQuestions", "TOO_LONG");
             }
-            normalized.add(text);
+            normalized.add(new PreviousQuestion(text, previous.intent()));
         }
         return normalized;
     }

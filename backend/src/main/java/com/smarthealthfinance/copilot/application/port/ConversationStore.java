@@ -4,6 +4,7 @@ import com.smarthealthfinance.copilot.application.dto.ConversationCursor;
 import com.smarthealthfinance.copilot.application.dto.ConversationDetail;
 import com.smarthealthfinance.copilot.application.dto.ConversationSummary;
 import com.smarthealthfinance.copilot.application.dto.NewMessage;
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
 import com.smarthealthfinance.copilot.application.dto.StoredMessage;
 import com.smarthealthfinance.identity.domain.valueobject.UserId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
@@ -23,8 +24,8 @@ public interface ConversationStore {
     /** A conversa existe para a pessoa e tem alguma mensagem não expirada. */
     boolean isVisible(WorkspaceId workspaceId, UserId userId, UUID conversationId, Instant now);
 
-    /** As {@code limit} últimas perguntas da conversa, da mais antiga para a mais nova (nunca respostas). */
-    List<String> latestQuestions(WorkspaceId workspaceId, UserId userId, UUID conversationId, Instant now, int limit);
+    /** As {@code limit} últimas perguntas da conversa, da mais antiga para a mais nova (nunca respostas), cada uma com a intenção gravada (nula se não houve). */
+    List<PreviousQuestion> latestQuestions(WorkspaceId workspaceId, UserId userId, UUID conversationId, Instant now, int limit);
 
     /** Cria a conversa (sem mensagem; o chamador acrescenta a primeira na mesma transação). */
     UUID createConversation(WorkspaceId workspaceId, UserId userId, String title, Instant now);

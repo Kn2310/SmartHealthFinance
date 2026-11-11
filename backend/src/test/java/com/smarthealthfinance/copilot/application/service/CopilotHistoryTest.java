@@ -4,6 +4,7 @@ import com.smarthealthfinance.consents.application.port.ConsentReader;
 import com.smarthealthfinance.consents.domain.enums.ConsentPurpose;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
 import com.smarthealthfinance.copilot.application.dto.NewMessage;
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
 import com.smarthealthfinance.copilot.application.exception.ConversationNotFoundException;
 import com.smarthealthfinance.copilot.application.port.ConversationStore;
 import com.smarthealthfinance.copilot.domain.enums.AnswerType;
@@ -118,8 +119,9 @@ class CopilotHistoryTest {
 
         when(store.isVisible(MEMBER.workspaceId(), MEMBER.userId(), conversation, NOW)).thenReturn(true);
         when(store.latestQuestions(MEMBER.workspaceId(), MEMBER.userId(), conversation, NOW, 3))
-                .thenReturn(List.of("a", "b"));
-        assertThat(history.continueFrom(MEMBER, conversation)).containsExactly("a", "b");
+                .thenReturn(List.of(new PreviousQuestion("a", Intent.CARDS), new PreviousQuestion("b", null)));
+        assertThat(history.continueFrom(MEMBER, conversation))
+                .containsExactly(new PreviousQuestion("a", Intent.CARDS), new PreviousQuestion("b", null));
     }
 
     @Test

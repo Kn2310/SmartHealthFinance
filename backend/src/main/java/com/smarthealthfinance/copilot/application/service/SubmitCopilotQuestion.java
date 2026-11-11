@@ -2,6 +2,7 @@ package com.smarthealthfinance.copilot.application.service;
 
 import com.smarthealthfinance.copilot.application.dto.AskCommand;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
 import com.smarthealthfinance.copilot.application.dto.StoredMessage;
 import com.smarthealthfinance.copilot.application.exception.ConversationNotFoundException;
 import com.smarthealthfinance.copilot.application.exception.CopilotAlreadyAnsweredException;
@@ -33,13 +34,14 @@ import java.util.UUID;
 
 /**
  * Envio de uma pergunta pela API (ADR-0040 §4, §5): autenticação → membership → {@code Idempotency-Key} → formato do
- * corpo → reserva da chave → {@link AskCopilot} (consentimento, contexto, rate limit, quota, validação da pergunta,
- * pipeline). Um replay nunca gasta token do balde nem quota. Resultados 403, 429 e 503, e qualquer exceção, liberam a
+ * corpo → reserva da chave → leitura da conversa (com {@code conversationId}) → {@link AskCopilot} (consentimento,
+ * contexto, rate limit, quota, validação da pergunta, pipeline). Um replay nunca gasta token do balde nem quota. Resultados 403, 429 e 503, e qualquer exceção, liberam a
  * chave para a pessoa tentar de novo. Nunca roda numa transação de banco.
  *
- * <p>Histórico (ADR-0040 §5–§7): com {@code conversationId}, a conversa é validada antes de tudo (404) e o servidor lê
- * as até 3 últimas perguntas dela como continuidade; depois da resposta (fora de qualquer transação), a pergunta e a
- * resposta são gravadas com {@code COPILOT_HISTORY} ativo, conferido na transação da gravação. Um replay concluído
+ * <p>Histórico (ADR-0040 §5–§7): com {@code conversationId}, depois da reserva da chave o servidor valida a
+ * conversa (404, que libera a chave) e lê as até 3 últimas perguntas dela, com a intenção gravada, como continuidade
+ * (um replay de chave concluída não toca a conversa: devolve 200 ou 409 mesmo se ela sumiu); depois da resposta (fora
+ * de qualquer transação), a pergunta e a resposta são gravadas com {@code COPILOT_HISTORY} ativo, conferido na transação da gravação. Um replay concluído
  * devolve a mensagem guardada; sem mensagem, é {@code COPILOT_ALREADY_ANSWERED}.
  */
 @Service
@@ -91,17 +93,13 @@ public class SubmitCopilotQuestion {
      * @throws InvalidValueException chave ausente ou inválida; {@code conversationId} junto de
      *         {@code previousQuestions}; pergunta inválida
      * @throws ConversationNotFoundException {@code conversationId} sem {@code COPILOT_HISTORY}, inexistente, de outra
-     *         pessoa ou Workspace, ou expirada; antes de tocar o Redis e o pipeline
+     *         pessoa ou Workspace, ou expirada; depois da reserva (que é liberada) e antes do pipeline
      */
     public Outcome submit(UUID workspaceId, String idempotencyKey, UUID conversationId, AskCommand command) {
         CopilotAdmission.Member member = admission.requireMember(workspaceId);
         String key = new IdempotencyKey(idempotencyKey).value();
-        List<String> continuity = List.of();
-        if (conversationId != null) {
-            if (!command.previousQuestions().isEmpty()) {
-                throw new InvalidValueException("conversationId", "CONFLICTS_WITH_PREVIOUS_QUESTIONS");
-            }
-            continuity = history.continueFrom(member, conversationId);
+        if (conversationId != null && !command.previousQuestions().isEmpty()) {
+            throw new InvalidValueException("conversationId", "CONFLICTS_WITH_PREVIOUS_QUESTIONS");
         }
 
         // O hash é do corpo como o cliente mandou; a continuidade lida no servidor não entra.
@@ -140,6 +138,9 @@ public class SubmitCopilotQuestion {
 
         CopilotResult result;
         try {
+            // A conversa é lida depois da reserva: um replay concluído não depende dela. 404 libera a chave.
+            List<PreviousQuestion> continuity = conversationId == null ? List.of()
+                    : history.continueFrom(member, conversationId);
             result = askCopilot.ask(workspaceId, continuity.isEmpty() ? command
                     : new AskCommand(command.question(), continuity, command.context()));
         } catch (RuntimeException e) {
@@ -199,7 +200,8 @@ public class SubmitCopilotQuestion {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             update(digest, command.question() == null ? "" : command.question().strip());
             update(digest, Integer.toString(command.previousQuestions().size()));
-            command.previousQuestions().forEach(previous -> update(digest, previous.strip()));
+            command.previousQuestions().forEach(previous -> update(digest,
+                    previous.question() == null ? "" : previous.question().strip()));
             update(digest, context(command.context()));
             update(digest, conversationId == null ? "" : conversationId.toString());
             return HexFormat.of().formatHex(digest.digest());

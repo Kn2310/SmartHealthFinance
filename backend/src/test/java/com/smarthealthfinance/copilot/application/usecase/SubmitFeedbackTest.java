@@ -91,7 +91,7 @@ class SubmitFeedbackTest {
         assertThat(value.rating()).isEqualTo(FeedbackRating.NOT_HELPFUL);
         assertThat(value.reason()).isEqualTo(FeedbackReason.OTHER);
         assertThat(value.expiresAt()).isEqualTo(NOW.plus(Duration.ofDays(90)));
-        assertThat(meters.counter("shf.copilot.feedback", "rating", "NOT_HELPFUL").count()).isEqualTo(1);
+        assertThat(meters.counter("shf.copilot.api.feedback", "rating", "NOT_HELPFUL").count()).isEqualTo(1);
     }
 
     @Test

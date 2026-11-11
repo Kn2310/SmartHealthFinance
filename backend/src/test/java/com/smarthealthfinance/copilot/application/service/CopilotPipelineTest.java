@@ -5,6 +5,7 @@ import com.smarthealthfinance.copilot.application.InMemoryAiUsageLedger;
 import com.smarthealthfinance.copilot.application.dto.Admission;
 import com.smarthealthfinance.copilot.application.dto.AskCommand;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
 import com.smarthealthfinance.copilot.application.port.AiGateway;
 import com.smarthealthfinance.copilot.application.port.AiRequest;
 import com.smarthealthfinance.copilot.application.port.AiResult;
@@ -366,12 +367,13 @@ class CopilotPipelineTest {
     void previousQuestionsGoToBothModelsInsideTheirOwnBlockAndNeverAsAnswers() {
         gateway.intent("CARDS").answers(WITH_DIGITS, VALID);
 
-        ask(new AskCommand("E em agosto?", List.of("Quanto gastei no mercado?", "E o cartão?"), null));
+        ask(new AskCommand("E em agosto?", List.of(new PreviousQuestion("Quanto gastei no mercado?", Intent.CATEGORY),
+                new PreviousQuestion("E o cartão?", null)), null));
 
         for (AiRequest request : List.of(gateway.intentRequests.getFirst(), gateway.answerRequests.getFirst(),
                 gateway.answerRequests.get(1))) {
-            assertThat(request.userContent()).contains("<perguntas_anteriores>[\"Quanto gastei no mercado?\","
-                    + "\"E o cartão?\"]</perguntas_anteriores>").contains("<pergunta>\"E em agosto?\"</pergunta>");
+            assertThat(request.userContent()).contains("<perguntas_anteriores>[{\"pergunta\":\"Quanto gastei no "
+                    + "mercado?\",\"intencao\":\"CATEGORY\"},{\"pergunta\":\"E o cartão?\"}]</perguntas_anteriores>").contains("<pergunta>\"E em agosto?\"</pergunta>");
             assertThat(request.userContent().indexOf("<perguntas_anteriores>"))
                     .isLessThan(request.userContent().indexOf("<pergunta>"));
         }
@@ -385,7 +387,7 @@ class CopilotPipelineTest {
         gateway.intentJson("{\"intent\":\"CARDS\",\"month\":\"2026-09\",\"category\":null,\"target\":null,"
                 + "\"scenario\":null}").answers(VALID);
 
-        ask(new AskCommand("Por que a fatura subiu?", List.of(), new EntryContext.Invoice(UUID.randomUUID(),
+        ask(AskCommand.ofTexts("Por que a fatura subiu?", List.of(), new EntryContext.Invoice(UUID.randomUUID(),
                 YearMonth.of(2026, 10))));
 
         assertThat(tool.lastRequest.decision().targetValue()).contains(INVOICE_CARD);
@@ -398,7 +400,7 @@ class CopilotPipelineTest {
                 YearMonth.of(2026, 10), OfferedAction.invoice(INVOICE_CARD, "2026-10"));
         gateway.intent("UNSUPPORTED_ACTION").intent("UNSUPPORTED_ACTION");
 
-        CopilotResult withContext = ask(new AskCommand("Pague esta fatura", List.of(),
+        CopilotResult withContext = ask(AskCommand.ofTexts("Pague esta fatura", List.of(),
                 new EntryContext.Invoice(UUID.randomUUID(), YearMonth.of(2026, 10))));
         CopilotResult without = ask("Pague esta fatura");
 
@@ -421,7 +423,7 @@ class CopilotPipelineTest {
         tool.failure = null;
         contexts.failure = new TargetNotFoundException();
         gateway.reset().intent("CARDS");
-        CopilotResult beforeTheTool = ask(new AskCommand("Fatura?", List.of(),
+        CopilotResult beforeTheTool = ask(AskCommand.ofTexts("Fatura?", List.of(),
                 new EntryContext.Goal(UUID.randomUUID())));
         assertThat(beforeTheTool.code()).isEqualTo(ResultCode.INSUFFICIENT_DATA);
         assertThat(beforeTheTool.intent()).isEqualTo(Intent.CARDS);

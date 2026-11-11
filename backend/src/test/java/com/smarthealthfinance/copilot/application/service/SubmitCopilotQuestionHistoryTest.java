@@ -2,6 +2,8 @@ package com.smarthealthfinance.copilot.application.service;
 
 import com.smarthealthfinance.copilot.application.dto.AskCommand;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
+import com.smarthealthfinance.copilot.application.exception.ConversationNotFoundException;
 import com.smarthealthfinance.copilot.application.dto.StoredMessage;
 import com.smarthealthfinance.copilot.application.exception.CopilotAlreadyAnsweredException;
 import com.smarthealthfinance.copilot.application.exception.CopilotQuotaExceededException;
@@ -73,14 +75,16 @@ class SubmitCopilotQuestionHistoryTest {
     void aConversationFeedsTheLastQuestionsToThePipelineAndTheHashIgnoresThem() {
         member();
         UUID conversation = UUID.randomUUID();
-        when(history.continueFrom(MEMBER, conversation)).thenReturn(List.of("Quanto gastei?", "E em agosto?"));
+        when(history.continueFrom(MEMBER, conversation)).thenReturn(List.of(new PreviousQuestion("Quanto gastei?", Intent.CARDS),
+                new PreviousQuestion("E em agosto?", null)));
         when(askCopilot.ask(any(), any(AskCommand.class))).thenReturn(result(ResultCode.OK));
 
         service.submit(WORKSPACE, KEY, conversation, AskCommand.of("E em setembro?"));
 
         ArgumentCaptor<AskCommand> sent = ArgumentCaptor.forClass(AskCommand.class);
         verify(askCopilot).ask(eq(WORKSPACE), sent.capture());
-        assertThat(sent.getValue().previousQuestions()).containsExactly("Quanto gastei?", "E em agosto?");
+        assertThat(sent.getValue().previousQuestions()).containsExactly(
+                new PreviousQuestion("Quanto gastei?", Intent.CARDS), new PreviousQuestion("E em agosto?", null));
         assertThat(idempotency.states.values()).singleElement().satisfies(state -> assertThat(state.bodyHash())
                 .isEqualTo(SubmitCopilotQuestion.fingerprint(AskCommand.of("E em setembro?"), conversation)));
     }
@@ -172,5 +176,59 @@ class SubmitCopilotQuestionHistoryTest {
         assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, null, AskCommand.of("Pergunta")))
                 .isInstanceOf(CopilotAlreadyAnsweredException.class);
         verify(history).replay(MEMBER, answered.requestId());
+    }
+
+    @Test
+    void aReplayOfADoneKeyAnswersEvenIfTheConversationIsGoneAndNeverReadsIt() {
+        member();
+        UUID conversation = UUID.randomUUID();
+        UUID message = UUID.randomUUID();
+        CopilotResult answered = result(ResultCode.OK);
+        when(history.continueFrom(MEMBER, conversation)).thenReturn(List.of());
+        when(askCopilot.ask(any(), any(AskCommand.class))).thenReturn(answered);
+        when(history.record(any(), any(), any(), any(), any()))
+                .thenReturn(Optional.of(new CopilotHistory.Recorded(conversation, message)));
+        service.submit(WORKSPACE, KEY, conversation, AskCommand.of("Pergunta"));
+        when(history.continueFrom(MEMBER, conversation)).thenThrow(new ConversationNotFoundException());
+        when(history.replay(MEMBER, answered.requestId())).thenReturn(Optional.of(
+                new StoredMessage(message, conversation, "Pergunta", NOW, answered)));
+
+        SubmitCopilotQuestion.Outcome replay = service.submit(WORKSPACE, KEY, conversation,
+                AskCommand.of("Pergunta"));
+
+        assertThat(replay.messageId()).isEqualTo(message);
+        verify(history, times(1)).continueFrom(MEMBER, conversation);
+        verify(askCopilot, times(1)).ask(any(), any(AskCommand.class));
+    }
+
+    @Test
+    void aReplayOfADoneKeyWithoutTheStoredMessageIsAlreadyAnsweredEvenIfTheConversationIsGone() {
+        member();
+        UUID conversation = UUID.randomUUID();
+        CopilotResult answered = result(ResultCode.OK);
+        when(history.continueFrom(MEMBER, conversation)).thenReturn(List.of());
+        when(askCopilot.ask(any(), any(AskCommand.class))).thenReturn(answered);
+        when(history.record(any(), any(), any(), any(), any()))
+                .thenReturn(Optional.of(new CopilotHistory.Recorded(conversation, UUID.randomUUID())));
+        service.submit(WORKSPACE, KEY, conversation, AskCommand.of("Pergunta"));
+        when(history.continueFrom(MEMBER, conversation)).thenThrow(new ConversationNotFoundException());
+        when(history.replay(any(), any())).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, conversation, AskCommand.of("Pergunta")))
+                .isInstanceOf(CopilotAlreadyAnsweredException.class);
+    }
+
+    @Test
+    void aMissingConversationIsNotFoundAfterTheReservationAndReleasesTheKey() {
+        member();
+        UUID conversation = UUID.randomUUID();
+        when(history.continueFrom(MEMBER, conversation)).thenThrow(new ConversationNotFoundException());
+
+        assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, conversation, AskCommand.of("Pergunta")))
+                .isInstanceOf(ConversationNotFoundException.class);
+
+        assertThat(idempotency.calls).as("reserva e liberação: a chave foi reservada antes de ler a conversa").isEqualTo(2);
+        assertThat(idempotency.states).as("e liberada no 404").isEmpty();
+        verify(askCopilot, never()).ask(any(), any(AskCommand.class));
     }
 }

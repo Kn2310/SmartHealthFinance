@@ -150,7 +150,7 @@ Exige token de quem é membro e o consentimento `COPILOT_DATA_USE` ativo (Perfil
 | `shf.copilot.history.record_failed` | — (a resposta seguiu efêmera) |
 | `shf.copilot.history.deleted` | `cause` (`USER`, `REVOCATION`, `RETENTION`), em conversas |
 | `shf.copilot.history.expired_messages` / `expired_feedback` | — |
-| `shf.copilot.feedback` | `rating` |
+| `shf.copilot.api.feedback` | `rating` |
 
 ### Retenção (90 dias)
 
@@ -211,6 +211,39 @@ delete from copilot_feedback where workspace_id = :workspace and user_id = :user
   3. Confira: `select count(*) from copilot_conversations where user_id = :user and workspace_id = :workspace` deve dar 0
      se a pessoa não tem `COPILOT_HISTORY` ativo.
 - Fila crescendo sem consumo: verifique se o listener subiu (`CopilotEventListener`) e as conexões do RabbitMQ.
+
+## Catálogo de métricas `shf.copilot.*`
+
+Nomes emitidos pelo código (Micrometer; no Prometheus, pontos viram `_` e contadores ganham `_total`). Nenhuma leva
+pergunta, resposta ou contexto.
+
+| Métrica | Tipo | Tags |
+|---|---|---|
+| `shf.copilot.admission` | contador | `code` |
+| `shf.copilot.rate_limit` | contador | `status` |
+| `shf.copilot.pipeline` | contador | `code`, `intent` |
+| `shf.copilot.pipeline.latency` | timer | `code` |
+| `shf.copilot.validation` | contador | `status` |
+| `shf.copilot.validation.violation` | contador | `code` |
+| `shf.copilot.tool` | timer | `intent`, `status` |
+| `shf.copilot.budget_exhausted` | contador | — |
+| `shf.copilot.ai.requests` | contador | `role`, `provider`, `outcome` |
+| `shf.copilot.ai.latency` | timer | `role`, `outcome` |
+| `shf.copilot.ai.tokens` | contador | `type`, `kind` |
+| `shf.copilot.ai.cost.usd` | contador | `type`, `model` |
+| `shf.copilot.ai.unpriced` | contador | `model` |
+| `shf.copilot.ai.short_circuited` | contador | `role` |
+| `shf.copilot.ai.bulkhead_full` | contador | `role` |
+| `shf.copilot.api.responses` | contador | `code` |
+| `shf.copilot.api.replays` | contador | `result` (`IN_PROGRESS`, `REPLAYED`, `ALREADY_ANSWERED`, `KEY_REUSED`) |
+| `shf.copilot.api.idempotency_unavailable` | contador | — |
+| `shf.copilot.api.feedback` | contador | `rating` |
+| `shf.copilot.history.written` | contador | `kind` |
+| `shf.copilot.history.skipped` | contador | `reason` |
+| `shf.copilot.history.record_failed` | contador | — |
+| `shf.copilot.history.deleted` | contador | `cause` |
+| `shf.copilot.history.expired_messages` | contador | — |
+| `shf.copilot.history.expired_feedback` | contador | — |
 
 ## Simular falhas localmente
 

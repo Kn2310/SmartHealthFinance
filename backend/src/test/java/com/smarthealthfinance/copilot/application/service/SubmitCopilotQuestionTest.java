@@ -3,7 +3,6 @@ package com.smarthealthfinance.copilot.application.service;
 import com.smarthealthfinance.copilot.application.dto.AskCommand;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
 import com.smarthealthfinance.copilot.application.exception.ContextNotFoundException;
-import com.smarthealthfinance.copilot.application.exception.ConversationNotFoundException;
 import com.smarthealthfinance.copilot.application.exception.CopilotAlreadyAnsweredException;
 import com.smarthealthfinance.copilot.application.exception.CopilotConsentRequiredException;
 import com.smarthealthfinance.copilot.application.exception.CopilotKeyReusedException;
@@ -115,9 +114,9 @@ class SubmitCopilotQuestionTest {
 
         assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, null, AskCommand.of("Outra")))
                 .isInstanceOf(CopilotKeyReusedException.class);
-        assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, null, new AskCommand("Primeira",
+        assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, null, AskCommand.ofTexts("Primeira",
                 List.of("anterior"), null))).isInstanceOf(CopilotKeyReusedException.class);
-        assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, null, new AskCommand("Primeira", List.of(),
+        assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, null, AskCommand.ofTexts("Primeira", List.of(),
                 new EntryContext.Goal(UUID.randomUUID())))).isInstanceOf(CopilotKeyReusedException.class);
 
         assertThat(meters.counter("shf.copilot.api.replays", "result", "KEY_REUSED").count()).isEqualTo(3);
@@ -201,11 +200,7 @@ class SubmitCopilotQuestionTest {
                     .isInstanceOf(InvalidValueException.class);
         }
         assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, UUID.randomUUID(),
-                new AskCommand("Pergunta", List.of("anterior"), null))).isInstanceOf(InvalidValueException.class);
-        when(history.continueFrom(any(), any())).thenThrow(new ConversationNotFoundException());
-        assertThatThrownBy(() -> service.submit(WORKSPACE, KEY, UUID.randomUUID(), AskCommand.of("Pergunta")))
-                .as("sem COPILOT_HISTORY ou conversa alheia: 404 antes do Redis e do pipeline")
-                .isInstanceOf(ConversationNotFoundException.class);
+                AskCommand.ofTexts("Pergunta", List.of("anterior"), null))).isInstanceOf(InvalidValueException.class);
 
         assertThat(idempotency.calls).isZero();
         verify(askCopilot, never()).ask(any(), any(AskCommand.class));
@@ -213,18 +208,18 @@ class SubmitCopilotQuestionTest {
 
     @Test
     void theBodyHashSeparatesFieldsAndDependsOnEveryPart() {
-        String base = SubmitCopilotQuestion.fingerprint(new AskCommand("ab", List.of("c"), null), null);
+        String base = SubmitCopilotQuestion.fingerprint(AskCommand.ofTexts("ab", List.of("c"), null), null);
 
         assertThat(base).hasSize(64);
-        assertThat(SubmitCopilotQuestion.fingerprint(new AskCommand("a", List.of("bc"), null), null))
+        assertThat(SubmitCopilotQuestion.fingerprint(AskCommand.ofTexts("a", List.of("bc"), null), null))
                 .isNotEqualTo(base);
-        assertThat(SubmitCopilotQuestion.fingerprint(new AskCommand("ab", List.of(), null), null))
+        assertThat(SubmitCopilotQuestion.fingerprint(AskCommand.ofTexts("ab", List.of(), null), null))
                 .isNotEqualTo(base);
-        assertThat(SubmitCopilotQuestion.fingerprint(new AskCommand("ab", List.of("c"),
+        assertThat(SubmitCopilotQuestion.fingerprint(AskCommand.ofTexts("ab", List.of("c"),
                 new EntryContext.Invoice(UUID.randomUUID(), YearMonth.of(2026, 10))), null)).isNotEqualTo(base);
-        assertThat(SubmitCopilotQuestion.fingerprint(new AskCommand("ab", List.of("c"), null), UUID.randomUUID()))
+        assertThat(SubmitCopilotQuestion.fingerprint(AskCommand.ofTexts("ab", List.of("c"), null), UUID.randomUUID()))
                 .isNotEqualTo(base);
-        assertThat(SubmitCopilotQuestion.fingerprint(new AskCommand(" ab ", List.of(" c "), null), null))
+        assertThat(SubmitCopilotQuestion.fingerprint(AskCommand.ofTexts(" ab ", List.of(" c "), null), null))
                 .as("o strip não muda o corpo").isEqualTo(base);
     }
 

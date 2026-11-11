@@ -5,6 +5,7 @@ import com.smarthealthfinance.copilot.application.dto.ConversationDetail;
 import com.smarthealthfinance.copilot.application.dto.ConversationSummary;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
 import com.smarthealthfinance.copilot.application.dto.NewMessage;
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
 import com.smarthealthfinance.copilot.application.dto.StoredMessage;
 import com.smarthealthfinance.copilot.application.port.ConversationStore;
 import com.smarthealthfinance.copilot.domain.enums.AnswerConfidence;
@@ -64,15 +65,17 @@ class JdbcConversationStore implements ConversationStore {
     }
 
     @Override
-    public List<String> latestQuestions(WorkspaceId workspaceId, UserId userId, UUID conversationId, Instant now,
-                                        int limit) {
-        List<String> newestFirst = jdbc.queryForList("""
-                select m.question from copilot_messages m
+    public List<PreviousQuestion> latestQuestions(WorkspaceId workspaceId, UserId userId, UUID conversationId,
+                                                    Instant now, int limit) {
+        List<PreviousQuestion> newestFirst = jdbc.query("""
+                select m.question, m.intent from copilot_messages m
                 where m.conversation_id = ? and m.workspace_id = ? and m.user_id = ? and m.expires_at > ?
                 order by m.created_at desc, m.id desc
                 limit ?
-                """, String.class, conversationId, workspaceId.value(), userId.value(), Timestamp.from(now), limit);
-        List<String> questions = new ArrayList<>(newestFirst);
+                """, (rs, row) -> new PreviousQuestion(rs.getString("question"), rs.getString("intent") == null ? null
+                : Intent.valueOf(rs.getString("intent"))), conversationId, workspaceId.value(), userId.value(),
+                Timestamp.from(now), limit);
+        List<PreviousQuestion> questions = new ArrayList<>(newestFirst);
         Collections.reverse(questions);
         return questions;
     }
