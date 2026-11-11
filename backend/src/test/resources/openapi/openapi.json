@@ -1289,6 +1289,427 @@
         },
         "type" : "object"
       },
+      "CopilotAction" : {
+        "properties" : {
+          "kind" : {
+            "enum" : [ "OPEN_INVOICE", "OPEN_INSTALLMENTS", "OPEN_HEALTH", "OPEN_INSIGHT", "OPEN_GOAL", "OPEN_ANALYSIS_CATEGORY", "OPEN_FORECAST" ],
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "params" : {
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "type" : "object"
+          },
+          "targetId" : {
+            "description" : "Id interno do alvo; nulo para telas do Workspace inteiro",
+            "type" : [ "string", "null" ]
+          },
+          "targetName" : {
+            "type" : [ "string", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotAnswer" : {
+        "properties" : {
+          "answer" : {
+            "$ref" : "#/components/schemas/CopilotAnswerBody"
+          },
+          "code" : {
+            "enum" : [ "OK", "SAFE_MODE", "INSUFFICIENT_DATA", "OUT_OF_SCOPE" ],
+            "type" : "string"
+          },
+          "confidence" : {
+            "enum" : [ "high", "medium", "low" ],
+            "type" : [ "string", "null" ]
+          },
+          "conversationId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "intent" : {
+            "description" : "Intenção classificada (enum intents-v1)",
+            "type" : [ "string", "null" ]
+          },
+          "messageId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "notices" : {
+            "description" : "PARTIAL_PERIOD, ESTIMATED, SIMULATED, SAFE_MODE, UPDATING",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : "array"
+          },
+          "question" : {
+            "description" : "A pergunta como foi enviada, normalizada",
+            "type" : "string"
+          },
+          "requestId" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "validation" : {
+            "enum" : [ "VALID", "REGENERATED", "SAFE_MODE", "NOT_APPLICABLE" ],
+            "type" : "string"
+          },
+          "versions" : {
+            "additionalProperties" : {
+              "type" : "string"
+            },
+            "description" : "Versões de prompts, esquemas e algoritmos usados",
+            "type" : "object"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotAnswerBody" : {
+        "properties" : {
+          "actions" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CopilotAction"
+            },
+            "type" : "array"
+          },
+          "breakdown" : {
+            "$ref" : "#/components/schemas/CopilotBreakdown",
+            "description" : "Quadro montado pelo sistema; nulo quando não se aplica",
+            "type" : "null"
+          },
+          "dataUsed" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CopilotDataUsed"
+            },
+            "type" : "array"
+          },
+          "explanation" : {
+            "description" : "Passos da explicação, cada um como segmentos",
+            "items" : {
+              "items" : {
+                "$ref" : "#/components/schemas/CopilotSegment"
+              },
+              "type" : "array"
+            },
+            "type" : "array"
+          },
+          "segments" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CopilotSegment"
+            },
+            "type" : "array"
+          },
+          "type" : {
+            "enum" : [ "analysis", "explanation", "comparison", "simulation", "out_of_scope", "insufficient_data" ],
+            "type" : "string"
+          },
+          "values" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CopilotValue"
+            },
+            "type" : "array"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotAskQuestionRequest" : {
+        "properties" : {
+          "context" : {
+            "$ref" : "#/components/schemas/CopilotEntryContext",
+            "description" : "Ponto de entrada do 'Perguntar ao Copilot'; o backend valida que o alvo existe no Workspace",
+            "type" : "null"
+          },
+          "conversationId" : {
+            "description" : "Conversa guardada a continuar (só com COPILOT_HISTORY ativo); não combina com previousQuestions",
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "previousQuestions" : {
+            "description" : "Até 3 perguntas anteriores da própria pessoa, cada uma até 500 caracteres; só na conversa efêmera",
+            "items" : {
+              "type" : "string"
+            },
+            "type" : [ "array", "null" ]
+          },
+          "question" : {
+            "description" : "A pergunta, de 1 a 500 caracteres depois do strip",
+            "example" : "Por que minha fatura está mais alta?",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotBreakdown" : {
+        "properties" : {
+          "rows" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CopilotBreakdownRow"
+            },
+            "type" : "array"
+          },
+          "title" : {
+            "type" : "string"
+          },
+          "totalRef" : {
+            "description" : "Nulo quando o quadro não tem total",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotBreakdownRow" : {
+        "properties" : {
+          "detail" : {
+            "type" : [ "string", "null" ]
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "valueRef" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotConversation" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "messages" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CopilotConversationMessage"
+            },
+            "type" : "array"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotConversationMessage" : {
+        "properties" : {
+          "answer" : {
+            "$ref" : "#/components/schemas/CopilotAnswer"
+          },
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "question" : {
+            "type" : "string"
+          },
+          "requestId" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotConversationPage" : {
+        "properties" : {
+          "historyEnabled" : {
+            "type" : "boolean"
+          },
+          "items" : {
+            "items" : {
+              "$ref" : "#/components/schemas/CopilotConversationSummary"
+            },
+            "type" : "array"
+          },
+          "nextCursor" : {
+            "description" : "Cursor opaco para o parâmetro before; nulo na última página",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotConversationSummary" : {
+        "properties" : {
+          "createdAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "id" : {
+            "format" : "uuid",
+            "type" : "string"
+          },
+          "lastMessageAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "messageCount" : {
+            "format" : "int32",
+            "type" : "integer"
+          },
+          "title" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotDataScope" : {
+        "properties" : {
+          "from" : {
+            "description" : "YYYY-MM",
+            "example" : "2026-01",
+            "type" : "string"
+          },
+          "to" : {
+            "description" : "YYYY-MM",
+            "example" : "2026-10",
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotDataUsed" : {
+        "properties" : {
+          "label" : {
+            "type" : "string"
+          },
+          "partial" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotEntryContext" : {
+        "properties" : {
+          "cardId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "goalId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "insightId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          },
+          "kind" : {
+            "enum" : [ "INSIGHT", "INVOICE", "INSTALLMENT_PLAN", "GOAL" ],
+            "type" : "string"
+          },
+          "month" : {
+            "description" : "Mês de vencimento da fatura (YYYY-MM)",
+            "example" : "2026-10",
+            "type" : [ "string", "null" ]
+          },
+          "planId" : {
+            "format" : "uuid",
+            "type" : [ "string", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotFeedbackRequest" : {
+        "properties" : {
+          "rating" : {
+            "enum" : [ "HELPFUL", "NOT_HELPFUL" ],
+            "type" : "string"
+          },
+          "reason" : {
+            "enum" : [ "WRONG_NUMBERS", "DID_NOT_ANSWER", "CONFUSING", "OTHER" ],
+            "type" : [ "string", "null" ]
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotSegment" : {
+        "properties" : {
+          "kind" : {
+            "enum" : [ "TEXT", "VALUE" ],
+            "type" : "string"
+          },
+          "ref" : {
+            "type" : "string"
+          },
+          "text" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotUsage" : {
+        "properties" : {
+          "dataScope" : {
+            "$ref" : "#/components/schemas/CopilotDataScope",
+            "description" : "Meses com dados que o Copilot enxerga; nulo sem dados",
+            "type" : "null"
+          },
+          "day" : {
+            "$ref" : "#/components/schemas/CopilotUsageWindow"
+          },
+          "month" : {
+            "$ref" : "#/components/schemas/CopilotUsageWindow"
+          },
+          "provisional" : {
+            "type" : "boolean"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotUsageWindow" : {
+        "properties" : {
+          "limit" : {
+            "format" : "int64",
+            "type" : "integer"
+          },
+          "resetsAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "used" : {
+            "format" : "int64",
+            "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "CopilotValue" : {
+        "properties" : {
+          "formatted" : {
+            "type" : "string"
+          },
+          "kind" : {
+            "enum" : [ "FACT", "ESTIMATED", "SIMULATED" ],
+            "type" : "string"
+          },
+          "label" : {
+            "type" : "string"
+          },
+          "period" : {
+            "type" : [ "string", "null" ]
+          },
+          "ref" : {
+            "type" : "string"
+          },
+          "source" : {
+            "type" : "string"
+          }
+        },
+        "type" : "object"
+      },
       "CreateAccountRequest" : {
         "properties" : {
           "includedInTotal" : {
@@ -3903,6 +4324,30 @@
           "number" : {
             "format" : "int32",
             "type" : "integer"
+          }
+        },
+        "type" : "object"
+      },
+      "QuotaExceededError" : {
+        "properties" : {
+          "code" : {
+            "type" : "string"
+          },
+          "details" : {
+            "items" : {
+              "$ref" : "#/components/schemas/Detail"
+            },
+            "type" : "array"
+          },
+          "message" : {
+            "type" : "string"
+          },
+          "resetsAt" : {
+            "format" : "date-time",
+            "type" : "string"
+          },
+          "traceId" : {
+            "type" : "string"
           }
         },
         "type" : "object"
@@ -7028,6 +7473,405 @@
         },
         "summary" : "Concede ou revoga um consentimento (idempotente; revogar o uso de dados revoga o histórico)",
         "tags" : [ "Consents" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/copilot/conversations" : {
+      "delete" : {
+        "operationId" : "deleteAllConversations",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Conversas apagadas (ou não havia nenhuma)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Apaga todas as conversas da pessoa no Workspace (hard delete, idempotente)",
+        "tags" : [ "Copilot" ]
+      },
+      "get" : {
+        "operationId" : "conversations",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Itens por página; padrão 20, máximo 50",
+          "in" : "query",
+          "name" : "limit",
+          "required" : false,
+          "schema" : {
+            "format" : "int32",
+            "type" : "integer"
+          }
+        }, {
+          "description" : "Cursor opaco (nextCursor) da página anterior",
+          "in" : "query",
+          "name" : "before",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CopilotConversationPage"
+                }
+              }
+            },
+            "description" : "Página de conversas, com nextCursor quando há mais"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (cursor before inválido)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Conversas guardadas da pessoa no Workspace, da mais recente para a mais antiga. Sem COPILOT_HISTORY: historyEnabled false e lista vazia",
+        "tags" : [ "Copilot" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/copilot/conversations/{conversationId}" : {
+      "delete" : {
+        "operationId" : "deleteConversation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "conversationId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "204" : {
+            "description" : "Conversa apagada"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou COPILOT_CONVERSATION_NOT_FOUND"
+          }
+        },
+        "summary" : "Apaga uma conversa guardada (hard delete)",
+        "tags" : [ "Copilot" ]
+      },
+      "get" : {
+        "operationId" : "conversation",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "conversationId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CopilotConversation"
+                }
+              }
+            },
+            "description" : "Conversa com as mensagens, da mais antiga para a mais nova"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou COPILOT_CONVERSATION_NOT_FOUND (inexistente, de outra pessoa, expirada ou sem COPILOT_HISTORY)"
+          }
+        },
+        "summary" : "Conversa guardada com as mensagens não expiradas (foto de cada momento)",
+        "tags" : [ "Copilot" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/copilot/questions" : {
+      "post" : {
+        "operationId" : "ask",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "description" : "Chave única por pergunta; vale 10 minutos",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CopilotAskQuestionRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CopilotAnswer"
+                }
+              }
+            },
+            "description" : "Resposta com code OK, SAFE_MODE, INSUFFICIENT_DATA ou OUT_OF_SCOPE"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (pergunta vazia ou longa, previousQuestions acima de 3 ou longas, conversationId com previousQuestions, contexto mal formado, Idempotency-Key ausente ou inválida) ou MALFORMED_REQUEST"
+          },
+          "403" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "COPILOT_CONSENT_REQUIRED (sem COPILOT_DATA_USE ativo)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND, COPILOT_CONTEXT_NOT_FOUND (alvo fora do Workspace) ou COPILOT_CONVERSATION_NOT_FOUND"
+          },
+          "409" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "COPILOT_REQUEST_IN_PROGRESS (replay em andamento) ou COPILOT_ALREADY_ANSWERED (replay de pergunta já respondida numa conversa sem histórico)"
+          },
+          "422" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "IDEMPOTENCY_KEY_REUSED (mesma chave com outro conteúdo)"
+          },
+          "429" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/QuotaExceededError"
+                }
+              }
+            },
+            "description" : "COPILOT_RATE_LIMITED (header Retry-After, em segundos) ou COPILOT_QUOTA_EXCEEDED (resetsAt no corpo)",
+            "headers" : {
+              "Retry-After" : {
+                "description" : "Segundos até a próxima pergunta (só no rate limit)",
+                "schema" : {
+                  "type" : "integer"
+                },
+                "style" : "simple"
+              }
+            }
+          },
+          "503" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "COPILOT_UNAVAILABLE (provedor fora, circuito aberto, Copilot desligado ou Redis fora)"
+          }
+        },
+        "summary" : "Pergunta ao Copilot (resposta completa, idempotente por Idempotency-Key)",
+        "tags" : [ "Copilot" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/copilot/questions/{requestId}/feedback" : {
+      "put" : {
+        "operationId" : "feedback",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        }, {
+          "in" : "path",
+          "name" : "requestId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CopilotFeedbackRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "204" : {
+            "description" : "Feedback registrado"
+          },
+          "400" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "VALIDATION_FAILED (avaliação ausente ou inválida, motivo inválido)"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND ou COPILOT_REQUEST_NOT_FOUND (pergunta que não é da pessoa no Workspace)"
+          }
+        },
+        "summary" : "Avalia uma resposta (último envio vale). Exige só membership, não consentimento; sem texto livre",
+        "tags" : [ "Copilot" ]
+      }
+    },
+    "/api/v1/workspaces/{workspaceId}/copilot/usage" : {
+      "get" : {
+        "operationId" : "usage",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "workspaceId",
+          "required" : true,
+          "schema" : {
+            "format" : "uuid",
+            "type" : "string"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/CopilotUsage"
+                }
+              }
+            },
+            "description" : "Uso calculado no usage ledger, com a mesma regra da quota"
+          },
+          "404" : {
+            "content" : {
+              "*/*" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/ApiError"
+                }
+              }
+            },
+            "description" : "WORKSPACE_NOT_FOUND"
+          }
+        },
+        "summary" : "Uso do Copilot no Workspace: perguntas do mês e do dia (limites provisórios) e o recorte de dados. Exige só membership, não consentimento",
+        "tags" : [ "Copilot" ]
       }
     },
     "/api/v1/workspaces/{workspaceId}/forecast/cash-flow" : {
