@@ -63,7 +63,8 @@ class CopilotConfigurationTest {
     void baseUrlMustBeHttpsOnTheOfficialHostAndNeverEchoesTheKey() {
         for (String rejected : new String[] {"http://api.anthropic.com", "https://evil.example.com",
                 "https://api.anthropic.com.evil.example", "https://user:pass@api.anthropic.com", "http://127.0.0.1:8080",
-                "nao é url"}) {
+                "nao é url", "https://api.anthropic.com:8443", "https://api.anthropic.com:444",
+                "https://api.anthropic.com/x"}) {
             assertThatThrownBy(() -> configuration.copilotAiProvider(bind(anthropic(rejected)), json))
                     .as(rejected).isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("base-url")

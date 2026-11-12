@@ -11,7 +11,7 @@ groups:
       - alert: CopilotSuccessBelowSlo
         expr: |
           (
-            sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE|INSUFFICIENT_DATA|OUT_OF_SCOPE"}[1h]))
+            (sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE|INSUFFICIENT_DATA|OUT_OF_SCOPE"}[1h])) or vector(0))
             /
             sum(increase(shf_copilot_pipeline_total{code!~"CONSENT_REQUIRED|RATE_LIMITED|QUOTA_EXCEEDED"}[1h]))
           ) < 0.98
@@ -26,7 +26,7 @@ groups:
       - alert: CopilotProviderUnavailable
         expr: |
           (
-            sum(increase(shf_copilot_pipeline_total{code="PROVIDER_UNAVAILABLE"}[15m]))
+            (sum(increase(shf_copilot_pipeline_total{code="PROVIDER_UNAVAILABLE"}[15m])) or vector(0))
             /
             sum(increase(shf_copilot_pipeline_total[15m]))
           ) > 0.05
@@ -41,7 +41,7 @@ groups:
       - alert: CopilotSafeModeHigh
         expr: |
           (
-            sum(increase(shf_copilot_pipeline_total{code="SAFE_MODE"}[1h]))
+            (sum(increase(shf_copilot_pipeline_total{code="SAFE_MODE"}[1h])) or vector(0))
             /
             sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE"}[1h]))
           ) > 0.10
@@ -56,7 +56,7 @@ groups:
       - alert: CopilotClaimViolationsHigh
         expr: |
           (
-            sum(increase(shf_copilot_validation_violation_total[1h]))
+            (sum(increase(shf_copilot_validation_violation_total[1h])) or vector(0))
             /
             sum(increase(shf_copilot_validation_total[1h]))
           ) > 0.20
@@ -81,7 +81,7 @@ groups:
       - alert: CopilotThrottlingHigh
         expr: |
           (
-            sum(increase(shf_copilot_admission_total{code=~"RATE_LIMITED|QUOTA_EXCEEDED"}[1h]))
+            (sum(increase(shf_copilot_admission_total{code=~"RATE_LIMITED|QUOTA_EXCEEDED"}[1h])) or vector(0))
             /
             sum(increase(shf_copilot_admission_total[1h]))
           ) > 0.20
@@ -102,7 +102,7 @@ groups:
           runbook: "docs/runbooks/copilot.md#custo-por-workspace-e-por-dia"
 
       - alert: CopilotUnpricedModel
-        expr: sum(increase(shf_copilot_ai_unpriced_total[1h])) > 0
+        expr: sum(shf_copilot_ai_unpriced_total) > 0
         labels:
           severity: P3
         annotations:

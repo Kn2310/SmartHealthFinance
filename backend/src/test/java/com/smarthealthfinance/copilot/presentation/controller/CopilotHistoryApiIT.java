@@ -478,6 +478,11 @@ class CopilotHistoryApiIT extends IntegrationTest {
                 .containsExactlyInAnyOrder(mixed, fresh).doesNotContain(old);
         assertThat(jdbc.queryForList("select question from copilot_messages", String.class))
                 .containsExactlyInAnyOrder("Depois do novo consentimento", "Nova");
+        assertThat(jdbc.queryForObject("select title from copilot_conversations where id = ?", String.class, mixed))
+                .as("título regravado a partir da primeira pergunta que restou")
+                .isEqualTo("Depois do novo consentimento");
+        assertThat(jdbc.queryForObject("select title from copilot_conversations where id = ?", String.class, fresh))
+                .isEqualTo("Nova");
     }
 
     // --- retenção ---

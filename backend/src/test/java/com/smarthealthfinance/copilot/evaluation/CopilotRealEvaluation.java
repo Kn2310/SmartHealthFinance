@@ -47,7 +47,7 @@ class CopilotRealEvaluation {
     @Test
     void evaluateTheGoldenSetAgainstTheRealModel() throws IOException {
         RealCopilotWiring.Wiring wiring = RealCopilotWiring.anthropic();
-        BigDecimal maxUsd = new BigDecimal(System.getProperty(MAX_USD, DEFAULT_MAX_USD).strip());
+        BigDecimal maxUsd = parseMaxUsd(System.getProperty(MAX_USD, DEFAULT_MAX_USD));
         List<GoldenCase> all = GoldenSet.cases();
         List<GoldenCase> selected = select(all, System.getProperty(CASES));
         List<GoldenCase> toRun = selected.stream().filter(golden -> !GoldenChecks.skipped(golden)).toList();
@@ -58,45 +58,73 @@ class CopilotRealEvaluation {
         List<CopilotEvaluationReport.Run> runs = new ArrayList<>();
         BigDecimal spent = BigDecimal.ZERO;
         String stop = null;
-        for (int i = 0; i < toRun.size(); i++) {
-            if (spent.compareTo(maxUsd) >= 0) {
-                stop = "cost ceiling US$ " + maxUsd.toPlainString() + " reached after " + runs.size() + " of "
-                        + toRun.size() + " cases";
-                break;
+        String abortReason = null;
+        try {
+            for (int i = 0; i < toRun.size(); i++) {
+                if (spent.compareTo(maxUsd) >= 0) {
+                    abortReason = "COST_CEILING";
+                    stop = "cost ceiling US$ " + maxUsd.toPlainString() + " reached after " + runs.size() + " of "
+                            + toRun.size() + " cases";
+                    break;
+                }
+                GoldenCase golden = toRun.get(i);
+                ElapsedClock clock = new ElapsedClock();
+                AiGateway gateway = new Rebasing(wiring.gateways().apply(new SimpleMeterRegistry()), clock);
+                GoldenHarness.Outcome outcome = GoldenHarness.run(golden, gateway, clock, wiring.pricing());
+                List<GoldenChecks.Failure> failures = GoldenChecks.checkReal(golden, outcome);
+                CopilotEvaluationReport.Run run = new CopilotEvaluationReport.Run(golden, outcome, failures);
+                runs.add(run);
+                spent = spent.add(run.cost());
+                System.out.printf("[%d/%d] %s %s%s cost=US$ %s%n", i + 1, toRun.size(), golden.id(),
+                        run.passed() ? "PASS" : "FAIL", run.passed() ? "" : " " + failures.stream()
+                                .map(GoldenChecks.Failure::check).distinct().collect(Collectors.joining(",")),
+                        spent.toPlainString());
+                Set<String> unpriced = outcome.ledger().stream().map(AiUsage::model)
+                        .filter(model -> wiring.pricing().find(model).isEmpty()).collect(Collectors.toSet());
+                if (!unpriced.isEmpty()) {
+                    abortReason = "UNPRICED_MODEL";
+                    stop = "model(s) without a price in the pricing table: " + unpriced;
+                    break;
+                }
             }
-            GoldenCase golden = toRun.get(i);
-            ElapsedClock clock = new ElapsedClock();
-            AiGateway gateway = new Rebasing(wiring.gateways().apply(new SimpleMeterRegistry()), clock);
-            GoldenHarness.Outcome outcome = GoldenHarness.run(golden, gateway, clock, wiring.pricing());
-            List<GoldenChecks.Failure> failures = GoldenChecks.checkReal(golden, outcome);
-            CopilotEvaluationReport.Run run = new CopilotEvaluationReport.Run(golden, outcome, failures);
-            runs.add(run);
-            spent = spent.add(run.cost());
-            System.out.printf("[%d/%d] %s %s%s cost=US$ %s%n", i + 1, toRun.size(), golden.id(),
-                    run.passed() ? "PASS" : "FAIL", run.passed() ? "" : " " + failures.stream()
-                            .map(GoldenChecks.Failure::check).distinct().collect(Collectors.joining(",")),
-                    spent.toPlainString());
-            Set<String> unpriced = outcome.ledger().stream().map(AiUsage::model)
-                    .filter(model -> wiring.pricing().find(model).isEmpty()).collect(Collectors.toSet());
-            if (!unpriced.isEmpty()) {
-                stop = "model(s) without a price in the pricing table: " + unpriced;
-                break;
-            }
+        } catch (RuntimeException | Error failure) {
+            // Só o tipo da exceção vai para o relatório: a mensagem pode carregar texto da resposta do provedor.
+            abortReason = "ERROR_" + failure.getClass().getSimpleName();
+            throw failure;
+        } finally {
+            writeReport(wiring, maxUsd, abortReason, skipped, all.size() - selected.size(), runs);
         }
+        if (stop != null) {
+            throw new IllegalStateException("copilot-eval stopped: " + stop + ". Partial report in "
+                    + REPORT_DIR.resolve("report.json"));
+        }
+    }
 
+    private static void writeReport(RealCopilotWiring.Wiring wiring, BigDecimal maxUsd, String abortReason,
+                                    int skipped, int notSelected, List<CopilotEvaluationReport.Run> runs)
+            throws IOException {
         JsonMapper mapper = JsonMapper.builder().build();
         ObjectNode report = CopilotEvaluationReport.json(mapper, new CopilotEvaluationReport.Meta(GoldenSet.VERSION,
-                wiring.pricing().version(), wiring.intentModel(), wiring.answerModel(), maxUsd, stop != null,
-                skipped, all.size() - selected.size()), runs);
+                wiring.pricing().version(), wiring.intentModel(), wiring.answerModel(), maxUsd, abortReason,
+                skipped, notSelected), runs);
         Files.createDirectories(REPORT_DIR);
         Files.writeString(REPORT_DIR.resolve("report.json"),
                 mapper.writerWithDefaultPrettyPrinter().writeValueAsString(report) + "\n");
         Files.writeString(REPORT_DIR.resolve("report.md"), CopilotEvaluationReport.markdown(report));
         System.out.println("copilot-eval: report written to " + REPORT_DIR.resolve("report.md") + " and report.json");
-        if (stop != null) {
-            throw new IllegalStateException("copilot-eval stopped: " + stop + ". Partial report in "
-                    + REPORT_DIR.resolve("report.json"));
+    }
+
+    /** Teto de custo em US$: decimal positivo ({@code 2.00}); qualquer outra coisa falha antes de gastar um token. */
+    static BigDecimal parseMaxUsd(String raw) {
+        try {
+            BigDecimal value = new BigDecimal(raw.strip());
+            if (value.signum() > 0) {
+                return value;
+            }
+        } catch (NumberFormatException ignored) {
+            // cai na mensagem abaixo
         }
+        throw new IllegalArgumentException("-D" + MAX_USD + " must be a positive decimal number such as 2.00");
     }
 
     /**

@@ -221,6 +221,23 @@ class CopilotApiIT extends IntegrationTest {
     }
 
     @Test
+    void theBodyLimitIsExactlySixteenKibibytes() throws Exception {
+        grantConsent("sub-ana", "ana@example.com", anasWorkspace);
+        String json = "{\"question\": \"Oi\"}";
+
+        String atLimit = json + " ".repeat(16 * 1024 - json.length());
+        assertThat(atLimit.getBytes(java.nio.charset.StandardCharsets.UTF_8)).hasSize(16384);
+        MvcTestResult accepted = ask(anasWorkspace, key(), atLimit);
+        if (accepted.getResponse().getStatus() == HttpStatus.BAD_REQUEST.value()) {
+            assertThat(JsonPath.<String>read(body(accepted), "$.details[0].code")).isNotEqualTo("TOO_LARGE");
+        }
+
+        MvcTestResult over = ask(anasWorkspace, key(), atLimit + " ");
+        assertError(over, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        assertThat(JsonPath.<String>read(body(over), "$.details[0].code")).isEqualTo("TOO_LARGE");
+    }
+
+    @Test
     void withoutConsentIsForbiddenAndTheKeyIsReleased() throws Exception {
         String key = key();
 

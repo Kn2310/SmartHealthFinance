@@ -34,6 +34,9 @@ Decisões aprovadas pelo usuário em 2026-11-12 (Sessão 8.2, Parte F).
   roteirizada e o teste confere pipeline, tools, claim validation, rótulos, avisos e recusas contra o esperado.
 - Um caso que falha derruba o build. Mudar prompt ou esquema exige passar o golden set (ADR-0039 §11).
 
+**Adendo (2026-11-12):** o teste é `CopilotGoldenSetTest`, sem container (adapter simulado e fakes em memória), e roda
+tanto em `./mvnw test` quanto no `verify`; não existe `CopilotGoldenSetIT`.
+
 ### 3. Fora do CI (modelo real)
 
 - Perfil Maven `copilot-eval` roda o mesmo golden set com o adapter Anthropic, lendo `ANTHROPIC_API_KEY` só do
@@ -67,6 +70,10 @@ Decisões aprovadas pelo usuário em 2026-11-12 (Sessão 8.2, Parte F).
   | Custo diário | custo do dia > US$ 20 (soma de `shf.copilot.ai.cost.usd`) | P3 |
   | Preço desconhecido | `shf.copilot.ai.unpriced` > 0 | P3 |
   | DLQ da revogação | mensagens na DLQ `shf.copilot.history-revocation` > 0 | P2 (privacidade) |
+
+**Adendo (2026-11-12):** o alerta de DLQ da revogação (`CopilotRevocationDeadLettered`) usa o contador
+`shf.copilot.history.dead_lettered` (incrementado pelo recoverer de mensagens do consumidor, registrado em 0 na
+subida), em vez da profundidade da fila.
 
 ### 5. Revisão de segurança e privacidade
 

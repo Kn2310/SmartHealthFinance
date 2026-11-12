@@ -138,7 +138,7 @@ class CopilotConfiguration {
      * A chave e as perguntas só vão para {@code https://api.anthropic.com} (ADR-0039 §7). Outro host só com
      * {@code shf.copilot.anthropic.allow-custom-base-url=true}, previsto para testes. A mensagem nunca traz a chave.
      *
-     * @throws IllegalStateException {@code baseUrl} que não é https no host oficial, sem a permissão explícita
+     * @throws IllegalStateException {@code baseUrl} que não é https no host oficial (porta 443, sem caminho), sem a permissão explícita
      */
     static void requireOfficialBaseUrl(CopilotProperties.Anthropic config) {
         String baseUrl = config.baseUrl();
@@ -153,7 +153,10 @@ class CopilotConfiguration {
         }
         if (!"https".equalsIgnoreCase(uri.getScheme())
                 || !CopilotProperties.Anthropic.OFFICIAL_HOST.equalsIgnoreCase(uri.getHost())
-                || uri.getUserInfo() != null) {
+                || uri.getUserInfo() != null
+                || (uri.getPort() != -1 && uri.getPort() != 443)
+                || !(uri.getRawPath() == null || uri.getRawPath().isEmpty() || "/".equals(uri.getRawPath()))
+                || uri.getRawQuery() != null || uri.getRawFragment() != null) {
             throw new IllegalStateException("shf.copilot.anthropic.base-url must be https://"
                     + CopilotProperties.Anthropic.OFFICIAL_HOST + " (set shf.copilot.anthropic.allow-custom-base-url"
                     + "=true only in tests)");

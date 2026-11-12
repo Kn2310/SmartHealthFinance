@@ -32,7 +32,7 @@ final class CopilotEvaluationReport {
 
     /** Contexto da execução: o que foi medido, com que preços e se parou no teto de custo. */
     record Meta(String goldenVersion, String pricingVersion, String intentModel, String answerModel,
-                BigDecimal maxUsd, boolean aborted, int skipped, int notSelected) {
+                BigDecimal maxUsd, String abortReason, int skipped, int notSelected) {
     }
 
     /** Um caso avaliado e o que falhou nele. */
@@ -75,7 +75,10 @@ final class CopilotEvaluationReport {
         cases.put("failed", evaluated - passed);
         cases.put("skipped", meta.skipped());
         cases.put("notSelected", meta.notSelected());
-        root.put("aborted", meta.aborted());
+        root.put("aborted", meta.abortReason() != null);
+        if (meta.abortReason() != null) {
+            root.put("abortReason", meta.abortReason());
+        }
         root.put("accuracy", rate(passed, evaluated));
 
         ObjectNode byIntent = root.putObject("accuracyByIntent");
@@ -200,7 +203,8 @@ final class CopilotEvaluationReport {
             md.append("Versões: ").append(versions).append("\n\n");
         }
         if (report.get("aborted").asBoolean()) {
-            md.append("> **Execução interrompida no teto de custo.** Os números abaixo cobrem só os casos já "
+            md.append("> **Execução interrompida"
+                    + " (motivo: `" + report.get("abortReason").asString() + "`).** Os números abaixo cobrem só os casos já "
                     + "avaliados.\n\n");
         }
         JsonNode cases = report.get("cases");

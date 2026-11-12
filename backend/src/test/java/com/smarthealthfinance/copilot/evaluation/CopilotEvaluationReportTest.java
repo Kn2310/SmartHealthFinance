@@ -43,7 +43,7 @@ class CopilotEvaluationReportTest {
         List<CopilotEvaluationReport.Run> runs = runs("overview-total-balance", "invoice-aurora-october-plus-520-60",
                 "invented-number-twice-falls-to-safe-mode", "transfer-money");
         var meta = new CopilotEvaluationReport.Meta("golden-v1", "pricing-report-test", "haiku", "sonnet",
-                new BigDecimal("2.00"), false, 1, 70);
+                new BigDecimal("2.00"), null, 1, 70);
 
         JsonNode report = CopilotEvaluationReport.json(JsonMapper.builder().build(), meta, runs);
         String json = report.toString();

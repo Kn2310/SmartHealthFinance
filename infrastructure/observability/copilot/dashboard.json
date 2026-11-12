@@ -91,7 +91,7 @@
             "type": "prometheus",
             "uid": "${DS_PROMETHEUS}"
           },
-          "expr": "sum(increase(shf_copilot_pipeline_total{code=~\"OK|SAFE_MODE|INSUFFICIENT_DATA|OUT_OF_SCOPE\"}[1h])) / sum(increase(shf_copilot_pipeline_total{code!~\"CONSENT_REQUIRED|RATE_LIMITED|QUOTA_EXCEEDED\"}[1h]))",
+          "expr": "(sum(increase(shf_copilot_pipeline_total{code=~\"OK|SAFE_MODE|INSUFFICIENT_DATA|OUT_OF_SCOPE\"}[1h])) or vector(0)) / sum(increase(shf_copilot_pipeline_total{code!~\"CONSENT_REQUIRED|RATE_LIMITED|QUOTA_EXCEEDED\"}[1h]))",
           "legendFormat": "sucesso"
         }
       ],
