@@ -11,6 +11,9 @@ import com.smarthealthfinance.copilot.domain.model.CopilotContext;
 import com.smarthealthfinance.copilot.domain.model.Pseudonyms;
 import com.smarthealthfinance.copilot.domain.model.RenderedAnswer;
 import org.junit.jupiter.api.Test;
+import com.smarthealthfinance.copilot.domain.model.AnswerSegment;
+import com.smarthealthfinance.copilot.domain.model.OfferedAction;
+import com.smarthealthfinance.copilot.domain.enums.PseudonymKind;
 
 import java.util.List;
 
@@ -55,6 +58,57 @@ class AnswerRendererTest {
                 List.of(), List.of()), tricky, pseudonyms);
 
         assertThat(rendered.text()).isEqualTo("Maior: {{v:v2}} cartao_1.");
+    }
+
+    @Test
+    void segmentsComeFromTheSamePassAsThePlainText() {
+        AnswerDraft draft = new AnswerDraft("A fatura de cartao_1 é {{v:v1}}, vence em {{v:v2}}.", "analysis",
+                List.of(), List.of("Só texto.", "{{v:v4}}", "cartao_1 e {{v:v3}}"), List.of());
+
+        RenderedAnswer rendered = AnswerRenderer.render(draft, context, pseudonyms);
+
+        assertThat(rendered.segments()).containsExactly(
+                new AnswerSegment.Text("A fatura de " + CARD_NICKNAME + " é "), new AnswerSegment.Value("v1"),
+                new AnswerSegment.Text(", vence em "), new AnswerSegment.Value("v2"), new AnswerSegment.Text("."));
+        assertThat(rendered.explanationSegments()).containsExactly(
+                List.of(new AnswerSegment.Text("Só texto.")),
+                List.of(new AnswerSegment.Value("v4")),
+                List.of(new AnswerSegment.Text(CARD_NICKNAME + " e "), new AnswerSegment.Value("v3")));
+        assertThat(rendered.explanationSegments()).hasSameSizeAs(rendered.explanation());
+        assertThat(rendered.text()).isEqualTo("A fatura de " + CARD_NICKNAME
+                + " é R$ 1.234,56, vence em 15/11/2026.");
+    }
+
+    @Test
+    void namesWithDollarOrBracesStayLiteralTextInPlainTextAndSegments() {
+        Pseudonyms tricky = new Pseudonyms();
+        tricky.assign(PseudonymKind.CARD, CARD_ID, "VISA", "Cartão $1 e {{v:v2}} \\ fim");
+
+        RenderedAnswer rendered = AnswerRenderer.render(new AnswerDraft("De cartao_1: {{v:v1}}", "analysis",
+                List.of(), List.of(), List.of()), context, tricky);
+
+        assertThat(rendered.text()).isEqualTo("De Cartão $1 e {{v:v2}} \\ fim: R$ 1.234,56");
+        assertThat(rendered.segments()).containsExactly(new AnswerSegment.Text("De Cartão $1 e {{v:v2}} \\ fim: "),
+                new AnswerSegment.Value("v1"));
+    }
+
+    @Test
+    void anAnswerWithoutTokensIsASingleTextSegmentAndEmptyTextHasNone() {
+        RenderedAnswer plain = AnswerRenderer.render(new AnswerDraft("Sem valores aqui.", "analysis", List.of(),
+                List.of(), List.of()), context, pseudonyms);
+        assertThat(plain.segments()).containsExactly(new AnswerSegment.Text("Sem valores aqui."));
+        assertThat(new AnswerRenderer.Segments().text("").build()).isEmpty();
+    }
+
+    @Test
+    void actionsCarryTheFixedLabelAndTheScreenParams() {
+        List<RenderedAnswer.Action> actions = AnswerRenderer.resolve(List.of(
+                OfferedAction.invoice("cartao_1", "2026-10"), new OfferedAction(ActionKind.OPEN_FORECAST, null)),
+                pseudonyms);
+
+        assertThat(actions).extracting(RenderedAnswer.Action::label).containsExactly("Ver fatura", "Ver previsão");
+        assertThat(actions.getFirst().params()).containsEntry("month", "2026-10");
+        assertThat(actions.get(1).params()).isEmpty();
     }
 
     @Test

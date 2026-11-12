@@ -19,8 +19,8 @@ import java.util.HexFormat;
 @Component
 public class ClasspathCopilotPrompts implements CopilotPrompts {
 
-    public static final String INTENT_PROMPT = "intent-v1";
-    public static final String ANSWER_PROMPT = "answer-v1";
+    public static final String INTENT_PROMPT = "intent-v2";
+    public static final String ANSWER_PROMPT = "answer-v2";
     public static final String INTENT_SCHEMA = "intents-v1";
     public static final String ANSWER_SCHEMA = "answer-v1";
 

@@ -56,9 +56,9 @@ public class GoalSimulationTool implements FinancialTool {
             return Result.of(Status.NEEDS_TARGET);
         }
         IntentDecision.Scenario input = scenario.get();
-        SimulationView view = simulateGoal.execute(request.workspaceId(), UUID.fromString(goal.get().id()),
-                List.of(new GoalSimulator.Scenario(input.monthlyAmount(), input.deadline(),
-                        input.reductionCategory(), input.reductionAmount())));
+        SimulationView view = ToolSupport.lookup(() -> simulateGoal.execute(request.workspaceId(),
+                UUID.fromString(goal.get().id()), List.of(new GoalSimulator.Scenario(input.monthlyAmount(),
+                        input.deadline(), input.reductionCategory(), input.reductionAmount()))));
         SimulationScenario result = view.scenarios().getFirst().result();
         String tag = goal.get().pseudonym() + " (" + ToolSupport.goalType(goal.get().descriptor()) + ")";
 

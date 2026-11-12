@@ -3,12 +3,16 @@ package com.smarthealthfinance.copilot.application.service;
 import com.smarthealthfinance.consents.domain.enums.ConsentPurpose;
 import com.smarthealthfinance.copilot.application.InMemoryAiUsageLedger;
 import com.smarthealthfinance.copilot.application.dto.Admission;
+import com.smarthealthfinance.copilot.application.exception.ContextNotFoundException;
+import com.smarthealthfinance.copilot.application.port.EntryContextResolver;
 import com.smarthealthfinance.copilot.application.port.RateLimiter;
 import com.smarthealthfinance.copilot.domain.enums.AdmissionCode;
 import com.smarthealthfinance.copilot.domain.enums.AiOutcome;
 import com.smarthealthfinance.copilot.domain.enums.AiRequestType;
 import com.smarthealthfinance.copilot.domain.model.AiUsage;
 import com.smarthealthfinance.copilot.domain.model.CopilotLimits;
+import com.smarthealthfinance.copilot.domain.model.EntryContext;
+import com.smarthealthfinance.copilot.domain.model.Pseudonyms;
 import com.smarthealthfinance.copilot.domain.valueobject.TokenUsage;
 import com.smarthealthfinance.identity.application.InMemoryUserRepository;
 import com.smarthealthfinance.identity.application.InMemoryWorkspaceRepository;
@@ -55,6 +59,8 @@ class CopilotAdmissionTest {
     private boolean consentActive = true;
     private RateLimiter.Decision rate = RateLimiter.Decision.allowed();
     private final List<String> rateCalls = new ArrayList<>();
+    private final List<EntryContext> verified = new ArrayList<>();
+    private boolean contextExists = true;
 
     @BeforeEach
     void setUp() {
@@ -70,11 +76,25 @@ class CopilotAdmissionTest {
         return new CopilotAdmission(current, new WorkspaceAccessGuard(workspaces),
                 (workspace, user, purpose) -> purpose == ConsentPurpose.COPILOT_DATA_USE && consentActive
                         && user.equals(ana.id()),
+                new EntryContextResolver() {
+                    @Override
+                    public void verify(UUID workspaceId, EntryContext context) {
+                        verified.add(context);
+                        if (!contextExists) {
+                            throw new ContextNotFoundException();
+                        }
+                    }
+
+                    @Override
+                    public Resolved resolve(UUID workspaceId, EntryContext context, Pseudonyms pseudonyms) {
+                        throw new UnsupportedOperationException();
+                    }
+                },
                 (workspace, user, capacity, refill) -> {
                     rateCalls.add(capacity + "/" + refill);
                     return rate;
                 },
-                ledger, limits, Clock.fixed(NOW, ZoneOffset.UTC), meters);
+                new QuotaUsage(ledger, limits, Clock.fixed(NOW, ZoneOffset.UTC)), limits, meters);
     }
 
     private static CopilotLimits limits(int daily, int monthly, long tokens) {
@@ -126,6 +146,48 @@ class CopilotAdmissionTest {
 
         assertThat(admit(limits(10, 100, 1_000_000)).code()).isEqualTo(AdmissionCode.CONSENT_REQUIRED);
         assertThat(rateCalls).isEmpty();
+    }
+
+    @Test
+    void contextIsVerifiedAfterConsentAndBeforeTheRateLimit() {
+        EntryContext context = new EntryContext.Goal(UUID.randomUUID());
+        contextExists = false;
+
+        assertThatThrownBy(() -> admission(limits(10, 100, 1_000_000)).admit(anasWorkspace.id().value(), context))
+                .isInstanceOf(ContextNotFoundException.class);
+
+        assertThat(verified).containsExactly(context);
+        assertThat(rateCalls).as("alvo inválido não gasta token do balde nem quota").isEmpty();
+    }
+
+    @Test
+    void existingContextIsAdmittedAndWithoutConsentItIsNeverVerified() {
+        EntryContext context = new EntryContext.Insight(UUID.randomUUID());
+
+        assertThat(admission(limits(10, 100, 1_000_000)).admit(anasWorkspace.id().value(), context).code())
+                .isEqualTo(AdmissionCode.ADMITTED);
+        assertThat(verified).containsExactly(context);
+
+        verified.clear();
+        consentActive = false;
+        assertThat(admission(limits(10, 100, 1_000_000)).admit(anasWorkspace.id().value(), context).code())
+                .isEqualTo(AdmissionCode.CONSENT_REQUIRED);
+        assertThat(verified).isEmpty();
+    }
+
+    @Test
+    void usageSnapshotCountsWithTheSameRuleAsTheQuota() {
+        question(Instant.parse("2026-11-15T03:10:00Z"), 10);
+        question(Instant.parse("2026-11-10T12:00:00Z"), 10);
+
+        QuotaUsage.Snapshot snapshot = new QuotaUsage(ledger, limits(10, 100, 1_000_000),
+                Clock.fixed(NOW, ZoneOffset.UTC)).questions(anasWorkspace.id());
+
+        assertThat(snapshot.month().used()).isEqualTo(2);
+        assertThat(snapshot.day().used()).isEqualTo(1);
+        assertThat(snapshot.month().limit()).isEqualTo(100);
+        assertThat(snapshot.day().resetsAt()).isEqualTo(Instant.parse("2026-11-16T03:00:00Z"));
+        assertThat(snapshot.month().resetsAt()).isEqualTo(Instant.parse("2026-12-01T03:00:00Z"));
     }
 
     @Test

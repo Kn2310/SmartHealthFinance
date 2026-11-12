@@ -10,6 +10,7 @@ import com.smarthealthfinance.cards.application.dto.UtilizationView;
 import com.smarthealthfinance.cards.application.usecase.GetCardsSummary;
 import com.smarthealthfinance.cards.application.usecase.GetFutureInvoices;
 import com.smarthealthfinance.cards.application.usecase.GetInstallmentPlans;
+import com.smarthealthfinance.cards.application.usecase.GetInvoice;
 import com.smarthealthfinance.cards.domain.enums.CardBrand;
 import com.smarthealthfinance.cards.domain.enums.CardStatus;
 import com.smarthealthfinance.cards.domain.enums.InstallmentPlanStatus;
@@ -22,6 +23,29 @@ import com.smarthealthfinance.copilot.domain.model.IntentDecision;
 import com.smarthealthfinance.copilot.domain.model.OfferedAction;
 import com.smarthealthfinance.copilot.domain.model.Pseudonyms;
 import org.junit.jupiter.api.Test;
+import com.smarthealthfinance.cards.application.dto.InvoiceView;
+import com.smarthealthfinance.cards.application.exception.InvoiceNotFoundException;
+import com.smarthealthfinance.copilot.application.exception.TargetNotFoundException;
+import com.smarthealthfinance.health.domain.enums.Confidence;
+import com.smarthealthfinance.insights.application.dto.InsightViews;
+import com.smarthealthfinance.insights.application.port.InsightStore;
+import com.smarthealthfinance.insights.domain.enums.ContributorKind;
+import com.smarthealthfinance.insights.domain.enums.FigureKind;
+import com.smarthealthfinance.insights.domain.enums.Importance;
+import com.smarthealthfinance.insights.domain.enums.InsightDetector;
+import com.smarthealthfinance.insights.domain.enums.InsightStatus;
+import com.smarthealthfinance.insights.domain.enums.InsightsFreshnessState;
+import com.smarthealthfinance.insights.domain.model.Contributor;
+import com.smarthealthfinance.insights.domain.model.Insight;
+import com.smarthealthfinance.insights.domain.model.InsightAction;
+import com.smarthealthfinance.insights.domain.model.InsightContent;
+import com.smarthealthfinance.insights.domain.model.InsightEvidence;
+import com.smarthealthfinance.insights.domain.model.InsightRefs;
+import com.smarthealthfinance.insights.domain.model.InsightsFreshness;
+import com.smarthealthfinance.insights.domain.model.KeyFigure;
+import com.smarthealthfinance.insights.application.usecase.InsightQueries;
+import java.math.BigDecimal;
+import java.util.Map;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -41,6 +65,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class CardsToolTest {
 
@@ -53,7 +78,9 @@ class CardsToolTest {
     private final GetCardsSummary summary = mock(GetCardsSummary.class);
     private final GetFutureInvoices future = mock(GetFutureInvoices.class);
     private final GetInstallmentPlans plans = mock(GetInstallmentPlans.class);
-    private final CardsTool tool = new CardsTool(summary, future, plans);
+    private final GetInvoice invoices = mock(GetInvoice.class);
+    private final InsightQueries insights = mock(InsightQueries.class);
+    private final CardsTool tool = new CardsTool(summary, future, plans, invoices, insights);
 
     private static CardsSummaryView.CardSummary card(UUID id, CardBrand brand, String nickname, String amount) {
         Instant now = Instant.parse("2026-11-10T10:00:00Z");
@@ -94,7 +121,7 @@ class CardsToolTest {
         assertThat(value(result, "Valor já comprometido na próxima fatura de cartao_1 (VISA)").value())
                 .isEqualTo("450");
         assertThat(result.quality().partialPeriod()).isTrue();
-        assertThat(result.actions()).contains(new OfferedAction(ActionKind.OPEN_INVOICE, "cartao_1"),
+        assertThat(result.actions()).contains(OfferedAction.invoice("cartao_1", "2026-11"),
                 new OfferedAction(ActionKind.OPEN_INSTALLMENTS, "cartao_2"));
         verify(future, never()).execute(any(), any());
         verify(plans, never()).list(any(), any(), any());
@@ -114,6 +141,7 @@ class CardsToolTest {
                 LocalDate.of(2026, 11, 10), "cards-v1"));
         when(plans.list(WORKSPACE, CARD_TWO, "ACTIVE")).thenReturn(List.of(
                 plan(brl("1200"), brl("400")), plan(brl("600"), brl("100"))));
+        when(insights.list(WORKSPACE, null, "CARDS", null, 0, 50)).thenReturn(insightPage());
         Pseudonyms pseudonyms = new Pseudonyms();
         pseudonyms.assign(PseudonymKind.CARD, CARD_ONE.toString(), "VISA", NICKNAME);
         pseudonyms.assign(PseudonymKind.CARD, CARD_TWO.toString(), "ELO", "Cartão do trabalho");
@@ -126,7 +154,7 @@ class CardsToolTest {
         assertThat(value(result, "Parcelamentos ativos de cartao_2 (ELO)").value()).isEqualTo("2");
         assertThat(value(result, "Saldo restante dos parcelamentos ativos de cartao_2 (ELO)").value())
                 .isEqualTo("1300");
-        assertThat(result.actions()).containsExactly(new OfferedAction(ActionKind.OPEN_INVOICE, "cartao_2"),
+        assertThat(result.actions()).containsExactly(OfferedAction.invoice("cartao_2", "2026-11"),
                 new OfferedAction(ActionKind.OPEN_INSTALLMENTS, "cartao_2"));
         assertNoLeak(result, NICKNAME, "Cartão do trabalho", LAST4, INSTITUTION, CARD_ONE.toString(),
                 CARD_TWO.toString());
@@ -157,5 +185,111 @@ class CardsToolTest {
         when(summary.execute(WORKSPACE)).thenReturn(view());
 
         assertThat(tool.collect(request(Intent.CARDS)).status()).isEqualTo(FinancialTool.Status.NO_DATA);
+    }
+
+    private static Insight invoiceInsight(UUID cardId, String periodKey) {
+        Instant now = Instant.parse("2026-11-10T10:00:00Z");
+        var evidence = new InsightEvidence(
+                List.of(new KeyFigure("difference", "Diferença", FigureKind.MONEY, new BigDecimal("520.60"),
+                        LocalDate.of(2026, 7, 6), LocalDate.of(2026, 11, 9))),
+                List.of(), List.of(
+                        new Contributor(ContributorKind.FACTOR, "category:FOOD", "Alimentação fora",
+                                new BigDecimal("311.00"), null, null, null),
+                        new Contributor(ContributorKind.FACTOR, "plan:abc", "Parcela de Loja Tech (3/10)",
+                                new BigDecimal("160.00"), null, null, null),
+                        new Contributor(ContributorKind.FACTOR, "others", "Outros", new BigDecimal("49.60"), null,
+                                null, null)),
+                "comparacao", List.of(), List.of());
+        var content = new InsightContent("TITULO", "APOIO", NICKNAME, null, null, evidence,
+                List.of(InsightAction.primary(com.smarthealthfinance.insights.domain.enums.ActionKind.VIEW_INVOICE,
+                        "Ver", Map.of())), InsightRefs.none());
+        return new Insight(UUID.randomUUID(), WORKSPACE, "fp", "insights-v3", InsightDetector.INVOICE_ABOVE_PATTERN,
+                periodKey, cardId.toString(), InsightStatus.ACTIVE, null, Importance.IMPORTANT, 50, 50,
+                Confidence.HIGH, 10, brl("520.60"), null, true, content, null, null, null, null, 1, now, now, now);
+    }
+
+    private static InsightViews.Page insightPage(Insight... items) {
+        return new InsightViews.Page(InsightViews.DataState.READY,
+                new InsightsFreshness(InsightsFreshnessState.UP_TO_DATE, null, null),
+                new InsightViews.Period(YearMonth.of(2026, 11), true),
+                new InsightStore.ChipCounts(items.length, 0, 0, 0, 0, 0), List.of(items), 0, 50, items.length);
+    }
+
+    private void stubTargetCard() {
+        when(summary.execute(WORKSPACE)).thenReturn(view(card(CARD_TWO, CardBrand.ELO, "Cartão do trabalho", "800")));
+        when(future.execute(WORKSPACE, CARD_TWO)).thenReturn(new FutureInvoicesView(List.of(), brl("0"),
+                LocalDate.of(2026, 11, 10), "cards-v1"));
+        when(plans.list(WORKSPACE, CARD_TWO, "ACTIVE")).thenReturn(List.of());
+    }
+
+    private static Pseudonyms targetPseudonyms() {
+        Pseudonyms pseudonyms = new Pseudonyms();
+        pseudonyms.assign(PseudonymKind.CARD, CARD_TWO.toString(), "ELO", "Cartão do trabalho");
+        return pseudonyms;
+    }
+
+    @Test
+    void invoiceFactorsOfTheActiveInsightEnterTheContextWithoutMerchantNamesAndFeedTheBreakdown() {
+        stubTargetCard();
+        when(insights.list(WORKSPACE, null, "CARDS", null, 0, 50))
+                .thenReturn(insightPage(invoiceInsight(UUID.randomUUID(), "2026-11"),
+                        invoiceInsight(CARD_TWO, "2026-11")));
+
+        var result = tool.collect(request(decision(Intent.CARDS, YearMonth.of(2026, 11), null, "cartao_1", null),
+                targetPseudonyms()));
+
+        String tag = "cartao_1 (ELO)";
+        assertThat(value(result, "Diferença da fatura de " + tag + " contra a média das anteriores").value())
+                .isEqualTo("520.6");
+        assertThat(value(result, "Maior fator da diferença da fatura de " + tag).value()).isEqualTo("311");
+        assertThat(value(result, "Segundo maior fator da diferença da fatura de " + tag).value()).isEqualTo("160");
+        assertThat(value(result, "Demais fatores da diferença da fatura de " + tag).value()).isEqualTo("49.6");
+        assertNoLeak(result, "Loja Tech", "Alimentação fora", NICKNAME);
+        assertThat(result.breakdown()).isNotNull();
+        assertThat(result.breakdown().rows()).extracting(row -> row.label())
+                .containsExactly("Alimentação fora", "Parcela de Loja Tech (3/10)", "Outros");
+        assertThat(result.values().get(result.breakdown().totalIndex()).label()).startsWith("Diferença da fatura");
+        assertThat(result.quality().partialPeriod()).isTrue();
+    }
+
+    @Test
+    void breakdownIsAbsentWithoutAnActiveInsightForThatInvoice() {
+        stubTargetCard();
+        when(insights.list(WORKSPACE, null, "CARDS", null, 0, 50))
+                .thenReturn(insightPage(invoiceInsight(CARD_TWO, "2026-10")));
+
+        var result = tool.collect(request(decision(Intent.CARDS, null, null, "cartao_1", null),
+                targetPseudonyms()));
+
+        assertThat(result.breakdown()).isNull();
+        assertThat(result.values()).noneMatch(v -> v.label().contains("fator"));
+    }
+
+    @Test
+    void askedInvoiceMonthAddsThatInvoiceAndSetsTheActionMonth() {
+        stubTargetCard();
+        when(insights.list(WORKSPACE, null, "CARDS", null, 0, 50)).thenReturn(insightPage());
+        var october = new InvoiceSummaryView(YearMonth.of(2026, 10), LocalDate.of(2026, 9, 6),
+                LocalDate.of(2026, 10, 5), LocalDate.of(2026, 10, 12), LocalDate.of(2026, 10, 12),
+                InvoiceDatesSource.CALCULATED, InvoiceStatus.PAID, brl("2100"), brl("0"), brl("2100"), brl("2100"),
+                brl("0"), null, false);
+        when(invoices.byDueMonth(WORKSPACE, CARD_TWO, "2026-10")).thenReturn(new InvoiceView(october, 12,
+                LocalDate.of(2026, 11, 10), "cards-v1"));
+
+        var result = tool.collect(request(decision(Intent.CARDS, YearMonth.of(2026, 10), null, "cartao_1", null),
+                targetPseudonyms()));
+
+        assertThat(value(result, "Total da fatura pedida de cartao_1 (ELO)").value()).isEqualTo("2100");
+        assertThat(value(result, "Total da fatura pedida de cartao_1 (ELO)").period()).isEqualTo("2026-10");
+        assertThat(result.actions()).contains(OfferedAction.invoice("cartao_1", "2026-10"));
+    }
+
+    @Test
+    void invoiceThatDoesNotExistBecomesATargetNotFound() {
+        when(summary.execute(WORKSPACE)).thenReturn(view(card(CARD_TWO, CardBrand.ELO, "Cartão do trabalho", "800")));
+        when(invoices.byDueMonth(WORKSPACE, CARD_TWO, "2026-03")).thenThrow(new InvoiceNotFoundException());
+
+        assertThatThrownBy(() -> tool.collect(request(decision(Intent.CARDS, YearMonth.of(2026, 3), null,
+                "cartao_1", null), targetPseudonyms()))).isInstanceOf(TargetNotFoundException.class);
     }
 }

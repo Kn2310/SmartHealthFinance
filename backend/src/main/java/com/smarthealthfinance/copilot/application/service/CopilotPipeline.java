@@ -1,30 +1,39 @@
 package com.smarthealthfinance.copilot.application.service;
 
 import com.smarthealthfinance.copilot.application.dto.Admission;
+import com.smarthealthfinance.copilot.application.dto.AskCommand;
 import com.smarthealthfinance.copilot.application.dto.CopilotResult;
 import com.smarthealthfinance.copilot.application.port.AiGateway;
 import com.smarthealthfinance.copilot.application.port.AiRequest;
 import com.smarthealthfinance.copilot.application.port.AiResult;
 import com.smarthealthfinance.copilot.application.port.CopilotCodec;
+import com.smarthealthfinance.copilot.application.exception.TargetNotFoundException;
 import com.smarthealthfinance.copilot.application.port.CopilotPrompts;
+import com.smarthealthfinance.copilot.application.port.EntryContextResolver;
 import com.smarthealthfinance.copilot.application.port.FinancialTool;
 import com.smarthealthfinance.copilot.application.port.RequestCatalog;
 import com.smarthealthfinance.copilot.domain.enums.AiOutcome;
 import com.smarthealthfinance.copilot.domain.enums.AiRequestType;
 import com.smarthealthfinance.copilot.domain.enums.AnswerConfidence;
 import com.smarthealthfinance.copilot.domain.enums.Intent;
+import com.smarthealthfinance.copilot.domain.enums.Notice;
+import com.smarthealthfinance.copilot.domain.enums.PseudonymKind;
 import com.smarthealthfinance.copilot.domain.enums.ResultCode;
 import com.smarthealthfinance.copilot.domain.enums.ValidationStatus;
 import com.smarthealthfinance.copilot.domain.model.AnswerDraft;
+import com.smarthealthfinance.copilot.domain.model.Breakdown;
 import com.smarthealthfinance.copilot.domain.model.CopilotContext;
 import com.smarthealthfinance.copilot.domain.model.CopilotLimits;
 import com.smarthealthfinance.copilot.domain.model.IntentDecision;
+import com.smarthealthfinance.copilot.domain.model.OfferedAction;
 import com.smarthealthfinance.copilot.domain.model.PipelineSettings;
 import com.smarthealthfinance.copilot.domain.model.Pseudonyms;
 import com.smarthealthfinance.copilot.domain.model.RenderedAnswer;
+import com.smarthealthfinance.copilot.domain.service.AnswerNotices;
 import com.smarthealthfinance.copilot.domain.service.AnswerRenderer;
 import com.smarthealthfinance.copilot.domain.service.ClaimValidator;
 import com.smarthealthfinance.copilot.domain.service.ConfidencePolicy;
+import com.smarthealthfinance.copilot.domain.service.DataUsedLabels;
 import com.smarthealthfinance.copilot.domain.service.TemplateAnswers;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
 import io.micrometer.core.instrument.MeterRegistry;
@@ -37,7 +46,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -64,6 +75,7 @@ public class CopilotPipeline {
     private static final Logger log = LoggerFactory.getLogger(CopilotPipeline.class);
 
     private final RequestCatalog catalog;
+    private final EntryContextResolver contexts;
     private final AiGateway gateway;
     private final AiUsageRecorder recorder;
     private final CopilotCodec codec;
@@ -74,10 +86,12 @@ public class CopilotPipeline {
     private final Clock clock;
     private final MeterRegistry meters;
 
-    public CopilotPipeline(RequestCatalog catalog, AiGateway gateway, AiUsageRecorder recorder, CopilotCodec codec,
-                           CopilotPrompts prompts, List<FinancialTool> tools, PipelineSettings settings,
-                           CopilotLimits limits, Clock clock, MeterRegistry meters) {
+    public CopilotPipeline(RequestCatalog catalog, EntryContextResolver contexts, AiGateway gateway,
+                           AiUsageRecorder recorder, CopilotCodec codec, CopilotPrompts prompts,
+                           List<FinancialTool> tools, PipelineSettings settings, CopilotLimits limits, Clock clock,
+                           MeterRegistry meters) {
         this.catalog = catalog;
+        this.contexts = contexts;
         this.gateway = gateway;
         this.recorder = recorder;
         this.codec = codec;
@@ -103,7 +117,13 @@ public class CopilotPipeline {
         return done(result, admission, clock.instant());
     }
 
+    /** Pergunta sem continuidade nem contexto de entrada. */
     public CopilotResult run(UUID requestId, Admission admission, String question) {
+        return run(requestId, admission, AskCommand.of(question));
+    }
+
+    /** {@code command} já validado e normalizado por {@code AskCopilot}. */
+    public CopilotResult run(UUID requestId, Admission admission, AskCommand command) {
         Instant started = clock.instant();
         Instant deadline = started.plus(settings.budget());
         LocalDate today = LocalDate.ofInstant(started, zone);
@@ -111,7 +131,8 @@ public class CopilotPipeline {
         RequestCatalog.Catalog requestCatalog = catalog.load(admission.workspaceId().value(), pseudonyms);
 
         AiResult classified = gateway.classify(new AiRequest(prompts.intentPrompt().text(),
-                codec.intentInput(question, today, requestCatalog), prompts.intentSchema().text(), deadline));
+                codec.intentInput(command.question(), command.previousQuestions(), today, requestCatalog),
+                prompts.intentSchema().text(), deadline));
         record(admission, requestId, AiRequestType.INTENT, classified, prompts.intentPrompt(), prompts.intentSchema());
         if (classified.outcome() == AiOutcome.REFUSED) {
             return answered(requestId, admission, started, ResultCode.OUT_OF_SCOPE, Intent.OUT_OF_SCOPE,
@@ -132,20 +153,54 @@ public class CopilotPipeline {
             return answered(requestId, admission, started, ResultCode.OUT_OF_SCOPE, intent,
                     TemplateAnswers.outOfScope(), null, ValidationStatus.NOT_APPLICABLE);
         }
+
+        Optional<EntryContextResolver.Resolved> entry;
+        try {
+            entry = command.contextValue().map(context -> contexts.resolve(admission.workspaceId().value(), context,
+                    pseudonyms));
+        } catch (TargetNotFoundException e) {
+            // O alvo sumiu entre a admissão e agora (ADR-0040 §9).
+            return insufficient(requestId, admission, started, intent);
+        }
         if (intent == Intent.UNSUPPORTED_ACTION) {
+            // Com contexto, o link da tela do contexto; sem contexto, sem link (adendo ADR-0039 §13).
+            List<OfferedAction> links = entry.map(resolved -> List.of(resolved.screen())).orElse(List.of());
             return answered(requestId, admission, started, ResultCode.OUT_OF_SCOPE, intent,
-                    TemplateAnswers.unsupportedAction(List.of(), pseudonyms), null, ValidationStatus.NOT_APPLICABLE);
+                    TemplateAnswers.unsupportedAction(links, pseudonyms), null, ValidationStatus.NOT_APPLICABLE);
         }
 
-        FinancialTool.Result data = collect(admission, decision.get(), pseudonyms, today, requestCatalog);
+        IntentDecision effective = entry.map(resolved -> withContext(decision.get(), resolved))
+                .orElse(decision.get());
+        FinancialTool.Result data = collect(admission, effective, pseudonyms, today, requestCatalog);
         CopilotContext context = ContextBuilder.build(intent, today, requestCatalog.currency(), data,
                 settings.contextTokenCeiling());
         if (data.status() != FinancialTool.Status.DATA || context.empty()) {
-            return answered(requestId, admission, started, ResultCode.INSUFFICIENT_DATA, intent,
-                    TemplateAnswers.insufficientData(intent), null, ValidationStatus.NOT_APPLICABLE);
+            return insufficient(requestId, admission, started, intent);
         }
         AnswerConfidence confidence = ConfidencePolicy.of(context);
-        return answer(requestId, admission, started, deadline, question, context, pseudonyms, confidence);
+        return answer(requestId, admission, started, deadline, command, context, pseudonyms, confidence);
+    }
+
+    private CopilotResult insufficient(UUID requestId, Admission admission, Instant started, Intent intent) {
+        return answered(requestId, admission, started, ResultCode.INSUFFICIENT_DATA, intent,
+                TemplateAnswers.insufficientData(intent), null, ValidationStatus.NOT_APPLICABLE);
+    }
+
+    /**
+     * O alvo do contexto de entrada substitui a escolha do modelo de intenção (adendo ADR-0039 §13), só quando o
+     * tipo do alvo é o que a intenção usa; a fatura também fixa o mês, só em {@code CARDS}.
+     */
+    private static IntentDecision withContext(IntentDecision decision, EntryContextResolver.Resolved resolved) {
+        PseudonymKind kind = switch (decision.intent()) {
+            case CARDS -> PseudonymKind.CARD;
+            case GOALS, GOAL_SIMULATION -> PseudonymKind.GOAL;
+            case INSIGHTS -> PseudonymKind.INSIGHT;
+            default -> null;
+        };
+        String target = kind == null ? decision.target() : resolved.target(kind).orElse(decision.target());
+        YearMonth month = decision.intent() == Intent.CARDS ? resolved.monthValue().orElse(decision.month())
+                : decision.month();
+        return new IntentDecision(decision.intent(), month, decision.category(), target, decision.scenario());
     }
 
     private FinancialTool.Result collect(Admission admission, IntentDecision decision, Pseudonyms pseudonyms,
@@ -159,7 +214,7 @@ public class CopilotPipeline {
         try {
             data = tool.collect(new FinancialTool.Request(admission.workspaceId().value(), decision, pseudonyms, today,
                     requestCatalog.categoryNames()));
-        } catch (InvalidValueException e) {
+        } catch (InvalidValueException | TargetNotFoundException e) {
             data = FinancialTool.Result.of(FinancialTool.Status.NO_DATA);
         }
         sample.stop(Timer.builder("shf.copilot.tool").tag("intent", decision.intent().name())
@@ -169,7 +224,7 @@ public class CopilotPipeline {
 
     /** Resposta, validação e no máximo uma regeneração, dentro do orçamento; senão, modo seguro. */
     private CopilotResult answer(UUID requestId, Admission admission, Instant started, Instant deadline,
-                                 String question, CopilotContext context, Pseudonyms pseudonyms,
+                                 AskCommand command, CopilotContext context, Pseudonyms pseudonyms,
                                  AnswerConfidence confidence) {
         List<String> violations = List.of();
         for (AiRequestType attempt : List.of(AiRequestType.ANSWER, AiRequestType.REGENERATE)) {
@@ -178,7 +233,8 @@ public class CopilotPipeline {
                 break;
             }
             AiResult result = gateway.answer(new AiRequest(prompts.answerPrompt().text(),
-                    codec.answerInput(question, context, violations), prompts.answerSchema().text(), deadline));
+                    codec.answerInput(command.question(), command.previousQuestions(), context, violations),
+                    prompts.answerSchema().text(), deadline));
             record(admission, requestId, attempt, result, prompts.answerPrompt(), prompts.answerSchema());
             if (result.outcome() != AiOutcome.OK) {
                 break;
@@ -191,17 +247,36 @@ public class CopilotPipeline {
             if (violations.isEmpty()) {
                 ValidationStatus status = attempt == AiRequestType.ANSWER ? ValidationStatus.VALID
                         : ValidationStatus.REGENERATED;
-                RenderedAnswer rendered = AnswerRenderer.render(draft.orElseThrow(), context, pseudonyms);
+                RenderedAnswer rendered = enrich(AnswerRenderer.render(draft.orElseThrow(), context, pseudonyms),
+                        context, pseudonyms);
                 return answered(requestId, admission, started, ResultCode.OK, context.intent(), rendered, confidence,
-                        status);
+                        status, AnswerNotices.of(context, status));
             }
             violations.forEach(code -> meters.counter("shf.copilot.validation.violation", "code", code).increment());
         }
         return answered(requestId, admission, started, ResultCode.SAFE_MODE, context.intent(),
-                TemplateAnswers.safeMode(context, pseudonyms), confidence, ValidationStatus.SAFE_MODE);
+                enrich(TemplateAnswers.safeMode(context, pseudonyms), context, pseudonyms), confidence,
+                ValidationStatus.SAFE_MODE, AnswerNotices.of(context, ValidationStatus.SAFE_MODE));
     }
 
-    /** O que resta do orçamento, se ainda vale a pena chamar o modelo. */
+    /**
+     * Quadro de decomposição e "Dados usados" (ADR-0040 §3): montados pelo sistema a partir do contexto, nunca pelo
+     * modelo. Os valores que o quadro cita entram na lista de valores da resposta para a UI resolver por ref.
+     */
+    private static RenderedAnswer enrich(RenderedAnswer answer, CopilotContext context, Pseudonyms pseudonyms) {
+        Breakdown breakdown = context.breakdown();
+        List<RenderedAnswer.Value> cited = List.of();
+        if (breakdown != null) {
+            List<String> refs = new ArrayList<>(breakdown.rows().stream().map(Breakdown.Row::valueRef).toList());
+            if (breakdown.totalRef() != null) {
+                refs.add(breakdown.totalRef());
+            }
+            cited = refs.stream().map(context::find).flatMap(Optional::stream)
+                    .map(value -> AnswerRenderer.value(value, context, pseudonyms)).toList();
+        }
+        return answer.withSystemParts(breakdown, cited, DataUsedLabels.of(context));
+    }
+
     /** Se ainda vale a pena chamar o modelo: resta ao menos o mínimo por chamada até o fim do orçamento. */
     private boolean worthCalling(Instant deadline) {
         return Duration.between(clock.instant(), deadline).compareTo(settings.minimumCall()) >= 0;
@@ -216,8 +291,14 @@ public class CopilotPipeline {
     private CopilotResult answered(UUID requestId, Admission admission, Instant started, ResultCode code,
                                    Intent intent, RenderedAnswer answer, AnswerConfidence confidence,
                                    ValidationStatus validation) {
+        return answered(requestId, admission, started, code, intent, answer, confidence, validation, List.of());
+    }
+
+    private CopilotResult answered(UUID requestId, Admission admission, Instant started, ResultCode code,
+                                   Intent intent, RenderedAnswer answer, AnswerConfidence confidence,
+                                   ValidationStatus validation, List<Notice> notices) {
         return done(new CopilotResult(requestId, code, intent, answer, confidence, validation, null, null,
-                versions()), admission, started);
+                versions(), notices), admission, started);
     }
 
     private CopilotResult done(CopilotResult result, Admission admission, Instant started) {

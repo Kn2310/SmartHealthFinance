@@ -35,6 +35,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import com.smarthealthfinance.copilot.application.port.EntryContextResolver;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -67,6 +68,9 @@ class CopilotPipelineIT extends IntegrationTest {
 
     @Autowired
     RequestCatalog catalog;
+
+    @Autowired
+    EntryContextResolver contexts;
 
     @Autowired
     AiGateway gateway;
@@ -129,7 +133,7 @@ class CopilotPipelineIT extends IntegrationTest {
         assertThat(jdbc.queryForList("select request_type from ai_usage where request_id = ? order by created_at",
                 String.class, result.requestId())).containsExactly("INTENT", "ANSWER");
         assertThat(jdbc.queryForList("select prompt_version from ai_usage", String.class))
-                .allMatch(version -> version.matches("(intent|answer)-v1@[0-9a-f]{8}"));
+                .allMatch(version -> version.matches("(intent|answer)-v2@[0-9a-f]{8}"));
     }
 
     @Test
@@ -151,7 +155,7 @@ class CopilotPipelineIT extends IntegrationTest {
                 return gateway.answer(request);
             }
         };
-        CopilotPipeline pipeline = new CopilotPipeline(catalog, capturing, recorder, codec, prompts, tools,
+        CopilotPipeline pipeline = new CopilotPipeline(catalog, contexts, capturing, recorder, codec, prompts, tools,
                 PipelineSettings.DEFAULT, limits, clock, meters);
         Admission admitted = admission.admit(UUID.fromString(anasWorkspace));
 
@@ -212,9 +216,7 @@ class CopilotPipelineIT extends IntegrationTest {
     }
 
     @Test
-    void diagnosticEndpointExistsOnlyInTheLocalProfile() {
-        assertThat(context.getBeanNamesForType(
-                com.smarthealthfinance.copilot.presentation.controller.CopilotDiagnosticController.class)).isEmpty();
+    void theDiagnosticEndpointIsGone() {
         assertThat(mvc.post().uri("/api/v1/workspaces/{id}/copilot/diagnostic", anasWorkspace)
                 .with(request("sub-ana", "ana@example.com")).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"question\": \"Qual é o meu saldo?\"}")).hasStatus(HttpStatus.NOT_FOUND);

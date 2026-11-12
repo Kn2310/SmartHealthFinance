@@ -171,6 +171,9 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
     que os casos de uso devolvem. Repositórios, serviços de domínio, infraestrutura, apresentação e outros casos de
     uso continuam proibidos. A tool de insights usa `InsightQueries.list` e não `highlights`, que carrega textos
     prontos.
+    - **Adendo (2026-11-11, ADR-0040, aprovado pelo usuário):** a lista passa a incluir os pacotes
+      `application.exception` de `cards`, `goals`, `insights` e `transactions`. São só os tipos de "não encontrado"
+      que o contexto de entrada traduz para 404 e o pipeline, para `INSUFFICIENT_DATA`. Nenhum caso de uso novo entra.
   - **Adendo (2026-11-10, Parte C, aprovado pelo usuário): catálogo da intenção.** Antes da intenção, o pipeline monta
     o catálogo da pergunta com `ListCategories`, `ListGoals` e `GetCardsSummary`: categorias (código e nome) e alvos
     pseudonimizados (`objetivo_N` com tipo, prazo e status; `cartao_N` com a bandeira). O modelo de intenção pode
@@ -290,6 +293,10 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
 - Com `COPILOT_HISTORY`, o histórico é retido por 90 dias e apagado por job; a revogação apaga de vez (ADR-0038 §4).
   Ambos implementados na 8.2.
 - Continuidade da conversa: as últimas 3 trocas entram como texto renderizado, nunca como valores reaproveitados.
+  - **Adendo (2026-11-11, ADR-0040, aprovado pelo usuário):** ao modelo vão só as até 3 **perguntas** anteriores e as
+    intenções delas, nunca as respostas. O texto renderizado tem números (o modelo os copiaria e a claim validation
+    reprovaria) e nomes digitados. Sem histórico, o cliente manda as perguntas da tela; com histórico, o servidor as lê
+    da conversa. Retenção por mensagem (90 dias depois de criada) e exclusão pela pessoa: ADR-0040 §6.
 
 ### 10. Usage ledger, quotas e rate limit
 
@@ -379,6 +386,15 @@ Códigos de resultado:
   (`@Hidden`).
 - Passa pela mesma autenticação, membership, consentimento, rate limit e quota do caso de uso.
 - Serve para o smoke test com a chave real. A API de conversa da 8.2 o substitui.
+
+**Adendo (2026-11-11, ADR-0040, aprovado pelo usuário): API de conversa.**
+
+- O endpoint de diagnóstico é removido; o smoke test com a chave real usa `POST /copilot/questions` (ADR-0040).
+- `UNSUPPORTED_ACTION` traz o link da tela quando a pergunta tem contexto de entrada (insight, fatura, parcelamento ou
+  objetivo); sem contexto, continua sem link.
+- Not-found de uma tool no meio do pipeline vira `INSUFFICIENT_DATA`, sem chamar o modelo de resposta. O alvo do
+  contexto de entrada é validado antes do rate limit (404 `COPILOT_CONTEXT_NOT_FOUND`).
+- O contexto de entrada substitui a escolha de alvo do modelo de intenção.
 
 ## Para a Sessão 8.2
 

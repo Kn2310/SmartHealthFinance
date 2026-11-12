@@ -64,7 +64,27 @@ public enum ErrorCode {
 	CONSENT_PREREQUISITE_MISSING(HttpStatus.CONFLICT, "Conceda antes o consentimento do qual este depende."),
 	/** Mesma Idempotency-Key com conteúdo diferente (spec 05.6). */
 	IDEMPOTENCY_KEY_REUSED(HttpStatus.UNPROCESSABLE_CONTENT,
-			"A Idempotency-Key já foi usada em uma requisição com outro conteúdo.");
+			"A Idempotency-Key já foi usada em uma requisição com outro conteúdo."),
+	/** 429 genérico: precisa vir antes de qualquer 429 específico por causa de {@link #fromStatus}. */
+	TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "Muitas requisições. Tente novamente em instantes."),
+	/** Sem o consentimento COPILOT_DATA_USE ativo (ADR-0040 §4). */
+	COPILOT_CONSENT_REQUIRED(HttpStatus.FORBIDDEN, "O uso dos seus dados pelo Copilot precisa estar autorizado."),
+	/** Rate limit por pessoa; o header Retry-After diz quando tentar de novo (ADR-0040 §4). */
+	COPILOT_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "Você fez perguntas demais em pouco tempo."),
+	/** Quota do Workspace esgotada; resetsAt diz quando volta (ADR-0040 §4). */
+	COPILOT_QUOTA_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "O limite de perguntas ao Copilot foi atingido."),
+	/** Provedor fora, circuito aberto, Copilot desligado ou Redis fora (ADR-0040 §4). */
+	COPILOT_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "O Copilot está indisponível no momento."),
+	/** Alvo do contexto de entrada inexistente ou de outro Workspace: indistinguíveis de propósito (ADR-0040 §3). */
+	COPILOT_CONTEXT_NOT_FOUND(HttpStatus.NOT_FOUND, "O item da pergunta não foi encontrado."),
+	/** Conversa inexistente, de outra pessoa, expirada ou sem COPILOT_HISTORY (ADR-0040 §4). */
+	COPILOT_CONVERSATION_NOT_FOUND(HttpStatus.NOT_FOUND, "Conversa não encontrada."),
+	/** Replay de uma chave ainda em processamento (ADR-0040 §5). */
+	COPILOT_REQUEST_IN_PROGRESS(HttpStatus.CONFLICT, "A pergunta ainda está sendo respondida."),
+	/** Replay de uma pergunta já respondida numa conversa sem histórico (ADR-0040 §5). */
+	COPILOT_ALREADY_ANSWERED(HttpStatus.CONFLICT, "Esta pergunta já foi respondida. Pergunte de novo."),
+	/** Feedback sobre uma pergunta que não é da pessoa no Workspace, ou inexistente (ADR-0040 §8). */
+	COPILOT_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "Pergunta não encontrada.");
 
 	private final HttpStatus status;
 	private final String defaultMessage;

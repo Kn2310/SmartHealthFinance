@@ -2,6 +2,7 @@ package com.smarthealthfinance.copilot.application.service;
 
 import com.smarthealthfinance.copilot.application.port.FinancialTool;
 import com.smarthealthfinance.copilot.domain.enums.Intent;
+import com.smarthealthfinance.copilot.domain.model.Breakdown;
 import com.smarthealthfinance.copilot.domain.model.ContextValue;
 import com.smarthealthfinance.copilot.domain.model.CopilotContext;
 
@@ -13,7 +14,8 @@ import java.util.List;
 /**
  * Context Builder e Context Validation (ADR-0039 §5): numera os valores da tool ({@code v1}, {@code v2}…) na ordem de
  * prioridade e corta pelo fim quando o contexto passa do teto de tokens estimados. O corte é sempre de valores
- * inteiros, nunca no meio de um.
+ * inteiros, nunca no meio de um. O quadro de decomposição da tool (ADR-0040 §3) troca posições por refs; linhas cujo
+ * valor foi cortado saem, e o quadro some se perdeu o total ou todas as linhas.
  */
 final class ContextBuilder {
 
@@ -36,6 +38,24 @@ final class ContextBuilder {
             values.add(value.withRef("v" + (values.size() + 1)));
         }
         return new CopilotContext(intent, today, currency, values, result.quality(), result.sources(),
-                result.actions());
+                result.actions(), breakdown(result.breakdown(), values));
+    }
+
+    private static Breakdown breakdown(FinancialTool.BreakdownDraft draft, List<ContextValue> values) {
+        if (draft == null) {
+            return null;
+        }
+        String totalRef = null;
+        if (draft.totalIndex() != null) {
+            if (draft.totalIndex() >= values.size()) {
+                return null;
+            }
+            totalRef = values.get(draft.totalIndex()).ref();
+        }
+        List<Breakdown.Row> rows = draft.rows().stream()
+                .filter(row -> row.valueIndex() < values.size())
+                .map(row -> new Breakdown.Row(row.label(), values.get(row.valueIndex()).ref(), row.detail()))
+                .toList();
+        return rows.isEmpty() ? null : new Breakdown(draft.title(), rows, totalRef);
     }
 }

@@ -1,7 +1,25 @@
 package com.smarthealthfinance.isolation;
 
 import com.jayway.jsonpath.JsonPath;
+import com.smarthealthfinance.copilot.application.dto.CopilotResult;
+import com.smarthealthfinance.copilot.application.dto.NewMessage;
+import com.smarthealthfinance.copilot.application.port.ConversationStore;
+import com.smarthealthfinance.copilot.application.port.FeedbackStore;
+import com.smarthealthfinance.copilot.domain.enums.AiOutcome;
+import com.smarthealthfinance.copilot.domain.enums.AiRequestType;
+import com.smarthealthfinance.copilot.domain.enums.AnswerType;
+import com.smarthealthfinance.copilot.domain.enums.FeedbackRating;
+import com.smarthealthfinance.copilot.domain.enums.Intent;
+import com.smarthealthfinance.copilot.domain.enums.ResultCode;
+import com.smarthealthfinance.copilot.domain.enums.ValidationStatus;
+import com.smarthealthfinance.copilot.domain.model.AiUsage;
+import com.smarthealthfinance.copilot.domain.model.RenderedAnswer;
+import com.smarthealthfinance.copilot.domain.repository.AiUsageLedger;
+import com.smarthealthfinance.copilot.domain.valueobject.TokenUsage;
 import com.smarthealthfinance.identity.IdentityTables;
+import com.smarthealthfinance.identity.domain.valueobject.UserId;
+import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
+import com.smarthealthfinance.shared.domain.UuidV7;
 import com.smarthealthfinance.support.IntegrationTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,8 +38,12 @@ import org.springframework.test.web.servlet.request.AbstractMockHttpServletReque
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping;
 
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -69,6 +91,17 @@ class WorkspaceIsolationIT extends IntegrationTest {
     private static final String GOALS = WORKSPACE_SCOPE + "/goals";
     private static final String GOAL = GOALS + "/{goalId}";
     private static final String CONSENTS = WORKSPACE_SCOPE + "/consents";
+    private static final String COPILOT = WORKSPACE_SCOPE + "/copilot";
+    private static final String COPILOT_QUESTIONS = COPILOT + "/questions";
+    private static final String COPILOT_CONVERSATIONS = COPILOT + "/conversations";
+    private static final String COPILOT_CONVERSATION = COPILOT_CONVERSATIONS + "/{conversationId}";
+    private static final String COPILOT_FEEDBACK = COPILOT_QUESTIONS + "/{requestId}/feedback";
+    private static final String COPILOT_FEEDBACK_JSON = """
+            {"rating": "NOT_HELPFUL", "reason": "OTHER"}
+            """;
+    private static final String COPILOT_QUESTION_JSON = """
+            {"question": "Qual é o meu saldo?"}
+            """;
     private static final String GOAL_UPDATE_JSON = """
             {"name": "Invasor", "targetAmount": {"amount": "10.00", "currency": "BRL"},
              "plannedMonthly": {"amount": "1.00", "currency": "BRL"}}
@@ -104,6 +137,15 @@ class WorkspaceIsolationIT extends IntegrationTest {
     JdbcTemplate jdbc;
 
     @Autowired
+    ConversationStore conversations;
+
+    @Autowired
+    FeedbackStore copilotFeedback;
+
+    @Autowired
+    AiUsageLedger aiUsage;
+
+    @Autowired
     @Qualifier("requestMappingHandlerMapping")
     RequestMappingHandlerMapping handlerMapping;
 
@@ -114,11 +156,11 @@ class WorkspaceIsolationIT extends IntegrationTest {
     /** Ids de um Workspace semeado: uma conta ativa, uma segunda conta, uma arquivada, transações POSTED/PENDING e um preview de importação. */
     record Fixture(String workspace, String account, String otherAccount, String archivedAccount, String posted,
                    String pending, String importId, String card, String purchase, String expenseSeries,
-                   String incomeSeries, String goal) {
+                   String incomeSeries, String goal, String conversation, String copilotRequest) {
 
         List<String> ids() {
             return List.of(workspace, account, otherAccount, archivedAccount, posted, pending, importId, card,
-                    purchase, expenseSeries, incomeSeries, goal);
+                    purchase, expenseSeries, incomeSeries, goal, conversation, copilotRequest);
         }
     }
 
@@ -265,6 +307,21 @@ class WorkspaceIsolationIT extends IntegrationTest {
                     json(f -> """
                             {"granted": false}
                             """)),
+
+            op("copilot: perguntar", HttpMethod.POST, COPILOT_QUESTIONS, f -> new Object[0],
+                    idempotent(json(f -> COPILOT_QUESTION_JSON))),
+            op("copilot: perguntar numa conversa", HttpMethod.POST, COPILOT_QUESTIONS, f -> new Object[0],
+                    idempotent(json(f -> """
+                            {"question": "E agora?", "conversationId": "%s"}
+                            """.formatted(f.conversation())))),
+            op("copilot: uso", HttpMethod.GET, COPILOT + "/usage", f -> new Object[0], NONE),
+            op("copilot: listar conversas", HttpMethod.GET, COPILOT_CONVERSATIONS, f -> new Object[0], NONE),
+            op("copilot: consultar conversa", HttpMethod.GET, COPILOT_CONVERSATION, f -> ids(f.conversation()), NONE),
+            op("copilot: apagar conversa", HttpMethod.DELETE, COPILOT_CONVERSATION, f -> ids(f.conversation()), NONE),
+            op("copilot: apagar todas as conversas", HttpMethod.DELETE, COPILOT_CONVERSATIONS, f -> new Object[0],
+                    NONE),
+            op("copilot: feedback", HttpMethod.PUT, COPILOT_FEEDBACK, f -> ids(f.copilotRequest()),
+                    json(f -> COPILOT_FEEDBACK_JSON)),
 
             op("goals: listar", HttpMethod.GET, GOALS, f -> new Object[0], NONE),
             op("goals: criar", HttpMethod.POST, GOALS, f -> new Object[0], json(f -> goalJson(f.otherAccount(), null))),
@@ -595,7 +652,40 @@ class WorkspaceIsolationIT extends IntegrationTest {
             cross("receitas recorrentes: ajustar série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
                     Fixture::incomeSeries, (mvc, own, id) -> mvc.put().uri(INCOME + "/adjustment", own.workspace(), id).contentType(MediaType.APPLICATION_JSON).content(ADJUSTMENT_JSON)),
             cross("receitas recorrentes: remover ajuste de série alheia", HttpStatus.NOT_FOUND, "RECURRING_SERIES_NOT_FOUND",
-                    Fixture::incomeSeries, (mvc, own, id) -> mvc.delete().uri(INCOME + "/adjustment", own.workspace(), id)));
+                    Fixture::incomeSeries, (mvc, own, id) -> mvc.delete().uri(INCOME + "/adjustment", own.workspace(), id)),
+
+            // ADR-0040 §2: conversa ou pergunta de outro Workspace (ou de outra pessoa) = inexistente.
+            cross("copilot: consultar conversa alheia", HttpStatus.NOT_FOUND, "COPILOT_CONVERSATION_NOT_FOUND",
+                    Fixture::conversation, (mvc, own, id) -> mvc.get().uri(COPILOT_CONVERSATION, own.workspace(), id)),
+            cross("copilot: apagar conversa alheia", HttpStatus.NOT_FOUND, "COPILOT_CONVERSATION_NOT_FOUND",
+                    Fixture::conversation,
+                    (mvc, own, id) -> mvc.delete().uri(COPILOT_CONVERSATION, own.workspace(), id)),
+            cross("copilot: perguntar numa conversa alheia", HttpStatus.NOT_FOUND, "COPILOT_CONVERSATION_NOT_FOUND",
+                    Fixture::conversation, (mvc, own, id) -> mvc.post().uri(COPILOT_QUESTIONS, own.workspace())
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"question": "E agora?", "conversationId": "%s"}
+                                    """.formatted(id))),
+            cross("copilot: feedback de pergunta alheia", HttpStatus.NOT_FOUND, "COPILOT_REQUEST_NOT_FOUND",
+                    Fixture::copilotRequest, (mvc, own, id) -> mvc.put().uri(COPILOT_FEEDBACK, own.workspace(), id)
+                            .contentType(MediaType.APPLICATION_JSON).content(COPILOT_FEEDBACK_JSON)),
+
+            // ADR-0040 §3: contexto de entrada apontando para objetivo ou cartão de outro Workspace = inexistente
+            // (a Ana tem COPILOT_DATA_USE ativo, então a pergunta chega à checagem do contexto).
+            cross("copilot: perguntar com objetivo alheio como contexto", HttpStatus.NOT_FOUND,
+                    "COPILOT_CONTEXT_NOT_FOUND", Fixture::goal,
+                    (mvc, own, id) -> mvc.post().uri(COPILOT_QUESTIONS, own.workspace())
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"question": "Como está este objetivo?",
+                                     "context": {"kind": "GOAL", "goalId": "%s"}}
+                                    """.formatted(id))),
+            cross("copilot: perguntar com fatura de cartão alheio como contexto", HttpStatus.NOT_FOUND,
+                    "COPILOT_CONTEXT_NOT_FOUND", Fixture::card,
+                    (mvc, own, id) -> mvc.post().uri(COPILOT_QUESTIONS, own.workspace())
+                            .contentType(MediaType.APPLICATION_JSON).header("Idempotency-Key", newKey()).content("""
+                                    {"question": "Por que a fatura subiu?",
+                                     "context": {"kind": "INVOICE", "cardId": "%s", "month": "2026-10"}}
+                                    """.formatted(id))));
+
 
     static Stream<CrossOp> foreignReferenceOperations() {
         return FOREIGN_REFERENCE.stream();
@@ -684,11 +774,35 @@ class WorkspaceIsolationIT extends IntegrationTest {
                             """.formatted(consent.equals("COPILOT_DATA_USE") ? "copilot-data-v1" : "copilot-history-v1"))
                     .exchange()).hasStatus(HttpStatus.OK);
         }
+        String[] copilot = seedCopilot(workspace, description);
         return new Fixture(workspace, account, other, archived, posted, pending, read(upload, "$.id"),
                 read(card, "$.id"), read(purchase, "$.transaction.id"),
                 seedSeries(workspace, "EXPENSE", description + " (despesa)"),
                 seedSeries(workspace, "INCOME", description + " (receita)"),
-                seedGoal(who, workspace, other, account, description));
+                seedGoal(who, workspace, other, account, description), copilot[0], copilot[1]);
+    }
+
+    /**
+     * Uma conversa guardada (com uma mensagem), uma pergunta no usage ledger e um feedback do dono do Workspace;
+     * devolve o id da conversa e o da pergunta (ADR-0040).
+     */
+    private String[] seedCopilot(String workspace, String description) {
+        WorkspaceId workspaceId = new WorkspaceId(UUID.fromString(workspace));
+        UserId owner = new UserId(jdbc.queryForObject("select user_id from workspace_memberships where workspace_id = ?",
+                UUID.class, workspaceId.value()));
+        Instant now = Instant.now();
+        UUID requestId = UUID.randomUUID();
+        aiUsage.append(new AiUsage(UUID.randomUUID(), workspaceId, owner, requestId, AiRequestType.INTENT, "simulated",
+                "simulated-v1", new TokenUsage(10, 5, 0, 0), BigDecimal.ZERO, "pricing-test", "intent-v2@test", "", 1,
+                AiOutcome.OK, now));
+        UUID conversation = conversations.createConversation(workspaceId, owner, description + " pergunta", now);
+        conversations.addMessage(workspaceId, owner, conversation, new NewMessage(UuidV7.generate(now),
+                description + " pergunta", new CopilotResult(requestId, ResultCode.OK, Intent.OVERVIEW,
+                        RenderedAnswer.plain(AnswerType.ANALYSIS, description + " resposta", List.of()), null,
+                        ValidationStatus.VALID, null, null, Map.of()), now, now.plus(Duration.ofDays(90))));
+        copilotFeedback.upsert(new FeedbackStore.Feedback(requestId, workspaceId, owner, FeedbackRating.HELPFUL, null,
+                Intent.OVERVIEW, Map.of(), now, now.plus(Duration.ofDays(90))));
+        return new String[] {conversation.toString(), requestId.toString()};
     }
 
     /** Objetivo com a segunda conta como destino dedicado (ADR-0035). */
@@ -772,7 +886,8 @@ class WorkspaceIsolationIT extends IntegrationTest {
                         "outbox_events", "processed_events", "health_workspaces", "health_snapshots", "forecast_workspaces",
                         "forecast_snapshots", "forecast_recurring_series", "forecast_month_outcomes",
                         "insights_workspaces", "insights", "credit_cards", "card_invoices", "card_installments",
-                        "goals", "consents", "consent_audit")
+                        "goals", "consents", "consent_audit", "ai_usage", "copilot_conversations", "copilot_messages",
+                        "copilot_feedback")
                 .map(table -> table + "=" + jdbc.queryForObject(
                         "select coalesce(string_agg(t::text, '|' order by t::text), '') from " + table + " t",
                         String.class))

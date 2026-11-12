@@ -393,6 +393,7 @@ class ArchitectureTest {
 	/** Pacotes do produto que o Copilot pode usar. Fora do produto (JDK, Spring, SDK), sem restrição aqui. */
 	static final String[] COPILOT_ALLOWED = {"com.smarthealthfinance.copilot..", "com.smarthealthfinance.shared..",
 			"com.smarthealthfinance.identity.application.exception..",
+			"com.smarthealthfinance.(cards|goals|insights|transactions).application.exception..",
 			"com.smarthealthfinance.identity.domain.valueobject..",
 			"com.smarthealthfinance.consents.application.port..", "com.smarthealthfinance.consents.domain.enums..",
 			// Parte C: o que os casos de uso das tools devolvem (DTOs e os tipos de domínio dentro deles).

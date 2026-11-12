@@ -66,7 +66,7 @@ public class GoalsTool implements FinancialTool {
         GoalForecastFreshness freshness;
         List<SourceRef> sources = new ArrayList<>();
         if (target.isPresent()) {
-            GoalView goal = getGoal.execute(request.workspaceId(), target.get());
+            GoalView goal = ToolSupport.lookup(() -> getGoal.execute(request.workspaceId(), target.get()));
             goals = List.of(goal);
             freshness = goal.forecastFreshness();
             sources.add(new SourceRef("GetGoal", SOURCE));
@@ -96,7 +96,7 @@ public class GoalsTool implements FinancialTool {
             GoalView goal = goals.getFirst();
             projection(values, ToolValues.goal(request.pseudonyms(), goal) + " ("
                     + ToolSupport.goalType(goal.type().name()) + ")",
-                    getProjection.execute(request.workspaceId(), goal.id()));
+                    ToolSupport.lookup(() -> getProjection.execute(request.workspaceId(), goal.id())));
         }
         DataQuality quality = new DataQuality(null, false, List.of(), freshness(freshness), Set.of());
         return new Result(Status.DATA, values.build(), quality, sources, actions);

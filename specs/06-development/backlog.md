@@ -412,6 +412,17 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   métricas `shf.copilot.*`
   - dívidas (até o M12): quota não atômica com o registro e token do balde gasto antes da quota (adendo ADR-0039
     §10); smoke test com a chave real (o SDK 3.7.0 manda `Authorization: Bearer`); DPA e PIA
+- [x] API de conversa (Sessão 8.2 Parte D, ADR-0040; adendos ADR-0039 §4/§9/§13): `POST /copilot/questions`
+  (`Idempotency-Key` no Redis sem conteúdo, contexto de entrada INSIGHT/INVOICE/INSTALLMENT_PLAN/GOAL validado antes
+  do rate limit, continuidade só com as 3 perguntas anteriores e as intenções, resposta em segmentos tipados, quadro de
+  fatores do sistema — fatura D11 e saúde —, "Dados usados" e avisos); `GET /copilot/usage`; histórico com
+  `COPILOT_HISTORY` (V26 `copilot_conversations`/`copilot_messages`/`copilot_feedback`), listar/abrir/apagar
+  conversas, retenção de 90 dias por mensagem (job diário), consumidor de `consent.revoked` com inbox e DLQ;
+  feedback só com códigos; endpoint de diagnóstico removido; prompts `intent-v2`/`answer-v2`; suíte de isolamento
+  - dívidas: `schema.d.ts` e BFF na Parte E; `intent-v2`/`answer-v2` sem avaliação contra o modelo real até a Parte F;
+    o quadro de fatores só cobre fatura (D11) e saúde; replay de pergunta efêmera já respondida perde a resposta
+    (409, sem cache de conteúdo); janela entre revogação e gravação coberta só pela retenção
+- [ ] telas do Copilot (Parte E)
 - [ ] evaluation
 
 ## M12 Monetization

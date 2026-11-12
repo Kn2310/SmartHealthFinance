@@ -1,5 +1,6 @@
 package com.smarthealthfinance.copilot.application.port;
 
+import com.smarthealthfinance.copilot.application.dto.PreviousQuestion;
 import com.smarthealthfinance.copilot.domain.model.AnswerDraft;
 import com.smarthealthfinance.copilot.domain.model.CopilotContext;
 
@@ -15,13 +16,28 @@ import java.util.Optional;
 public interface CopilotCodec {
 
     /** Conteúdo de usuário da chamada de intenção: data de hoje, catálogo e pergunta. */
-    String intentInput(String question, LocalDate today, RequestCatalog.Catalog catalog);
+    default String intentInput(String question, LocalDate today, RequestCatalog.Catalog catalog) {
+        return intentInput(question, List.of(), today, catalog);
+    }
+
+    /**
+     * Conteúdo de usuário da chamada de intenção com as perguntas anteriores da pessoa (ADR-0040 §7), em um bloco
+     * {@code <perguntas_anteriores>} delimitado. Cada uma com a intenção classificada, quando conhecida, como dado de contexto. Só perguntas, nunca respostas.
+     */
+    String intentInput(String question, List<PreviousQuestion> previousQuestions, LocalDate today,
+                       RequestCatalog.Catalog catalog);
 
     /**
      * Conteúdo de usuário da chamada de resposta: pergunta, contexto {@code context-v1} e, na regeneração, os códigos
      * das violações da tentativa anterior.
      */
-    String answerInput(String question, CopilotContext context, List<String> previousViolations);
+    default String answerInput(String question, CopilotContext context, List<String> previousViolations) {
+        return answerInput(question, List.of(), context, previousViolations);
+    }
+
+    /** Como {@link #answerInput(String, CopilotContext, List)}, com as perguntas anteriores da pessoa (ADR-0040 §7). */
+    String answerInput(String question, List<PreviousQuestion> previousQuestions, CopilotContext context,
+                       List<String> previousViolations);
 
     Optional<RawIntent> readIntent(String json);
 
