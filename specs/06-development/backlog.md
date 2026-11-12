@@ -422,7 +422,15 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - dívidas: `schema.d.ts` e BFF na Parte E; `intent-v2`/`answer-v2` sem avaliação contra o modelo real até a Parte F;
     o quadro de fatores só cobre fatura (D11) e saúde; replay de pergunta efêmera já respondida perde a resposta
     (409, sem cache de conteúdo); janela entre revogação e gravação coberta só pela retenção
-- [ ] telas do Copilot (Parte E)
+- [x] telas do Copilot (Sessão 8.2 Parte E, ADR-0041; adendos ADR-0021/0024/0029/0037): `/copilot` (conversa
+  efêmera na própria tela) e `/copilot/{id}` (com histórico), AI Response só por segmentos tipados (sem HTML), quadro
+  de fatores, "Como cheguei a isso", avisos, Confiança, Dados usados, ações, Copiar e feedback; todos os estados do
+  Copilot; uso "X de Y perguntas" (quota provisória); BFF `/api/bff/copilot/*` com `Idempotency-Key` e
+  `Retry-After`; "Perguntar ao Copilot" na Home, no insight (`ASK_COPILOT` disponível também nos já gravados), no
+  cabeçalho de toda fatura e no parcelamento; E2E com o adapter simulado
+  - dívidas: "Conhecer o plano" e o nome do plano no M12; o simulado não reconhece "Como estou este mês?" (vira fora
+    do escopo no local/E2E); E2E do Copilot longo (~3–5 min) e sensível à primeira compilação do `next dev`; alguns
+    testes de view do Copilot com timeout explícito por carga
 - [ ] evaluation
 
 ## M12 Monetization
