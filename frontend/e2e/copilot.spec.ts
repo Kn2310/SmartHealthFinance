@@ -14,6 +14,8 @@ const HISTORY_SWITCH = 'Guardar histórico de conversas do Copilot'
 
 const CONSENT_REQUIRED_TEXT = /Para responder, o Copilot precisa usar seus dados financeiros/
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+/** O `next dev` do compose (local e CI) compila cada rota na primeira visita e pode passar dos 15 s padrão. */
+const NAVIGATION = 60_000
 
 function businessToday(): { year: number; month: number; day: number } {
   const [year, month, day] = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric',
@@ -65,7 +67,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   await main.getByRole('link', { name: 'Adicionar conta' }).click()
   await page.getByLabel('Nome da conta').fill(CHECKING)
   await page.getByRole('button', { name: 'Criar e continuar' }).click()
-  await expect(page).toHaveURL(/\/import\?accountId=/)
+  await expect(page).toHaveURL(/\/import\?accountId=/, { timeout: NAVIGATION })
   await page.locator('input[type="file"]').setInputFiles(csv)
   await page.getByRole('button', { name: 'Continuar' }).click()
   await page.getByRole('button', { name: `Importar ${lines.length} movimentações` }).click()
@@ -77,7 +79,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   const dueDay = closingDay <= 22 ? closingDay + 5 : closingDay + 5 - 28
   await page.goto('/cards')
   await main.getByRole('link', { name: 'Adicionar cartão' }).first().click()
-  await expect(page).toHaveURL(/\/cards\/new\?from=cards/)
+  await expect(page).toHaveURL(/\/cards\/new\?from=cards/, { timeout: NAVIGATION })
   await page.getByLabel('Apelido').fill(CARD.nickname)
   await page.getByLabel('Bandeira').selectOption('ELO')
   await page.getByLabel('4 últimos dígitos').fill(CARD.last4)
@@ -85,7 +87,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   await page.getByLabel('Dia de fechamento').fill(String(closingDay))
   await page.getByLabel('Dia de vencimento').fill(String(dueDay))
   await page.getByRole('button', { name: 'Cadastrar cartão' }).click()
-  await expect(page).toHaveURL(new RegExp(`/cards/${UUID}$`))
+  await expect(page).toHaveURL(new RegExp(`/cards/${UUID}$`), { timeout: NAVIGATION })
   const cardId = page.url().split('/').pop()!
 
   await page.goto(`/transactions/new?type=CARD_PURCHASE&cardId=${cardId}`)
@@ -93,7 +95,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   await page.getByLabel('Parcelas').fill(PURCHASE.installments)
   await page.getByLabel('Descrição', { exact: true }).fill(PURCHASE.description)
   await page.getByRole('button', { name: 'Registrar transação' }).click()
-  await expect(page).toHaveURL(/registered=posted/)
+  await expect(page).toHaveURL(/registered=posted/, { timeout: NAVIGATION })
 
   // Insights chegam por eventos com debounce (ADR-0022): recarrega até a geração.
   const spikeTitle = /Seus gastos com alimentação fora aumentaram 200%/
@@ -119,7 +121,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
 
   // ---------------------------------------------------------------- 3. conceder COPILOT_DATA_USE
   await blocked.getByRole('link', { name: 'Rever consentimentos' }).click()
-  await expect(page).toHaveURL(/\/profile\/consents$/)
+  await expect(page).toHaveURL(/\/profile\/consents$/, { timeout: NAVIGATION })
   const data = page.getByRole('switch', { name: DATA_SWITCH })
   const history = page.getByRole('switch', { name: HISTORY_SWITCH })
   await data.click()
@@ -129,12 +131,12 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   // ---------------------------------------------------------------- 4. insight → Copilot
   await page.goto('/insights')
   await main.getByRole('link', { name: spikeTitle }).click()
-  await expect(page).toHaveURL(new RegExp(`/insights/${UUID}$`))
+  await expect(page).toHaveURL(new RegExp(`/insights/${UUID}$`), { timeout: NAVIGATION })
   const insightId = page.url().split('/').pop()!
   const insightLink = main.getByRole('link', { name: 'Perguntar ao Copilot' })
   await expect(insightLink).toHaveAttribute('href', `/copilot?from=insight&insightId=${insightId}`)
   await insightLink.click()
-  await expect(page).toHaveURL(`/copilot?from=insight&insightId=${insightId}`)
+  await expect(page).toHaveURL(`/copilot?from=insight&insightId=${insightId}`, { timeout: NAVIGATION })
 
   // Sugestões do contexto do insight (ADR-0041 §5): nada é enviado sem a pessoa escolher.
   await expect(page.getByRole('button', { name: 'Por que isso aconteceu?' })).toBeVisible()
@@ -144,7 +146,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   await expect(insightAnswer).toBeVisible({ timeout: 60_000 })
   await expect(insightAnswer).toContainText('✦ Copilot')
   // Sem COPILOT_HISTORY a conversa é efêmera: a URL de contexto não muda (ADR-0041 §1).
-  await expect(page).toHaveURL(`/copilot?from=insight&insightId=${insightId}`)
+  await expect(page).toHaveURL(`/copilot?from=insight&insightId=${insightId}`, { timeout: NAVIGATION })
   await expect(page.getByText('O histórico está desligado e as conversas não são guardadas.')).toBeVisible()
 
   // ---------------------------------------------------------------- 5. fatura: números iguais aos da tela
@@ -152,7 +154,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   const screenAmount = await readAmount(page.locator('#invoice-amount').locator('xpath=following-sibling::p[1]'))
   expect(screenAmount).toBe(brl(cents(INVOICE_AMOUNT)))
   await main.getByRole('link', { name: 'Perguntar ao Copilot' }).first().click()
-  await expect(page).toHaveURL(new RegExp(`^.*/copilot\\?from=invoice&cardId=${cardId}&month=\\d{4}-\\d{2}$`))
+  await expect(page).toHaveURL(new RegExp(`^.*/copilot\\?from=invoice&cardId=${cardId}&month=\\d{4}-\\d{2}$`), { timeout: NAVIGATION })
   const invoiceEntryUrl = page.url()
   const invoiceMonth = /month=(\d{4}-\d{2})/.exec(invoiceEntryUrl)![1]!
 
@@ -164,13 +166,13 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   expect(bolds.length).toBeGreaterThan(0)
   expect(bolds, 'o negrito da resposta deve conter o valor da fatura exibido na tela').toContain(screenAmount)
   // Sem histórico: a URL fica em /copilot (com o contexto).
-  await expect(page).toHaveURL(invoiceEntryUrl)
+  await expect(page).toHaveURL(invoiceEntryUrl, { timeout: NAVIGATION })
 
   // ---------------------------------------------------------------- 6. ação → tela certa
   const invoiceAction = answer.getByRole('link', { name: 'Ver fatura' })
   await expect(invoiceAction).toHaveAttribute('href', `/cards/${cardId}/invoices/${invoiceMonth}`)
   await invoiceAction.click()
-  await expect(page).toHaveURL(new RegExp(`/cards/${cardId}/invoices/${invoiceMonth}$`))
+  await expect(page).toHaveURL(new RegExp(`/cards/${cardId}/invoices/${invoiceMonth}$`), { timeout: NAVIGATION })
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   expect(await readAmount(page.locator('#invoice-amount').locator('xpath=following-sibling::p[1]'))).toBe(screenAmount)
 
@@ -183,7 +185,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   await page.goto('/copilot')
   await ask(page, 'Onde mais gastei este mês?')
   await expect(page.getByRole('article', { name: 'Resposta do Copilot' })).toBeVisible({ timeout: 60_000 })
-  await expect(page).toHaveURL(new RegExp(`/copilot/${UUID}$`))
+  await expect(page).toHaveURL(new RegExp(`/copilot/${UUID}$`), { timeout: NAVIGATION })
   const conversationId = page.url().split('/').pop()!
   const historyPanel = page.getByRole('region', { name: 'Histórico' })
   await expect(historyPanel.getByRole('link', { name: /Onde mais gastei este mês\?/ }))
@@ -192,7 +194,7 @@ test('copilot: consentimento, contexto, números iguais às telas, ações, hist
   // A conversa guardada reabre pelo histórico, marcada como resposta antiga.
   await page.goto('/copilot')
   await historyPanel.getByRole('link', { name: /Onde mais gastei este mês\?/ }).click()
-  await expect(page).toHaveURL(new RegExp(`/copilot/${conversationId}$`))
+  await expect(page).toHaveURL(new RegExp(`/copilot/${conversationId}$`), { timeout: NAVIGATION })
   await expect(page.getByText(/^Resposta de .+\. Os números podem ter mudado desde então\.$/)).toBeVisible()
 
   // ---------------------------------------------------------------- 8. revogar COPILOT_DATA_USE
