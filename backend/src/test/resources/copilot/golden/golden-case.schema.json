@@ -1,0 +1,372 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://smarthealthfinance.local/copilot/golden-case.schema.json",
+  "title": "Arquivo do golden set golden-v1 (ADR-0042 §1)",
+  "description": "Um arquivo por grupo. Validado por CopilotGoldenSetTest (MiniJsonSchema) antes de qualquer caso rodar. Dados sintéticos apenas.",
+  "type": "object",
+  "required": ["version", "group", "cases"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {"const": "golden-v1"},
+    "group": {"enum": ["intents", "09-dados-de-exemplo", "adversarial", "insufficient-data", "continuity"]},
+    "description": {"type": "string"},
+    "shared": {
+      "description": "Catálogo usado pelos casos do arquivo que não trazem fixtures.catalog.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {"catalog": {"$ref": "#/$defs/catalog"}}
+    },
+    "cases": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/case"}}
+  },
+  "$defs": {
+    "case": {
+      "type": "object",
+      "required": ["id", "group", "question", "scripted", "expect"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
+        "group": {"enum": ["intents", "09-dados-de-exemplo", "adversarial", "insufficient-data", "continuity"]},
+        "note": {"type": "string", "description": "Por que o caso existe; nunca vai ao relatório da avaliação real."},
+        "question": {"type": "string", "minLength": 1},
+        "previousQuestions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["question"],
+            "additionalProperties": false,
+            "properties": {
+              "question": {"type": "string", "minLength": 1},
+              "intent": {"$ref": "#/$defs/intent"}
+            }
+          }
+        },
+        "context": {"$ref": "#/$defs/entryRef"},
+        "fixtures": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "catalog": {"$ref": "#/$defs/catalog"},
+            "entry": {"$ref": "#/$defs/entry"},
+            "tool": {"$ref": "#/$defs/tool"}
+          }
+        },
+        "scripted": {
+          "description": "Saída do modelo no CI; ignorada na avaliação real.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "intent": {"anyOf": [{"$ref": "#/$defs/intentOutput"}, {"$ref": "#/$defs/failure"}, {"$ref": "#/$defs/raw"}]},
+            "answers": {
+              "type": "array",
+              "items": {"anyOf": [{"$ref": "#/$defs/answerOutput"}, {"$ref": "#/$defs/failure"}, {"$ref": "#/$defs/raw"}]}
+            }
+          }
+        },
+        "expect": {"$ref": "#/$defs/expect"}
+      }
+    },
+    "intent": {
+      "enum": ["OVERVIEW", "CASH_FLOW", "CATEGORY", "MERCHANT", "HEALTH", "INSIGHTS", "CARDS", "FORECAST", "GOALS",
+               "GOAL_SIMULATION", "OUT_OF_SCOPE", "UNSUPPORTED_ACTION"]
+    },
+    "uuid": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"},
+    "yearMonth": {"type": "string", "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"},
+    "nullableString": {"type": ["string", "null"]},
+    "stringList": {"type": "array", "items": {"type": "string"}},
+    "entryRef": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["INSIGHT", "INVOICE", "INSTALLMENT_PLAN", "GOAL"]},
+        "insightId": {"$ref": "#/$defs/uuid"},
+        "cardId": {"$ref": "#/$defs/uuid"},
+        "month": {"$ref": "#/$defs/yearMonth"},
+        "planId": {"$ref": "#/$defs/uuid"},
+        "goalId": {"$ref": "#/$defs/uuid"}
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "currency": {"type": "string", "pattern": "^[A-Z]{3}$"},
+        "categories": {"type": "object", "additionalProperties": {"type": "string"}},
+        "targets": {"type": "array", "items": {"$ref": "#/$defs/target"}}
+      }
+    },
+    "target": {
+      "description": "Alvo pseudonimizado: o pseudônimo é o prefixo do tipo (conta, cartao, objetivo, insight, categoria) e a ordem entre os alvos do mesmo tipo.",
+      "type": "object",
+      "required": ["kind", "id", "name", "descriptor", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["ACCOUNT", "CARD", "GOAL", "INSIGHT", "CATEGORY"]},
+        "id": {"$ref": "#/$defs/uuid"},
+        "name": {"type": "string", "minLength": 1},
+        "descriptor": {"type": "string", "minLength": 1},
+        "description": {"type": "string", "minLength": 1}
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "targets": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-z]+_[1-9]\\d*$"}},
+        "month": {"$ref": "#/$defs/yearMonth"},
+        "screen": {"$ref": "#/$defs/screen"},
+        "assigns": {
+          "description": "Itens que o resolvedor pseudonimiza ao resolver o contexto (mesmo formato dos alvos do catálogo).",
+          "type": "array",
+          "items": {"$ref": "#/$defs/target"}
+        },
+        "verifyFails": {"type": "boolean", "description": "O alvo é de outro Workspace: a admissão responde CONTEXT_NOT_FOUND."},
+        "resolveFails": {"type": "boolean", "description": "O alvo sumiu entre a admissão e o pipeline."}
+      }
+    },
+    "screen": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"$ref": "#/$defs/actionKind"},
+        "target": {"$ref": "#/$defs/nullableString"},
+        "params": {"type": "object", "additionalProperties": {"type": "string"}}
+      }
+    },
+    "actionKind": {
+      "enum": ["OPEN_INVOICE", "OPEN_INSTALLMENTS", "OPEN_HEALTH", "OPEN_INSIGHT", "OPEN_GOAL",
+               "OPEN_ANALYSIS_CATEGORY", "OPEN_FORECAST"]
+    },
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {"enum": ["DATA", "NO_DATA", "NOT_BUILT", "NEEDS_TARGET"]},
+        "failure": {"enum": ["TARGET_NOT_FOUND", "INVALID_VALUE"]},
+        "source": {"type": "string", "description": "Tool e versão do algoritmo dos valores, ex.: cards-v1."},
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "value", "unit", "kind"],
+            "additionalProperties": false,
+            "properties": {
+              "label": {"type": "string", "minLength": 1},
+              "value": {"type": "string", "minLength": 1},
+              "unit": {"enum": ["MONEY", "PERCENT", "SCORE", "COUNT", "MONTH", "DATE", "TEXT"]},
+              "kind": {"enum": ["FACT", "ESTIMATED", "SIMULATED"]},
+              "period": {"type": "string", "pattern": "^\\d{4}-\\d{2}(-\\d{2})?(\\.\\.\\d{4}-\\d{2}(-\\d{2})?)?$"},
+              "source": {"type": "string"}
+            }
+          }
+        },
+        "quality": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "monthsWithData": {"type": ["integer", "null"], "minimum": 0},
+            "partialPeriod": {"type": "boolean"},
+            "gaps": {"$ref": "#/$defs/stringList"},
+            "freshness": {"enum": ["UP_TO_DATE", "UPDATING", "NOT_BUILT"]},
+            "sources": {"$ref": "#/$defs/stringList"}
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tool", "version"],
+            "additionalProperties": false,
+            "properties": {"tool": {"type": "string"}, "version": {"type": "string"}}
+          }
+        },
+        "actions": {
+          "description": "Ações que o contexto oferece ao modelo; target é um pseudônimo ou nulo (telas do Workspace).",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "additionalProperties": false,
+            "properties": {"kind": {"$ref": "#/$defs/actionKind"}, "target": {"$ref": "#/$defs/nullableString"}}
+          }
+        },
+        "breakdown": {
+          "type": "object",
+          "required": ["title", "rows"],
+          "additionalProperties": false,
+          "properties": {
+            "title": {"type": "string"},
+            "totalIndex": {"type": "integer", "minimum": 0},
+            "rows": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["label", "valueIndex"],
+                "additionalProperties": false,
+                "properties": {
+                  "label": {"type": "string"},
+                  "valueIndex": {"type": "integer", "minimum": 0},
+                  "detail": {"type": "string"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "intentOutput": {
+      "description": "intents-v1: o que o modelo de intenção devolve.",
+      "type": "object",
+      "required": ["intent", "month", "category", "target", "scenario"],
+      "additionalProperties": false,
+      "properties": {
+        "intent": {"$ref": "#/$defs/intent"},
+        "month": {"$ref": "#/$defs/nullableString"},
+        "category": {"$ref": "#/$defs/nullableString"},
+        "target": {"$ref": "#/$defs/nullableString"},
+        "scenario": {
+          "anyOf": [
+            {
+              "type": "object",
+              "required": ["monthlyAmount", "deadline", "reductionCategory", "reductionAmount"],
+              "additionalProperties": false,
+              "properties": {
+                "monthlyAmount": {"$ref": "#/$defs/nullableString"},
+                "deadline": {"$ref": "#/$defs/nullableString"},
+                "reductionCategory": {"$ref": "#/$defs/nullableString"},
+                "reductionAmount": {"$ref": "#/$defs/nullableString"}
+              }
+            },
+            {"type": "null"}
+          ]
+        }
+      }
+    },
+    "answerOutput": {
+      "description": "answer-v1: o que o modelo de resposta devolve. O texto cita valores por {{v:vN}}.",
+      "type": "object",
+      "required": ["answer", "type", "financialData", "explanation", "confidence", "actions", "sources"],
+      "additionalProperties": false,
+      "properties": {
+        "answer": {"type": "string"},
+        "type": {"type": "string"},
+        "financialData": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ref", "label", "kind"],
+            "additionalProperties": false,
+            "properties": {"ref": {"type": "string"}, "label": {"type": "string"}, "kind": {"type": "string"}}
+          }
+        },
+        "explanation": {"$ref": "#/$defs/stringList"},
+        "confidence": {"type": "string"},
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "target"],
+            "additionalProperties": false,
+            "properties": {"kind": {"type": "string"}, "target": {"$ref": "#/$defs/nullableString"}}
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["tool", "version"],
+            "additionalProperties": false,
+            "properties": {"tool": {"type": "string"}, "version": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "failure": {
+      "description": "O provedor falha ou recusa, em vez de devolver uma saída.",
+      "type": "object",
+      "required": ["outcome"],
+      "additionalProperties": false,
+      "properties": {"outcome": {"enum": ["REFUSED", "TIMEOUT", "UNAVAILABLE", "RATE_LIMITED", "INVALID_OUTPUT"]}}
+    },
+    "raw": {
+      "description": "Saída textual que não precisa ser um JSON do esquema (saída malformada).",
+      "type": "object",
+      "required": ["raw"],
+      "additionalProperties": false,
+      "properties": {"raw": {"type": "string"}}
+    },
+    "expect": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {"enum": ["OK", "SAFE_MODE", "INSUFFICIENT_DATA", "OUT_OF_SCOPE", "PROVIDER_UNAVAILABLE"]},
+        "intent": {"description": "NONE: a pergunta não chegou à classificação (provedor fora).", "enum": ["NONE", "OVERVIEW", "CASH_FLOW", "CATEGORY", "MERCHANT", "HEALTH", "INSIGHTS", "CARDS", "FORECAST", "GOALS", "GOAL_SIMULATION", "OUT_OF_SCOPE", "UNSUPPORTED_ACTION"]},
+        "validation": {"enum": ["VALID", "REGENERATED", "SAFE_MODE", "NOT_APPLICABLE"]},
+        "calls": {
+          "description": "Chamadas ao modelo no ledger, em ordem (só no CI).",
+          "type": "array",
+          "items": {"enum": ["INTENT", "ANSWER", "REGENERATE"]}
+        },
+        "error": {
+          "description": "Erro tipado antes do pipeline: CONTEXT_NOT_FOUND ou INVALID_VALUE:campo:motivo.",
+          "type": "string", "pattern": "^(CONTEXT_NOT_FOUND|INVALID_VALUE:[A-Za-z]+:[A-Z_]+)$"
+        },
+        "confidence": {"enum": ["HIGH", "MEDIUM", "LOW"]},
+        "refs": {"description": "Refs em answer.financialData, em ordem (inclui os do quadro).", "$ref": "#/$defs/stringList"},
+        "citedValues": {"description": "Valores formatados que precisam estar em answer.financialData.", "$ref": "#/$defs/stringList"},
+        "sources": {"description": "Conjunto das fontes (tool-versão) dos valores citados.", "$ref": "#/$defs/stringList"},
+        "kinds": {"description": "Conjunto de FACT/ESTIMATED/SIMULATED dos valores citados.", "type": "array", "items": {"enum": ["FACT", "ESTIMATED", "SIMULATED"]}},
+        "notices": {"type": "array", "items": {"enum": ["PARTIAL_PERIOD", "ESTIMATED", "SIMULATED", "SAFE_MODE", "UPDATING"]}},
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"$ref": "#/$defs/actionKind"},
+              "targetName": {"$ref": "#/$defs/nullableString"},
+              "params": {"type": "object", "additionalProperties": {"type": "string"}}
+            }
+          }
+        },
+        "breakdown": {
+          "type": "object",
+          "required": ["title", "rows"],
+          "additionalProperties": false,
+          "properties": {
+            "title": {"type": "string"},
+            "total": {"type": "string"},
+            "rows": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["label", "formatted"],
+                "additionalProperties": false,
+                "properties": {"label": {"type": "string"}, "formatted": {"type": "string"}}
+              }
+            }
+          }
+        },
+        "dataUsed": {"description": "Rótulos de Dados usados; ' (parcial)' no fim quando o período é parcial.", "$ref": "#/$defs/stringList"},
+        "textContains": {"description": "Trechos que precisam estar no texto ou nos passos renderizados.", "$ref": "#/$defs/stringList"},
+        "textExcludes": {"description": "Trechos que nunca podem aparecer (sem diferenciar maiúsculas); valem também na avaliação real.", "$ref": "#/$defs/stringList"},
+        "modelInputContains": {"description": "Trechos que precisam ir ao modelo (prompt de sistema e conteúdo; só no CI).", "$ref": "#/$defs/stringList"},
+        "modelInputExcludes": {"description": "Trechos que nunca podem ir ao modelo (só no CI).", "$ref": "#/$defs/stringList"},
+        "real": {
+          "description": "Avaliação com o modelo real: skip para o que depende de falha roteirizada; code/intent substituem os do CI.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "skip": {"type": "boolean"},
+            "code": {"enum": ["OK", "INSUFFICIENT_DATA", "OUT_OF_SCOPE"]},
+            "intent": {"$ref": "#/$defs/intent"}
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,99 @@
+# Avaliação do Copilot com o modelo real (ADR-0042 §3): roda o golden set `golden-v1` com o adapter Anthropic e
+# publica o relatório (acerto por intenção, violações, modo seguro, latência, tokens e custo) como artefato.
+#
+# SÓ MANUAL (Actions → Copilot evaluation → Run workflow). Nunca roda em push nem em pull request: gasta tokens
+# reais e usa o secret ANTHROPIC_API_KEY, que o dono do repositório cria em Settings → Secrets and variables → Actions.
+# O CI normal (ci.yml) roda o mesmo golden set com o adapter simulado, sem chave.
+#
+# A chave só existe nos dois passos que a usam, nunca é impressa e não entra no relatório; o relatório tem só ids de
+# caso e códigos (sem texto de pergunta, resposta ou contexto). Runbook: docs/runbooks/copilot-evaluation.md.
+# Actions oficiais fixadas por SHA de commit (tag correspondente no comentário), como no ci.yml.
+
+name: Copilot evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      cases:
+        description: 'Subconjunto: ids, group:<grupo> ou intent:<INTENÇÃO>, separados por vírgula. Vazio = todos os casos.'
+        required: false
+        default: ''
+        type: string
+      max_usd:
+        description: 'Teto de custo em US$; a execução para ao atingi-lo.'
+        required: false
+        default: '2.00'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: copilot-eval
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: evaluate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      EVAL_CASES: ${{ inputs.cases }}
+      EVAL_MAX_USD: ${{ inputs.max_usd }}
+    steps:
+      - name: Falhar cedo sem o secret ANTHROPIC_API_KEY
+        working-directory: .
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::O secret ANTHROPIC_API_KEY não está definido. Crie-o em Settings > Secrets and variables > Actions (veja docs/runbooks/copilot-evaluation.md)."
+            exit 1
+          fi
+
+      - name: Validar as entradas
+        working-directory: .
+        run: |
+          case "$EVAL_MAX_USD" in
+            ''|*[!0-9.]*) echo "::error::max_usd precisa ser um número, por exemplo 2.00"; exit 1 ;;
+          esac
+          case "$EVAL_CASES" in
+            *[!A-Za-z0-9:_,\ -]*) echo "::error::cases só aceita ids, group:<grupo> e intent:<INTENÇÃO> separados por vírgula"; exit 1 ;;
+          esac
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: '25' # = <java.version> do backend/pom.xml
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Avaliar o golden set com o modelo real
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: ./mvnw -B -ntp -Pcopilot-eval test -Dcopilot.eval.cases="$EVAL_CASES" -Dcopilot.eval.maxUsd="$EVAL_MAX_USD"
+
+      - name: Resumo do relatório
+        if: always()
+        run: |
+          if [ -f target/copilot-eval/report.md ]; then
+            cat target/copilot-eval/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Relatório como artefato
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: copilot-eval-${{ github.run_id }}
+          path: |
+            backend/target/copilot-eval/report.json
+            backend/target/copilot-eval/report.md
+          retention-days: 30
+          if-no-files-found: warn

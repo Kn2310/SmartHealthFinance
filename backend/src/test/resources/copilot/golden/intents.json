@@ -1,0 +1,412 @@
+{
+  "version": "golden-v1",
+  "group": "intents",
+  "description": "Uma pergunta típica por intenção, mais OUT_OF_SCOPE e UNSUPPORTED_ACTION com e sem contexto de entrada. Workspace sintético de design/specs/09-dados-de-exemplo.md, hoje = 2026-09-22.",
+  "shared": {
+    "catalog": {
+      "currency": "BRL",
+      "categories": {"HOUSING": "Moradia", "FOOD_OUT": "Alimentação fora", "GROCERIES": "Mercado", "TRANSPORT": "Transporte", "SUBSCRIPTIONS": "Assinaturas", "OTHER": "Outros"},
+      "targets": [
+        {"kind": "GOAL", "id": "a0000000-0000-4000-8000-0000000000b1", "name": "Reserva de emergência", "descriptor": "EMERGENCY_FUND", "description": "objetivo EMERGENCY_FUND, prazo sem prazo, ACTIVE"},
+        {"kind": "GOAL", "id": "a0000000-0000-4000-8000-0000000000b2", "name": "Viagem para Lisboa", "descriptor": "TRAVEL", "description": "objetivo TRAVEL, prazo 2027-07, ACTIVE"},
+        {"kind": "GOAL", "id": "a0000000-0000-4000-8000-0000000000b3", "name": "Guardar a diferença do delivery", "descriptor": "SAVINGS", "description": "objetivo SAVINGS, prazo 2027-03, ACTIVE"},
+        {"kind": "CARD", "id": "a0000000-0000-4000-8000-0000000000c1", "name": "Aurora Platinum", "descriptor": "VISA", "description": "cartão VISA"},
+        {"kind": "CARD", "id": "a0000000-0000-4000-8000-0000000000c2", "name": "Horizonte Gold", "descriptor": "MASTERCARD", "description": "cartão MASTERCARD"}
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "overview-total-balance",
+      "group": "intents",
+      "question": "Qual é o meu saldo total hoje?",
+      "fixtures": {
+        "tool": {
+          "source": "overview-v1",
+          "values": [
+            {"label": "Saldo total das contas", "value": "18420.35", "unit": "MONEY", "kind": "FACT", "period": "2026-09-22"},
+            {"label": "Receitas do mês até hoje", "value": "6800.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Despesas do mês até hoje", "value": "3846.20", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Resultado do mês até hoje", "value": "2953.80", "unit": "MONEY", "kind": "FACT", "period": "2026-09"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": true, "freshness": "UP_TO_DATE", "sources": ["OFX", "CSV", "MANUAL"]},
+          "sources": [{"tool": "GetOverview", "version": "overview-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "OVERVIEW", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "O saldo total das suas contas é {{v:v1}}. Neste mês, as receitas somam {{v:v2}} e as despesas {{v:v3}}, com resultado de {{v:v4}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Saldo total", "kind": "FACT"}, {"ref": "v2", "label": "Receitas", "kind": "FACT"}, {"ref": "v3", "label": "Despesas", "kind": "FACT"}, {"ref": "v4", "label": "Resultado", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "OVERVIEW", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3", "v4"],
+        "citedValues": ["R$ 18.420,35", "R$ 6.800,00", "R$ 3.846,20", "R$ 2.953,80"],
+        "sources": ["overview-v1"], "kinds": ["FACT"], "notices": ["PARTIAL_PERIOD"], "actions": [],
+        "dataUsed": ["Visão geral set/2026 (parcial)"],
+        "textContains": ["O saldo total das suas contas é R$ 18.420,35."]
+      }
+    },
+    {
+      "id": "cash-flow-current-month",
+      "group": "intents",
+      "question": "Quanto eu recebi e quanto gastei em setembro?",
+      "fixtures": {
+        "tool": {
+          "source": "cashflow-v1",
+          "values": [
+            {"label": "Receitas do período", "value": "6800.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Despesas do período", "value": "3846.20", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Resultado do período", "value": "2953.80", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Média diária de despesas", "value": "174.83", "unit": "MONEY", "kind": "FACT", "period": "2026-09"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": true, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetCashFlow", "version": "cashflow-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CASH_FLOW", "month": "2026-09", "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Em setembro, até agora, você recebeu {{v:v1}} e gastou {{v:v2}}, com resultado de {{v:v3}}. A média diária de despesas é {{v:v4}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Receitas", "kind": "FACT"}, {"ref": "v2", "label": "Despesas", "kind": "FACT"}, {"ref": "v3", "label": "Resultado", "kind": "FACT"}, {"ref": "v4", "label": "Média diária", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CASH_FLOW", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3", "v4"],
+        "citedValues": ["R$ 6.800,00", "R$ 3.846,20", "R$ 2.953,80", "R$ 174,83"],
+        "sources": ["cashflow-v1"], "kinds": ["FACT"], "notices": ["PARTIAL_PERIOD"],
+        "dataUsed": ["Fluxo de caixa set/2026 (parcial)"]
+      }
+    },
+    {
+      "id": "category-groceries",
+      "group": "intents",
+      "question": "Quanto gastei no mercado este mês?",
+      "fixtures": {
+        "tool": {
+          "source": "category-v1",
+          "values": [
+            {"label": "Categoria analisada", "value": "Mercado", "unit": "TEXT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Gasto na categoria", "value": "296.08", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Participação da categoria nas despesas", "value": "7.7", "unit": "PERCENT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Variação contra a média dos meses anteriores", "value": "-8", "unit": "PERCENT", "kind": "FACT", "period": "2026-09"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": true, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetCategoryAnalysis", "version": "category-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CATEGORY", "month": "2026-09", "category": "GROCERIES", "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Na categoria {{v:v1}} você gastou {{v:v2}} em setembro, {{v:v3}} das despesas do mês. Em relação à média dos meses anteriores, a variação é de {{v:v4}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Categoria", "kind": "FACT"}, {"ref": "v2", "label": "Gasto", "kind": "FACT"}, {"ref": "v3", "label": "Participação", "kind": "FACT"}, {"ref": "v4", "label": "Variação", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CATEGORY", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3", "v4"],
+        "citedValues": ["Mercado", "R$ 296,08", "7,7%", "-8%"],
+        "sources": ["category-v1"], "kinds": ["FACT"], "notices": ["PARTIAL_PERIOD"],
+        "dataUsed": ["Gastos por categoria set/2026 (parcial)"]
+      }
+    },
+    {
+      "id": "merchant-top-delivery",
+      "group": "intents",
+      "question": "Onde eu mais gasto com alimentação fora?",
+      "fixtures": {
+        "tool": {
+          "source": "merchant-v1",
+          "values": [
+            {"label": "Maior comerciante da categoria", "value": "Entrega Já", "unit": "TEXT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Gasto no maior comerciante", "value": "447.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Participação do maior comerciante na categoria", "value": "35", "unit": "PERCENT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Compras no maior comerciante", "value": "9", "unit": "COUNT", "kind": "FACT", "period": "2026-09"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": true, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetMerchantAnalysis", "version": "merchant-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "MERCHANT", "month": null, "category": "FOOD_OUT", "target": null, "scenario": null},
+        "answers": [
+          {"answer": "O comerciante com mais gastos é {{v:v1}}, com {{v:v2}} em {{v:v4}} compras, o que é {{v:v3}} da categoria.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Comerciante", "kind": "FACT"}, {"ref": "v2", "label": "Gasto", "kind": "FACT"}, {"ref": "v4", "label": "Compras", "kind": "FACT"}, {"ref": "v3", "label": "Participação", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "MERCHANT", "validation": "VALID", "calls": ["INTENT", "ANSWER"],
+        "refs": ["v1", "v2", "v4", "v3"],
+        "citedValues": ["Entrega Já", "R$ 447,00", "9", "35%"],
+        "sources": ["merchant-v1"], "kinds": ["FACT"], "notices": ["PARTIAL_PERIOD"],
+        "dataUsed": ["Gastos por comerciante set/2026 (parcial)"],
+        "textContains": ["Entrega Já", "em 9 compras"]
+      }
+    },
+    {
+      "id": "health-score-with-dimensions",
+      "group": "intents",
+      "question": "Como está a minha saúde financeira?",
+      "fixtures": {
+        "tool": {
+          "source": "health-v2",
+          "values": [
+            {"label": "Nota geral de saúde financeira", "value": "74", "unit": "SCORE", "kind": "FACT", "period": "2026-09"},
+            {"label": "Variação da nota contra o mês anterior", "value": "3", "unit": "COUNT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Nota de Cash Flow", "value": "82", "unit": "SCORE", "kind": "FACT", "period": "2026-09"},
+            {"label": "Nota de Gastos", "value": "64", "unit": "SCORE", "kind": "FACT", "period": "2026-09"},
+            {"label": "Nota de Crédito", "value": "71", "unit": "SCORE", "kind": "FACT", "period": "2026-09"},
+            {"label": "Nota de Dívida", "value": "88", "unit": "SCORE", "kind": "FACT", "period": "2026-09"},
+            {"label": "Nota de Reserva", "value": "68", "unit": "SCORE", "kind": "FACT", "period": "2026-09"},
+            {"label": "Nota de Consistência", "value": "79", "unit": "SCORE", "kind": "FACT", "period": "2026-09"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetFinancialHealth", "version": "health-v2"}],
+          "actions": [{"kind": "OPEN_HEALTH"}],
+          "breakdown": {"title": "Dimensões da nota", "rows": [
+            {"label": "Cash Flow", "valueIndex": 2}, {"label": "Gastos", "valueIndex": 3}, {"label": "Crédito", "valueIndex": 4},
+            {"label": "Dívida", "valueIndex": 5}, {"label": "Reserva", "valueIndex": 6}, {"label": "Consistência", "valueIndex": 7}]}
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "HEALTH", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Sua nota de saúde financeira é {{v:v1}}, {{v:v2}} pontos acima do mês anterior. A dimensão mais fraca é Gastos, com nota {{v:v4}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Nota", "kind": "FACT"}, {"ref": "v2", "label": "Variação", "kind": "FACT"}, {"ref": "v4", "label": "Gastos", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [{"kind": "OPEN_HEALTH", "target": null}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "HEALTH", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "HIGH",
+        "refs": ["v1", "v2", "v4", "v3", "v5", "v6", "v7", "v8"],
+        "citedValues": ["74", "3", "64", "82", "71", "88", "68", "79"],
+        "sources": ["health-v2"], "kinds": ["FACT"], "notices": [],
+        "actions": [{"kind": "OPEN_HEALTH"}],
+        "dataUsed": ["Saúde financeira set/2026"],
+        "breakdown": {"title": "Dimensões da nota", "rows": [
+          {"label": "Cash Flow", "formatted": "82"}, {"label": "Gastos", "formatted": "64"}, {"label": "Crédito", "formatted": "71"},
+          {"label": "Dívida", "formatted": "88"}, {"label": "Reserva", "formatted": "68"}, {"label": "Consistência", "formatted": "79"}]}
+      }
+    },
+    {
+      "id": "insights-active",
+      "group": "intents",
+      "question": "Quais alertas o app gerou para mim?",
+      "fixtures": {
+        "tool": {
+          "source": "insights-v1",
+          "values": [
+            {"label": "Insights ativos", "value": "2", "unit": "COUNT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Título do insight mais relevante", "value": "Alimentação fora subiu em relação à média", "unit": "TEXT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Impacto estimado do insight mais relevante", "value": "311.00", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-09"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "ListInsights", "version": "insights-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "INSIGHTS", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Você tem {{v:v1}} insights ativos. O mais relevante é: {{v:v2}}, com impacto estimado de {{v:v3}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Insights", "kind": "FACT"}, {"ref": "v2", "label": "Título", "kind": "FACT"}, {"ref": "v3", "label": "Impacto", "kind": "ESTIMATED"}], "explanation": [], "confidence": "medium", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "INSIGHTS", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3"],
+        "citedValues": ["2", "Alimentação fora subiu em relação à média", "R$ 311,00 (estimado)"],
+        "sources": ["insights-v1"], "kinds": ["FACT", "ESTIMATED"], "notices": ["ESTIMATED"],
+        "dataUsed": ["Insights set/2026"]
+      }
+    },
+    {
+      "id": "cards-limit-usage",
+      "group": "intents",
+      "question": "Quanto do limite dos meus cartões eu já usei?",
+      "fixtures": {
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label": "Limite total dos cartões ativos", "value": "18000.00", "unit": "MONEY", "kind": "FACT"},
+            {"label": "Limite utilizado nos cartões ativos", "value": "7793.20", "unit": "MONEY", "kind": "FACT"},
+            {"label": "Percentual do limite utilizado", "value": "43.3", "unit": "PERCENT", "kind": "FACT"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetCardsSummary", "version": "cards-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CARDS", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Você usou {{v:v2}} do limite total de {{v:v1}}, ou seja, {{v:v3}}.", "type": "analysis", "financialData": [{"ref": "v2", "label": "Utilizado", "kind": "FACT"}, {"ref": "v1", "label": "Limite", "kind": "FACT"}, {"ref": "v3", "label": "Percentual", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CARDS", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "HIGH",
+        "refs": ["v2", "v1", "v3"],
+        "citedValues": ["R$ 7.793,20", "R$ 18.000,00", "43,3%"],
+        "sources": ["cards-v1"], "kinds": ["FACT"], "notices": [],
+        "dataUsed": ["Fatura"]
+      }
+    },
+    {
+      "id": "forecast-next-events",
+      "group": "intents",
+      "question": "O que deve entrar e sair na minha conta no começo de outubro?",
+      "fixtures": {
+        "tool": {
+          "source": "forecast-v1",
+          "values": [
+            {"label": "Salário previsto para o início de outubro", "value": "6500.00", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-10-05"},
+            {"label": "Aluguel previsto para o início de outubro", "value": "1800.00", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-10-05"},
+            {"label": "Fatura de cartao_2 a vencer em outubro", "value": "1020.40", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-10-12"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetForecast", "version": "forecast-v1"}],
+          "actions": [{"kind": "OPEN_FORECAST"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "FORECAST", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "O salário previsto é {{v:v1}} e o aluguel, {{v:v2}}. A fatura de cartao_2 deve vencer com {{v:v3}}. São estimativas.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Salário", "kind": "ESTIMATED"}, {"ref": "v2", "label": "Aluguel", "kind": "ESTIMATED"}, {"ref": "v3", "label": "Fatura", "kind": "ESTIMATED"}], "explanation": [], "confidence": "medium", "actions": [{"kind": "OPEN_FORECAST", "target": null}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "FORECAST", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3"],
+        "citedValues": ["R$ 6.500,00 (estimado)", "R$ 1.800,00 (estimado)", "R$ 1.020,40 (estimado)"],
+        "sources": ["forecast-v1"], "kinds": ["ESTIMATED"], "notices": ["ESTIMATED"],
+        "actions": [{"kind": "OPEN_FORECAST"}],
+        "dataUsed": ["Previsão out/2026"],
+        "textContains": ["A fatura de Horizonte Gold deve vencer"]
+      }
+    },
+    {
+      "id": "goals-progress",
+      "group": "intents",
+      "question": "Como estão os meus objetivos?",
+      "fixtures": {
+        "tool": {
+          "source": "goals-v1",
+          "values": [
+            {"label": "Total guardado em objetivos", "value": "14300.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Progresso de objetivo_1", "value": "39.8", "unit": "PERCENT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Progresso de objetivo_2", "value": "35.8", "unit": "PERCENT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Conclusão prevista de objetivo_2", "value": "2027-08", "unit": "MONTH", "kind": "ESTIMATED", "period": "2027-08"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "ListGoals", "version": "goals-v1"}],
+          "actions": [{"kind": "OPEN_GOAL", "target": "objetivo_1"}, {"kind": "OPEN_GOAL", "target": "objetivo_2"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "GOALS", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Você já guardou {{v:v1}} nos objetivos. objetivo_1 está em {{v:v2}} e objetivo_2 em {{v:v3}}, com conclusão estimada para {{v:v4}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Guardado", "kind": "FACT"}, {"ref": "v2", "label": "Progresso 1", "kind": "FACT"}, {"ref": "v3", "label": "Progresso 2", "kind": "FACT"}, {"ref": "v4", "label": "Conclusão", "kind": "ESTIMATED"}], "explanation": [], "confidence": "medium", "actions": [{"kind": "OPEN_GOAL", "target": "objetivo_2"}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "GOALS", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3", "v4"],
+        "citedValues": ["R$ 14.300,00", "39,8%", "35,8%", "agosto de 2027 (estimado)"],
+        "sources": ["goals-v1"], "kinds": ["FACT", "ESTIMATED"], "notices": ["ESTIMATED"],
+        "actions": [{"kind": "OPEN_GOAL", "targetName": "Viagem para Lisboa"}],
+        "textContains": ["Reserva de emergência está em 39,8%", "Viagem para Lisboa em 35,8%"]
+      }
+    },
+    {
+      "id": "goal-simulation-lisbon-900",
+      "group": "intents",
+      "question": "E se eu guardar 900 por mês para a viagem para Lisboa?",
+      "fixtures": {
+        "tool": {
+          "source": "goal-simulation-v1",
+          "values": [
+            {"label": "Aporte mensal simulado", "value": "900.00", "unit": "MONEY", "kind": "SIMULATED", "period": "2026-10"},
+            {"label": "Falta guardar para objetivo_2", "value": "7700.00", "unit": "MONEY", "kind": "FACT", "period": "2026-10"},
+            {"label": "Aportes necessários na simulação", "value": "9", "unit": "COUNT", "kind": "SIMULATED", "period": "2026-10..2027-06"},
+            {"label": "Conclusão simulada de objetivo_2", "value": "2027-06", "unit": "MONTH", "kind": "SIMULATED", "period": "2027-06"},
+            {"label": "Conclusão atual prevista de objetivo_2", "value": "2027-08", "unit": "MONTH", "kind": "ESTIMATED", "period": "2027-08"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "SimulateGoal", "version": "goal-simulation-v1"}],
+          "actions": [{"kind": "OPEN_GOAL", "target": "objetivo_2"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "GOAL_SIMULATION", "month": null, "category": null, "target": "objetivo_2", "scenario": {"monthlyAmount": "900", "deadline": null, "reductionCategory": null, "reductionAmount": null}},
+        "answers": [
+          {"answer": "Na simulação, com {{v:v1}} por mês, objetivo_2 seria concluído em {{v:v4}}, após {{v:v3}} aportes. Hoje a previsão é {{v:v5}}.", "type": "simulation", "financialData": [{"ref": "v1", "label": "Aporte", "kind": "SIMULATED"}, {"ref": "v4", "label": "Conclusão simulada", "kind": "SIMULATED"}, {"ref": "v3", "label": "Aportes", "kind": "SIMULATED"}, {"ref": "v5", "label": "Previsão atual", "kind": "ESTIMATED"}], "explanation": [], "confidence": "medium", "actions": [{"kind": "OPEN_GOAL", "target": "objetivo_2"}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "GOAL_SIMULATION", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v4", "v3", "v5"],
+        "citedValues": ["R$ 900,00 (simulado)", "junho de 2027 (simulado)", "9 (simulado)", "agosto de 2027 (estimado)"],
+        "sources": ["goal-simulation-v1"], "kinds": ["SIMULATED", "ESTIMATED"], "notices": ["ESTIMATED", "SIMULATED"],
+        "actions": [{"kind": "OPEN_GOAL", "targetName": "Viagem para Lisboa"}],
+        "dataUsed": ["Simulação de objetivo out/2026 a ago/2027"]
+      }
+    },
+    {
+      "id": "out-of-scope-no-context",
+      "group": "intents",
+      "question": "Qual ação da bolsa vale mais a pena comprar agora?",
+      "scripted": {"intent": {"intent": "OUT_OF_SCOPE", "month": null, "category": null, "target": null, "scenario": null}},
+      "expect": {
+        "code": "OUT_OF_SCOPE", "intent": "OUT_OF_SCOPE", "validation": "NOT_APPLICABLE", "calls": ["INTENT"],
+        "actions": [], "textContains": ["Posso ajudar só com as suas finanças neste app"]
+      }
+    },
+    {
+      "id": "out-of-scope-with-entry-context",
+      "group": "intents",
+      "question": "Quem ganhou o jogo de ontem?",
+      "context": {"kind": "INVOICE", "cardId": "a0000000-0000-4000-8000-0000000000c1", "month": "2026-10"},
+      "fixtures": {
+        "entry": {"targets": {"CARD": "cartao_1"}, "month": "2026-10", "screen": {"kind": "OPEN_INVOICE", "target": "cartao_1", "params": {"month": "2026-10"}}}
+      },
+      "scripted": {"intent": {"intent": "OUT_OF_SCOPE", "month": null, "category": null, "target": null, "scenario": null}},
+      "expect": {
+        "code": "OUT_OF_SCOPE", "intent": "OUT_OF_SCOPE", "validation": "NOT_APPLICABLE", "calls": ["INTENT"],
+        "actions": [], "textContains": ["Posso ajudar só com as suas finanças neste app"]
+      }
+    },
+    {
+      "id": "unsupported-action-no-context",
+      "group": "intents",
+      "question": "Transfira R$ 500 da conta corrente para a poupança.",
+      "scripted": {"intent": {"intent": "UNSUPPORTED_ACTION", "month": null, "category": null, "target": null, "scenario": null}},
+      "expect": {
+        "code": "OUT_OF_SCOPE", "intent": "UNSUPPORTED_ACTION", "validation": "NOT_APPLICABLE", "calls": ["INTENT"],
+        "actions": [], "textContains": ["Não consigo fazer operações por você"]
+      }
+    },
+    {
+      "id": "unsupported-action-with-invoice-context",
+      "group": "intents",
+      "question": "Pague esta fatura agora.",
+      "context": {"kind": "INVOICE", "cardId": "a0000000-0000-4000-8000-0000000000c1", "month": "2026-10"},
+      "fixtures": {
+        "entry": {"targets": {"CARD": "cartao_1"}, "month": "2026-10", "screen": {"kind": "OPEN_INVOICE", "target": "cartao_1", "params": {"month": "2026-10"}}}
+      },
+      "scripted": {"intent": {"intent": "UNSUPPORTED_ACTION", "month": null, "category": null, "target": null, "scenario": null}},
+      "expect": {
+        "code": "OUT_OF_SCOPE", "intent": "UNSUPPORTED_ACTION", "validation": "NOT_APPLICABLE", "calls": ["INTENT"],
+        "actions": [{"kind": "OPEN_INVOICE", "targetName": "Aurora Platinum", "params": {"month": "2026-10"}}],
+        "textContains": ["Não consigo fazer operações por você"]
+      }
+    },
+    {
+      "id": "unsupported-action-with-goal-context",
+      "group": "intents",
+      "question": "Aumente o aporte mensal deste objetivo para 900.",
+      "context": {"kind": "GOAL", "goalId": "a0000000-0000-4000-8000-0000000000b2"},
+      "fixtures": {
+        "entry": {"targets": {"GOAL": "objetivo_2"}, "screen": {"kind": "OPEN_GOAL", "target": "objetivo_2"}}
+      },
+      "scripted": {"intent": {"intent": "UNSUPPORTED_ACTION", "month": null, "category": null, "target": null, "scenario": null}},
+      "expect": {
+        "code": "OUT_OF_SCOPE", "intent": "UNSUPPORTED_ACTION", "validation": "NOT_APPLICABLE", "calls": ["INTENT"],
+        "actions": [{"kind": "OPEN_GOAL", "targetName": "Viagem para Lisboa"}]
+      }
+    }
+  ]
+}
