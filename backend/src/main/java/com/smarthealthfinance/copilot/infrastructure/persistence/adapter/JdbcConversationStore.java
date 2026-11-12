@@ -183,6 +183,17 @@ class JdbcConversationStore implements ConversationStore {
     }
 
     @Override
+    public int deleteUpTo(WorkspaceId workspaceId, UserId userId, Instant upTo) {
+        jdbc.update("delete from copilot_messages where workspace_id = ? and user_id = ? and created_at <= ?",
+                workspaceId.value(), userId.value(), Timestamp.from(upTo));
+        return jdbc.update("""
+                delete from copilot_conversations c
+                where c.workspace_id = ? and c.user_id = ?
+                  and not exists (select 1 from copilot_messages m where m.conversation_id = c.id)
+                """, workspaceId.value(), userId.value());
+    }
+
+    @Override
     public int purgeExpiredMessages(Instant now, int batch) {
         return jdbc.update("""
                 delete from copilot_messages where id in (

@@ -52,7 +52,7 @@ public final class RealCopilotWiring {
         CopilotProperties.Anthropic anthropic = configured.anthropic();
         CopilotProperties properties = new CopilotProperties(true, "anthropic", configured.zone(), configured.models(),
                 new CopilotProperties.Anthropic(key, anthropic.baseUrl(), anthropic.intentTimeout(),
-                        anthropic.answerTimeout()),
+                        anthropic.answerTimeout(), anthropic.allowCustomBaseUrl()),
                 configured.simulated(), configured.resilience(), configured.limits(), configured.pricing());
         CopilotConfiguration configuration = new CopilotConfiguration();
         AiProvider provider = configuration.copilotAiProvider(properties, JsonMapper.builder().build());

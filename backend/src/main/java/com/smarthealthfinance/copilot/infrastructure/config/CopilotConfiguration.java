@@ -35,6 +35,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Duration;
 import java.util.Locale;
 
@@ -121,6 +123,7 @@ class CopilotConfiguration {
             throw new IllegalStateException(
                     "shf.copilot.provider=anthropic requires ANTHROPIC_API_KEY (environment variable or secret)");
         }
+        requireOfficialBaseUrl(config);
         CopilotProperties.Models models = properties.models();
         OutputConfig.Effort effort = OutputConfig.Effort.of(models.effort().strip().toLowerCase(Locale.ROOT));
         return new AnthropicAiProvider(
@@ -129,6 +132,32 @@ class CopilotConfiguration {
                 new AnthropicAiProvider.Route(client(config, config.answerTimeout()), models.answer(),
                         models.answerMaxTokens(), config.answerTimeout()),
                 effort, json);
+    }
+
+    /**
+     * A chave e as perguntas só vão para {@code https://api.anthropic.com} (ADR-0039 §7). Outro host só com
+     * {@code shf.copilot.anthropic.allow-custom-base-url=true}, previsto para testes. A mensagem nunca traz a chave.
+     *
+     * @throws IllegalStateException {@code baseUrl} que não é https no host oficial, sem a permissão explícita
+     */
+    static void requireOfficialBaseUrl(CopilotProperties.Anthropic config) {
+        String baseUrl = config.baseUrl();
+        if (baseUrl == null || baseUrl.isBlank() || config.allowCustomBaseUrl()) {
+            return;
+        }
+        URI uri;
+        try {
+            uri = new URI(baseUrl.strip());
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException("shf.copilot.anthropic.base-url is not a valid URL");
+        }
+        if (!"https".equalsIgnoreCase(uri.getScheme())
+                || !CopilotProperties.Anthropic.OFFICIAL_HOST.equalsIgnoreCase(uri.getHost())
+                || uri.getUserInfo() != null) {
+            throw new IllegalStateException("shf.copilot.anthropic.base-url must be https://"
+                    + CopilotProperties.Anthropic.OFFICIAL_HOST + " (set shf.copilot.anthropic.allow-custom-base-url"
+                    + "=true only in tests)");
+        }
     }
 
     /** Sem retries do SDK: o retry é do Resilience4j, dentro do orçamento do pipeline. */

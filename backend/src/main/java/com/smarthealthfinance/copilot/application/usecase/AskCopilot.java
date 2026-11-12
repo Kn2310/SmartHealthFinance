@@ -59,6 +59,20 @@ public class AskCopilot {
         if (!decision.admitted()) {
             return pipeline.refused(requestId, decision);
         }
+        return pipeline.run(requestId, decision, normalized(command));
+    }
+
+    /**
+     * Valida o tamanho e o formato da pergunta e das anteriores, sem efeito colateral. A API chama antes de reservar a
+     * chave de idempotência (e de calcular o fingerprint do corpo), depois da checagem de membership (ADR-0003).
+     *
+     * @throws InvalidValueException {@code question} ou {@code previousQuestions} inválidas
+     */
+    public void validate(AskCommand command) {
+        normalized(command);
+    }
+
+    private AskCommand normalized(AskCommand command) {
         String text = command.question() == null ? "" : command.question().strip();
         if (text.isEmpty()) {
             throw new InvalidValueException("question", "REQUIRED");
@@ -66,8 +80,7 @@ public class AskCopilot {
         if (text.length() > settings.maxQuestionChars()) {
             throw new InvalidValueException("question", "TOO_LONG");
         }
-        return pipeline.run(requestId, decision,
-                new AskCommand(text, previous(command.previousQuestions()), command.context()));
+        return new AskCommand(text, previous(command.previousQuestions()), command.context());
     }
 
     private List<PreviousQuestion> previous(List<PreviousQuestion> questions) {

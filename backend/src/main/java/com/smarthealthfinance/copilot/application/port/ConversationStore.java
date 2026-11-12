@@ -47,6 +47,12 @@ public interface ConversationStore {
     /** Hard delete de todas as conversas da pessoa no Workspace; devolve quantas. */
     int deleteAll(WorkspaceId workspaceId, UserId userId);
 
+    /**
+     * Revogação do consentimento: apaga as mensagens da pessoa criadas até {@code upTo} (inclusive) e as conversas que
+     * ficarem sem mensagem; o que foi criado depois (novo consentimento) fica. Devolve quantas conversas saíram.
+     */
+    int deleteUpTo(WorkspaceId workspaceId, UserId userId, Instant upTo);
+
     /** Retenção: apaga até {@code batch} mensagens expiradas (lock sem espera); atravessa Workspaces. */
     int purgeExpiredMessages(Instant now, int batch);
 

@@ -431,7 +431,23 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   - dívidas: "Conhecer o plano" e o nome do plano no M12; o simulado não reconhece "Como estou este mês?" (vira fora
     do escopo no local/E2E); E2E do Copilot longo (~3–5 min) e sensível à primeira compilação do `next dev`; alguns
     testes de view do Copilot com timeout explícito por carga
-- [ ] evaluation
+- [x] evaluation e observabilidade (Sessão 8.2 Parte F, ADR-0042; adendo ADR-0039 §3): golden set `golden-v1`
+  (casos sintéticos por intenção, 09-dados-de-exemplo, adversariais, dados insuficientes e continuidade) no build
+  normal com saída roteirizada; perfil `copilot-eval` + workflow manual `copilot-eval.yml` contra o modelo real, com
+  relatório sem conteúdo; painel Grafana e alertas Prometheus versionados em `infrastructure/observability/copilot/`;
+  custo por Workspace e por dia pelo ledger; revisão de segurança e privacidade (validação da pergunta antes da
+  admissão e corpo até 16 KB, revogação apaga só até o evento, `baseUrl` do provedor restrito)
+  - **bloqueante de produção:** destinatário de Pix/TED/DOC ainda vai ao modelo como comerciante; pseudonimizar como
+    `destinatario_N` exige marcar a origem de transferência na projeção da analytics (migration, adendo ADR-0013;
+    PR próprio, aprovado em 2026-11-12)
+  - dívidas: rodar o golden set real e calibrar os limiares do runbook de avaliação e dos alertas; criar o secret
+    `ANTHROPIC_API_KEY` no repositório; scan de dependências e CVEs (`anthropic-java`, Resilience4j, Jackson 2 do SDK);
+    feedback do Copilot e `ai_usage` sem exclusão na revogação (só metadados; retenção do ledger no M13); entre a
+    revogação e o consumidor, reconceder o histórico mostra conversas antigas por instantes; DPA e PIA
+- **M11 completo** (Sessões 8.1 e 8.2; ADR-0038 a ADR-0042). Para o M12: planos e entitlements substituem as quotas
+  provisórias (`shf.copilot.quota.*`), "Conhecer o plano" e o nome do plano na UI, calibração de preços e quotas pelo
+  custo observado no golden set real. Para o M13/M14: retenção do `ai_usage`, staging com a chave real, painel e
+  alertas no ambiente, DPA e PIA.
 
 ## M12 Monetization
 

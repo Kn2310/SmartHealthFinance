@@ -51,6 +51,37 @@ class CopilotConfigurationTest {
         assertThat(properties.toString()).doesNotContain("sk-test-not-real").contains("apiKey=***");
     }
 
+    private static Map<String, String> anthropic(String baseUrl) {
+        Map<String, String> values = new HashMap<>();
+        values.put("shf.copilot.provider", "anthropic");
+        values.put("shf.copilot.anthropic.api-key", "sk-test-not-real");
+        values.put("shf.copilot.anthropic.base-url", baseUrl);
+        return values;
+    }
+
+    @Test
+    void baseUrlMustBeHttpsOnTheOfficialHostAndNeverEchoesTheKey() {
+        for (String rejected : new String[] {"http://api.anthropic.com", "https://evil.example.com",
+                "https://api.anthropic.com.evil.example", "https://user:pass@api.anthropic.com", "http://127.0.0.1:8080",
+                "nao é url"}) {
+            assertThatThrownBy(() -> configuration.copilotAiProvider(bind(anthropic(rejected)), json))
+                    .as(rejected).isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("base-url")
+                    .message().doesNotContain("sk-test-not-real");
+        }
+        assertThat(configuration.copilotAiProvider(bind(anthropic("https://api.anthropic.com")), json))
+                .isInstanceOf(AnthropicAiProvider.class);
+        assertThat(configuration.copilotAiProvider(bind(anthropic("")), json)).isInstanceOf(AnthropicAiProvider.class);
+    }
+
+    @Test
+    void anotherHostNeedsTheExplicitTestProperty() {
+        Map<String, String> values = anthropic("http://127.0.0.1:8080");
+        values.put("shf.copilot.anthropic.allow-custom-base-url", "true");
+
+        assertThat(configuration.copilotAiProvider(bind(values), json)).isInstanceOf(AnthropicAiProvider.class);
+    }
+
     @Test
     void unknownProviderIsRejected() {
         assertThatThrownBy(() -> configuration.copilotAiProvider(bind(Map.of("shf.copilot.provider", "other")), json))

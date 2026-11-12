@@ -21,7 +21,10 @@ Referência: ADR-0039 (modelo de IA), ADR-0038 (consentimentos). Configuração 
 
 - **Simulado ↔ real:**
   - `COPILOT_PROVIDER=simulated` (padrão) ou `COPILOT_PROVIDER=anthropic`;
-  - o real exige `ANTHROPIC_API_KEY`: sem ela, a API **não sobe** e informa só o nome da variável que falta.
+  - o real exige `ANTHROPIC_API_KEY`: sem ela, a API **não sobe** e informa só o nome da variável que falta;
+  - `shf.copilot.anthropic.base-url` vazio usa o host oficial; se preenchido, precisa ser `https://api.anthropic.com`,
+    ou a API não sobe (a chave e as perguntas só vão a esse host). Só os testes usam
+    `shf.copilot.anthropic.allow-custom-base-url=true`; nunca em produção.
 - **Modelo:**
   - edite `shf.copilot.models.intent` / `answer`, sempre com ids exatos e sem sufixo de data;
   - inclua o preço do modelo novo em `shf.copilot.pricing.models` e troque `pricing.version`;
@@ -202,7 +205,8 @@ delete from copilot_feedback where request_id in (
 - A pessoa apaga uma conversa (`DELETE .../copilot/conversations/{id}`) ou todas (`DELETE .../copilot/conversations`),
   sempre hard delete (as mensagens saem em cascata). O usage ledger e o feedback ficam (sem conteúdo).
 - Revogar `COPILOT_HISTORY` (ou `COPILOT_DATA_USE`, que revoga o histórico em cascata) apaga todas as conversas da pessoa
-  no Workspace pelo consumidor abaixo.
+  no Workspace pelo consumidor abaixo, só as criadas até o `occurredAt` do evento (um evento atrasado não apaga o que
+  veio de um novo consentimento).
 - Atendimento de direito de exclusão fora da API (com acesso ao banco), de uma pessoa num Workspace:
 
 ```sql

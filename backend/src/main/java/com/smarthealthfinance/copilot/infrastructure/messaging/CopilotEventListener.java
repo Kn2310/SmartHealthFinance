@@ -44,7 +44,7 @@ public class CopilotEventListener {
                 throw new AmqpRejectAndDontRequeueException("Event payload missing purpose");
             }
             deleteOnRevocation.execute(event.eventId(), new WorkspaceId(event.workspaceId()),
-                    new UserId(event.payloadUuid("userId")), purpose.asString());
+                    new UserId(event.payloadUuid("userId")), purpose.asString(), event.occurredAt());
         }
         finally {
             if (previousCorrelation == null) {

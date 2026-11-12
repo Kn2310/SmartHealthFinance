@@ -11,11 +11,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 /**
  * Consumidor {@code copilot.history-revocation} de {@code consent.revoked} (ADR-0038 §4, ADR-0040 §6): quando o
- * propósito é {@code COPILOT_HISTORY}, apaga todas as conversas da pessoa no Workspace (a revogação de
+ * propósito é {@code COPILOT_HISTORY}, apaga as mensagens da pessoa no Workspace criadas até o {@code occurredAt} do
+ * evento, e as conversas que ficarem vazias (uma entrega atrasada não apaga o que veio de um novo consentimento; a revogação de
  * {@code COPILOT_DATA_USE} já emite um revoked de HISTORY em cascata). Outros propósitos são ignorados. O apagamento e
  * a inbox ({@code ProcessedEvents}) commitam juntos; uma reentrega não tem efeito. Todo {@code consent.revoked} entra na inbox, inclusive os ignorados.
  */
@@ -42,7 +44,7 @@ public class DeleteConversationsOnRevocation {
      * @return verdadeiro se o histórico foi tratado agora; falso se o propósito é outro ou o evento já foi processado
      */
     @Transactional
-    public boolean execute(UUID eventId, WorkspaceId workspaceId, UserId userId, String purpose) {
+    public boolean execute(UUID eventId, WorkspaceId workspaceId, UserId userId, String purpose, Instant occurredAt) {
         if (!processedEvents.markProcessed(CONSUMER, eventId)) {
             log.info("Copilot revocation already processed eventId={} workspaceId={}", eventId, workspaceId);
             return false;
@@ -50,7 +52,7 @@ public class DeleteConversationsOnRevocation {
         if (!ConsentPurpose.COPILOT_HISTORY.name().equals(purpose)) {
             return false;
         }
-        int deleted = store.deleteAll(workspaceId, userId);
+        int deleted = store.deleteUpTo(workspaceId, userId, occurredAt);
         if (deleted > 0) {
             meters.counter("shf.copilot.history.deleted", "cause", "REVOCATION").increment(deleted);
         }

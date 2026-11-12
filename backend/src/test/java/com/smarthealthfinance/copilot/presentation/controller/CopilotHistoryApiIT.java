@@ -447,19 +447,37 @@ class CopilotHistoryApiIT extends IntegrationTest {
         seed(anasWs, anaUser, "Conversa", Instant.now(), expires);
         UUID event = UUID.randomUUID();
 
-        assertThat(revocation.execute(UUID.randomUUID(), anasWs, anaUser, "COPILOT_DATA_USE")).isFalse();
+        assertThat(revocation.execute(UUID.randomUUID(), anasWs, anaUser, "COPILOT_DATA_USE", Instant.now()))
+                .isFalse();
         assertThat(jdbc.queryForObject("select count(*) from copilot_conversations", Long.class))
                 .as("outro propósito não apaga").isEqualTo(1);
 
-        assertThat(revocation.execute(event, anasWs, anaUser, "COPILOT_HISTORY")).isTrue();
+        assertThat(revocation.execute(event, anasWs, anaUser, "COPILOT_HISTORY", Instant.now())).isTrue();
         assertThat(jdbc.queryForObject("select count(*) from copilot_conversations", Long.class)).isZero();
 
         seed(anasWs, anaUser, "Outra conversa depois", Instant.now(), expires);
-        assertThat(revocation.execute(event, anasWs, anaUser, "COPILOT_HISTORY"))
+        assertThat(revocation.execute(event, anasWs, anaUser, "COPILOT_HISTORY", Instant.now()))
                 .as("o mesmo evento entregue de novo não tem efeito").isFalse();
         assertThat(jdbc.queryForObject("select count(*) from copilot_conversations", Long.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from processed_events where consumer = ? and event_id = ?::uuid",
                 Long.class, DeleteConversationsOnRevocation.CONSUMER, event.toString())).isEqualTo(1);
+    }
+
+    @Test
+    void aLateRevocationEventOnlyDeletesWhatWasCreatedUpToItsOccurredAt() {
+        Instant expires = Instant.now().plus(90, ChronoUnit.DAYS);
+        Instant revokedAt = Instant.now().minus(2, ChronoUnit.HOURS);
+        UUID old = seed(anasWs, anaUser, "Antiga", revokedAt.minus(1, ChronoUnit.HOURS), expires);
+        UUID mixed = seed(anasWs, anaUser, "Mista antiga", revokedAt.minus(30, ChronoUnit.MINUTES), expires);
+        append(anasWs, anaUser, mixed, "Depois do novo consentimento", revokedAt.plus(1, ChronoUnit.HOURS), expires);
+        UUID fresh = seed(anasWs, anaUser, "Nova", revokedAt.plus(90, ChronoUnit.MINUTES), expires);
+
+        assertThat(revocation.execute(UUID.randomUUID(), anasWs, anaUser, "COPILOT_HISTORY", revokedAt)).isTrue();
+
+        assertThat(jdbc.queryForList("select id from copilot_conversations", UUID.class))
+                .containsExactlyInAnyOrder(mixed, fresh).doesNotContain(old);
+        assertThat(jdbc.queryForList("select question from copilot_messages", String.class))
+                .containsExactlyInAnyOrder("Depois do novo consentimento", "Nova");
     }
 
     // --- retenção ---
