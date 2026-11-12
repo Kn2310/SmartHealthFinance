@@ -1,0 +1,119 @@
+# Regras de alerta do Financial Copilot (ADR-0042 §4). Formato de regras do Prometheus.
+# Valores iniciais propostos, a calibrar com tráfego real (M13/M14). Nomes como o Micrometer os expõe em
+# /actuator/prometheus (pontos viram "_", contadores ganham "_total", timers ganham "_seconds").
+# Nenhuma métrica leva workspaceId, userId, pergunta ou resposta. Runbook: docs/runbooks/copilot.md.
+groups:
+  - name: shf-copilot
+    rules:
+      # SLO 05.9 "Copilot success >= 98%". Respostas com conteúdo (OK, SAFE_MODE, INSUFFICIENT_DATA, OUT_OF_SCOPE)
+      # sobre as que dependem do sistema; CONSENT_REQUIRED, RATE_LIMITED e QUOTA_EXCEEDED são limites da pessoa e
+      # ficam fora do denominador.
+      - alert: CopilotSuccessBelowSlo
+        expr: |
+          (
+            sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE|INSUFFICIENT_DATA|OUT_OF_SCOPE"}[1h]))
+            /
+            sum(increase(shf_copilot_pipeline_total{code!~"CONSENT_REQUIRED|RATE_LIMITED|QUOTA_EXCEEDED"}[1h]))
+          ) < 0.98
+          and sum(increase(shf_copilot_pipeline_total[1h])) > 20
+        for: 10m
+        labels:
+          severity: P2
+        annotations:
+          summary: "Copilot abaixo do SLO de sucesso (98%) na última hora"
+          runbook: "docs/runbooks/copilot.md#alertas"
+
+      - alert: CopilotProviderUnavailable
+        expr: |
+          (
+            sum(increase(shf_copilot_pipeline_total{code="PROVIDER_UNAVAILABLE"}[15m]))
+            /
+            sum(increase(shf_copilot_pipeline_total[15m]))
+          ) > 0.05
+          or max(resilience4j_circuitbreaker_state{name="copilot-ai", state="open"}) > 0
+        for: 5m
+        labels:
+          severity: P2
+        annotations:
+          summary: "Provedor de IA indisponível ou circuito do Copilot aberto"
+          runbook: "docs/runbooks/copilot.md#alertas"
+
+      - alert: CopilotSafeModeHigh
+        expr: |
+          (
+            sum(increase(shf_copilot_pipeline_total{code="SAFE_MODE"}[1h]))
+            /
+            sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE"}[1h]))
+          ) > 0.10
+          and sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE"}[1h])) > 20
+        for: 15m
+        labels:
+          severity: P3
+        annotations:
+          summary: "Mais de 10% das respostas do Copilot em modo seguro"
+          runbook: "docs/runbooks/copilot.md#alertas"
+
+      - alert: CopilotClaimViolationsHigh
+        expr: |
+          (
+            sum(increase(shf_copilot_validation_violation_total[1h]))
+            /
+            sum(increase(shf_copilot_validation_total[1h]))
+          ) > 0.20
+          and sum(increase(shf_copilot_validation_total[1h])) > 20
+        for: 15m
+        labels:
+          severity: P3
+        annotations:
+          summary: "Violações da claim validation acima de 20% das respostas do modelo"
+          runbook: "docs/runbooks/copilot.md#alertas"
+
+      - alert: CopilotLatencyHigh
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(shf_copilot_pipeline_latency_seconds_bucket[15m]))) > 20
+        for: 15m
+        labels:
+          severity: P3
+        annotations:
+          summary: "p95 do pipeline do Copilot acima de 20 s"
+          runbook: "docs/runbooks/copilot.md#alertas"
+
+      - alert: CopilotThrottlingHigh
+        expr: |
+          (
+            sum(increase(shf_copilot_admission_total{code=~"RATE_LIMITED|QUOTA_EXCEEDED"}[1h]))
+            /
+            sum(increase(shf_copilot_admission_total[1h]))
+          ) > 0.20
+          and sum(increase(shf_copilot_admission_total[1h])) > 20
+        for: 30m
+        labels:
+          severity: P4
+        annotations:
+          summary: "Mais de 20% das perguntas barradas por rate limit ou quota"
+          runbook: "docs/runbooks/copilot.md#alertas"
+
+      - alert: CopilotDailyCostHigh
+        expr: sum(increase(shf_copilot_ai_cost_usd_total[24h])) > 20
+        labels:
+          severity: P3
+        annotations:
+          summary: "Custo do Copilot acima de US$ 20 nas últimas 24 h (por Workspace: consulta do ledger no runbook)"
+          runbook: "docs/runbooks/copilot.md#custo-por-workspace-e-por-dia"
+
+      - alert: CopilotUnpricedModel
+        expr: sum(increase(shf_copilot_ai_unpriced_total[1h])) > 0
+        labels:
+          severity: P3
+        annotations:
+          summary: "Chamada a um modelo sem preço na tabela versionada: o custo do ledger fica zerado"
+          runbook: "docs/runbooks/copilot.md#trocar-de-provedor-ou-de-modelo"
+
+      # Privacidade: uma revogação de histórico parada na DLQ deixa conversas guardadas (não exibidas) além do prazo.
+      - alert: CopilotRevocationDeadLettered
+        expr: sum(increase(shf_copilot_history_dead_lettered_total[15m])) > 0
+        labels:
+          severity: P2
+        annotations:
+          summary: "consent.revoked do Copilot na DLQ: histórico da pessoa ainda não foi apagado"
+          runbook: "docs/runbooks/copilot.md#consumidor-de-consentrevoked-e-dlq"
