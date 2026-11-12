@@ -1179,6 +1179,111 @@ export interface components {
     ConsentListResponse: { items: components['schemas']['ConsentResponse'][] }
     /** `termsVersion` obrigatória (a vigente) para conceder; ignorada para revogar. */
     ChangeConsentRequest: { granted: boolean; termsVersion?: string | null }
+    /** Pergunta ao Copilot (ADR-0040 §3): de 1 a 500 caracteres; `conversationId` e `previousQuestions` não combinam. */
+    CopilotAskQuestionRequest: {
+      question: string
+      conversationId?: string | null
+      previousQuestions?: string[] | null
+      context?: components['schemas']['CopilotEntryContext'] | null
+    }
+    /** Ponto de entrada: INSIGHT (insightId), INVOICE (cardId, month), INSTALLMENT_PLAN (cardId, planId), GOAL (goalId). */
+    CopilotEntryContext: {
+      kind: CopilotContextKind
+      insightId?: string | null
+      cardId?: string | null
+      month?: string | null
+      planId?: string | null
+      goalId?: string | null
+    }
+    CopilotAnswer: {
+      requestId: string
+      conversationId: string | null
+      messageId: string | null
+      code: CopilotAnswerCode
+      intent: CopilotIntent | null
+      question: string
+      answer: components['schemas']['CopilotAnswerBody']
+      confidence: CopilotConfidence | null
+      validation: CopilotValidation
+      notices: CopilotNotice[]
+      versions: Record<string, string>
+      createdAt: string
+    }
+    CopilotAnswerBody: {
+      type: CopilotAnswerType
+      segments: components['schemas']['CopilotSegment'][]
+      explanation: components['schemas']['CopilotSegment'][][]
+      values: components['schemas']['CopilotValue'][]
+      breakdown: components['schemas']['CopilotBreakdown'] | null
+      actions: components['schemas']['CopilotAction'][]
+      dataUsed: components['schemas']['CopilotDataUsed'][]
+    }
+    /** TEXT traz `text`; VALUE traz `ref` (resolvido em `values`). Nunca HTML. */
+    CopilotSegment: { kind: CopilotSegmentKind; text?: string; ref?: string }
+    CopilotValue: {
+      ref: string
+      label: string
+      formatted: string
+      kind: CopilotValueKind
+      period: string | null
+      source: string
+    }
+    CopilotBreakdown: {
+      title: string
+      rows: components['schemas']['CopilotBreakdownRow'][]
+      totalRef: string | null
+    }
+    CopilotBreakdownRow: { label: string; valueRef: string; detail: string | null }
+    CopilotAction: {
+      kind: CopilotActionKind
+      label: string
+      targetId: string | null
+      targetName: string | null
+      params: Record<string, string>
+    }
+    CopilotDataUsed: { label: string; partial: boolean }
+    CopilotUsage: {
+      month: components['schemas']['CopilotUsageWindow']
+      day: components['schemas']['CopilotUsageWindow']
+      dataScope: components['schemas']['CopilotDataScope'] | null
+      provisional: boolean
+    }
+    CopilotUsageWindow: { used: number; limit: number; resetsAt: string }
+    CopilotDataScope: { from: string; to: string }
+    CopilotConversationSummary: {
+      id: string
+      title: string
+      createdAt: string
+      lastMessageAt: string
+      messageCount: number
+    }
+    CopilotConversationPage: {
+      historyEnabled: boolean
+      items: components['schemas']['CopilotConversationSummary'][]
+      nextCursor: string | null
+    }
+    CopilotConversationMessage: {
+      id: string
+      requestId: string
+      question: string
+      createdAt: string
+      answer: components['schemas']['CopilotAnswer']
+    }
+    CopilotConversation: {
+      id: string
+      title: string
+      createdAt: string
+      messages: components['schemas']['CopilotConversationMessage'][]
+    }
+    CopilotFeedbackRequest: { rating: CopilotFeedbackRating; reason?: CopilotFeedbackReason | null }
+    /** 429 de quota (ADR-0040 §4): `resetsAt` é quando a quota volta. */
+    QuotaExceededError: {
+      code: string
+      message: string
+      details: { field?: string; code?: string; message?: string }[]
+      traceId?: string
+      resetsAt: string
+    }
     /** De 1 a 5 cenários (ADR-0036 §2); campos ausentes usam o plano do objetivo. */
     SimulateGoalRequest: { scenarios: components['schemas']['SimulationScenarioRequest'][] }
     SimulationScenarioRequest: {
@@ -1322,6 +1427,43 @@ export type InsightDataState = 'NO_DATA' | 'INSUFFICIENT_HISTORY' | 'READY'
 export type InsightType = 'SPENDING' | 'INCOME' | 'HEALTH' | 'CARDS'
 export type ConsentPurpose = 'COPILOT_DATA_USE' | 'COPILOT_HISTORY'
 export type ConsentState = 'PENDING' | 'ACTIVE' | 'EXPIRED' | 'REVOKED' | 'FAILED'
+export type CopilotAnswerCode = 'OK' | 'SAFE_MODE' | 'INSUFFICIENT_DATA' | 'OUT_OF_SCOPE'
+export type CopilotIntent =
+  | 'OVERVIEW'
+  | 'CASH_FLOW'
+  | 'CATEGORY'
+  | 'MERCHANT'
+  | 'HEALTH'
+  | 'INSIGHTS'
+  | 'CARDS'
+  | 'FORECAST'
+  | 'GOALS'
+  | 'GOAL_SIMULATION'
+  | 'OUT_OF_SCOPE'
+  | 'UNSUPPORTED_ACTION'
+export type CopilotConfidence = 'high' | 'medium' | 'low'
+export type CopilotValidation = 'VALID' | 'REGENERATED' | 'SAFE_MODE' | 'NOT_APPLICABLE'
+export type CopilotNotice = 'PARTIAL_PERIOD' | 'ESTIMATED' | 'SIMULATED' | 'SAFE_MODE' | 'UPDATING'
+export type CopilotAnswerType =
+  | 'analysis'
+  | 'explanation'
+  | 'comparison'
+  | 'simulation'
+  | 'out_of_scope'
+  | 'insufficient_data'
+export type CopilotSegmentKind = 'TEXT' | 'VALUE'
+export type CopilotValueKind = 'FACT' | 'ESTIMATED' | 'SIMULATED'
+export type CopilotActionKind =
+  | 'OPEN_INVOICE'
+  | 'OPEN_INSTALLMENTS'
+  | 'OPEN_HEALTH'
+  | 'OPEN_INSIGHT'
+  | 'OPEN_GOAL'
+  | 'OPEN_ANALYSIS_CATEGORY'
+  | 'OPEN_FORECAST'
+export type CopilotContextKind = 'INSIGHT' | 'INVOICE' | 'INSTALLMENT_PLAN' | 'GOAL'
+export type CopilotFeedbackRating = 'HELPFUL' | 'NOT_HELPFUL'
+export type CopilotFeedbackReason = 'WRONG_NUMBERS' | 'DID_NOT_ANSWER' | 'CONFUSING' | 'OTHER'
 export type InsightImportance = 'IMPORTANT' | 'INFORMATIVE'
 export type InsightStatus = 'ACTIVE' | 'RESOLVED' | 'EXPIRED' | 'DISMISSED'
 export type InsightConfidence = 'HIGH' | 'MEDIUM' | 'LOW'
@@ -2057,6 +2199,75 @@ export interface paths {
         401: { content: { 'application/json': components['schemas']['ApiError'] } }
         404: { content: { 'application/json': components['schemas']['ApiError'] } }
         409: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/copilot/questions': {
+    post: {
+      parameters: { header: { 'Idempotency-Key': string }; path: { workspaceId: string } }
+      requestBody: { content: { 'application/json': components['schemas']['CopilotAskQuestionRequest'] } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CopilotAnswer'] } }
+        400: { content: { 'application/json': components['schemas']['ApiError'] } }
+        403: { content: { 'application/json': components['schemas']['ApiError'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+        409: { content: { 'application/json': components['schemas']['ApiError'] } }
+        422: { content: { 'application/json': components['schemas']['ApiError'] } }
+        429: { content: { 'application/json': components['schemas']['QuotaExceededError'] } }
+        503: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/copilot/usage': {
+    get: {
+      parameters: { path: { workspaceId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CopilotUsage'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/copilot/conversations': {
+    get: {
+      parameters: { query?: { limit?: number; before?: string }; path: { workspaceId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CopilotConversationPage'] } }
+        400: { content: { 'application/json': components['schemas']['ApiError'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+    delete: {
+      parameters: { path: { workspaceId: string } }
+      responses: {
+        204: { content?: never }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/copilot/conversations/{conversationId}': {
+    get: {
+      parameters: { path: { workspaceId: string; conversationId: string } }
+      responses: {
+        200: { content: { 'application/json': components['schemas']['CopilotConversation'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+    delete: {
+      parameters: { path: { workspaceId: string; conversationId: string } }
+      responses: {
+        204: { content?: never }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
+      }
+    }
+  }
+  '/api/v1/workspaces/{workspaceId}/copilot/questions/{requestId}/feedback': {
+    put: {
+      parameters: { path: { workspaceId: string; requestId: string } }
+      requestBody: { content: { 'application/json': components['schemas']['CopilotFeedbackRequest'] } }
+      responses: {
+        204: { content?: never }
+        400: { content: { 'application/json': components['schemas']['ApiError'] } }
+        404: { content: { 'application/json': components['schemas']['ApiError'] } }
       }
     }
   }

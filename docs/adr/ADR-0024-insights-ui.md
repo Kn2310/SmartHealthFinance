@@ -33,6 +33,7 @@ do `M-More`, até aqui "Em breve".
    (ação primária, secundárias e os placeholders Objetivo/Copilot desabilitados "Em breve"), Confiança (3 segmentos),
    **Adendo (2026-11-06, ADR-0036 §4):** "Criar objetivo de economia" deixa de ser placeholder e leva à criação com
    origem no insight e a sugestão pré-preenchida (parte D da Sessão 7.2); "Perguntar ao Copilot" continua "Em breve".
+   **Adendo (2026-11-12, ADR-0041 §6):** "Perguntar ao Copilot" leva a `/copilot?from=insight&insightId=`.
    "Este insight foi útil?" (Útil/Não útil com `aria-pressed`; clicar no pressionado remove), Dispensar com
    confirmação inline e Relacionados (dimensão do Health e insights). Abrir o detalhe chama `POST /seen` (ADR-0023 §3).
 4. **Home:** uma chamada a `/highlights` alimenta "O que mudou" (até 3 linhas com rótulo, valor e comparação, cada uma

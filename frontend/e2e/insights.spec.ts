@@ -92,7 +92,8 @@ test('insights determinísticos: lista, detalhe, dispensa, Home e transação', 
   await expect(main).toContainText('Lançamentos de origem CSV')
   if (p.partial) await expect(main).toContainText(`${capitalize(monthName)} ainda não terminou`)
   await expect(main.getByRole('link', { name: 'Ver a transação' })).toHaveAttribute('href', /\/transactions\?/)
-  await expect(main.getByRole('button', { name: 'Perguntar ao Copilot · Em breve' })).toBeDisabled()
+  // Entrada do Copilot (ADR-0041 §6): só tipo e id na URL.
+  await expect(main.getByRole('link', { name: 'Perguntar ao Copilot' })).toHaveAttribute('href', /^\/copilot\?from=insight&insightId=[0-9a-f-]{36}$/)
 
   // Dispensar: confirmação inline; depois disso o insight some da lista (e nunca volta).
   await main.getByRole('button', { name: 'Dispensar insight' }).click()

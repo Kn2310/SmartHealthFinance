@@ -129,6 +129,9 @@ Definições:
     `suggestedDeadline` = o 6º mês a partir do seguinte e, no D1, `categoryCode`. É adição de conteúdo: os detectores
     e a versão (`insights-v3`) não mudam, e os insights existentes ganham a ação na próxima geração. `ASK_COPILOT`
     continua "Em breve" até o M11.
+    **Adendo (2026-11-12, ADR-0041 §6):** `ASK_COPILOT` passa a sair disponível; a resposta da API a marca como
+    disponível também nos insights já gravados (decisão na leitura, sem rebuild nem nova versão). A UI leva a
+    `/copilot?from=insight&insightId=`.
 - **Ação recomendada** (bloco de texto do detalhe): D1 com comerciante de s ≥ 30% → "Revisar {comerciante}:
   {s}% do gasto da categoria (R$ {valor} em {n} compras)."; senão "Revisar {categoria}". Os demais detectores usam o
   rótulo da ação primária. Sugere, não manda (02-components, Recommendation).

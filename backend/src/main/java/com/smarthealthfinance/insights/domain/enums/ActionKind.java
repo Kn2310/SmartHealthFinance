@@ -2,7 +2,7 @@ package com.smarthealthfinance.insights.domain.enums;
 
 /**
  * Ações para telas que existem (ADR-0021 §2); o frontend monta a rota a partir do código e dos parâmetros.
- * {@code ASK_COPILOT} (M11) sai sempre com {@code available = false}; {@code CREATE_SAVINGS_GOAL} está disponível
+ * {@code ASK_COPILOT} está disponível desde o M11 (adendo ADR-0021, ADR-0041 §6); {@code CREATE_SAVINGS_GOAL} está disponível
  * desde o M10, com a sugestão do objetivo nos parâmetros (adendo ADR-0021, ADR-0036 §4).
  */
 public enum ActionKind {

@@ -115,7 +115,8 @@ class InsightApiIT extends IntegrationTest {
         assertThat(read(detail, "$.dataSources")).isEqualTo(List.of("MANUAL"));
         assertThat(read(detail, "$.dimension.code")).isEqualTo("SPENDING");
         assertThat(read(detail, "$.dimension.label")).isEqualTo("Gastos");
-        assertThat(JsonPath.<List<Boolean>>read(body(detail), "$.actions[*].available")).contains(true, false);
+        assertThat(JsonPath.<List<Boolean>>read(body(detail), "$.actions[?(@.kind == 'ASK_COPILOT')].available"))
+                .containsExactly(true);
         // A alta total e a compra atípica falam da mesma categoria no mesmo período.
         assertThat(JsonPath.<List<String>>read(body(detail), "$.related[*].detector"))
                 .contains("SPENDING_ABOVE_PATTERN", "UNUSUAL_EXPENSE").doesNotContain("CATEGORY_SPIKE");

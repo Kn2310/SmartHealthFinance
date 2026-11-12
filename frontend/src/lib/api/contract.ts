@@ -67,6 +67,32 @@ export const TRANSACTION_DESCRIPTION_MAX_LENGTH = 200
 /** `ListTransactions.MAX_TEXT_LENGTH` (busca) e `MAX_PAGE_SIZE` do backend. */
 export const TRANSACTION_SEARCH_MAX_LENGTH = 100
 export const TRANSACTION_MAX_PAGE_SIZE = 100
+/** Copilot (ADR-0039, ADR-0040): enums do pedido e da resposta, e os limites da pergunta. */
+export const COPILOT_ANSWER_CODES = ['OK', 'SAFE_MODE', 'INSUFFICIENT_DATA', 'OUT_OF_SCOPE'] as const
+export const COPILOT_INTENTS = [
+  'OVERVIEW', 'CASH_FLOW', 'CATEGORY', 'MERCHANT', 'HEALTH', 'INSIGHTS', 'CARDS', 'FORECAST', 'GOALS',
+  'GOAL_SIMULATION', 'OUT_OF_SCOPE', 'UNSUPPORTED_ACTION',
+] as const
+export const COPILOT_CONFIDENCES = ['high', 'medium', 'low'] as const
+export const COPILOT_VALIDATIONS = ['VALID', 'REGENERATED', 'SAFE_MODE', 'NOT_APPLICABLE'] as const
+export const COPILOT_NOTICES = ['PARTIAL_PERIOD', 'ESTIMATED', 'SIMULATED', 'SAFE_MODE', 'UPDATING'] as const
+export const COPILOT_ANSWER_TYPES = [
+  'analysis', 'explanation', 'comparison', 'simulation', 'out_of_scope', 'insufficient_data',
+] as const
+export const COPILOT_SEGMENT_KINDS = ['TEXT', 'VALUE'] as const
+export const COPILOT_VALUE_KINDS = ['FACT', 'ESTIMATED', 'SIMULATED'] as const
+export const COPILOT_ACTION_KINDS = [
+  'OPEN_INVOICE', 'OPEN_INSTALLMENTS', 'OPEN_HEALTH', 'OPEN_INSIGHT', 'OPEN_GOAL', 'OPEN_ANALYSIS_CATEGORY',
+  'OPEN_FORECAST',
+] as const
+export const COPILOT_CONTEXT_KINDS = ['INSIGHT', 'INVOICE', 'INSTALLMENT_PLAN', 'GOAL'] as const
+export const COPILOT_FEEDBACK_RATINGS = ['HELPFUL', 'NOT_HELPFUL'] as const
+export const COPILOT_FEEDBACK_REASONS = ['WRONG_NUMBERS', 'DID_NOT_ANSWER', 'CONFUSING', 'OTHER'] as const
+/** `PipelineSettings.maxQuestionChars`: pergunta de 1 a 500 caracteres depois do strip. */
+export const COPILOT_QUESTION_MAX_LENGTH = 500
+/** `AskCopilot.MAX_PREVIOUS_QUESTIONS`. */
+export const COPILOT_MAX_PREVIOUS_QUESTIONS = 3
+
 /** `IdempotencyKey.MAX_LENGTH` do backend (só caracteres não reservados de URI + ':'). */
 export const IDEMPOTENCY_KEY_MAX_LENGTH = 100
 /** `CategoryCode.MAX_LENGTH` do backend (maiúsculas, dígitos e `_`). */
@@ -122,6 +148,18 @@ export type EnumChecks = [
   Assert<Equals<Values<typeof GOAL_ORIGIN_KINDS>, S['GoalOriginRequest']['kind']>>,
   Assert<Equals<Values<typeof CONSENT_PURPOSES>, S['ConsentResponse']['purpose']>>,
   Assert<Equals<Values<typeof CONSENT_STATES>, S['ConsentResponse']['state']>>,
+  Assert<Equals<Values<typeof COPILOT_ANSWER_CODES>, S['CopilotAnswer']['code']>>,
+  Assert<Equals<Values<typeof COPILOT_INTENTS>, NonNullable<S['CopilotAnswer']['intent']>>>,
+  Assert<Equals<Values<typeof COPILOT_CONFIDENCES>, NonNullable<S['CopilotAnswer']['confidence']>>>,
+  Assert<Equals<Values<typeof COPILOT_VALIDATIONS>, S['CopilotAnswer']['validation']>>,
+  Assert<Equals<Values<typeof COPILOT_NOTICES>, S['CopilotAnswer']['notices'][number]>>,
+  Assert<Equals<Values<typeof COPILOT_ANSWER_TYPES>, S['CopilotAnswerBody']['type']>>,
+  Assert<Equals<Values<typeof COPILOT_SEGMENT_KINDS>, S['CopilotSegment']['kind']>>,
+  Assert<Equals<Values<typeof COPILOT_VALUE_KINDS>, S['CopilotValue']['kind']>>,
+  Assert<Equals<Values<typeof COPILOT_ACTION_KINDS>, S['CopilotAction']['kind']>>,
+  Assert<Equals<Values<typeof COPILOT_CONTEXT_KINDS>, NonNullable<S['CopilotEntryContext']>['kind']>>,
+  Assert<Equals<Values<typeof COPILOT_FEEDBACK_RATINGS>, S['CopilotFeedbackRequest']['rating']>>,
+  Assert<Equals<Values<typeof COPILOT_FEEDBACK_REASONS>, NonNullable<S['CopilotFeedbackRequest']['reason']>>>,
 ]
 
 /** Campos de cada record Java (nomes iguais aos do backend) ↔ chaves do tipo TS correspondente. */
@@ -232,6 +270,27 @@ export const RECORD_FIELDS = {
   CardsSummaryResponse: [
     'totalLimit', 'utilized', 'openInvoices', 'nextDueDate', 'cards', 'asOf', 'calculationVersion',
   ],
+  CopilotAskQuestionRequest: ['question', 'conversationId', 'previousQuestions', 'context'],
+  CopilotEntryContext: ['kind', 'insightId', 'cardId', 'month', 'planId', 'goalId'],
+  CopilotAnswer: [
+    'requestId', 'conversationId', 'messageId', 'code', 'intent', 'question', 'answer', 'confidence', 'validation',
+    'notices', 'versions', 'createdAt',
+  ],
+  CopilotAnswerBody: ['type', 'segments', 'explanation', 'values', 'breakdown', 'actions', 'dataUsed'],
+  CopilotSegment: ['kind', 'text', 'ref'],
+  CopilotValue: ['ref', 'label', 'formatted', 'kind', 'period', 'source'],
+  CopilotBreakdown: ['title', 'rows', 'totalRef'],
+  CopilotBreakdownRow: ['label', 'valueRef', 'detail'],
+  CopilotAction: ['kind', 'label', 'targetId', 'targetName', 'params'],
+  CopilotDataUsed: ['label', 'partial'],
+  CopilotUsage: ['month', 'day', 'dataScope', 'provisional'],
+  CopilotUsageWindow: ['used', 'limit', 'resetsAt'],
+  CopilotDataScope: ['from', 'to'],
+  CopilotConversationSummary: ['id', 'title', 'createdAt', 'lastMessageAt', 'messageCount'],
+  CopilotConversationPage: ['historyEnabled', 'items', 'nextCursor'],
+  CopilotConversationMessage: ['id', 'requestId', 'question', 'createdAt', 'answer'],
+  CopilotConversation: ['id', 'title', 'createdAt', 'messages'],
+  CopilotFeedbackRequest: ['rating', 'reason'],
 } as const
 
 type F = typeof RECORD_FIELDS
@@ -301,4 +360,22 @@ export type FieldChecks = [
   Assert<Equals<Values<F['UtilizationHistoryResponse']>, keyof S['UtilizationHistoryResponse']>>,
   Assert<Equals<Values<F['InstallmentPlanResponse']>, keyof S['InstallmentPlanResponse']>>,
   Assert<Equals<Values<F['InstallmentPlanListResponse']>, keyof S['InstallmentPlanListResponse']>>,
+  Assert<Equals<Values<F['CopilotAskQuestionRequest']>, keyof S['CopilotAskQuestionRequest']>>,
+  Assert<Equals<Values<F['CopilotEntryContext']>, keyof S['CopilotEntryContext']>>,
+  Assert<Equals<Values<F['CopilotAnswer']>, keyof S['CopilotAnswer']>>,
+  Assert<Equals<Values<F['CopilotAnswerBody']>, keyof S['CopilotAnswerBody']>>,
+  Assert<Equals<Values<F['CopilotSegment']>, keyof S['CopilotSegment']>>,
+  Assert<Equals<Values<F['CopilotValue']>, keyof S['CopilotValue']>>,
+  Assert<Equals<Values<F['CopilotBreakdown']>, keyof S['CopilotBreakdown']>>,
+  Assert<Equals<Values<F['CopilotBreakdownRow']>, keyof S['CopilotBreakdownRow']>>,
+  Assert<Equals<Values<F['CopilotAction']>, keyof S['CopilotAction']>>,
+  Assert<Equals<Values<F['CopilotDataUsed']>, keyof S['CopilotDataUsed']>>,
+  Assert<Equals<Values<F['CopilotUsage']>, keyof S['CopilotUsage']>>,
+  Assert<Equals<Values<F['CopilotUsageWindow']>, keyof S['CopilotUsageWindow']>>,
+  Assert<Equals<Values<F['CopilotDataScope']>, keyof S['CopilotDataScope']>>,
+  Assert<Equals<Values<F['CopilotConversationSummary']>, keyof S['CopilotConversationSummary']>>,
+  Assert<Equals<Values<F['CopilotConversationPage']>, keyof S['CopilotConversationPage']>>,
+  Assert<Equals<Values<F['CopilotConversationMessage']>, keyof S['CopilotConversationMessage']>>,
+  Assert<Equals<Values<F['CopilotConversation']>, keyof S['CopilotConversation']>>,
+  Assert<Equals<Values<F['CopilotFeedbackRequest']>, keyof S['CopilotFeedbackRequest']>>,
 ]

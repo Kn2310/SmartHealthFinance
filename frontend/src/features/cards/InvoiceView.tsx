@@ -112,6 +112,13 @@ function Loaded({ card, cardId, invoice }: { card: Card | null; cardId: string; 
           <Button href={`/cards/${cardId}/invoices`} variant="secondary">
             Próximas faturas
           </Button>
+          {/* Entrada do Copilot em toda fatura (ADR-0041 §6, aprovado em 2026-11-12). */}
+          <Button
+            href={`/copilot?from=invoice&cardId=${encodeURIComponent(cardId)}&month=${encodeURIComponent(summary.dueMonth)}`}
+            variant="secondary"
+          >
+            Perguntar ao Copilot
+          </Button>
         </div>
       </header>
 
@@ -236,10 +243,20 @@ function InvoiceExplanation({ cardId, dueMonth }: { cardId: string; dueMonth: st
         )
       : undefined
   if (!match) return null
-  return <ExplanationDetail insightId={match.id} title={match.title} />
+  return <ExplanationDetail insightId={match.id} title={match.title} cardId={cardId} dueMonth={dueMonth} />
 }
 
-function ExplanationDetail({ insightId, title }: { insightId: string; title: string }) {
+function ExplanationDetail({
+  insightId,
+  title,
+  cardId,
+  dueMonth,
+}: {
+  insightId: string
+  title: string
+  cardId: string
+  dueMonth: string
+}) {
   const detail = useInsightDetail(insightId)
   if (detail.status !== 'success' || !detail.data) return null
   const { figures, contributors, insight } = detail.data
@@ -282,9 +299,9 @@ function ExplanationDetail({ insightId, title }: { insightId: string; title: str
         <Button href={`/insights/${insightId}`} variant="secondary">
           Ver insight
         </Button>
-        <span className={styles.caption} aria-disabled="true">
-          Perguntar ao Copilot · Em breve
-        </span>
+        <Button href={`/copilot?from=invoice&cardId=${encodeURIComponent(cardId)}&month=${encodeURIComponent(dueMonth)}`} variant="secondary">
+          Perguntar ao Copilot
+        </Button>
       </div>
     </section>
   )

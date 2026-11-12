@@ -1,0 +1,313 @@
+/*
+ * Copilot (design D-Copilot, D-CopilotChat, D-CopilotStates, M-Copilot, M-CopilotChat; 02-components "AI Response").
+ * Só tokens do DS; breakpoints 640 / 1024 / 1440; sem animação em loop. ✦ só no rótulo do Copilot, nas sugestões e no
+ * campo de pergunta (ADR-0041 §2). Mobile: campo fixo acima da bottom nav; ≥ 1024: coluna lateral de 300 px.
+ */
+.page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-24);
+  min-width: 0;
+  /* Espaço para o campo fixo acima da bottom nav (mobile). */
+  padding-bottom: var(--space-80);
+}
+
+.main,
+.standalone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  min-width: 0;
+}
+/* 760 px: largura de leitura do estado isolado; sem token de largura de conteúdo no DS. */
+.standalone { max-width: 760px; }
+
+.header { display: flex; flex-direction: column; gap: var(--space-8); }
+.brand { color: var(--color-semantic-text-teal); font: var(--type-body-s); font-weight: 600; }
+.title { font: var(--type-h2); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.subtitle { max-width: 64ch; color: var(--color-neutral-text-secondary); font: var(--type-body); }
+.muted { color: var(--color-neutral-text-secondary); }
+.label {
+  color: var(--color-neutral-muted);
+  font: var(--type-caption);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.warning { color: var(--color-neutral-muted); font: var(--type-caption); }
+.link { color: var(--color-semantic-text-info); font: var(--type-body-s); font-weight: 600; }
+.link:hover { text-decoration: underline; }
+
+/* Campo de pergunta */
+.composer {
+  position: fixed;
+  inset: auto 0 calc(var(--space-80) + env(safe-area-inset-bottom, 0px)) 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-16);
+  background: var(--color-neutral-surface);
+  border-top: 1px solid var(--color-neutral-border);
+}
+.composerStar { color: var(--color-semantic-text-teal); }
+.composerInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: var(--size-button-lg);
+  padding: 0 var(--space-12);
+  background: var(--color-neutral-surface);
+  border: 1px solid var(--color-neutral-border-strong);
+  border-radius: var(--radius-input);
+  color: var(--color-neutral-text);
+  font: var(--type-body);
+}
+.composerInput::placeholder { color: var(--color-neutral-muted); }
+.send {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--size-touch-min-mobile);
+  height: var(--size-touch-min-mobile);
+  background: var(--color-brand-deep-navy);
+  border: 0;
+  border-radius: var(--radius-button);
+  color: var(--color-neutral-surface);
+  cursor: pointer;
+}
+.send:disabled { background: var(--color-neutral-track); color: var(--color-neutral-muted); cursor: not-allowed; }
+
+/* Sugestões (lista de 52 px no mobile: altura de D-Copilot sem token equivalente; 48 = --size-button-lg ficaria menor) */
+.suggestions { display: flex; flex-direction: column; gap: var(--space-8); margin-top: var(--space-8); }
+.suggestion {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 52px;
+  padding: var(--space-8) var(--space-16);
+  background: var(--color-neutral-surface);
+  border: 1px solid var(--color-neutral-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-neutral-text);
+  font: var(--type-body);
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.suggestion:hover:not(:disabled) { background: var(--color-neutral-subtle); }
+.suggestion:disabled { color: var(--color-neutral-muted); cursor: not-allowed; }
+.suggestionStar { flex: none; color: var(--color-semantic-text-teal); }
+
+/* O que o Copilot faz / não faz */
+.scopeGrid { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-16); }
+.scopeCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-16);
+  background: var(--color-neutral-surface);
+  border: 1px solid var(--color-neutral-border);
+  border-radius: var(--radius-lg);
+}
+.scopeList { display: flex; flex-direction: column; gap: var(--space-4); color: var(--color-neutral-text-secondary); font: var(--type-body-s); }
+
+/* Conversa */
+.thread { display: flex; flex-direction: column; gap: var(--space-24); min-width: 0; }
+.turn { display: flex; flex-direction: column; gap: var(--space-16); min-width: 0; }
+.bubble {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: var(--space-12) var(--space-16);
+  background: var(--color-neutral-subtle);
+  border-radius: var(--radius-lg);
+  overflow-wrap: anywhere;
+}
+
+/* AI Response (sem avatar) */
+.answer,
+.loading,
+.state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+  padding: var(--space-16);
+  background: var(--color-neutral-surface);
+  border: 1px solid var(--color-neutral-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+}
+.answer:focus { outline: none; }
+.answer:focus-visible { outline: 2px solid var(--color-semantic-info); outline-offset: 2px; }
+.answerLabel { color: var(--color-semantic-text-teal); font: var(--type-body-s); font-weight: 600; }
+.answerMeta { color: var(--color-neutral-muted); font-weight: 400; }
+.answerText { font: var(--type-body-l); overflow-wrap: anywhere; }
+.value { font-weight: 700; }
+.estimated { border-bottom: 1px dashed var(--color-neutral-muted); }
+.simulated { border-bottom: 1px dotted var(--color-semantic-text-teal); }
+.kindTag {
+  margin-left: var(--space-4);
+  color: var(--color-neutral-muted);
+  font: var(--type-caption);
+}
+
+.breakdown { width: 100%; border-collapse: collapse; font: var(--type-body-s); }
+.breakdownTitle { padding-bottom: var(--space-8); color: var(--color-neutral-muted); font: var(--type-caption); font-weight: 600; text-align: left; }
+.breakdown tbody tr,
+.breakdown tfoot tr { border-top: 1px solid var(--color-neutral-border); }
+.breakdown tfoot tr { border-top-color: var(--color-neutral-border-strong); font-weight: 700; }
+.rowLabel { padding: var(--space-8) var(--space-8) var(--space-8) 0; font-weight: 500; text-align: left; overflow-wrap: anywhere; }
+.rowDetail { display: block; color: var(--color-neutral-muted); font: var(--type-caption); font-weight: 400; }
+.rowValue { padding: var(--space-8) 0; text-align: right; white-space: nowrap; }
+
+.how { border-top: 1px solid var(--color-neutral-border); padding-top: var(--space-8); }
+.how summary { min-height: var(--size-touch-min-mobile); display: flex; align-items: center; color: var(--color-semantic-text-info); font: var(--type-body-s); font-weight: 600; cursor: pointer; }
+.howBody { display: flex; flex-direction: column; gap: var(--space-8); color: var(--color-neutral-text-secondary); font: var(--type-body-s); overflow-wrap: anywhere; }
+
+.notices { display: flex; flex-direction: column; gap: var(--space-4); }
+.notice {
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-semantic-bg-warning);
+  border-radius: var(--radius-sm);
+  color: var(--color-semantic-text-warning);
+  font: var(--type-body-s);
+}
+.confidence { display: flex; align-items: center; gap: var(--space-8); color: var(--color-neutral-text-secondary); font: var(--type-body-s); }
+.meter { display: flex; gap: var(--space-4); }
+.segment { width: var(--space-24); height: var(--space-4); border-radius: var(--radius-xs); background: var(--color-neutral-track); }
+.segmentOn { background: var(--color-brand-intelligent-teal); }
+
+.badges { display: flex; flex-wrap: wrap; gap: var(--space-8); margin-top: var(--space-8); }
+.badge {
+  padding: var(--space-4) var(--space-8);
+  background: var(--color-neutral-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-neutral-text-secondary);
+  font: var(--type-caption);
+  overflow-wrap: anywhere;
+}
+.badgePartial { background: var(--color-semantic-bg-warning); color: var(--color-semantic-text-warning); }
+
+.actions { display: flex; flex-direction: column; gap: var(--space-8); }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); }
+.toolButton,
+.toolIcon,
+.chip,
+.linkButton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--size-touch-min-mobile);
+  padding: 0 var(--space-12);
+  background: var(--color-neutral-surface);
+  border: 1px solid var(--color-neutral-border-strong);
+  border-radius: var(--radius-button);
+  color: var(--color-neutral-text);
+  font: var(--type-body-s);
+  font-weight: 600;
+  cursor: pointer;
+}
+.toolIcon { justify-content: center; min-width: var(--size-touch-min-mobile); padding: 0; }
+.toolButton:hover,
+.toolIcon:hover:not(:disabled),
+.chip:hover:not(:disabled) { background: var(--color-neutral-subtle); }
+.toolIcon[aria-pressed='true'],
+.chip[aria-pressed='true'] {
+  background: var(--color-semantic-bg-teal);
+  border-color: var(--color-brand-intelligent-teal);
+  color: var(--color-semantic-text-teal);
+}
+.toolButton:disabled,
+.toolIcon:disabled,
+.chip:disabled,
+.linkButton:disabled { color: var(--color-neutral-muted); cursor: not-allowed; }
+.linkButton { border-color: transparent; background: transparent; color: var(--color-semantic-text-info); padding: 0 var(--space-4); }
+.linkButton:hover:not(:disabled) { text-decoration: underline; }
+.copied,
+.thanks { color: var(--color-neutral-text-secondary); font: var(--type-body-s); }
+.reasons { display: flex; flex-wrap: wrap; gap: var(--space-8); width: 100%; }
+.feedbackError { width: 100%; color: var(--color-semantic-text-danger); font: var(--type-body-s); }
+
+/* Carregando e estados */
+.loading { gap: var(--space-8); }
+.skeletons { display: flex; flex-direction: column; gap: var(--space-8); }
+.state { background: var(--color-neutral-subtle); box-shadow: none; }
+.stateTitle { font: var(--type-h3); }
+
+/* Confirmar apagar */
+.confirm,
+.confirmCompact { display: flex; flex-direction: column; gap: var(--space-8); align-items: flex-start; }
+.confirmGroup { display: flex; flex-direction: column; gap: var(--space-8); }
+.dangerButton {
+  min-height: var(--size-touch-min-mobile);
+  padding: 0 var(--space-16);
+  background: var(--color-semantic-danger);
+  border: 0;
+  border-radius: var(--radius-button);
+  color: var(--color-neutral-surface);
+  font: var(--type-body-s);
+  font-weight: 600;
+  cursor: pointer;
+}
+.dangerButton:disabled { background: var(--color-neutral-track); color: var(--color-neutral-muted); cursor: not-allowed; }
+
+/* Coluna lateral: histórico e uso */
+.side { display: flex; flex-direction: column; gap: var(--space-16); min-width: 0; }
+.sideInitial .newQuestion { display: none; }
+.sidePanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-16);
+  background: var(--color-neutral-surface);
+  border: 1px solid var(--color-neutral-border);
+  border-radius: var(--radius-lg);
+}
+.sideNote { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-8); color: var(--color-neutral-text-secondary); font: var(--type-body-s); }
+.history { display: flex; flex-direction: column; }
+.historyItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: var(--size-touch-min-mobile);
+  padding: var(--space-8) 0;
+  border-bottom: 1px solid var(--color-neutral-border);
+  font: var(--type-body-s);
+}
+.historyItem:hover .historyTitle { text-decoration: underline; }
+.historyItem[aria-current='page'] .historyTitle { font-weight: 700; }
+.historyTitle { overflow-wrap: anywhere; }
+.historyDate { color: var(--color-neutral-muted); font: var(--type-caption); }
+
+@media (min-width: 640px) {
+  .page { padding-bottom: 0; }
+  .composer {
+    position: static;
+    padding: 0;
+    background: transparent;
+    border-top: 0;
+  }
+  .composerInput { min-height: var(--size-button-md); }
+  .composerChat {
+    position: sticky;
+    inset: auto 0 var(--space-16) 0;
+    padding: var(--space-8) var(--space-12);
+    background: var(--color-neutral-surface);
+    border: 1px solid var(--color-neutral-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-2);
+  }
+  .scopeGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .actions { flex-direction: row; flex-wrap: wrap; }
+  .suggestions { gap: var(--space-8); }
+  .suggestion { min-height: var(--size-button-md); }
+}
+
+/* 1440: 06-responsive define o Copilot como "Idem" ao desktop (coluna de histórico de 300 px, sem token); sem media query. */
+@media (min-width: 1024px) {
+  .page { grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-32); align-items: start; }
+  .side { position: sticky; top: var(--space-32); }
+  .sideInitial .newQuestion { display: block; }
+  .title { font: var(--type-h1); }
+}

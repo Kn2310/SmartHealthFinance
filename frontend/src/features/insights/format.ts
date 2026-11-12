@@ -49,6 +49,9 @@ export function actionHref(action: InsightAction, insightId?: string): string | 
         : null
     case 'CREATE_SAVINGS_GOAL':
       return insightId ? `/goals/new${search({ origin: 'INSIGHT', insightId })}` : null
+    case 'ASK_COPILOT':
+      // Contexto de entrada do Copilot (ADR-0041 §1, §6): só tipo e id, nunca texto do insight.
+      return insightId ? `/copilot${search({ from: 'insight', insightId })}` : null
     default:
       return null
   }

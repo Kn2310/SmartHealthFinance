@@ -229,7 +229,7 @@ final class DetectionContext {
             params.put("categoryCode", categoryCode);
         }
         return List.of(InsightAction.secondary(ActionKind.CREATE_SAVINGS_GOAL, "Criar objetivo de economia", params),
-                InsightAction.comingSoon(ActionKind.ASK_COPILOT, "Perguntar ao Copilot"));
+                InsightAction.secondary(ActionKind.ASK_COPILOT, "Perguntar ao Copilot", Map.of()));
     }
 
     /** Participação (razão, 4 casas) da despesa sem categoria em P e na base; zero sem despesa. */

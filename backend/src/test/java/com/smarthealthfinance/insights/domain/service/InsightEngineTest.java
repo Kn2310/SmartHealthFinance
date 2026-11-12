@@ -108,8 +108,9 @@ class InsightEngineTest {
             assertThat(primary(spike).label()).isEqualTo("Ver as 4 transações");
             assertThat(primary(spike).params()).isEqualTo(Map.of("from", "2026-09-01", "to", "2026-09-22",
                     "type", "EXPENSE", "category", "DINING_OUT"));
-            assertThat(spike.content().actions()).filteredOn(a -> !a.available()).extracting(InsightAction::kind)
-                    .containsExactly(ActionKind.ASK_COPILOT);
+            assertThat(spike.content().actions()).filteredOn(a -> a.kind() == ActionKind.ASK_COPILOT)
+                    .extracting(InsightAction::available)
+                    .containsExactly(true);
             // "Guardar a diferença do delivery" (09-dados, D-CreateGoal): +R$ 311 → R$ 300/mês, R$ 1.800, mar/2027.
             assertThat(spike.content().actions()).filteredOn(a -> a.kind() == ActionKind.CREATE_SAVINGS_GOAL)
                     .singleElement().satisfies(goal -> {

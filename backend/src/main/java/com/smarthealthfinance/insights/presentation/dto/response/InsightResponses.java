@@ -2,6 +2,7 @@ package com.smarthealthfinance.insights.presentation.dto.response;
 
 import com.smarthealthfinance.insights.application.dto.InsightViews;
 import com.smarthealthfinance.insights.application.port.InsightStore;
+import com.smarthealthfinance.insights.domain.enums.ActionKind;
 import com.smarthealthfinance.insights.domain.enums.FigureKind;
 import com.smarthealthfinance.insights.domain.enums.InsightDetector;
 import com.smarthealthfinance.insights.domain.enums.InsightType;
@@ -44,12 +45,16 @@ public final class InsightResponses {
     /** @param month período avaliado P ({@code YYYY-MM}); nulo nos insights sem período (reserva) */
     public record InsightPeriodDto(String month, boolean partial) {}
 
-    /** @param available falso nos placeholders "Em breve" (objetivo, Copilot) */
+    /**
+     * @param available falso nos placeholders "Em breve"; {@code ASK_COPILOT} sai sempre disponível, também nos insights
+     *                  gravados antes do M11 (adendo ADR-0021, ADR-0041 §6)
+     */
     public record InsightActionDto(String kind, String label, boolean primary, boolean available,
                                    Map<String, String> params) {
 
         static InsightActionDto of(InsightAction action) {
-            return new InsightActionDto(action.kind().name(), action.label(), action.primary(), action.available(),
+            return new InsightActionDto(action.kind().name(), action.label(), action.primary(),
+                    action.available() || action.kind() == ActionKind.ASK_COPILOT,
                     action.params());
         }
     }

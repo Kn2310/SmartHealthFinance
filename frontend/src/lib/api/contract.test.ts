@@ -8,6 +8,20 @@ import {
   CARD_NICKNAME_MAX_LENGTH,
   CARD_STATUSES,
   CONSENT_PURPOSES,
+  COPILOT_ACTION_KINDS,
+  COPILOT_ANSWER_CODES,
+  COPILOT_ANSWER_TYPES,
+  COPILOT_CONFIDENCES,
+  COPILOT_CONTEXT_KINDS,
+  COPILOT_FEEDBACK_RATINGS,
+  COPILOT_FEEDBACK_REASONS,
+  COPILOT_INTENTS,
+  COPILOT_MAX_PREVIOUS_QUESTIONS,
+  COPILOT_NOTICES,
+  COPILOT_QUESTION_MAX_LENGTH,
+  COPILOT_SEGMENT_KINDS,
+  COPILOT_VALIDATIONS,
+  COPILOT_VALUE_KINDS,
   CONSENT_STATES,
   CONSENT_TERMS_VERSIONS,
   GOAL_MAX_SCENARIOS,
@@ -275,5 +289,117 @@ describe.skipIf(!hasBackend)('contrato de Consentimentos × backend (drift)', ()
     for (const purpose of CONSENT_PURPOSES) {
       expect(source).toMatch(new RegExp(`${purpose}\\("${CONSENT_TERMS_VERSIONS[purpose]}"`))
     }
+  })
+})
+
+/** Remove anotações Java com parênteses balanceados, respeitando strings (descrições com "(" e ")"). */
+function withoutAnnotations(source: string): string {
+  let out = ''
+  for (let i = 0; i < source.length; i++) {
+    if (source[i] !== '@' || !/\w/.test(source[i + 1] ?? '')) {
+      out += source[i]
+      continue
+    }
+    i++
+    while (/[\w.]/.test(source[i] ?? '')) i++
+    if (source[i] === '(') {
+      let depth = 0
+      let inString = false
+      for (; i < source.length; i++) {
+        const c = source[i]
+        if (inString) {
+          if (c === '\\') i++
+          else if (c === '"') inString = false
+        } else if (c === '"') inString = true
+        else if (c === '(') depth++
+        else if (c === ')' && --depth === 0) break
+      }
+    } else i--
+  }
+  return out
+}
+
+function copilotRecords(path: string): Record<string, string[]> {
+  const records: Record<string, string[]> = {}
+  for (const [, name, params] of withoutAnnotations(read(path)).matchAll(/record\s+(\w+)\s*\(([^)]*)\)/g)) {
+    // Vírgulas dentro de genéricos (`Map<String, String>`) não separam componentes.
+    const flat = params!.replace(/<[^<>]*(?:<[^<>]*>[^<>]*)*>/g, (generic) => generic.replace(/[,\s]/g, ''))
+    records[name!] = flat.split(',').map((p) => p.trim().split(/\s+/).pop()!).filter(Boolean)
+  }
+  return records
+}
+
+describe.skipIf(!hasBackend)('contrato do Copilot × backend (drift)', () => {
+  it.each([
+    ['copilot/domain/enums/Intent.java', COPILOT_INTENTS],
+    ['copilot/domain/enums/Notice.java', COPILOT_NOTICES],
+    ['copilot/domain/enums/ActionKind.java', COPILOT_ACTION_KINDS],
+    ['copilot/domain/enums/ValueKind.java', COPILOT_VALUE_KINDS],
+    ['copilot/domain/enums/ValidationStatus.java', COPILOT_VALIDATIONS],
+    ['copilot/domain/enums/FeedbackRating.java', COPILOT_FEEDBACK_RATINGS],
+    ['copilot/domain/enums/FeedbackReason.java', COPILOT_FEEDBACK_REASONS],
+  ])('enum %s', (path, frontend) => {
+    expect(sorted(frontend)).toEqual(sorted(javaEnum(path).map((c) => c.replace(/\(.*$/s, ''))))
+  })
+
+  it('confiança e tipo da resposta são os enums em minúsculas', () => {
+    expect(sorted(COPILOT_CONFIDENCES)).toEqual(
+      sorted(javaEnum('copilot/domain/enums/AnswerConfidence.java').map((c) => c.toLowerCase())),
+    )
+    expect(sorted(COPILOT_ANSWER_TYPES)).toEqual(
+      sorted(javaEnum('copilot/domain/enums/AnswerType.java').map((c) => c.toLowerCase())),
+    )
+  })
+
+  it('códigos da resposta são ResultCode sem as falhas que viram erro HTTP', () => {
+    const answered = javaEnum('copilot/domain/enums/ResultCode.java').filter(
+      (c) => !['CONSENT_REQUIRED', 'RATE_LIMITED', 'QUOTA_EXCEEDED', 'PROVIDER_UNAVAILABLE'].includes(c),
+    )
+    expect(sorted(COPILOT_ANSWER_CODES)).toEqual(sorted(answered))
+  })
+
+  it('records de resposta e de pedido têm exatamente os campos do contrato manual', () => {
+    const responses = copilotRecords('copilot/presentation/dto/response/CopilotResponses.java')
+    const pairs: [string, keyof typeof RECORD_FIELDS][] = [
+      ['CopilotAnswerResponse', 'CopilotAnswer'],
+      ['Answer', 'CopilotAnswerBody'],
+      ['Segment', 'CopilotSegment'],
+      ['Value', 'CopilotValue'],
+      ['BreakdownBody', 'CopilotBreakdown'],
+      ['BreakdownRow', 'CopilotBreakdownRow'],
+      ['Action', 'CopilotAction'],
+      ['DataUsed', 'CopilotDataUsed'],
+      ['UsageResponse', 'CopilotUsage'],
+      ['UsageWindow', 'CopilotUsageWindow'],
+      ['DataScope', 'CopilotDataScope'],
+      ['ConversationItem', 'CopilotConversationSummary'],
+      ['ConversationPageResponse', 'CopilotConversationPage'],
+      ['MessageResponse', 'CopilotConversationMessage'],
+      ['ConversationResponse', 'CopilotConversation'],
+    ]
+    for (const [java, contract] of pairs) {
+      expect(sorted(responses[java] ?? []), contract).toEqual(sorted(RECORD_FIELDS[contract]))
+    }
+    const ask = copilotRecords('copilot/presentation/dto/request/AskQuestionRequest.java')
+    expect(sorted(ask.AskQuestionRequest ?? [])).toEqual(sorted(RECORD_FIELDS.CopilotAskQuestionRequest))
+    expect(sorted(ask.Context ?? [])).toEqual(sorted(RECORD_FIELDS.CopilotEntryContext))
+    const feedback = copilotRecords('copilot/presentation/dto/request/FeedbackRequest.java')
+    expect(sorted(feedback.FeedbackRequest ?? [])).toEqual(sorted(RECORD_FIELDS.CopilotFeedbackRequest))
+  })
+
+  it('tipos de contexto de entrada e de segmento são os do backend', () => {
+    const ask = read('copilot/presentation/dto/request/AskQuestionRequest.java')
+    for (const kind of COPILOT_CONTEXT_KINDS) expect(ask, kind).toContain(`"${kind}"`)
+    const responses = read('copilot/presentation/dto/response/CopilotResponses.java')
+    for (const kind of COPILOT_SEGMENT_KINDS) expect(responses, kind).toContain(`"${kind}"`)
+  })
+
+  it('limites da pergunta são os do backend', () => {
+    expect(read('copilot/application/usecase/AskCopilot.java')).toContain(
+      `MAX_PREVIOUS_QUESTIONS = ${COPILOT_MAX_PREVIOUS_QUESTIONS};`,
+    )
+    expect(read('copilot/domain/model/PipelineSettings.java')).toMatch(
+      new RegExp(`12_000,\\s*${COPILOT_QUESTION_MAX_LENGTH}\\)`),
+    )
   })
 })
