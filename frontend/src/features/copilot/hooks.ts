@@ -95,6 +95,8 @@ export function useHistory() {
  */
 const handoff = new Map<string, Conversation>()
 export const stashConversation = (conversation: Conversation) => void handoff.set(conversation.id, conversation)
+/** Limpa o que ficou pendurado (ex.: o `replace` falhou); chamado ao montar `/copilot` sem id. */
+export const clearStashedConversations = () => handoff.clear()
 const takeConversation = (id: string) => {
   const conversation = handoff.get(id)
   handoff.delete(id)
@@ -185,16 +187,20 @@ export function useChat({
     setTurns((current) => current.map((turn) => (turn.id === id ? { ...turn, ...change } : turn)))
   }, [])
 
+  /** Geração da conversa: "Nova pergunta" a incrementa e descarta qualquer resposta de um envio anterior. */
+  const generation = useRef(0)
+
   const send = useCallback(
     async (turn: Turn) => {
+      const mine = generation.current
       busyRef.current = true
       setBusy(true)
       patch(turn.id, { status: 'pending', failure: undefined })
       const result = await askQuestion(turn.request, turn.key)
+      // "Nova pergunta" durante o envio já liberou o campo: a resposta tardia não ressuscita a conversa nem troca a URL.
+      if (!alive.current || mine !== generation.current) return
       busyRef.current = false
-      if (!alive.current) return
       setBusy(false)
-      // "Nova pergunta" durante o envio descarta o envio: a resposta que chega depois não ressuscita a conversa.
       if (!turnsRef.current.some((current) => current.id === turn.id)) return
       if (!result.ok) {
         // Chave reutilizada com outro conteúdo: o próximo envio precisa de uma chave nova.
@@ -248,6 +254,9 @@ export function useChat({
 
   /** "Nova pergunta": volta ao início, sem o contexto de entrada. */
   const reset = useCallback(() => {
+    generation.current += 1
+    busyRef.current = false
+    setBusy(false)
     setTurns([])
     setConversationId(null)
     setActiveEntry(null)

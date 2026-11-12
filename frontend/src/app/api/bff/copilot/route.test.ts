@@ -169,6 +169,32 @@ describe('POST /api/bff/copilot/questions', () => {
     expect(await response.json()).toEqual({ code: 'COPILOT_RATE_LIMITED', retryAfter: 17 })
   })
 
+  it.each([
+    ['ausente', undefined],
+    ['inválido', 'amanhã'],
+    ['zero', '0'],
+    ['negativo', '-3'],
+    ['decimal', '2.5'],
+  ])('429 de rate limit com Retry-After %s → 1 segundo', async (_name, value) => {
+    POST_BACKEND.mockResolvedValue({
+      error: { code: 'COPILOT_RATE_LIMITED', message: 'x', details: [] },
+      response: new Response(null, { status: 429, headers: value === undefined ? {} : { 'Retry-After': value } }),
+    })
+    const response = await ask(post({ question: 'x' }))
+    expect(response.status).toBe(429)
+    expect(response.headers.get('retry-after')).toBe('1')
+    expect(await response.json()).toEqual({ code: 'COPILOT_RATE_LIMITED', retryAfter: 1 })
+  })
+
+  it('429 de rate limit limita o Retry-After a 3600 segundos', async () => {
+    POST_BACKEND.mockResolvedValue({
+      error: { code: 'COPILOT_RATE_LIMITED', message: 'x', details: [] },
+      response: new Response(null, { status: 429, headers: { 'Retry-After': '99999' } }),
+    })
+    const response = await ask(post({ question: 'x' }))
+    expect(await response.json()).toEqual({ code: 'COPILOT_RATE_LIMITED', retryAfter: 3600 })
+  })
+
   it('429 de quota repassa só o resetsAt', async () => {
     POST_BACKEND.mockResolvedValue({
       error: { code: 'COPILOT_QUOTA_EXCEEDED', message: 'x', details: [], resetsAt: '2026-12-01T03:00:00Z' },
@@ -218,6 +244,13 @@ describe('GET /api/bff/copilot/usage e conversas', () => {
 
     const bad = await listConversations(new NextRequest(`${ORIGIN}/api/bff/copilot/conversations?before=%3Cscript%3E`))
     expect(bad.status).toBe(400)
+  })
+
+  it('lista sem sessão responde 401 antes de validar a query', async () => {
+    getFreshSession.mockResolvedValueOnce({ status: 'none' })
+    const response = await listConversations(new NextRequest(`${ORIGIN}/api/bff/copilot/conversations?before=%3Cscript%3E`))
+    expect(response.status).toBe(401)
+    expect(GET_BACKEND).not.toHaveBeenCalled()
   })
 
   it('conversa de id inválido → 404 sem chamar o backend; 404 do backend repassa o código', async () => {

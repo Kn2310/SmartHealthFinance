@@ -72,6 +72,7 @@ export const historicNotice = (createdAt: string) =>
   `Resposta de ${dayOf(createdAt)}. Os números podem ter mudado desde então.`
 
 export const LOADING = 'Analisando seus dados…'
+export const READY = 'Resposta pronta'
 export const LOADING_SLOW = 'Ainda calculando. Pode levar alguns segundos.'
 
 export const CONSENT_REQUIRED = {

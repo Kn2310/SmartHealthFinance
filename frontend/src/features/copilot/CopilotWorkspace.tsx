@@ -5,13 +5,15 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { AiResponse } from './AiResponse'
 import { deleteAllConversations, deleteConversation, type Conversation } from './api'
 import type { Entry } from './entry'
-import { stashConversation, useChat, useHistory, useUsage, type Turn } from './hooks'
+import { clearStashedConversations, stashConversation, useChat, useHistory, useUsage, type Turn } from './hooks'
 import {
   CONFIRM_DELETE_ONE,
   ENTRY_SUGGESTIONS,
   FIRST_USE_SUGGESTIONS,
   FIXED_WARNING,
   INITIAL_SUGGESTIONS,
+  LOADING,
+  READY,
   continuationFor,
   dataScopeLabel,
 } from './messages'
@@ -59,6 +61,11 @@ export function CopilotWorkspace({ conversation, entry }: { conversation?: Saved
   useEffect(() => {
     draftRef.current = draft
   })
+  // `/copilot` sem id nunca consome conversa entregue: se o `replace` anterior falhou, nada fica pendurado.
+  const isSaved = Boolean(conversation)
+  useEffect(() => {
+    if (!isSaved) clearStashedConversations()
+  }, [isSaved])
 
   const onSaved = useCallback(
     (id: string, turns: Turn[]) => {
@@ -154,8 +161,13 @@ export function CopilotWorkspace({ conversation, entry }: { conversation?: Saved
           ) : null}
         </header>
 
+        {/* Região viva dedicada (ADR-0041 §2): anuncia o carregamento e a chegada; o foco vai para o <article>. */}
+        <div className="sr-only" aria-live="polite" aria-atomic="true">
+          {last?.status === 'pending' ? LOADING : focusId ? READY : ''}
+        </div>
+
         {chatting ? (
-          <div className={styles.thread} aria-live="polite">
+          <div className={styles.thread}>
             {chat.turns.map((turn) => (
               <div key={turn.id} className={styles.turn}>
                 <p className={styles.bubble}>

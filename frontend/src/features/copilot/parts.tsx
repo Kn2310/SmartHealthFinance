@@ -100,7 +100,8 @@ export function LoadingPanel() {
       <p className={styles.answerLabel}>
         <span aria-hidden="true">✦</span> Copilot
       </p>
-      <p>{LOADING}</p>
+      {/* O anúncio fica na região viva da tela; aqui é só visual, para não ser lido duas vezes. */}
+      <p aria-hidden="true">{LOADING}</p>
       {slow ? <p className={styles.muted}>{LOADING_SLOW}</p> : null}
       <div aria-hidden="true" className={styles.skeletons}>
         <Skeleton width="full" height="body" />
@@ -118,6 +119,20 @@ function quotaWindow(usage: Usage | undefined, resetsAt: string | undefined): 'm
   return resetsAt && usage.day.resetsAt === resetsAt ? 'day' : 'month'
 }
 
+/** "Tentar novamente" só depois do `Retry-After` (um único timer, sem animação; limpo ao desmontar). */
+function RetryAfterButton({ seconds, onRetry }: { seconds: number | undefined; onRetry: () => void }) {
+  const [waiting, setWaiting] = useState(true)
+  useEffect(() => {
+    const timer = setTimeout(() => setWaiting(false), Math.max(1, seconds ?? 1) * 1000)
+    return () => clearTimeout(timer)
+  }, [seconds])
+  return (
+    <Button variant="secondary" disabled={waiting} onClick={onRetry}>
+      {errorMessage(null).retry}
+    </Button>
+  )
+}
+
 /** Estados de falha da pergunta (ADR-0041 §5). Só códigos estáveis viram texto; nada do servidor é mostrado. */
 export function FailurePanel({
   failure,
@@ -130,19 +145,20 @@ export function FailurePanel({
   usage: Usage | undefined
   onRetry: () => void
 }) {
+  const id = useId()
   switch (failure.code) {
     case 'COPILOT_CONSENT_REQUIRED':
       return (
-        <section className={styles.state} role="alert" aria-labelledby="copilot-state">
-          <p id="copilot-state">{CONSENT_REQUIRED.text}</p>
+        <section className={styles.state} role="alert" aria-labelledby={id}>
+          <p id={id}>{CONSENT_REQUIRED.text}</p>
           <Button href="/profile/consents" variant="secondary">{CONSENT_REQUIRED.action}</Button>
         </section>
       )
     case 'COPILOT_QUOTA_EXCEEDED': {
       const quota = quotaMessage(quotaWindow(usage, failure.resetsAt), failure.resetsAt)
       return (
-        <section className={styles.state} role="alert" aria-labelledby="copilot-state">
-          <h2 id="copilot-state" className={styles.stateTitle}>{quota.title}</h2>
+        <section className={styles.state} role="alert" aria-labelledby={id}>
+          <h2 id={id} className={styles.stateTitle}>{quota.title}</h2>
           <p>{quota.text}</p>
           <Button href="/insights" variant="secondary">{quota.action}</Button>
         </section>
@@ -150,21 +166,21 @@ export function FailurePanel({
     }
     case 'COPILOT_RATE_LIMITED':
       return (
-        <section className={styles.state} role="alert" aria-labelledby="copilot-state">
-          <p id="copilot-state">{rateLimitedMessage(failure.retryAfter)}</p>
-          <Button variant="secondary" onClick={onRetry}>{errorMessage(null).retry}</Button>
+        <section className={styles.state} role="alert" aria-labelledby={id}>
+          <p id={id}>{rateLimitedMessage(failure.retryAfter)}</p>
+          <RetryAfterButton seconds={failure.retryAfter} onRetry={onRetry} />
         </section>
       )
     case 'COPILOT_ALREADY_ANSWERED':
       return (
-        <section className={styles.state} role="alert" aria-labelledby="copilot-state">
-          <p id="copilot-state">{ALREADY_ANSWERED}</p>
+        <section className={styles.state} role="alert" aria-labelledby={id}>
+          <p id={id}>{ALREADY_ANSWERED}</p>
         </section>
       )
     case 'COPILOT_CONVERSATION_NOT_FOUND':
       return (
-        <section className={styles.state} role="alert" aria-labelledby="copilot-state">
-          <h2 id="copilot-state" className={styles.stateTitle}>{CONVERSATION_NOT_FOUND.title}</h2>
+        <section className={styles.state} role="alert" aria-labelledby={id}>
+          <h2 id={id} className={styles.stateTitle}>{CONVERSATION_NOT_FOUND.title}</h2>
           <p>{CONVERSATION_NOT_FOUND.text}</p>
           <Button href="/copilot" variant="secondary">{CONVERSATION_NOT_FOUND.action}</Button>
         </section>
@@ -173,8 +189,8 @@ export function FailurePanel({
       const error = errorMessage(entry?.kind ?? null)
       const alternative = entryHref(entry)
       return (
-        <section className={styles.state} role="alert" aria-labelledby="copilot-state">
-          <h2 id="copilot-state" className={styles.stateTitle}>{error.title}</h2>
+        <section className={styles.state} role="alert" aria-labelledby={id}>
+          <h2 id={id} className={styles.stateTitle}>{error.title}</h2>
           <p>{error.text}</p>
           <div className={styles.actions}>
             <Button onClick={onRetry}>{error.retry}</Button>

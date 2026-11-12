@@ -204,18 +204,19 @@ export async function getUsage(): Promise<NextResponse> {
 }
 
 export async function listConversations(request: NextRequest): Promise<NextResponse> {
-  const search = request.nextUrl.searchParams
-  const limitParam = Number(search.get('limit'))
-  const before = search.get('before')
-  const query: { limit?: number; before?: string } = {}
-  if (search.get('limit') !== null && Number.isInteger(limitParam) && limitParam >= 1) {
-    query.limit = Math.min(limitParam, MAX_PAGE_SIZE)
-  }
-  if (before !== null) {
-    if (!CURSOR.test(before)) return validation()
-    query.before = before
-  }
   return withSession('copilot conversations', async (session) => {
+    // Sessão primeiro (401), validação da query depois.
+    const search = request.nextUrl.searchParams
+    const limitParam = Number(search.get('limit'))
+    const before = search.get('before')
+    const query: { limit?: number; before?: string } = {}
+    if (search.get('limit') !== null && Number.isInteger(limitParam) && limitParam >= 1) {
+      query.limit = Math.min(limitParam, MAX_PAGE_SIZE)
+    }
+    if (before !== null) {
+      if (!CURSOR.test(before)) return validation()
+      query.before = before
+    }
     const { data, error, response } = await backendClient(session.accessToken).GET('/api/v1/workspaces/{workspaceId}/copilot/conversations', {
       params: { path: { workspaceId: session.workspaceId }, query },
     })

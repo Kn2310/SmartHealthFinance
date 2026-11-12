@@ -108,6 +108,55 @@ describe('AI Response — renderização por segmentos tipados (ADR-0041 §2)', 
     expect(plainText(answer().answer)).not.toMatch(/<|\*\*/)
   })
 
+  it('Copiar rotula valor simulado e estimado no texto plano', async () => {
+    const user = userEvent.setup()
+    const base = answer()
+    const response = answer({
+      answer: {
+        ...base.answer,
+        segments: [
+          { kind: 'TEXT', text: 'Com a parcela, ' },
+          { kind: 'VALUE', ref: 'v5' },
+          { kind: 'TEXT', text: ' e ' },
+          { kind: 'VALUE', ref: 'v2' },
+          { kind: 'TEXT', text: '.' },
+        ],
+      },
+    })
+    render(<AiResponse response={response} historic={false} />)
+    await user.click(screen.getByRole('button', { name: 'Copiar' }))
+    expect(await navigator.clipboard.readText()).toBe('Com a parcela, + R$ 160,00 (simulado) e R$ 520,60 (estimado).')
+  })
+
+  it('falha da área de transferência: não mostra "Copiado" e o botão continua disponível', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('negado'))
+    render(<AiResponse response={answer()} historic={false} />)
+    await user.click(screen.getByRole('button', { name: 'Copiar' }))
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalled())
+    expect(screen.queryByText('Copiado')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copiar' })).toBeEnabled()
+    vi.restoreAllMocks()
+  })
+
+  it('feedback: "não útil" seguido de "útil" troca a marca, some com os motivos e envia só HELPFUL', async () => {
+    const user = userEvent.setup()
+    const calls = stubBff({ [`PUT /api/bff/copilot/questions/${REQUEST}/feedback`]: () => json({ saved: true }) })
+    render(<AiResponse response={answer()} historic={false} />)
+
+    const helpful = screen.getByRole('button', { name: 'Resposta útil' })
+    const notHelpful = screen.getByRole('button', { name: 'Resposta não útil' })
+    await user.click(notHelpful)
+    await user.click(await within(await screen.findByRole('group', { name: 'Motivo' })).findByRole('button', { name: 'Confuso' }))
+    await waitFor(() => expect(calls).toHaveLength(2))
+
+    await user.click(helpful)
+    await waitFor(() => expect(helpful).toHaveAttribute('aria-pressed', 'true'))
+    expect(notHelpful).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByRole('group', { name: 'Motivo' })).not.toBeInTheDocument()
+    expect(JSON.parse(String(calls[2]!.init?.body))).toEqual({ rating: 'HELPFUL' })
+  })
+
   it('feedback: útil → obrigado; não útil → motivos opcionais, e o motivo é enviado depois', async () => {
     const user = userEvent.setup()
     const calls = stubBff({ [`PUT /api/bff/copilot/questions/${REQUEST}/feedback`]: () => json({ saved: true }) })

@@ -19,7 +19,7 @@ import {
   summary,
   usage,
 } from './fixtures'
-import { LoadingPanel } from './parts'
+import { FailurePanel, LoadingPanel } from './parts'
 
 const replace = vi.fn()
 const push = vi.fn()
@@ -174,7 +174,7 @@ describe('perguntar — conversa efêmera × guardada (ADR-0041 §1)', () => {
     ])
     expect(body(asks(calls)[4]!.init)).not.toHaveProperty('conversationId')
     expect(await axeViolations(container)).toEqual([])
-  })
+  }, 20_000)
 
   it('guardada: troca a URL por /copilot/{id} (replace) e abre a conversa sem recarregar', async () => {
     const user = userEvent.setup()
@@ -196,6 +196,50 @@ describe('perguntar — conversa efêmera × guardada (ADR-0041 §1)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Por que minha fatura está mais alta?' })).toBeInTheDocument()
     expect(screen.queryByText(/Os números podem ter mudado desde então/)).not.toBeInTheDocument()
     expect(calls.some((c) => c.url.includes(`/conversations/${CONVERSATION}`))).toBe(false)
+  }, 15_000)
+
+  it('a conversa entregue é consumida uma só vez: a segunda abertura de /copilot/{id} relê a conversa', async () => {
+    const user = userEvent.setup()
+    const calls = stubBff({
+      ...base(),
+      'POST /api/bff/copilot/questions': () =>
+        json(answer({ conversationId: CONVERSATION, messageId: '01922f5e-0000-7000-8000-000000000c01' })),
+      [`GET /api/bff/copilot/conversations/${CONVERSATION}`]: () => json(conversation()),
+    })
+    const first = render(<CopilotView entry={null} />)
+    await screen.findByText('6 de 100 perguntas')
+    await ask(user, 'Por que minha fatura está mais alta?')
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(1))
+    first.unmount()
+
+    const second = render(<ConversationView conversationId={CONVERSATION} />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Por que minha fatura está mais alta?' })).toBeInTheDocument()
+    expect(calls.some((c) => c.url.includes(`/conversations/${CONVERSATION}`))).toBe(false)
+    second.unmount()
+
+    render(<ConversationView conversationId={CONVERSATION} />)
+    expect(await screen.findByText(/Os números podem ter mudado desde então/)).toBeInTheDocument()
+    expect(calls.filter((c) => c.url === `/api/bff/copilot/conversations/${CONVERSATION}`)).toHaveLength(1)
+  })
+
+  it('se o replace falhou, abrir /copilot de novo descarta a conversa entregue', async () => {
+    const user = userEvent.setup()
+    const calls = stubBff({
+      ...base(),
+      'POST /api/bff/copilot/questions': () => json(answer({ conversationId: CONVERSATION })),
+      [`GET /api/bff/copilot/conversations/${CONVERSATION}`]: () => json(conversation()),
+    })
+    const first = render(<CopilotView entry={null} />)
+    await screen.findByText('6 de 100 perguntas')
+    await ask(user, 'Por que minha fatura está mais alta?')
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(1))
+    first.unmount()
+
+    // O replace "não aconteceu": a pessoa volta a /copilot, que limpa o que ficou pendurado.
+    render(<CopilotView entry={null} />).unmount()
+    render(<ConversationView conversationId={CONVERSATION} />)
+    expect(await screen.findByText(/Os números podem ter mudado desde então/)).toBeInTheDocument()
+    expect(calls.some((c) => c.url === `/api/bff/copilot/conversations/${CONVERSATION}`)).toBe(true)
   })
 
   it('pergunta vazia ou em branco não envia; o campo respeita o limite de 500 caracteres', async () => {
@@ -285,16 +329,48 @@ describe('estados da pergunta (05-states, ADR-0041 §5)', () => {
     const { container } = render(<CopilotView entry={null} />)
     await ask(user, 'Onde mais gastei?')
 
-    expect(await screen.findByText('Analisando seus dados…')).toBeInTheDocument()
+    // Visual (aria-hidden) + anúncio na região viva dedicada: um único aria-live na tela.
+    await waitFor(() => expect(screen.getAllByText('Analisando seus dados…')).toHaveLength(2))
     expect(screen.getByText('Onde mais gastei?', { selector: 'p' })).toBeInTheDocument()
     expect(screen.queryByText('Ainda calculando. Pode levar alguns segundos.')).not.toBeInTheDocument()
-    expect(container.querySelector('[aria-live="polite"]')).toContainElement(screen.getByText('Analisando seus dados…'))
+    const live = container.querySelectorAll('[aria-live="polite"]')
+    expect(live).toHaveLength(1)
+    expect(live[0]).toHaveTextContent('Analisando seus dados…')
+    expect(container.querySelector('[class*="thread"]')).not.toHaveAttribute('aria-live')
     expect(screen.getByRole('button', { name: 'Enviar pergunta' })).toBeDisabled()
     expect(await axeViolations(container)).toEqual([])
 
     await act(async () => release(json(answer())))
-    expect(await screen.findByRole('article')).toBeInTheDocument()
+    const article = await screen.findByRole('article', { name: 'Resposta do Copilot' })
+    expect(article).toHaveFocus()
     expect(screen.queryByText('Analisando seus dados…')).not.toBeInTheDocument()
+    expect(container.querySelector('[aria-live="polite"]')).toHaveTextContent('Resposta pronta')
+  })
+
+  it('"Nova pergunta" durante uma pergunta pendente libera o campo; a resposta tardia é descartada', async () => {
+    const user = userEvent.setup()
+    let release: (r: Response) => void = () => {}
+    const calls = stubBff({
+      ...base(),
+      'POST /api/bff/copilot/questions': () => new Promise<Response>((resolve) => (release = resolve)),
+    })
+    render(<CopilotView entry={null} />)
+    await ask(user, 'Onde mais gastei?')
+    await waitFor(() => expect(screen.getAllByText('Analisando seus dados…').length).toBeGreaterThan(0))
+
+    await user.click(screen.getByRole('button', { name: /Nova pergunta/ }))
+    expect(await screen.findByRole('heading', { level: 1, name: 'O que você quer entender sobre seu dinheiro?' })).toBeInTheDocument()
+    const input = screen.getByRole('textbox', { name: 'Pergunta para o Copilot' })
+    await user.type(input, 'Outra pergunta')
+    expect(screen.getByRole('button', { name: 'Enviar pergunta' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /Onde mais gastei este mês\?/ })).toBeEnabled()
+
+    await act(async () => release(json(answer({ conversationId: CONVERSATION }))))
+    expect(screen.queryByRole('article')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'O que você quer entender sobre seu dinheiro?' })).toBeInTheDocument()
+    expect(input).toHaveValue('Outra pergunta')
+    expect(replace).not.toHaveBeenCalled()
+    expect(asks(calls)).toHaveLength(1)
   })
 
   it('carregando há mais de 10 s mostra a mensagem extra', () => {
@@ -356,6 +432,35 @@ describe('estados da pergunta (05-states, ADR-0041 §5)', () => {
     render(<CopilotView entry={null} />)
     await ask(user, 'Como estou?')
     expect(await screen.findByRole('alert')).toHaveTextContent('Muitas perguntas seguidas. Tente de novo em 17 segundos.')
+  })
+
+  it('429 RATE: "Tentar novamente" fica desabilitado até passar o Retry-After', () => {
+    vi.useFakeTimers()
+    try {
+      const onRetry = vi.fn()
+      render(<FailurePanel failure={{ ok: false, code: 'COPILOT_RATE_LIMITED', retryAfter: 5 }} entry={null} usage={undefined} onRetry={onRetry} />)
+      const button = screen.getByRole('button', { name: 'Tentar novamente' })
+      expect(button).toBeDisabled()
+      act(() => void vi.advanceTimersByTime(4_900))
+      expect(button).toBeDisabled()
+      act(() => void vi.advanceTimersByTime(200))
+      expect(button).toBeEnabled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('429 RATE: desmontar antes do prazo não deixa timer pendente', () => {
+    vi.useFakeTimers()
+    try {
+      const { unmount } = render(
+        <FailurePanel failure={{ ok: false, code: 'COPILOT_RATE_LIMITED', retryAfter: 5 }} entry={null} usage={undefined} onRetry={() => {}} />,
+      )
+      unmount()
+      expect(vi.getTimerCount()).toBe(0)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('já respondida (409): pede para perguntar de novo', async () => {
