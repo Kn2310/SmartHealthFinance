@@ -66,6 +66,8 @@ seriam regra financeira no cliente (a média das faturas, a fatura "por categori
   anteriores, sem IA."
 - Sem D11 para a fatura, o bloco e a comparação não aparecem. Nada de média calculada no cliente.
 - "Perguntar ao Copilot" aparece como "Em breve" (M11).
+  - **Adendo (2026-11-12, ADR-0041 §6):** na fatura leva a `/copilot?from=invoice&cardId=&month=` e no parcelamento
+    a `/copilot?from=installment&cardId=&planId=`.
 - Alternativa rejeitada nesta parte: filtro `cardId`/`dueMonth` em `/insights/related` (contrato novo).
 
 ### 4. Estimativa e início do acompanhamento

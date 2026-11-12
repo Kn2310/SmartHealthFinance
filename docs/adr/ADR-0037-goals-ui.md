@@ -11,6 +11,7 @@ Accepted
 >   (fora da reserva), "Conta de origem dos aportes" opcional e "Já guardado" só leitura, vindo da prévia;
 > - **Home:** bloco **"Ações rápidas" completo** (Importar extrato, Adicionar conta, Perguntar ao Copilot "Em breve",
 >   Criar objetivo) em todas as larguras;
+>   - **Adendo (2026-11-12, ADR-0041 §6):** "Perguntar ao Copilot" deixa de ser "Em breve" e leva a `/copilot`.
 > - **"Registrar aporte"** num painel (drawer; bottom sheet no mobile) e **edição** em `/goals/:id/edit`, com
 >   Pausar/Retomar, Concluir e Arquivar, cada um com confirmação.
 
