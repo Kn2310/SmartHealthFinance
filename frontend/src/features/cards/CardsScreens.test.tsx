@@ -207,7 +207,14 @@ describe('Fatura — D-Invoice', () => {
     const factors = await screen.findByRole('list', { name: 'Fatores da diferença' })
     expect(within(factors).getAllByRole('listitem')).toHaveLength(3)
     expect(screen.getByText('Confiança alta. Comparação com as suas faturas anteriores, sem IA.')).toBeInTheDocument()
-    expect(screen.getByText('Perguntar ao Copilot · Em breve')).toBeInTheDocument()
+    // Entrada do Copilot (ADR-0041 §6): no cabeçalho de toda fatura e no bloco da explicação, com tipo, ids e o mês
+    // de vencimento da fatura exibida.
+    const copilotLinks = screen.getAllByRole('link', { name: 'Perguntar ao Copilot' })
+    expect(copilotLinks).toHaveLength(2)
+    for (const link of copilotLinks) {
+      expect(link).toHaveAttribute('href', `/copilot?from=invoice&cardId=${AURORA}&month=2026-10`)
+    }
+    expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
 
     const notebook = await screen.findByRole('link', { name: 'Loja Tech' })
     expect(notebook).toHaveAttribute('href', `/cards/${AURORA}/installments/${NOTEBOOK}`)
@@ -281,6 +288,11 @@ describe('Parcelamento — D-Installment', () => {
     expect(screen.queryByText(/renda/)).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Ver saúde financeira' })).toHaveAttribute('href', '/home/health')
     expect(screen.getByRole('link', { name: 'Ver fatura' })).toHaveAttribute('href', `/cards/${AURORA}/invoices/2026-10`)
+    expect(screen.getByRole('link', { name: 'Perguntar ao Copilot' })).toHaveAttribute(
+      'href',
+      `/copilot?from=installment&cardId=${AURORA}&planId=${NOTEBOOK}`,
+    )
+    expect(screen.queryByText(/Em breve/)).not.toBeInTheDocument()
     expect(await axeViolations(container)).toEqual([])
   })
 

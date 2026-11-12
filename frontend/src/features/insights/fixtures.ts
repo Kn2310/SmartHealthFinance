@@ -124,7 +124,7 @@ export function spikeDetail(overrides: Partial<InsightDetail> = {}): InsightDeta
       // Disponível com a sugestão desde a Parte C da Sessão 7.2 (ADR-0036 §4).
       { kind: 'CREATE_SAVINGS_GOAL', label: 'Criar objetivo de economia', primary: false, available: true,
         params: { categoryCode: 'DINING_OUT', suggestedMonthly: '300.00', suggestedTarget: '1800.00', suggestedDeadline: '2027-03' } },
-      { kind: 'ASK_COPILOT', label: 'Perguntar ao Copilot', primary: false, available: false, params: {} },
+      { kind: 'ASK_COPILOT', label: 'Perguntar ao Copilot', primary: false, available: true, params: {} },
     ],
     related: [scoreItem()],
     dimension: { code: 'SPENDING', label: 'Gastos', score: 71 },

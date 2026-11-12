@@ -73,6 +73,13 @@ Decisões aprovadas pelo usuário em 2026-11-12 (Sessão 8.2, Parte E).
 | `D-Invoice` | "Em breve" (ADR-0029) | `/copilot?from=invoice&cardId=&month=` |
 | `D-Installment` | "Em breve" (ADR-0029) | `/copilot?from=installment&cardId=&planId=` |
 
+- **Adendo (2026-11-12, aprovado pelo usuário):** na fatura, a entrada fica no cabeçalho de **toda** fatura, além do
+  bloco "✦ Explicação" (que só existe com o insight D11). Textos aprovados fora do catálogo inicial: conversa não
+  encontrada, confirmações de apagar uma ou todas as conversas, erros do histórico e de apagar, o rótulo "Motivo", o
+  escopo em anos diferentes ("abr de 2025 a set de 2026") e a continuação das demais intenções; 409 em andamento,
+  contexto não encontrado e 400 usam o estado genérico de erro. Rotas reais das ações: `OPEN_HEALTH` → `/home/health`,
+  `OPEN_FORECAST` → `/home#events`, `OPEN_INSTALLMENTS` → `/cards/{id}?tab=installments`. "Copiar" monta o texto plano
+  dos segmentos (o contrato não expõe `text`).
 - `ASK_COPILOT` no backend (Insights): os detectores passam a gerar a ação disponível, e a resposta da API a marca como
   disponível também nos insights já gravados (decisão na leitura, sem rebuild). A versão dos insights não muda.
 

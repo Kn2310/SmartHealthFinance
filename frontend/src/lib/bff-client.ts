@@ -10,6 +10,10 @@ export interface Failure {
   code: string
   reason?: string
   details?: FieldIssue[]
+  /** Só no 429 do Copilot (rate limit): segundos até poder perguntar de novo. */
+  retryAfter?: number
+  /** Só no 429 do Copilot (quota): quando a quota volta (ISO). */
+  resetsAt?: string
 }
 export type Result<T> = { ok: true; status: number; data: T } | Failure
 
@@ -38,12 +42,20 @@ export async function bffCall<T>(input: string, init: RequestInit = {}): Promise
     }
     const body = (await response.json().catch(() => null)) as unknown
     if (response.ok && body) return { ok: true, status: response.status, data: body as T }
-    const failure = (body ?? {}) as { code?: unknown; reason?: unknown; details?: unknown }
+    const failure = (body ?? {}) as {
+      code?: unknown
+      reason?: unknown
+      details?: unknown
+      retryAfter?: unknown
+      resetsAt?: unknown
+    }
     return {
       ok: false,
       code: typeof failure.code === 'string' ? failure.code : 'UNAVAILABLE',
       reason: typeof failure.reason === 'string' ? failure.reason : undefined,
       details: fieldIssues(failure.details),
+      retryAfter: typeof failure.retryAfter === 'number' ? failure.retryAfter : undefined,
+      resetsAt: typeof failure.resetsAt === 'string' ? failure.resetsAt : undefined,
     }
   } catch {
     return { ok: false, code: 'UNAVAILABLE' }

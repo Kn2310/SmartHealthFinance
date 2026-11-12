@@ -92,9 +92,12 @@ function Loaded({ cardId, card, plan }: { cardId: string; card: Card | null; pla
           <Badge tone={status.tone}>{status.label}</Badge>
         </div>
         <div className={styles.headerActions}>
-          <span className={styles.caption} aria-disabled="true">
-            Perguntar ao Copilot · Em breve
-          </span>
+          <Button
+            href={`/copilot?from=installment&cardId=${encodeURIComponent(cardId)}&planId=${encodeURIComponent(plan.transactionId)}`}
+            variant="secondary"
+          >
+            Perguntar ao Copilot
+          </Button>
           <Button href={current ? `/cards/${cardId}/invoices/${current.dueMonth}` : `/cards/${cardId}/invoice`} variant="secondary">
             Ver fatura
           </Button>
