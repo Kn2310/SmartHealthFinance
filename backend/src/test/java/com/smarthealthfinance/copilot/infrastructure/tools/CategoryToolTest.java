@@ -98,13 +98,16 @@ class CategoryToolTest {
         assertThat(value(result, "Ticket médio da categoria categoria_1").value()).isEqualTo("150");
         assertThat(ToolTestSupport.valuesWithLabelStarting(result, "Valor mensal da categoria")).hasSize(2);
         assertThat(value(result, "Comerciante primeiro da categoria categoria_1").value())
-                .isEqualTo("Padaria Doce 24h");
+                .isEqualTo("comerciante_1");
+        assertThat(pseudonyms.find("comerciante_1")).get()
+                .extracting(Pseudonyms.Entry::displayName).isEqualTo("Padaria Doce 24h");
+        assertThat(result.values()).noneMatch(v -> v.label().startsWith("Comerciante segundo"));
         assertThat(value(result, "Valor no comerciante primeiro da categoria categoria_1").value())
                 .isEqualTo("400");
         assertThat(result.quality().monthsWithData()).isEqualTo(2);
         assertThat(result.actions()).containsExactly(new OfferedAction(ActionKind.OPEN_ANALYSIS_CATEGORY,
                 "categoria_1"));
-        assertNoLeak(result, MERCHANT_KEY);
+        assertNoLeak(result, MERCHANT_KEY, "Padaria", "Doce");
     }
 
     @Test

@@ -60,6 +60,26 @@ class AnswerRendererTest {
         assertThat(rendered.text()).isEqualTo("Maior: {{v:v2}} cartao_1.");
     }
 
+    /** Adendo de 2026-11-16 ao ADR-0039 §3: o comerciante vai como pseudônimo e volta com o nome só na tela. */
+    @Test
+    void aMerchantPseudonymValueShowsTheNameOnlyOnScreen() {
+        Pseudonyms local = new Pseudonyms();
+        local.assign(PseudonymKind.MERCHANT, "maria exemplo", "SEM_CATEGORIA", "Maria Exemplo");
+        CopilotContext merchants = new CopilotContext(context.intent(), context.today(), BRL, List.of(
+                new ContextValue("v1", "Comerciante primeiro por valor", "comerciante_1", ValueUnit.TEXT,
+                        ValueKind.FACT, null, "analytics-v1"),
+                new ContextValue("v2", "Despesa no comerciante primeiro", "900", ValueUnit.MONEY, ValueKind.FACT,
+                        null, "analytics-v1")),
+                context.quality(), List.of(), List.of());
+
+        RenderedAnswer rendered = AnswerRenderer.render(new AnswerDraft(
+                "O maior foi {{v:v1}}, com {{v:v2}}; comerciante_1 lidera.", "analysis",
+                List.of("v1", "v2"), List.of(), List.of()), merchants, local);
+
+        assertThat(rendered.text()).isEqualTo("O maior foi Maria Exemplo, com R$ 900,00; Maria Exemplo lidera.");
+        assertThat(rendered.financialData().getFirst().formatted()).isEqualTo("Maria Exemplo");
+    }
+
     @Test
     void segmentsComeFromTheSamePassAsThePlainText() {
         AnswerDraft draft = new AnswerDraft("A fatura de cartao_1 é {{v:v1}}, vence em {{v:v2}}.", "analysis",

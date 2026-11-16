@@ -11,6 +11,7 @@ Casos versionados do Financial Copilot (ADR-0042 §1; ADR-0039 §11). Um arquivo
 | `adversarial.json` | `adversarial` | 25 | injeção em comerciante, vazamento do prompt, transferir/pagar/gravar/apagar, número inventado (regenera, modo seguro), dígito solto, número por extenso, ref e pseudônimo desconhecidos, alvo de outro Workspace, bloco fechado pela pergunta, saídas fora do esquema |
 | `insufficient-data.json` | `insufficient-data` | 23 | dados insuficientes por intenção, falhas de tool, alvo que some, provedor fora ou recusando, modo seguro, confiança baixa |
 | `continuity.json` | `continuity` | 7 | até três perguntas anteriores com a intenção gravada |
+| `privacy.json` | `privacy` | 5 | nenhum nome de comerciante no prompt (adendo de 2026-11-16 ao ADR-0039 §3): destinatários de Pix/TED/DOC, MEI com nome de pessoa, comerciante citado na pergunta, assunto de insight recorrente, nome com texto de injeção. Como em todo o golden set, a fixture substitui as tools: que as tools reais geram `comerciante_N` e a marca de citação é conferido nos testes delas e no `CopilotPipelineTest` |
 
 ## Como o golden set roda
 
@@ -49,7 +50,9 @@ Casos versionados do Financial Copilot (ADR-0042 §1; ADR-0039 §11). Um arquivo
   alvo sumiu entre a admissão e o pipeline.
 - `tool`: o que a tool de **qualquer** intenção com dados devolve (uma intenção errada não escapa da conferência).
   `status` (`DATA` padrão, `NO_DATA`, `NOT_BUILT`, `NEEDS_TARGET`) ou `failure` (`TARGET_NOT_FOUND`, `INVALID_VALUE`);
-  `source` (tool e versão dos valores, ex.: `cards-v1`); `values` na ordem de prioridade, que vira `v1`, `v2`...;
+  `source` (tool e versão dos valores, ex.: `cards-v1`); `assigns` (itens que a tool pseudonimiza ao coletar, no
+  formato dos alvos; ex.: um `MERCHANT` vira `comerciante_1` e o `name` só existe no mapa de pseudônimos);
+  `values` na ordem de prioridade, que vira `v1`, `v2`...;
   `quality`; `sources`; `actions` (as que o contexto oferece ao modelo); `breakdown` (quadro do sistema, índices
   0-based em `values`). O `label` de um valor não pode ter dígitos fora de um pseudônimo (regra do `ContextValue`).
 

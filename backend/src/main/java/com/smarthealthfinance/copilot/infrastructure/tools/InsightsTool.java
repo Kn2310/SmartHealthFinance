@@ -92,14 +92,15 @@ public class InsightsTool implements FinancialTool {
             ValueKind kind = insight.detector() == InsightDetector.BALANCE_MAY_GO_NEGATIVE ? ValueKind.ESTIMATED
                     : ValueKind.FACT;
             boolean impact = insight.impactAmount() != null || insight.impactPoints() != null;
-            boolean named = hasNamedSubject(insight.detector()) && insight.content().subjectLabel() != null;
+            boolean named = hasNamedSubject(insight.detector()) && insight.content().subjectLabel() != null
+                    && (insight.detector() != InsightDetector.NEW_RECURRING_MERCHANT || merchantKey(insight) != null);
             if (!impact && !named) {
                 values.text("Insight " + subject, describe(insight.detector()), period);
             }
             values.money("Impacto financeiro de " + subject, insight.impactAmount(), kind, period)
                     .score("Impacto em pontos de " + subject, insight.impactPoints(), kind, period);
             if (named) {
-                values.text("Assunto de " + subject, insight.content().subjectLabel(), period);
+                subject(values, pseudonyms, insight, subject, period);
             }
             if (i < MAX_ACTIONS) {
                 actions.add(new OfferedAction(ActionKind.OPEN_INSIGHT, pseudonym));
@@ -116,6 +117,27 @@ public class InsightsTool implements FinancialTool {
             case UPDATING -> DataFreshness.UPDATING;
             case NOT_BUILT -> DataFreshness.NOT_BUILT;
         };
+    }
+
+    /**
+     * O assunto nomeado: a categoria do catálogo vai como nome; o comerciante ({@code NEW_RECURRING_MERCHANT}, que
+     * pode ser um Pix mensal para uma pessoa) vai como {@code comerciante_N} (adendo de 2026-11-16 ao ADR-0039 §3).
+     * Sem a chave do comerciante, o insight não tem assunto nomeado (vai só a descrição do detector).
+     */
+    private static void subject(ToolValues.Builder values, Pseudonyms pseudonyms, Insight insight, String subject,
+                                String period) {
+        String label = "Assunto de " + subject;
+        if (insight.detector() != InsightDetector.NEW_RECURRING_MERCHANT) {
+            values.text(label, insight.content().subjectLabel(), period);
+            return;
+        }
+        String merchant = ToolValues.merchant(pseudonyms, merchantKey(insight),
+                insight.content().refs().categoryCode(), insight.content().subjectLabel());
+        values.merchant(label, pseudonyms, merchant, period);
+    }
+
+    private static String merchantKey(Insight insight) {
+        return insight.content().refs() == null ? null : insight.content().refs().merchantKey();
     }
 
     /** Só estes detectores têm como assunto uma categoria do catálogo ou um comerciante normalizado. */

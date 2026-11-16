@@ -8,7 +8,7 @@
   "additionalProperties": false,
   "properties": {
     "version": {"const": "golden-v1"},
-    "group": {"enum": ["intents", "09-dados-de-exemplo", "adversarial", "insufficient-data", "continuity"]},
+    "group": {"enum": ["intents", "09-dados-de-exemplo", "adversarial", "insufficient-data", "continuity", "privacy"]},
     "description": {"type": "string"},
     "shared": {
       "description": "Catálogo usado pelos casos do arquivo que não trazem fixtures.catalog.",
@@ -25,7 +25,7 @@
       "additionalProperties": false,
       "properties": {
         "id": {"type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$"},
-        "group": {"enum": ["intents", "09-dados-de-exemplo", "adversarial", "insufficient-data", "continuity"]},
+        "group": {"enum": ["intents", "09-dados-de-exemplo", "adversarial", "insufficient-data", "continuity", "privacy"]},
         "note": {"type": "string", "description": "Por que o caso existe; nunca vai ao relatório da avaliação real."},
         "question": {"type": "string", "minLength": 1},
         "previousQuestions": {
@@ -96,12 +96,12 @@
       }
     },
     "target": {
-      "description": "Alvo pseudonimizado: o pseudônimo é o prefixo do tipo (conta, cartao, objetivo, insight, categoria) e a ordem entre os alvos do mesmo tipo.",
+      "description": "Alvo pseudonimizado: o pseudônimo é o prefixo do tipo (conta, cartao, objetivo, insight, categoria, comerciante) e a ordem entre os alvos do mesmo tipo.",
       "type": "object",
       "required": ["kind", "id", "name", "descriptor", "description"],
       "additionalProperties": false,
       "properties": {
-        "kind": {"enum": ["ACCOUNT", "CARD", "GOAL", "INSIGHT", "CATEGORY"]},
+        "kind": {"enum": ["ACCOUNT", "CARD", "GOAL", "INSIGHT", "CATEGORY", "MERCHANT"]},
         "id": {"$ref": "#/$defs/uuid"},
         "name": {"type": "string", "minLength": 1},
         "descriptor": {"type": "string", "minLength": 1},
@@ -145,6 +145,11 @@
         "status": {"enum": ["DATA", "NO_DATA", "NOT_BUILT", "NEEDS_TARGET"]},
         "failure": {"enum": ["TARGET_NOT_FOUND", "INVALID_VALUE"]},
         "source": {"type": "string", "description": "Tool e versão do algoritmo dos valores, ex.: cards-v1."},
+        "assigns": {
+          "description": "Itens que a tool pseudonimiza ao coletar (ex.: comerciantes, adendo de 2026-11-16 ao ADR-0039 §3), antes dos valores; mesmo formato dos alvos do catálogo. O nome só existe no mapa de pseudônimos.",
+          "type": "array",
+          "items": {"$ref": "#/$defs/target"}
+        },
         "values": {
           "type": "array",
           "items": {

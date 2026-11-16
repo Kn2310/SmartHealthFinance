@@ -133,7 +133,7 @@ class CopilotPipelineIT extends IntegrationTest {
         assertThat(jdbc.queryForList("select request_type from ai_usage where request_id = ? order by created_at",
                 String.class, result.requestId())).containsExactly("INTENT", "ANSWER");
         assertThat(jdbc.queryForList("select prompt_version from ai_usage", String.class))
-                .allMatch(version -> version.matches("(intent|answer)-v2@[0-9a-f]{8}"));
+                .allMatch(version -> version.matches("(intent-v2|answer-v3)@[0-9a-f]{8}"));
     }
 
     @Test

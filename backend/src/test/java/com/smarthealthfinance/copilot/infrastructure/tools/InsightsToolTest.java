@@ -55,11 +55,16 @@ class InsightsToolTest {
 
     private static Insight insight(UUID id, InsightDetector detector, Importance importance, String subjectLabel,
                                    String impactAmount, Integer impactPoints) {
+        return insight(id, detector, importance, subjectLabel, impactAmount, impactPoints, InsightRefs.none());
+    }
+
+    private static Insight insight(UUID id, InsightDetector detector, Importance importance, String subjectLabel,
+                                   String impactAmount, Integer impactPoints, InsightRefs refs) {
         Instant now = Instant.parse("2026-11-10T10:00:00Z");
         var content = new InsightContent(TITLE, SUPPORT, subjectLabel, null, null,
                 new InsightEvidence(List.of(), List.of(), List.of(), "comparacao", List.of(), List.of()),
                 List.of(InsightAction.primary(com.smarthealthfinance.insights.domain.enums.ActionKind.VIEW_ANALYSIS,
-                        "Ver", Map.of())), InsightRefs.none());
+                        "Ver", Map.of())), refs);
         return new Insight(id, WORKSPACE, "fingerprint", "insights-v3", detector, "2026-11", "subject",
                 InsightStatus.ACTIVE, null, importance, 50, 50, Confidence.HIGH, 10,
                 impactAmount == null ? null : brl(impactAmount), impactPoints, false, content, null, null, null, null,
@@ -171,5 +176,31 @@ class InsightsToolTest {
                 new com.smarthealthfinance.copilot.domain.model.IntentDecision(Intent.INSIGHTS, null, null,
                         "insight_1", null), pseudonyms)))
                 .isInstanceOf(com.smarthealthfinance.copilot.application.exception.TargetNotFoundException.class);
+    }
+
+    /** Adendo de 2026-11-16 ao ADR-0039 §3: o comerciante recorrente pode ser um Pix mensal para uma pessoa. */
+    @Test
+    void aRecurringMerchantSubjectGoesOnlyAsPseudonym() {
+        when(insights.list(eq(WORKSPACE), any(), any(), any(), eq(0), eq(8))).thenReturn(page(
+                InsightViews.DataState.READY, InsightsFreshnessState.UP_TO_DATE, List.of(
+                        insight(INSIGHT_ID, InsightDetector.NEW_RECURRING_MERCHANT, Importance.INFORMATIVE,
+                                "Maria Exemplo", "450", null,
+                                new InsightRefs(null, "maria exemplo", null, null, null)),
+                        insight(UUID.randomUUID(), InsightDetector.NEW_RECURRING_MERCHANT, Importance.INFORMATIVE,
+                                "Joao Da Silva", null, null, InsightRefs.none()))));
+        Pseudonyms pseudonyms = new Pseudonyms("A Maria Exemplo virou cobrança fixa?");
+
+        var result = tool.collect(request(new com.smarthealthfinance.copilot.domain.model.IntentDecision(
+                Intent.INSIGHTS, null, null, null, null), pseudonyms));
+
+        String first = "insight_1, nova cobrança recorrente de comerciante, informativo";
+        assertThat(value(result, "Assunto de " + first).value()).isEqualTo("comerciante_1");
+        assertThat(value(result, "comerciante_1 citado na pergunta").value()).isEqualTo("sim");
+        String second = "insight_2, nova cobrança recorrente de comerciante, informativo";
+        assertThat(result.values()).noneMatch(v -> v.label().startsWith("Assunto de " + second));
+        assertThat(value(result, "Insight " + second).value()).isEqualTo("nova cobrança recorrente de comerciante");
+        assertNoLeak(result, "Maria", "Exemplo", "Joao", "Silva");
+        assertThat(pseudonyms.find("comerciante_1")).get()
+                .extracting(Pseudonyms.Entry::displayName).isEqualTo("Maria Exemplo");
     }
 }

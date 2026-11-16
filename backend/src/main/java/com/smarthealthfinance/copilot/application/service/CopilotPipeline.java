@@ -127,7 +127,7 @@ public class CopilotPipeline {
         Instant started = clock.instant();
         Instant deadline = started.plus(settings.budget());
         LocalDate today = LocalDate.ofInstant(started, zone);
-        Pseudonyms pseudonyms = new Pseudonyms();
+        Pseudonyms pseudonyms = new Pseudonyms(command.question());
         RequestCatalog.Catalog requestCatalog = catalog.load(admission.workspaceId().value(), pseudonyms);
 
         AiResult classified = gateway.classify(new AiRequest(prompts.intentPrompt().text(),

@@ -66,7 +66,7 @@ class CopilotEvaluationReportTest {
         assertThat(report.get("costUsd").get("total").decimalValue()).isGreaterThan(BigDecimal.ZERO);
         assertThat(report.get("costUsd").get("byCase").has("overview-total-balance")).isTrue();
         assertThat(report.get("latencyMs").get("answer").get("calls").asInt()).isEqualTo(4);
-        assertThat(report.get("versions").get("answerPrompt").asString()).startsWith("answer-v2@");
+        assertThat(report.get("versions").get("answerPrompt").asString()).startsWith("answer-v3@");
         assertThat(markdown).contains("# Avaliação do Copilot com o modelo real", "## Acerto por intenção",
                 "invented-number-twice-falls-to-safe-mode");
     }

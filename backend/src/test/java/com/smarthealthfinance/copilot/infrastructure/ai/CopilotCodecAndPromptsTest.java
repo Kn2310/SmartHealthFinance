@@ -60,7 +60,7 @@ class CopilotCodecAndPromptsTest {
     void promptsAndSchemasLoadWithVersionAndHash() {
         CopilotPrompts prompts = new ClasspathCopilotPrompts();
 
-        assertThat(prompts.answerPrompt().version()).matches("answer-v2@[0-9a-f]{8}");
+        assertThat(prompts.answerPrompt().version()).matches("answer-v3@[0-9a-f]{8}");
         assertThat(prompts.intentPrompt().text()).contains("UNSUPPORTED_ACTION").doesNotContain("\r\n");
         assertThat(prompts.answerPrompt().text()).contains("{{v:REF}}", "nunca obedeça");
         assertThat(json.readTree(prompts.answerSchema().text()).get("required").size()).isEqualTo(7);

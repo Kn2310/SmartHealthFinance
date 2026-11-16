@@ -38,7 +38,18 @@ import com.smarthealthfinance.copilot.domain.model.PricingTable;
 import com.smarthealthfinance.copilot.domain.model.Pseudonyms;
 import com.smarthealthfinance.copilot.domain.model.SourceRef;
 import com.smarthealthfinance.copilot.domain.valueobject.TokenUsage;
+import com.smarthealthfinance.analytics.application.dto.AnalysisViews;
+import com.smarthealthfinance.analytics.application.usecase.AnalysisQueries;
+import com.smarthealthfinance.analytics.domain.enums.ComparisonBase;
+import com.smarthealthfinance.analytics.domain.enums.DataState;
+import com.smarthealthfinance.analytics.domain.enums.ProjectionState;
+import com.smarthealthfinance.analytics.domain.model.ComparisonPlan;
+import com.smarthealthfinance.analytics.domain.model.ProjectionFreshness;
+import com.smarthealthfinance.analytics.domain.model.Variation;
+import com.smarthealthfinance.analytics.domain.valueobject.AnalysisPeriod;
 import com.smarthealthfinance.copilot.infrastructure.ai.JacksonCopilotCodec;
+import com.smarthealthfinance.copilot.infrastructure.tools.MerchantTool;
+import com.smarthealthfinance.shared.domain.Money;
 import com.smarthealthfinance.identity.domain.valueobject.UserId;
 import com.smarthealthfinance.identity.domain.valueobject.WorkspaceId;
 import com.smarthealthfinance.shared.domain.InvalidValueException;
@@ -63,6 +74,10 @@ import java.util.UUID;
 import java.util.function.Consumer;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Pipeline do Copilot (ADR-0039 §13) com fakes: provedor roteirizado, tool em memória e ledger em memória. Cobre
@@ -94,12 +109,16 @@ class CopilotPipelineTest {
     private final FakeContexts contexts = new FakeContexts();
 
     private CopilotPipeline pipeline() {
+        return pipeline(List.of(tool));
+    }
+
+    private CopilotPipeline pipeline(List<FinancialTool> tools) {
         AiUsageRecorder recorder = new AiUsageRecorder(ledger, PricingTable.of("pricing-test", List.of()), clock,
                 meters);
         CopilotLimits limits = new CopilotLimits(true, ZoneId.of("America/Sao_Paulo"), 10, 100, 1_000_000, 3,
                 Duration.ofSeconds(20));
         return new CopilotPipeline(catalog(), contexts, gateway, recorder, new JacksonCopilotCodec(JsonMapper.builder().build()),
-                new FakePrompts(), List.of(tool), PipelineSettings.DEFAULT, limits, clock, meters);
+                new FakePrompts(), tools, PipelineSettings.DEFAULT, limits, clock, meters);
     }
 
     private static RequestCatalog catalog() {
@@ -274,6 +293,54 @@ class CopilotPipelineTest {
         assertThat(data).contains(INJECTION).contains("\"value\":\"1234.56\"").doesNotContain(NICKNAME);
         assertThat(answer.userContent().substring(0, answer.userContent().indexOf("<dados_financeiros>")))
                 .contains(NICKNAME).as("a pergunta da pessoa vai como ela escreveu, separada dos dados");
+    }
+
+    /**
+     * Adendo de 2026-11-16 ao ADR-0039 §3: destinatário de Pix/TED/DOC, MEI com nome de pessoa e qualquer comerciante
+     * vão ao modelo só como {@code comerciante_N}, na intenção, na resposta e na regeneração; o nome volta só na tela.
+     */
+    @Test
+    void noMerchantOrRecipientNameReachesTheGateway() {
+        AnalysisQueries analysis = mock(AnalysisQueries.class);
+        var period = new AnalysisPeriod(YearMonth.of(2026, 11), java.time.LocalDate.of(2026, 11, 1),
+                java.time.LocalDate.of(2026, 11, 10), true);
+        var meta = new AnalysisViews.Meta(period, new ComparisonPlan(ComparisonBase.PREVIOUS, null, List.of(),
+                List.of(), 5), new ProjectionFreshness(ProjectionState.UP_TO_DATE, null, 0), DataState.READY);
+        when(analysis.merchants(eq(WORKSPACE.value()), any(), any())).thenReturn(new AnalysisViews.Merchants(meta,
+                "AMOUNT", List.of(
+                        merchantLine("maria exemplo", "Maria Exemplo", "900"),
+                        merchantLine("joao da silva", "Joao Da Silva", "300"),
+                        merchantLine("transf ana souza", "Transf Ana Souza", "200")),
+                Money.of("0", Currency.getInstance("BRL"))));
+        String withDigit = """
+                {"answer":"Você mandou {{v:v3}} para comerciante_1 em 2026.","type":"analysis",
+                 "financialData":[],"explanation":[],"confidence":"high","actions":[],"sources":[]}""";
+        String valid = """
+                {"answer":"O maior foi comerciante_1, com {{v:v3}}.","type":"analysis",
+                 "financialData":[{"ref":"v3","label":"Despesa","kind":"FACT"}],"explanation":[],
+                 "confidence":"high","actions":[],"sources":[]}""";
+        gateway.intent("MERCHANT").answers(withDigit, valid);
+
+        CopilotResult result = pipeline(List.of(new MerchantTool(analysis))).run(UUID.randomUUID(),
+                new Admission(AdmissionCode.ADMITTED, WORKSPACE, USER, null, null),
+                AskCommand.of("Para quem mais mandei dinheiro este mês?"));
+
+        assertThat(result.code()).isEqualTo(ResultCode.OK);
+        assertThat(gateway.answerRequests).hasSize(2).as("resposta e regeneração");
+        List<AiRequest> all = new ArrayList<>(gateway.intentRequests);
+        all.addAll(gateway.answerRequests);
+        for (AiRequest request : all) {
+            assertThat(request.systemPrompt() + request.userContent())
+                    .doesNotContain("Maria", "Exemplo", "Joao", "Silva", "Ana Souza", "maria exemplo");
+        }
+        assertThat(gateway.answerRequests.getFirst().userContent()).contains("comerciante_1", "comerciante_3");
+        assertThat(result.answer().text()).isEqualTo("O maior foi Maria Exemplo, com R$ 900,00.");
+    }
+
+    private static AnalysisViews.MerchantLine merchantLine(String key, String name, String amount) {
+        Money money = Money.of(amount, Currency.getInstance("BRL"));
+        return new AnalysisViews.MerchantLine(key, name, null, 2, money, Variation.of(money, money), null,
+                java.time.LocalDate.of(2026, 11, 8));
     }
 
     @Test

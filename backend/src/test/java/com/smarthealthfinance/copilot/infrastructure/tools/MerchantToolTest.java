@@ -7,6 +7,8 @@ import com.smarthealthfinance.analytics.domain.enums.ProjectionState;
 import com.smarthealthfinance.analytics.domain.model.Variation;
 import com.smarthealthfinance.copilot.application.port.FinancialTool;
 import com.smarthealthfinance.copilot.domain.enums.Intent;
+import com.smarthealthfinance.copilot.domain.model.IntentDecision;
+import com.smarthealthfinance.copilot.domain.model.Pseudonyms;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -45,7 +47,8 @@ class MerchantToolTest {
         var result = tool.collect(request(Intent.MERCHANT));
 
         assertThat(result.status()).isEqualTo(FinancialTool.Status.DATA);
-        assertThat(value(result, "Comerciante primeiro por valor").value()).isEqualTo("Mercado Central");
+        assertThat(value(result, "Comerciante primeiro por valor").value()).isEqualTo("comerciante_1");
+        assertThat(value(result, "Comerciante segundo por valor").value()).isEqualTo("comerciante_2");
         assertThat(value(result, "Categoria do comerciante primeiro").value()).isEqualTo("Alimentação");
         assertThat(value(result, "Despesa no comerciante primeiro").value()).isEqualTo("300");
         assertThat(value(result, "Transações no comerciante primeiro").value()).isEqualTo("6");
@@ -54,7 +57,29 @@ class MerchantToolTest {
         assertThat(value(result, "Categoria do comerciante segundo").value()).isEqualTo("Sem categoria");
         assertThat(value(result, "Despesas sem comerciante identificado").value()).isEqualTo("45");
         assertThat(result.quality().partialPeriod()).isTrue();
-        assertNoLeak(result, "chave-interna");
+        assertNoLeak(result, "chave-interna", "Mercado Central", "Posto");
+    }
+
+    /** Adendo de 2026-11-16 ao ADR-0039 §3: destinatário de Pix/TED/DOC e MEI com nome de pessoa nunca saem. */
+    @Test
+    void transferRecipientsAndPersonNamedMerchantsGoOnlyAsPseudonyms() {
+        var meta = CashFlowToolTest.meta(DataState.READY, ProjectionState.UP_TO_DATE);
+        when(analysis.merchants(eq(WORKSPACE), any(), any())).thenReturn(new AnalysisViews.Merchants(meta, "AMOUNT",
+                List.of(line("maria exemplo", "Maria Exemplo", null, "900"),
+                        line("joao da silva", "Joao Da Silva", "FOOD", "300"),
+                        line("transf ana souza", "Transf Ana Souza", null, "200")), brl("0")));
+        var pseudonyms = new Pseudonyms("Quanto mandei para a maria exemplo este mês?");
+
+        var result = tool.collect(request(IntentDecision.of(Intent.MERCHANT), pseudonyms));
+
+        assertNoLeak(result, "Maria", "Exemplo", "Joao", "Silva", "Ana Souza", "Souza");
+        assertThat(value(result, "Comerciante primeiro por valor").value()).isEqualTo("comerciante_1");
+        assertThat(value(result, "comerciante_1 citado na pergunta").value()).isEqualTo("sim");
+        assertThat(result.values()).noneMatch(v -> v.label().equals("comerciante_2 citado na pergunta"));
+        assertThat(pseudonyms.find("comerciante_1")).get()
+                .extracting(Pseudonyms.Entry::displayName).isEqualTo("Maria Exemplo");
+        assertThat(pseudonyms.find("comerciante_2")).get()
+                .extracting(Pseudonyms.Entry::descriptor).isEqualTo("FOOD");
     }
 
     @Test
