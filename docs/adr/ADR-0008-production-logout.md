@@ -83,6 +83,8 @@ No `POST /auth/logout`, o servidor Next.js:
   - o encerramento por `refresh_token` no `end_session_endpoint` é comportamento do Keycloak; um IdP de produção
     diferente precisa oferecer o equivalente (revogação RFC 7009 ou back-channel). Isso entra no ADR do IdP de
     produção.
+  - **Adendo (2026-11-16, ADR-0043):** o IdP de staging e produção é o Keycloak autogerenciado, então esta
+    decisão vale sem mudança. O logout por back-channel será verificado de novo no staging (Parte D da Fase 9).
 
 ## Decision
 

@@ -476,6 +476,11 @@ Fase 9 (pré-produção e staging, iniciada em 2026-11-16, antecipa parte do M14
 A pseudonimização de comerciantes (feita) → B IdP de produção → C arquitetura de staging e deploy → D implementação
 do staging → E validação do Copilot com a chave real → F PIA e checklist do DPA. Fora: M12, M13 completo, produção.
 
+- [x] IdP de staging e produção decidido (ADR-0043, 2026-11-16): Keycloak autogerenciado por ambiente, TOTP
+  opcional, rotação de refresh token desligada no MVP. Pendente na Parte C: provedor SMTP; na Parte D: realm
+  endurecido como código, runbook do Keycloak e verificação do logout em staging. Para o M13: exclusão de conta
+  também no Keycloak, decidir MFA obrigatório, retenção dos eventos de login.
+
 - [ ] staging
 - [ ] production
 - [ ] dashboards
