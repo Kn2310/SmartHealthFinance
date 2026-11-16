@@ -31,6 +31,12 @@ Accepted
     `*IT` com Testcontainers no `verify`);
   - **frontend**: Node 22 (`engines`), `pnpm install --frozen-lockfile`, `lint`, `typecheck`, `test`, `build`.
 - `backend/mvnw` e `infrastructure/scripts/local-token.sh` passam a ser executáveis no Git (modo 755).
+- **Adendo (2026-11-16, ADR-0044):** o `ci.yml` não muda. Imagens e deploy ficam em workflows próprios:
+  - `images.yml`: build com `docker buildx`, scan Trivy pela imagem fixada por digest, SBOM, provenance e push no
+    GHCR, com `packages: write` só no job que publica;
+  - `deploy-staging.yml`: manual, no Environment `staging`.
+
+  A regra de actions só oficiais e fixadas por SHA vale para os dois.
 
 ### 2. Contrato OpenAPI: snapshot versionado, validado dos dois lados
 

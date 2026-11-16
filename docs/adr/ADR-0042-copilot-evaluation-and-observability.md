@@ -79,6 +79,11 @@ tanto em `./mvnw test` quanto no `verify`; não existe `CopilotGoldenSetIT`.
 `shf.copilot.history.dead_lettered` (incrementado pelo recoverer de mensagens do consumidor, registrado em 0 na
 subida), em vez da profundidade da fila.
 
+**Adendo (2026-11-16, ADR-0044):** no staging, o painel e as regras rodam no `grafana/otel-lgtm` do host,
+provisionados como código. Os alertas são do Grafana Alerting e vão para um bot do Telegram. A mensagem leva só
+nome, prioridade, resumo e runbook. A Parte D da Fase 9 mapeia os nomes das métricas exportadas por OTLP para os
+usados nas regras, com teste. A observabilidade de produção é decidida no M14.
+
 ### 5. Revisão de segurança e privacidade
 
 - Rodar a revisão de segurança sobre o módulo `copilot` e o frontend do Copilot, conferindo minimização de dados,

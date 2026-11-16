@@ -477,9 +477,21 @@ A pseudonimização de comerciantes (feita) → B IdP de produção → C arquit
 do staging → E validação do Copilot com a chave real → F PIA e checklist do DPA. Fora: M12, M13 completo, produção.
 
 - [x] IdP de staging e produção decidido (ADR-0043, 2026-11-16): Keycloak autogerenciado por ambiente, TOTP
-  opcional, rotação de refresh token desligada no MVP. Pendente na Parte C: provedor SMTP; na Parte D: realm
-  endurecido como código, runbook do Keycloak e verificação do logout em staging. Para o M13: exclusão de conta
-  também no Keycloak, decidir MFA obrigatório, retenção dos eventos de login.
+  opcional, rotação de refresh token desligada no MVP. Na Parte D: realm endurecido como código, runbook do
+  Keycloak e verificação do logout em staging. Para o M13: exclusão de conta também no Keycloak, decidir MFA
+  obrigatório, retenção dos eventos de login. Para o M14: SMTP de produção.
+- [x] Arquitetura de staging e deploy decidida (ADR-0044, 2026-11-16):
+  - host: AWS Lightsail São Paulo, 16 GB / 4 vCPU, Ubuntu 24.04, um host com Docker Compose;
+  - rede e IdP: Caddy com TLS automático; API não publicada; tráfego para o IdP dentro do host; Mailpit no lugar
+    do SMTP; cadastro desligado no staging;
+  - imagens: GHCR público, por digest; workflow de imagens com buildx, Trivy fixado por digest, SBOM e provenance;
+  - deploy: manual por SHA no Environment `staging`, SSH com comando forçado, recreate, rollback por digest e
+    smoke test;
+  - observabilidade: otel-lgtm com alertas no Telegram;
+  - dados: seed fictício pela API, `pg_dump` diário mais snapshots do Lightsail, teste de restore.
+- [ ] Implementação do staging (Parte D, `feature/staging-environment`): Dockerfile do frontend, compose e Caddyfile
+  de staging, workflows `images.yml` e `deploy-staging.yml`, scripts de deploy, backup, restore, reset e seed,
+  provisionamento do Grafana, `.env.staging.example` e runbooks.
 
 - [ ] staging
 - [ ] production

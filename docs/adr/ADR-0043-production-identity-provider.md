@@ -58,6 +58,15 @@ Foram comparados, com custo, operação, região, MFA, recuperação, rotação,
    - O discovery devolve endpoints com o hostname público. A API e o BFF, no mesmo host, chegam ao IdP por esse
      hostname, passando pelo proxy. Se o tráfego deve ficar dentro do host (resolução interna do hostname, sem mudar
      o issuer), isso é decidido na Parte C.
+   - **Adendo (2026-11-16, ADR-0044):** no staging os nomes são `auth.staging.<domínio>` e
+     `app.staging.<domínio>`. O proxy é o Caddy.
+     - Ele publica só `/realms/smart-health-finance/*` e `/resources/*`. O realm `master` também responde 404,
+       para o token endpoint do admin não ficar na internet. Isso vale também para produção.
+     - O tráfego da API e do BFF para o IdP fica dentro do host: o container do Caddy recebe o hostname público como
+       alias de rede, com o mesmo issuer e o certificado válido.
+     - **Exceção ao item 7, só no staging:** existe um client confidencial `shf-staging-seed` com password grant,
+       desligado por padrão. O script de seed o liga e o desliga pela rede interna. Ele não existe no realm de
+       produção.
 6. **Realm `smart-health-finance`** em cada ambiente. O issuer é diferente por ambiente:
    - API: `OIDC_ISSUER_URI=https://auth.<domínio>/realms/smart-health-finance`;
    - BFF: `OIDC_ISSUER_URI` e `OIDC_CLIENT_ID=shf-web`.
@@ -81,6 +90,10 @@ Foram comparados, com custo, operação, região, MFA, recuperação, rotação,
     recuperação) exigem um provedor SMTP, decidido no ADR da Parte C. `registrationAllowed`, `verifyEmail` e
     `resetPasswordAllowed` só são ligados depois que o SMTP do ambiente estiver configurado e testado (critério de
     aceite da Parte D). Antes disso, só existem os usuários fictícios do seed.
+    - **Adendo (2026-11-16, ADR-0044):** no staging, o SMTP é o Mailpit, que captura os e-mails sem entregá-los.
+      `verifyEmail` e `resetPasswordAllowed` ficam ligados e são testados com os usuários sintéticos.
+      **`registrationAllowed` fica desligado no staging**: a URL é pública, e um cadastro aberto guardaria e-mails
+      reais (05.11). O SMTP de produção é decidido no M14, e a produção segue os itens 9 e 10.
 11. **Política de senha:** no mínimo 12 caracteres, diferente do e-mail e do usuário, histórico das últimas 3,
     hash padrão do Keycloak 26.
 12. **Proteção contra força bruta** ligada: bloqueio temporário progressivo depois de falhas seguidas, sem bloqueio
