@@ -22,6 +22,9 @@ O `SecurityConfig` já referencia esta decisão.
    `smart-health-finance`, cliente público `shf-web` com PKCE).
    - O password grant fica habilitado apenas no realm local, para testes via `curl`.
    - O IdP de staging/produção será escolhido em ADR próprio.
+   - **Adendo (2026-11-16, ADR-0043):** Keycloak autogerenciado, uma instância por ambiente, com realm endurecido
+     (sem password grant, verificação de e-mail, TOTP opcional). O provisionamento e a chave `(oidc_issuer,
+     oidc_subject)` não mudam.
 3. **O módulo Identity mantém uma projeção local do usuário** (`users`), ligada ao IdP pela chave natural
    `(oidc_issuer, oidc_subject)`.
    - O `UserId` interno é um UUIDv7, gerado pela aplicação.
