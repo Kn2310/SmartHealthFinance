@@ -1,0 +1,94 @@
+#!/bin/bash
+# Deploy do staging por digest (ADR-0044 §5 itens 24–27). Instalado em /usr/local/bin (root, 0755).
+# Chamado pelo shf-deploy-gate via sudo (sudoers permite ao `deploy` só este comando) ou pelo admin:
+#
+#   sudo shf-deploy <sha> <sha256:digest-api> <sha256:digest-web>
+#
+# Rollback = o mesmo comando com o SHA e os digests de um deploy anterior OK (veja /var/lib/shf/deployments.log).
+# Não há rollback de banco: o Flyway aplica as migrations no startup (expand/contract).
+#
+# Uma queda do SSH no meio não interrompe o deploy: SIGHUP/SIGPIPE são ignorados e a saída detalhada vai para
+# /var/lib/shf/last-deploy.log; o resultado final (OK/FAILED) sempre vai para o deployments.log.
+set -euo pipefail
+umask 077
+trap '' HUP PIPE
+
+# shellcheck source=lib.sh
+source /opt/shf/bin/lib.sh
+# shellcheck source=/dev/null
+source /opt/shf/deploy.conf # API_REPOSITORY e WEB_REPOSITORY (fixos, versionados)
+
+shf_require_root
+[[ $# -eq 3 ]] || shf_die "uso: shf-deploy <sha> <digest-api> <digest-web>"
+sha=$1 api_digest=$2 web_digest=$3
+[[ "$sha" =~ $SHF_SHA_RE ]] || shf_die "SHA inválido"
+[[ "$api_digest" =~ $SHF_DIGEST_RE ]] || shf_die "digest da API inválido"
+[[ "$web_digest" =~ $SHF_DIGEST_RE ]] || shf_die "digest do web inválido"
+
+api_image="$API_REPOSITORY@$api_digest"
+web_image="$WEB_REPOSITORY@$web_digest"
+
+shf_check_secret_file "$SHF_ENV_FILE"
+install -d -m 750 -o root -g root "$SHF_STATE_DIR"
+
+# Um deploy (ou reset) por vez.
+exec 9>/run/shf-deploy.lock
+flock -n 9 || shf_die "outro deploy ou reset em andamento"
+
+detail="$SHF_STATE_DIR/last-deploy.log"
+: >"$detail"
+# Mensagens curtas no terminal (se ainda houver um); nunca falham o script se o SSH caiu.
+say() { shf_log "$*" >>"$detail"; shf_log "$*" 2>/dev/null || true; }
+
+say "deploy sha=$sha"
+shf_record "start sha=$sha api=$api_digest web=$web_digest"
+
+fail() {
+	shf_record "FAILED sha=$sha step=$1"
+	say "deploy FALHOU em: $1 (detalhes: $detail)"
+	if [[ -f "$SHF_IMAGES_FILE.ok" ]]; then
+		say "último deploy OK, para voltar: sudo shf-deploy $(sed -n 's/^SHF_SHA=//p' "$SHF_IMAGES_FILE.ok") \
+$(sed -n 's/^API_IMAGE=.*@//p' "$SHF_IMAGES_FILE.ok") $(sed -n 's/^WEB_IMAGE=.*@//p' "$SHF_IMAGES_FILE.ok")"
+	fi
+	exit 1
+}
+
+# 1. Pull antes de parar qualquer coisa; a imagem precisa ser do SHA pedido (label OCI do build).
+for image in "$api_image" "$web_image"; do
+	docker pull -q "$image" >>"$detail" 2>&1 || fail "pull $image"
+	revision=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$image")
+	[[ "$revision" == "$sha" ]] || fail "imagem $image é do commit '$revision', não de $sha"
+done
+
+# 2. Grava as imagens (o compose lê daqui).
+tmp=$(mktemp "$SHF_IMAGES_FILE.XXXXXX")
+printf 'SHF_SHA=%s\nAPI_IMAGE=%s\nWEB_IMAGE=%s\n' "$sha" "$api_image" "$web_image" >"$tmp"
+chmod 600 "$tmp"
+mv -f "$tmp" "$SHF_IMAGES_FILE"
+
+# 3. Arquivos montados (Caddyfile, prometheus.yaml, provisioning do Grafana, realm) não mudam a configuração do
+#    serviço no compose: se o install.sh trouxe uma versão nova, esses containers são recriados explicitamente.
+config_hash=$(find "$SHF_DIR/Caddyfile" "$SHF_DIR/observability" "$SHF_DIR/keycloak" -type f -print0 \
+	| sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)
+recreate=()
+if [[ "$(cat "$SHF_STATE_DIR/config.sha256" 2>/dev/null || true)" != "$config_hash" ]]; then
+	recreate=(--force-recreate)
+	say "configuração do host mudou desde o último deploy: recriando caddy, lgtm e keycloak"
+fi
+
+# 4. Dependências (sobem ou ficam como estão), depois API (Flyway no startup) e por fim o web.
+#    Recreate: o compose só recria o que mudou; espera o healthcheck de cada um.
+shf_compose up -d --wait --wait-timeout 300 postgres redis rabbitmq mailpit >>"$detail" 2>&1 || fail "dependências"
+shf_compose up -d --wait --wait-timeout 300 "${recreate[@]}" lgtm keycloak caddy >>"$detail" 2>&1 \
+	|| fail "lgtm/keycloak/caddy"
+printf '%s\n' "$config_hash" >"$SHF_STATE_DIR/config.sha256"
+shf_compose up -d --wait --wait-timeout 420 api >>"$detail" 2>&1 || fail "api (readiness)"
+shf_compose up -d --wait --wait-timeout 180 web >>"$detail" 2>&1 || fail "web"
+
+# 5. Smoke interno (o externo roda no workflow).
+shf_compose exec -T web node -e "fetch('http://api:8081/actuator/health/readiness').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" \
+	>>"$detail" 2>&1 || fail "web não alcança a API"
+
+cp -p "$SHF_IMAGES_FILE" "$SHF_IMAGES_FILE.ok"
+shf_record "OK sha=$sha api=$api_digest web=$web_digest"
+say "deploy OK sha=$sha"

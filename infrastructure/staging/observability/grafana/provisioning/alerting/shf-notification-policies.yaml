@@ -1,0 +1,10 @@
+# Tudo vai para o Telegram (ADR-0044 §7, item 33). Agrupa por nome do alerta para a mensagem não repetir.
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: shf-telegram
+    group_by: [alertname]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h

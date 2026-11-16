@@ -1,0 +1,4 @@
+# /etc/sudoers.d/shf-deploy (ADR-0044 §5 item 23). O usuário `deploy` só pode executar o shf-deploy.
+# O gate valida os argumentos antes; o shf-deploy os revalida. Sem shell, sem outros comandos.
+Defaults:deploy !requiretty, env_reset, secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+deploy ALL=(root) NOPASSWD: /usr/local/bin/shf-deploy

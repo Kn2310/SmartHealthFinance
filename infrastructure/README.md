@@ -4,7 +4,8 @@
 |---|---|---|
 | Local | `docker-compose.yml` | `backend/.env` (modelo: `backend/.env.example`) |
 | CI | `.github/workflows/ci.yml` (Testcontainers sobe PostgreSQL, RabbitMQ e Redis nos testes de integração — ADR-0010) | nenhuma (sem segredos) |
-| Staging / Production | `docker-compose.deploy.yml` + `backend/Dockerfile` | env file fora do repositório (modelo: `.env.deploy.example`) |
+| Staging | `staging/compose.yml` + `backend/Dockerfile` + `frontend/Dockerfile` (ADR-0044) | `/etc/shf/staging.env` no host (modelo: `.env.staging.example`) |
+| Production | ainda não existe (M14) | — |
 
 ## Local
 
@@ -60,19 +61,18 @@ Para zerar os dados locais (o `--env-file` é necessário porque as credenciais 
 docker compose --env-file backend/.env -f infrastructure/docker-compose.yml down -v
 ```
 
-## Staging / Production
+## Staging
 
-MVP single host (specs 05.11): reverse proxy com TLS no host → API em `127.0.0.1:8080`; PostgreSQL, Redis e
-RabbitMQ sem portas publicadas.
+Host único no AWS Lightsail (São Paulo) com Docker Compose (ADR-0044). Só o Caddy publica portas (80/443, TLS
+automático); PostgreSQL, Redis, RabbitMQ, API e web ficam na rede interna; Grafana, Mailpit e o console do Keycloak
+só em 127.0.0.1 do host, pelo túnel SSH. Deploy manual por SHA e digest (workflow **Deploy staging**), com imagens do
+workflow **Images** (GHCR, Trivy, SBOM). Staging nunca recebe dados reais: só o seed fictício.
 
-1. CI publica a imagem de `backend/Dockerfile` e registra o digest.
-2. No host, crie o env file do ambiente a partir de `.env.deploy.example` (ex.: `/etc/shf/staging.env`, `chmod 600`),
-   ou gere-o a partir do secret manager.
-3. Suba:
+| Runbook | Conteúdo |
+|---|---|
+| `docs/runbooks/staging.md` | preparação do host (passo a passo), túnel, operação, alertas |
+| `docs/runbooks/staging-deploy.md` | deploy por digest e rollback |
+| `docs/runbooks/staging-backup-restore.md` | backup, teste de restore, reset e seed |
+| `docs/runbooks/keycloak.md` | realm de staging, verificações do IdP |
 
-   ```bash
-   docker compose --env-file /etc/shf/staging.env -f infrastructure/docker-compose.deploy.yml up -d
-   ```
-
-Pendências fora deste arquivo: reverse proxy/TLS, IdP gerenciado do ambiente, backups + PITR do PostgreSQL e
-restore test (specs 05.11).
+Produção: decidida e criada no M14.

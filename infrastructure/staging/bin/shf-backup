@@ -1,0 +1,33 @@
+#!/bin/bash
+# Backup diário do staging (ADR-0044 §8 item 36). Chamado pelo timer shf-backup.timer; também manual:
+#   sudo shf-backup
+# pg_dump (formato custom) da aplicação e do Keycloak em /var/backups/shf (root 700, arquivos 600), 7 dias.
+set -euo pipefail
+umask 077
+
+# shellcheck source=lib.sh
+source /opt/shf/bin/lib.sh
+shf_require_root
+shf_check_secret_file "$SHF_ENV_FILE"
+
+install -d -m 700 -o root -g root "$SHF_BACKUP_DIR"
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+
+db_name=$(shf_env_value DB_NAME)
+db_user=$(shf_env_value DB_USERNAME)
+kc_name=$(shf_env_value KC_DB_NAME)
+
+dump() {
+	local database=$1 target=$2
+	# O superusuário do container (POSTGRES_USER) lê os dois databases; a senha não é necessária no socket local.
+	shf_compose exec -T postgres pg_dump -U "$db_user" -d "$database" -Fc --no-owner >"$target.partial"
+	mv -f "$target.partial" "$target"
+}
+
+dump "$db_name" "$SHF_BACKUP_DIR/$stamp-app.dump"
+dump "$kc_name" "$SHF_BACKUP_DIR/$stamp-keycloak.dump"
+
+find "$SHF_BACKUP_DIR" -maxdepth 1 -type f -name '*.dump' -mtime +7 -delete
+find "$SHF_BACKUP_DIR" -maxdepth 1 -type f -name '*.partial' -delete
+
+shf_log "backup OK $stamp ($(du -ch "$SHF_BACKUP_DIR"/"$stamp"-*.dump | tail -1 | cut -f1))"

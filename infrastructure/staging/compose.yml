@@ -1,0 +1,303 @@
+# STAGING — host único (ADR-0044). Instalado em /opt/shf pelo install.sh; executado SEMPRE pelos scripts shf-*:
+#
+#   docker compose -p shf-staging --project-directory /opt/shf -f /opt/shf/compose.yml \
+#     --env-file /etc/shf/staging.env --env-file /etc/shf/staging.images ...
+#
+# - Só o caddy publica portas (80/443). Grafana, Mailpit e o admin do Keycloak escutam só em 127.0.0.1 do host,
+#   para o túnel SSH (ssh -L); o firewall do Lightsail também os bloqueia.
+# - PostgreSQL, Redis, RabbitMQ, API e web não têm porta no host. A API só é alcançada pelo BFF (rede interna).
+# - Imagens próprias por digest (staging.images, trocado só pelo shf-deploy); de terceiros, fixadas aqui por digest.
+# - Variáveis obrigatórias usam ${VAR:?}: o compose falha antes de subir se faltar alguma.
+# - Staging NUNCA recebe dados reais (05.11): só o seed fictício.
+
+name: shf-staging
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+
+  caddy:
+    # caddy:2.10-alpine (v2.10.2)
+    image: caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    restart: unless-stopped
+    environment:
+      STAGING_APP_HOST: ${STAGING_APP_HOST:?}
+      STAGING_AUTH_HOST: ${STAGING_AUTH_HOST:?}
+      ACME_EMAIL: ${ACME_EMAIL:?}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data # certificados: preservados no reset (limites do Let's Encrypt)
+      - caddy-config:/config
+    networks:
+      shf:
+        # API, BFF e seed resolvem o hostname público para o caddy: o tráfego ao IdP não sai do host e o
+        # certificado e o issuer são os mesmos (ADR-0044 §2 item 5).
+        aliases:
+          - ${STAGING_AUTH_HOST:?}
+          - ${STAGING_APP_HOST:?}
+    mem_limit: 256m
+    logging: *logging
+
+  web:
+    image: ${WEB_IMAGE:?defina WEB_IMAGE em /etc/shf/staging.images}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      APP_BASE_URL: https://${STAGING_APP_HOST:?}
+      OIDC_ISSUER_URI: https://${STAGING_AUTH_HOST:?}/realms/smart-health-finance
+      OIDC_CLIENT_ID: shf-web
+      API_BASE_URL: http://api:8080
+      SESSION_SECRET: ${SESSION_SECRET:?}
+      NODE_OPTIONS: --max-old-space-size=384
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/auth/signed-out').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    networks: [shf]
+    mem_limit: 512m
+    stop_grace_period: 15s
+    logging: *logging
+
+  api:
+    image: ${API_IMAGE:?defina API_IMAGE em /etc/shf/staging.images}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME:?}
+      DB_USERNAME: ${DB_USERNAME:?}
+      DB_PASSWORD: ${DB_PASSWORD:?}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: "5672"
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:?}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:?}
+      OIDC_ISSUER_URI: https://${STAGING_AUTH_HOST:?}/realms/smart-health-finance
+      CORS_ALLOWED_ORIGINS: https://${STAGING_APP_HOST:?}
+      SERVER_PORT: "8080"
+      # Actuator só na rede interna: probes e scrape do Prometheus (otel-lgtm).
+      MANAGEMENT_SERVER_PORT: "8081"
+      API_DOCS_ENABLED: "false"
+      # Traces e logs por OTLP; métricas por scrape do /actuator/prometheus (mesmos nomes das regras de alerta).
+      OTEL_EXPORT_ENABLED: "true"
+      MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED: "false"
+      # Buckets de histograma para o p95 da API no painel de saúde (só no staging; o application.yml não muda).
+      MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILESHISTOGRAM_HTTP_SERVER_REQUESTS: "true"
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://lgtm:4318
+      TRACING_SAMPLING_PROBABILITY: "0.1"
+      # Feature flag do Copilot (ADR-0044 §10). Provedor real só na Parte E, com a chave no env file.
+      COPILOT_ENABLED: ${COPILOT_ENABLED:-true}
+      COPILOT_PROVIDER: ${COPILOT_PROVIDER:-simulated}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      JAVA_TOOL_OPTIONS: -XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError
+      TZ: UTC
+    healthcheck:
+      # Sem curl na imagem JRE: GET pela /dev/tcp do bash (ADR-0044 §3 item 12).
+      test: ["CMD", "bash", "-c", 'exec 3<>/dev/tcp/127.0.0.1/8081 && printf "GET /actuator/health/readiness HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && head -n1 <&3 | tr -d "\r" | grep -qE " 200( |$$)"']
+      interval: 10s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+    networks: [shf]
+    mem_limit: 2g
+    stop_grace_period: 30s # server.shutdown=graceful; listeners terminam a mensagem em curso
+    logging: *logging
+
+  keycloak:
+    # quay.io/keycloak/keycloak:26.3 (mesma linha do ambiente local, ADR-0043 §1)
+    image: quay.io/keycloak/keycloak@sha256:357829ec7c4693397533035092ad13b0644bcc95ded311f33a3738c4d9e9bdba
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KC_DB_NAME:?}
+      KC_DB_USERNAME: ${KC_DB_USERNAME:?}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?}
+      KC_HOSTNAME: https://${STAGING_AUTH_HOST:?}
+      # Console de administração só pelo túnel SSH (127.0.0.1:8180 no host).
+      KC_HOSTNAME_ADMIN: http://127.0.0.1:8180
+      KC_PROXY_HEADERS: xforwarded
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:?}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      # Placeholders do realm importado (só se o realm ainda não existir).
+      STAGING_APP_HOST: ${STAGING_APP_HOST:?}
+      SEED_CLIENT_SECRET: ${SEED_CLIENT_SECRET:?}
+      JAVA_OPTS_KC_HEAP: -XX:MaxRAMPercentage=70
+      TZ: UTC
+    volumes:
+      - ./keycloak/realm-smart-health-finance.json:/opt/keycloak/data/import/realm-smart-health-finance.json:ro
+    ports:
+      - "127.0.0.1:8180:8080"
+    healthcheck:
+      test: ["CMD", "bash", "-c", 'exec 3<>/dev/tcp/127.0.0.1/9000 && printf "GET /health/ready HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3 && head -n1 <&3 | tr -d "\r" | grep -qE " 200( |$$)"']
+      interval: 10s
+      timeout: 5s
+      start_period: 90s
+      retries: 12
+    networks: [shf]
+    mem_limit: 1536m
+    logging: *logging
+
+  postgres:
+    # postgres:17-alpine
+    image: postgres@sha256:a77aa70e641402a21411b92b721c58d10f23b50ae5fdd2333efd22d166e1e5f7
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:?}
+      POSTGRES_USER: ${DB_USERNAME:?}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?}
+      # Database e usuário próprios do Keycloak (ADR-0043 §3), criados no primeiro init.
+      KC_DB_NAME: ${KC_DB_NAME:?}
+      KC_DB_USERNAME: ${KC_DB_USERNAME:?}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD:?}
+      TZ: UTC
+      PGTZ: UTC
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [shf]
+    mem_limit: 1g
+    shm_size: 256m
+    stop_grace_period: 30s
+    logging: *logging
+
+  redis:
+    # redis:7-alpine
+    image: redis@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --save '' --appendonly no --maxmemory 200mb --maxmemory-policy allkeys-lru"]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [shf]
+    mem_limit: 256m
+    logging: *logging
+
+  rabbitmq:
+    # rabbitmq:4-alpine
+    image: rabbitmq@sha256:7b77c3d3a996c7fcca1ca8bf53ce1557ff43c13b8ca2c132df6031781b209ef2
+    restart: unless-stopped
+    hostname: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:?}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [shf]
+    mem_limit: 512m
+    logging: *logging
+
+  mailpit:
+    # axllent/mailpit:v1.27 — captura os e-mails do Keycloak sem entregá-los (ADR-0044 §2 item 9)
+    image: axllent/mailpit@sha256:e22dce5b36f93c77082e204a3942fb6b283b7896e057458400a4c88344c3df68
+    restart: unless-stopped
+    environment:
+      MP_MAX_MESSAGES: "500"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "true"
+    ports:
+      - "127.0.0.1:8025:8025" # UI só pelo túnel SSH
+    networks: [shf]
+    mem_limit: 128m
+    logging: *logging
+
+  lgtm:
+    # grafana/otel-lgtm:0.41.0 — Grafana, Prometheus, Loki e Tempo numa imagem; só para staging (ADR-0044 §7)
+    image: grafana/otel-lgtm@sha256:2e3290657f2f2a256c7a9175f097424a3ac5b54840741ace433e108e109348b6
+    restart: unless-stopped
+    environment:
+      # Retenção das métricas (flag do Prometheus; o run-prometheus.sh da imagem lê esta variável).
+      PROMETHEUS_EXTRA_ARGS: --storage.tsdb.retention.time=15d
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_AUTH_DISABLE_LOGIN_FORM: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:?}
+    volumes:
+      - lgtm-data:/data
+      # Scrape da API (api:8081) e do RabbitMQ (rabbitmq:15692), sobre a config original da imagem.
+      - ./observability/prometheus.yaml:/otel-lgtm/prometheus.yaml:ro
+      # Painéis (Copilot e saúde) e alertas → Telegram, provisionados como código.
+      - ./observability/grafana/provisioning/dashboards/custom.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro
+      - ./observability/grafana/dashboards:/otel-lgtm/grafana/conf/provisioning/dashboards/custom:ro
+      - ./observability/grafana/provisioning/alerting:/otel-lgtm/grafana/conf/provisioning/alerting:ro
+    ports:
+      - "127.0.0.1:3001:3000" # Grafana só pelo túnel SSH
+    networks: [shf]
+    mem_limit: 2g
+    logging: *logging
+
+  # Seed fictício (ADR-0044 §8 item 35). Só pelo shf-seed, que liga e desliga o client de seed.
+  seed:
+    profiles: ["seed"]
+    # node:22-alpine
+    image: node@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a
+    user: "node"
+    working_dir: /seed
+    command: ["node", "seed.mjs"]
+    environment:
+      SEED_API_BASE_URL: http://api:8080
+      SEED_TOKEN_URL: https://${STAGING_AUTH_HOST:?}/realms/smart-health-finance/protocol/openid-connect/token
+      SEED_CLIENT_ID: shf-staging-seed
+      SEED_CLIENT_SECRET: ${SEED_CLIENT_SECRET:?}
+      SEED_MARINA_USERNAME: ${SEED_MARINA_USERNAME:?}
+      SEED_MARINA_PASSWORD: ${SEED_MARINA_PASSWORD:?}
+      SEED_BRUNO_USERNAME: ${SEED_BRUNO_USERNAME:?}
+      SEED_BRUNO_PASSWORD: ${SEED_BRUNO_PASSWORD:?}
+    volumes:
+      - ./seed:/seed:ro
+    networks: [shf]
+    mem_limit: 256m
+    logging: *logging
+
+networks:
+  shf:
+    name: shf-staging
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
+  lgtm-data:
+  caddy-data:
+  caddy-config:

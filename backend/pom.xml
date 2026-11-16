@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.1.2</version>
 		<relativePath/>
 	</parent>
 
@@ -22,6 +22,9 @@
 		<!-- Copilot (ADR-0039 §1, §2): SDK oficial só no adapter; Resilience4j core, sem o starter. -->
 		<anthropic-java.version>3.7.0</anthropic-java.version>
 		<resilience4j.version>2.4.0</resilience4j.version>
+		<!-- Override da versão gerenciada pelo Boot 4.1.2 (5.30.0): CVE-2026-63337, -69219, -69220 e -75516 corrigidos
+		     a partir de 5.34.0 (scan do workflow Images, ADR-0044 §4). Remover quando o Boot gerenciar >= 5.34.0. -->
+		<rabbit-amqp-client.version>5.37.0</rabbit-amqp-client.version>
 	</properties>
 
 	<dependencies>

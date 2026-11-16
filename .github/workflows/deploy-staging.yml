@@ -1,0 +1,113 @@
+# Deploy do staging por SHA (ADR-0044 §5). Manual, no Environment `staging` (revisor obrigatório: você).
+#
+# 1. o SHA precisa estar na main e ter CI, E2E e Images verdes;
+# 2. os digests vêm do artefato do run do Images da main (publicado só depois do scan do digest no registry);
+# 3. SSH com a chave do Environment e known_hosts fixado → o gate do host aceita só "deploy <sha> <api> <web>";
+# 4. smoke test externo.
+#
+# Configuração do Environment `staging` (feita por você; veja docs/runbooks/staging.md):
+#   secrets:   STAGING_SSH_PRIVATE_KEY, STAGING_SSH_KNOWN_HOSTS
+#   variables: STAGING_SSH_HOST, STAGING_APP_HOST, STAGING_AUTH_HOST
+# Nenhum segredo de aplicação vem para o GitHub: eles ficam só em /etc/shf/staging.env no host.
+
+name: Deploy staging
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'SHA completo (40 caracteres) de um commit da main'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: staging
+      url: https://${{ vars.STAGING_APP_HOST }}
+    env:
+      SHA: ${{ inputs.sha }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: SHA válido, na main e com CI, E2E e Images verdes
+        run: |
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "SHA inválido (use os 40 caracteres em minúsculas)" >&2; exit 1; }
+          status=$(gh api "repos/$GITHUB_REPOSITORY/compare/main...$SHA" --jq .status)
+          [[ "$status" == "identical" || "$status" == "behind" ]] || { echo "o SHA não está na main ($status)" >&2; exit 1; }
+          runs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SHA&event=push&branch=main&per_page=100")
+          for workflow in CI E2E Images; do
+            # O run mais recente (created_at) de cada workflow, só de push na main e do próprio repositório.
+            latest=$(jq -c --arg name "$workflow" --arg repo "$GITHUB_REPOSITORY" \
+              '[.workflow_runs[] | select(.name == $name and .head_branch == "main" and .head_repository.full_name == $repo)]
+               | sort_by(.created_at) | last // empty' <<<"$runs")
+            conclusion=$(jq -r '.conclusion // "sem execução"' <<<"${latest:-null}")
+            echo "$workflow: $conclusion"
+            [[ "$conclusion" == "success" ]] || { echo "$workflow não está verde para $SHA" >&2; exit 1; }
+            if [[ "$workflow" == "Images" ]]; then
+              echo "IMAGES_RUN_ID=$(jq -r .id <<<"$latest")" >> "$GITHUB_ENV"
+            fi
+          done
+
+      # Digest = o artefato publicado pelo run do Images da main, depois do push e do scan do digest publicado.
+      # Nunca a tag sha-<sha> (mutável por qualquer push no registry).
+      - name: Digests aprovados pelo Images da main
+        id: digests
+        run: |
+          dir=$(mktemp -d)
+          for name in api web; do
+            artifact=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$IMAGES_RUN_ID/artifacts" \
+              --jq ".artifacts[] | select(.name == \"image-digest-$name\" and .expired == false) | .id")
+            [[ "$artifact" =~ ^[0-9]+$ ]] || { echo "artefato do digest do $name ausente ou expirado" >&2; exit 1; }
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact/zip" > "$dir/$name.zip"
+            digest=$(unzip -p "$dir/$name.zip" "$name.txt" | tr -d '[:space:]')
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "digest do $name inválido" >&2; exit 1; }
+            echo "$name=$digest" >> "$GITHUB_OUTPUT"
+            echo "$name: \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
+          done
+          rm -rf "$dir"
+
+      - name: Deploy pelo gate SSH
+        env:
+          SSH_KEY: ${{ secrets.STAGING_SSH_PRIVATE_KEY }}
+          KNOWN_HOSTS: ${{ secrets.STAGING_SSH_KNOWN_HOSTS }}
+          SSH_HOST: ${{ vars.STAGING_SSH_HOST }}
+          API_DIGEST: ${{ steps.digests.outputs.api }}
+          WEB_DIGEST: ${{ steps.digests.outputs.web }}
+        run: |
+          [[ -n "$SSH_KEY" && -n "$KNOWN_HOSTS" && -n "$SSH_HOST" ]] || { echo "Environment staging incompleto" >&2; exit 1; }
+          dir=$(mktemp -d); trap 'rm -rf "$dir"' EXIT
+          (umask 077; printf '%s\n' "$SSH_KEY" > "$dir/key"; printf '%s\n' "$KNOWN_HOSTS" > "$dir/known_hosts")
+          ssh -i "$dir/key" -o IdentitiesOnly=yes -o UserKnownHostsFile="$dir/known_hosts" \
+            -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=30 \
+            "deploy@$SSH_HOST" "deploy $SHA $API_DIGEST $WEB_DIGEST"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha }}
+          persist-credentials: false
+          sparse-checkout: infrastructure/staging/smoke-test.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Smoke test externo
+        env:
+          STAGING_APP_HOST: ${{ vars.STAGING_APP_HOST }}
+          STAGING_AUTH_HOST: ${{ vars.STAGING_AUTH_HOST }}
+        run: |
+          if ! bash infrastructure/staging/smoke-test.sh; then
+            {
+              echo "Smoke test falhou. O rollback NÃO é automático: rode este workflow com o SHA do último deploy OK"
+              echo "(veja /var/lib/shf/deployments.log no host)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
