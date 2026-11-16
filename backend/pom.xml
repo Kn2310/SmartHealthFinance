@@ -202,4 +202,32 @@
 		</plugins>
 	</build>
 
+	<profiles>
+		<!--
+			Avaliação do Copilot com o modelo real (ADR-0042 §3): `./mvnw -Pcopilot-eval test`. Roda só o
+			CopilotRealEvaluation (fora do verify normal: o nome não casa com os padrões do surefire nem do failsafe),
+			lê ANTHROPIC_API_KEY só do ambiente e falha sem ela. Opções: -Dcopilot.eval.cases=... e
+			-Dcopilot.eval.maxUsd=... Relatório em target/copilot-eval/. Sem dependência nova.
+		-->
+		<profile>
+			<id>copilot-eval</id>
+			<properties>
+				<skipITs>true</skipITs>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-surefire-plugin</artifactId>
+						<configuration>
+							<includes>
+								<include>**/CopilotRealEvaluation.java</include>
+							</includes>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>

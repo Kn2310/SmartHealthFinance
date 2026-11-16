@@ -134,6 +134,11 @@ Ordem: autenticação → membership → idempotência → consentimento → con
 é validado antes do rate limit para um alvo inválido não gastar quota. A validação da pergunta continua depois da
 admissão (ADR-0039, limites da Parte C); a tela valida antes de enviar.
 
+**Adendo (2026-11-12, ADR-0042 §5, aprovado pelo usuário):** a pergunta (1 a 500 caracteres) e as anteriores (até 3,
+cada uma até 500) passam a ser validadas logo depois da membership, antes da idempotência, do consentimento e do rate
+limit: uma pergunta inválida dá 400 sem gastar token do balde, mesmo sem consentimento. Um filtro limita o corpo das
+rotas do Copilot a 16 KB (400 `VALIDATION_FAILED`, `TOO_LARGE`). Não membro continua com 404 antes de tudo (ADR-0003).
+
 ### 5. Idempotência
 
 - `Idempotency-Key` obrigatório no `POST /questions` (mesmo formato aceito no Cards, ADR-0026).

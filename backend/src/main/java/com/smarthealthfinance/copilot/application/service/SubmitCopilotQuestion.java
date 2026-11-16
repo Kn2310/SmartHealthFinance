@@ -102,6 +102,9 @@ public class SubmitCopilotQuestion {
             throw new InvalidValueException("conversationId", "CONFLICTS_WITH_PREVIOUS_QUESTIONS");
         }
 
+        // Tamanho barrado antes do SHA-256 e da reserva da chave.
+        askCopilot.validate(command);
+
         // O hash é do corpo como o cliente mandou; a continuidade lida no servidor não entra.
         String bodyHash = fingerprint(command, conversationId);
         CopilotIdempotency.Reservation reservation = idempotency.reserve(member.workspaceId(), member.userId(), key,

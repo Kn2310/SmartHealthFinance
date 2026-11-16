@@ -200,6 +200,44 @@ class CopilotApiIT extends IntegrationTest {
     }
 
     @Test
+    void sizeLimitsAreRejectedBeforeTheKeyIsReservedAndTheBodyIsCappedAt16Kb() throws Exception {
+        grantConsent("sub-ana", "ana@example.com", anasWorkspace);
+
+        assertError(ask(anasWorkspace, key(), "{\"question\": \"" + "x".repeat(501) + "\"}"), HttpStatus.BAD_REQUEST,
+                "VALIDATION_FAILED");
+        assertError(ask(anasWorkspace, key(), "{\"question\": \"Oi\", \"previousQuestions\": [\"a\", \"b\", \"c\", "
+                + "\"d\"]}"), HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        assertThat(redis.keys("shf:copilot:idem:" + anasWorkspace + ":*")).as("nenhuma chave reservada").isEmpty();
+
+        String huge = "{\"question\": \"Oi\", \"previousQuestions\": [\"" + "x".repeat(20 * 1024) + "\"]}";
+        MvcTestResult tooBig = ask(anasWorkspace, key(), huge);
+        assertError(tooBig, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        assertThat(JsonPath.<String>read(body(tooBig), "$.details[0].code")).isEqualTo("TOO_LARGE");
+        assertThat(body(tooBig)).as("o corpo nunca é ecoado").doesNotContain("xxxx");
+        assertThat(redis.keys("shf:copilot:idem:" + anasWorkspace + ":*")).isEmpty();
+
+        assertError(askAs(bob(), anasWorkspace, key(), "{\"question\": \"" + "x".repeat(501) + "\"}"),
+                HttpStatus.NOT_FOUND, "WORKSPACE_NOT_FOUND");
+    }
+
+    @Test
+    void theBodyLimitIsExactlySixteenKibibytes() throws Exception {
+        grantConsent("sub-ana", "ana@example.com", anasWorkspace);
+        String json = "{\"question\": \"Oi\"}";
+
+        String atLimit = json + " ".repeat(16 * 1024 - json.length());
+        assertThat(atLimit.getBytes(java.nio.charset.StandardCharsets.UTF_8)).hasSize(16384);
+        MvcTestResult accepted = ask(anasWorkspace, key(), atLimit);
+        if (accepted.getResponse().getStatus() == HttpStatus.BAD_REQUEST.value()) {
+            assertThat(JsonPath.<String>read(body(accepted), "$.details[0].code")).isNotEqualTo("TOO_LARGE");
+        }
+
+        MvcTestResult over = ask(anasWorkspace, key(), atLimit + " ");
+        assertError(over, HttpStatus.BAD_REQUEST, "VALIDATION_FAILED");
+        assertThat(JsonPath.<String>read(body(over), "$.details[0].code")).isEqualTo("TOO_LARGE");
+    }
+
+    @Test
     void withoutConsentIsForbiddenAndTheKeyIsReleased() throws Exception {
         String key = key();
 

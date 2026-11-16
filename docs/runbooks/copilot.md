@@ -21,7 +21,10 @@ Referência: ADR-0039 (modelo de IA), ADR-0038 (consentimentos). Configuração 
 
 - **Simulado ↔ real:**
   - `COPILOT_PROVIDER=simulated` (padrão) ou `COPILOT_PROVIDER=anthropic`;
-  - o real exige `ANTHROPIC_API_KEY`: sem ela, a API **não sobe** e informa só o nome da variável que falta.
+  - o real exige `ANTHROPIC_API_KEY`: sem ela, a API **não sobe** e informa só o nome da variável que falta;
+  - `shf.copilot.anthropic.base-url` vazio usa o host oficial; se preenchido, precisa ser `https://api.anthropic.com`,
+    ou a API não sobe (a chave e as perguntas só vão a esse host). Só os testes usam
+    `shf.copilot.anthropic.allow-custom-base-url=true`; nunca em produção.
 - **Modelo:**
   - edite `shf.copilot.models.intent` / `answer`, sempre com ids exatos e sem sufixo de data;
   - inclua o preço do modelo novo em `shf.copilot.pricing.models` e troque `pricing.version`;
@@ -83,19 +86,36 @@ group by workspace_id, pricing_version
 order by custo_usd desc;
 ```
 
-Métricas da aplicação:
+Métricas da aplicação: ver o [catálogo](#catálogo-de-métricas-shfcopilot) abaixo.
 
-| Métrica | Tags |
-|---|---|
-| `shf.copilot.ai.requests` | `role`, `provider`, `outcome` |
-| `shf.copilot.ai.latency` | — |
-| `shf.copilot.ai.tokens` | `type`, `kind` |
-| `shf.copilot.ai.cost.usd` | `type`, `model` |
-| `shf.copilot.admission` | `code` |
-| `shf.copilot.rate_limit` | `status` |
-| `shf.copilot.ai.short_circuited` | — |
-| `shf.copilot.ai.bulkhead_full` | — |
-| `shf.copilot.ai.unpriced` | — |
+### Custo por Workspace e por dia
+
+As métricas não levam `workspaceId` (cardinalidade e privacidade, ADR-0042 §4): o custo por Workspace vem do ledger.
+
+```sql
+-- custo e perguntas por Workspace e por dia (fuso de negócio), últimos 7 dias
+select workspace_id,
+       (created_at at time zone 'America/Sao_Paulo')::date as dia,
+       count(*) filter (where request_type = 'INTENT'
+                        and outcome not in ('UNAVAILABLE', 'TIMEOUT', 'RATE_LIMITED')) as perguntas,
+       sum(input_tokens + cache_read_tokens + cache_write_tokens) as tokens_entrada,
+       sum(output_tokens) as tokens_saida,
+       sum(cost) as custo_usd
+from ai_usage
+where created_at >= now() - interval '7 days'
+group by workspace_id, dia
+order by dia desc, custo_usd desc;
+
+-- Workspaces acima de US$ 1 hoje (investigar antes do alerta diário de custo total)
+select workspace_id, sum(cost) as custo_usd, count(*) as chamadas
+from ai_usage
+where created_at >= date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo'
+group by workspace_id
+having sum(cost) > 1
+order by custo_usd desc;
+```
+
+`workspace_id` só aparece no resultado da consulta: não copie para tickets, chats ou planilhas.
 
 ## Pipeline (Parte C)
 
@@ -185,7 +205,8 @@ delete from copilot_feedback where request_id in (
 - A pessoa apaga uma conversa (`DELETE .../copilot/conversations/{id}`) ou todas (`DELETE .../copilot/conversations`),
   sempre hard delete (as mensagens saem em cascata). O usage ledger e o feedback ficam (sem conteúdo).
 - Revogar `COPILOT_HISTORY` (ou `COPILOT_DATA_USE`, que revoga o histórico em cascata) apaga todas as conversas da pessoa
-  no Workspace pelo consumidor abaixo.
+  no Workspace pelo consumidor abaixo, só as criadas até o `occurredAt` do evento (um evento atrasado não apaga o que
+  veio de um novo consentimento).
 - Atendimento de direito de exclusão fora da API (com acesso ao banco), de uma pessoa num Workspace:
 
 ```sql
@@ -245,6 +266,38 @@ pergunta, resposta ou contexto.
 | `shf.copilot.history.expired_messages` | contador | — |
 | `shf.copilot.history.expired_feedback` | contador | — |
 
+| `shf.copilot.history.dead_lettered` | contador | — |
+
+Os timers `shf.copilot.pipeline.latency` e `shf.copilot.ai.latency` publicam histogramas de percentis
+(`management.metrics.distribution.percentiles-histogram`) para o p50/p95 do painel.
+
+## Painel e alertas
+
+Arquivos versionados em `infrastructure/observability/copilot/` (ADR-0042 §4), sem nada no compose:
+
+- `dashboard.json`: painel Grafana (uid `shf-copilot`). Importe em Dashboards → Import e escolha a fonte Prometheus
+  que lê o `/actuator/prometheus` da API.
+- `alerts.yml`: regras do Prometheus (`rule_files`). Valores iniciais, a calibrar com tráfego real no M13/M14.
+- `CopilotObservabilityAssetsTest` confere que os dois são válidos e só citam métricas que o código emite.
+
+### Alertas
+
+| Alerta | Prioridade | O que fazer |
+|---|---|---|
+| `CopilotSuccessBelowSlo` | P2 | Ver no painel qual código cresceu. `PROVIDER_UNAVAILABLE`: seguir o alerta do provedor. Exceção de tool: logs com `requestId` (só ids). |
+| `CopilotProviderUnavailable` | P2 | Status do provedor; circuito `copilot-ai` aberto se recupera sozinho em 30 s. Persistindo, [desligar o Copilot](#desligar-o-copilot): o resto do app segue. |
+| `CopilotSafeModeHigh` | P3 | Ver `shf.copilot.validation.violation` por código. Subiu depois de troca de modelo ou prompt: voltar a versão anterior e rodar o golden set real. |
+| `CopilotClaimViolationsHigh` | P3 | Mesmo caminho do modo seguro; a pessoa nunca vê a resposta inválida, mas a experiência piora. |
+| `CopilotLatencyHigh` | P3 | Latência do provedor por papel no painel; bulkhead cheio (`shf.copilot.ai.bulkhead_full`) indica pico. |
+| `CopilotThrottlingHigh` | P4 | Uso acima das quotas provisórias: conferir no ledger se é um Workspace só (abuso) ou geral (calibrar no M12). |
+| `CopilotDailyCostHigh` | P3 | [Custo por Workspace e por dia](#custo-por-workspace-e-por-dia); um Workspace fora da curva → investigar; geral → revisar quotas. |
+| `CopilotUnpricedModel` | P3 | Modelo fora da tabela `pricing-*`: o ledger grava custo zero. Acrescentar o preço ou voltar o modelo. |
+| `CopilotRevocationDeadLettered` | P2 (privacidade) | Uma revogação de histórico não foi aplicada. Seguir [Consumidor de `consent.revoked` e DLQ](#consumidor-de-consentrevoked-e-dlq) no mesmo dia; as conversas não são exibidas (a leitura confere o consentimento), mas continuam guardadas. |
+
+## Avaliação
+
+Golden set no CI e avaliação contra o modelo real: `docs/runbooks/copilot-evaluation.md` (ADR-0042 §1–§3).
+
 ## Simular falhas localmente
 
 Use `COPILOT_SIMULATED_MODE`: `ok`, `refused`, `invalid_output`, `timeout`, `rate_limited` ou `unavailable`. Ele só
@@ -256,7 +309,9 @@ vale com `COPILOT_PROVIDER=simulated`.
   `Authorization: Bearer <chave>` e não em `x-api-key`, verificado contra o servidor falso do
   `AnthropicAiProviderTest`. A aceitação pela API real ainda não foi conferida. Com `COPILOT_PROVIDER=anthropic` e a
   chave no `backend/.env` (descomente a linha `ANTHROPIC_API_KEY`), suba a API no perfil `local`, faça uma pergunta
-  pelo endpoint de diagnóstico e confira `outcome=OK` no ledger. Um 401 aparece no log como `status=401`.
+  por `POST /copilot/questions` (seção "Smoke test pela API de conversa") e confira `outcome=OK` no ledger. Um 401
+  aparece no log como `status=401`. O golden set contra o modelo real (`docs/runbooks/copilot-evaluation.md`) cobre o
+  mesmo e mede custo e qualidade.
 - Com `COPILOT_PROVIDER=anthropic` e sem chave, a API não sobe, mesmo com `COPILOT_ENABLED=false`. Para desligar sem
   chave, volte também a `COPILOT_PROVIDER=simulated`.
 - DPA com o provedor: retenção, zero data retention, cláusulas de transferência internacional.

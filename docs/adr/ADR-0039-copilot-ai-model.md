@@ -108,6 +108,12 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
     bandeira, `objetivo_1` com o tipo);
   - o servidor mantém o mapa só em memória durante a requisição e traduz de volta nos `sources`/`actions`;
   - nada desse mapa é gravado.
+- **Adendo (2026-11-12, ADR-0042 §5, aprovado pelo usuário):** comerciante normalizado vindo de transferência (Pix,
+  TED, DOC, pela regra do normalizador) pode ser nome de pessoa. Ele vai ao modelo como pseudônimo local
+  `destinatario_N` e volta com o nome só na resposta renderizada, como os apelidos. Nenhum nome de terceiro sai do app.
+  **Pendente (2026-11-12, aprovado pelo usuário):** a analytics só guarda o nome já normalizado, sem a origem; a
+  implementação exige marcar a origem de transferência na projeção (migration e adendo ao ADR-0013) e vai num PR
+  próprio, bloqueante de produção. Até lá o Copilot roda só com o adapter simulado (local e CI).
 - **Logs, métricas e traces:** nunca levam pergunta, resposta, contexto, valores ou nomes. Só ids internos (em log),
   códigos, contagens, tokens, custo, latência e versões.
 - **Treinamento:** opt-out por padrão do provedor (API comercial), registrado no runbook com o item do DPA a conferir.
@@ -467,7 +473,7 @@ esquema de intenção é `intents-v1.json`.
   - o simulado escolhe a intenção por palavras-chave e não preenche parâmetros (mês, categoria, alvo, cenário);
   - `UNSUPPORTED_ACTION` sem link de tela, e not-found de tool como erro (adendo do §13);
   - pergunta vazia ou longa demais é rejeitada depois da admissão: gasta um token do balde (ADR-0003, autorizar
-    antes de validar). A tela da 8.2 pode validar antes de enviar;
+    antes de validar). A tela da 8.2 pode validar antes de enviar; **resolvido em 2026-11-12** (adendo ADR-0040 §4);
   - nenhum valor derivado novo é calculado no Copilot: diferenças e variações vêm dos casos de uso (`Variation`),
     que já são determinísticos;
   - DPA e PIA continuam pendentes para produção.

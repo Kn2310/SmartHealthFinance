@@ -1,0 +1,385 @@
+{
+  "version": "golden-v1",
+  "group": "insufficient-data",
+  "description": "Dados insuficientes (por intenção), falhas de tool, alvo que some, provedor fora ou recusando, modo seguro e confiança reduzida. Nenhum desses caminhos pode inventar número.",
+  "shared": {
+    "catalog": {
+      "currency": "BRL",
+      "categories": {"HOUSING":"Moradia","FOOD_OUT":"Alimentação fora","GROCERIES":"Mercado","TRANSPORT":"Transporte","SUBSCRIPTIONS":"Assinaturas","OTHER":"Outros"},
+      "targets": [
+        {"kind":"GOAL","id":"a0000000-0000-4000-8000-0000000000b1","name":"Reserva de emergência","descriptor":"EMERGENCY_FUND","description":"objetivo EMERGENCY_FUND, prazo sem prazo, ACTIVE"},
+        {"kind":"GOAL","id":"a0000000-0000-4000-8000-0000000000b2","name":"Viagem para Lisboa","descriptor":"TRAVEL","description":"objetivo TRAVEL, prazo 2027-07, ACTIVE"},
+        {"kind":"GOAL","id":"a0000000-0000-4000-8000-0000000000b3","name":"Guardar a diferença do delivery","descriptor":"SAVINGS","description":"objetivo SAVINGS, prazo 2027-03, ACTIVE"},
+        {"kind":"CARD","id":"a0000000-0000-4000-8000-0000000000c1","name":"Aurora Platinum","descriptor":"VISA","description":"cartão VISA"},
+        {"kind":"CARD","id":"a0000000-0000-4000-8000-0000000000c2","name":"Horizonte Gold","descriptor":"MASTERCARD","description":"cartão MASTERCARD"}
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "overview-without-data",
+      "group": "insufficient-data",
+      "question": "Qual é o meu saldo?",
+      "fixtures": {"tool":{"status":"NO_DATA"}},
+      "scripted": {"intent":{"intent":"OVERVIEW","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"OVERVIEW","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Ainda não tenho dados suficientes sobre a sua visão geral"]}
+    },
+    {
+      "id": "cash-flow-without-data",
+      "group": "insufficient-data",
+      "question": "Quanto gastei em setembro?",
+      "fixtures": {"tool":{"status":"NO_DATA"}},
+      "scripted": {"intent":{"intent":"CASH_FLOW","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"CASH_FLOW","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Importe extratos ou registre transações"]}
+    },
+    {
+      "id": "category-without-data",
+      "group": "insufficient-data",
+      "question": "Quanto gastei no mercado?",
+      "fixtures": {"tool":{"status":"NO_DATA"}},
+      "scripted": {"intent":{"intent":"CATEGORY","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"CATEGORY","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Ainda não tenho dados suficientes sobre as suas categorias"]}
+    },
+    {
+      "id": "merchant-without-data",
+      "group": "insufficient-data",
+      "question": "Qual é o meu maior comerciante?",
+      "fixtures": {"tool":{"status":"NO_DATA"}},
+      "scripted": {"intent":{"intent":"MERCHANT","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"MERCHANT","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Ainda não tenho dados suficientes sobre os seus comerciantes"]}
+    },
+    {
+      "id": "cards-without-data",
+      "group": "insufficient-data",
+      "question": "Quanto está a minha fatura?",
+      "fixtures": {"tool":{"status":"NO_DATA"}},
+      "scripted": {"intent":{"intent":"CARDS","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"CARDS","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Cadastre um cartão e importe a fatura"]}
+    },
+    {
+      "id": "goals-without-data",
+      "group": "insufficient-data",
+      "question": "Como está o meu objetivo?",
+      "fixtures": {"tool":{"status":"NO_DATA"}},
+      "scripted": {"intent":{"intent":"GOALS","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"GOALS","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Crie um objetivo para acompanhar o progresso"]}
+    },
+    {
+      "id": "health-read-model-not-built",
+      "group": "insufficient-data",
+      "question": "Como está a minha saúde financeira?",
+      "fixtures": {"tool":{"status":"NOT_BUILT"}},
+      "scripted": {"intent":{"intent":"HEALTH","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"HEALTH","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Tente de novo em alguns minutos"]}
+    },
+    {
+      "id": "insights-read-model-not-built",
+      "group": "insufficient-data",
+      "question": "Quais alertas eu tenho?",
+      "fixtures": {"tool":{"status":"NOT_BUILT"}},
+      "scripted": {"intent":{"intent":"INSIGHTS","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"INSIGHTS","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Tente de novo em alguns minutos"]}
+    },
+    {
+      "id": "forecast-without-data",
+      "group": "insufficient-data",
+      "question": "Como deve ficar o próximo mês?",
+      "fixtures": {"tool":{"status":"NO_DATA"}},
+      "scripted": {"intent":{"intent":"FORECAST","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"FORECAST","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Tente de novo em alguns minutos"]}
+    },
+    {
+      "id": "goal-simulation-needs-a-target",
+      "group": "insufficient-data",
+      "question": "E se eu guardar mais por mês?",
+      "fixtures": {"tool":{"status":"NEEDS_TARGET"}},
+      "scripted": {"intent":{"intent":"GOAL_SIMULATION","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"GOAL_SIMULATION","validation":"NOT_APPLICABLE","calls":["INTENT"],"notices":[],"actions":[],"textContains":["Para simular, diga qual objetivo"]}
+    },
+    {
+      "id": "tool-target-not-found",
+      "group": "insufficient-data",
+      "note": "O alvo escolhido não existe mais no Workspace quando a tool roda.",
+      "question": "Como está o meu objetivo?",
+      "fixtures": {"tool":{"failure":"TARGET_NOT_FOUND"}},
+      "scripted": {"intent":{"intent":"GOALS","month":null,"category":null,"target":"objetivo_2","scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"GOALS","validation":"NOT_APPLICABLE","calls":["INTENT"],"textContains":["Crie um objetivo"]}
+    },
+    {
+      "id": "tool-rejects-the-parameters",
+      "group": "insufficient-data",
+      "note": "Parâmetro inválido (mês) para o caso de uso: dados insuficientes, nunca um erro.",
+      "question": "Quanto está a minha fatura?",
+      "fixtures": {"tool":{"failure":"INVALID_VALUE"}},
+      "scripted": {"intent":{"intent":"CARDS","month":"2026-09","category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"CARDS","validation":"NOT_APPLICABLE","calls":["INTENT"],"textContains":["Cadastre um cartão"]}
+    },
+    {
+      "id": "entry-target-vanished-before-the-pipeline",
+      "group": "insufficient-data",
+      "note": "O alvo do contexto de entrada some entre a admissão e o pipeline.",
+      "question": "Quanto falta para este objetivo?",
+      "context": {"kind":"GOAL","goalId":"a0000000-0000-4000-8000-0000000000b2"},
+      "fixtures": {
+        "entry": {"resolveFails":true},
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label":"Fatura atual de cartao_1","value":"3412.80","unit":"MONEY","kind":"FACT","period":"2026-10"},
+            {"label":"Próxima fatura de cartao_1","value":"2980.40","unit":"MONEY","kind":"ESTIMATED","period":"2026-11"},
+            {"label":"Maior comerciante da fatura","value":"Entrega Já","unit":"TEXT","kind":"FACT","period":"2026-10"}
+          ],
+          "quality": {"monthsWithData":6,"partialPeriod":false,"freshness":"UP_TO_DATE","sources":["OFX"]},
+          "sources": [{"tool":"GetCardsSummary","version":"cards-v1"}],
+          "actions": [{"kind":"OPEN_INVOICE","target":"cartao_1"}]
+        }
+      },
+      "scripted": {"intent":{"intent":"GOALS","month":null,"category":null,"target":null,"scenario":null}},
+      "expect": {"code":"INSUFFICIENT_DATA","intent":"GOALS","validation":"NOT_APPLICABLE","calls":["INTENT"],"textContains":["Crie um objetivo"],"real":{"code":"INSUFFICIENT_DATA"}}
+    },
+    {
+      "id": "provider-down-on-the-intent",
+      "group": "insufficient-data",
+      "note": "O provedor está fora na classificação: ainda não há dado calculado para o modo seguro.",
+      "question": "Qual é o meu saldo?",
+      "scripted": {"intent":{"outcome":"UNAVAILABLE"}},
+      "expect": {"code":"PROVIDER_UNAVAILABLE","intent":"NONE","validation":"NOT_APPLICABLE","calls":["INTENT"],"real":{"skip":true}}
+    },
+    {
+      "id": "provider-timeout-on-the-intent",
+      "group": "insufficient-data",
+      "question": "Qual é o meu saldo?",
+      "scripted": {"intent":{"outcome":"TIMEOUT"}},
+      "expect": {"code":"PROVIDER_UNAVAILABLE","intent":"NONE","validation":"NOT_APPLICABLE","calls":["INTENT"],"real":{"skip":true}}
+    },
+    {
+      "id": "provider-refuses-the-intent",
+      "group": "insufficient-data",
+      "question": "Qual é o meu saldo?",
+      "scripted": {"intent":{"outcome":"REFUSED"}},
+      "expect": {"code":"OUT_OF_SCOPE","intent":"OUT_OF_SCOPE","validation":"NOT_APPLICABLE","calls":["INTENT"],"real":{"skip":true}}
+    },
+    {
+      "id": "provider-down-on-the-answer-falls-to-safe-mode",
+      "group": "insufficient-data",
+      "note": "Provedor fora na resposta: modo seguro com os dados já calculados, sem regenerar.",
+      "question": "Quanto está a fatura do Aurora Platinum?",
+      "fixtures": {
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label":"Fatura atual de cartao_1","value":"3412.80","unit":"MONEY","kind":"FACT","period":"2026-10"},
+            {"label":"Próxima fatura de cartao_1","value":"2980.40","unit":"MONEY","kind":"ESTIMATED","period":"2026-11"},
+            {"label":"Maior comerciante da fatura","value":"Entrega Já","unit":"TEXT","kind":"FACT","period":"2026-10"}
+          ],
+          "quality": {"monthsWithData":6,"partialPeriod":false,"freshness":"UP_TO_DATE","sources":["OFX"]},
+          "sources": [{"tool":"GetCardsSummary","version":"cards-v1"}],
+          "actions": [{"kind":"OPEN_INVOICE","target":"cartao_1"}]
+        }
+      },
+      "scripted": {"intent":{"intent":"CARDS","month":null,"category":null,"target":"cartao_1","scenario":null},"answers":[{"outcome":"UNAVAILABLE"}]},
+      "expect": {
+        "code": "SAFE_MODE",
+        "intent": "CARDS",
+        "validation": "SAFE_MODE",
+        "calls": ["INTENT","ANSWER"],
+        "confidence": "MEDIUM",
+        "refs": ["v1","v2","v3"],
+        "citedValues": ["R$ 3.412,80","R$ 2.980,40 (estimado)","Entrega Já"],
+        "kinds": ["FACT","ESTIMATED"],
+        "notices": ["ESTIMATED","SAFE_MODE"],
+        "actions": [{"kind":"OPEN_INVOICE","targetName":"Aurora Platinum"}],
+        "textContains": ["Não consegui escrever uma explicação agora","Fatura atual de Aurora Platinum: R$ 3.412,80"],
+        "real": {"skip":true}
+      }
+    },
+    {
+      "id": "provider-refuses-the-answer-falls-to-safe-mode",
+      "group": "insufficient-data",
+      "question": "Quanto está a fatura do Aurora Platinum?",
+      "fixtures": {
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label":"Fatura atual de cartao_1","value":"3412.80","unit":"MONEY","kind":"FACT","period":"2026-10"},
+            {"label":"Próxima fatura de cartao_1","value":"2980.40","unit":"MONEY","kind":"ESTIMATED","period":"2026-11"},
+            {"label":"Maior comerciante da fatura","value":"Entrega Já","unit":"TEXT","kind":"FACT","period":"2026-10"}
+          ],
+          "quality": {"monthsWithData":6,"partialPeriod":false,"freshness":"UP_TO_DATE","sources":["OFX"]},
+          "sources": [{"tool":"GetCardsSummary","version":"cards-v1"}],
+          "actions": [{"kind":"OPEN_INVOICE","target":"cartao_1"}]
+        }
+      },
+      "scripted": {"intent":{"intent":"CARDS","month":null,"category":null,"target":"cartao_1","scenario":null},"answers":[{"outcome":"REFUSED"}]},
+      "expect": {
+        "code": "SAFE_MODE",
+        "intent": "CARDS",
+        "validation": "SAFE_MODE",
+        "calls": ["INTENT","ANSWER"],
+        "confidence": "MEDIUM",
+        "refs": ["v1","v2","v3"],
+        "citedValues": ["R$ 3.412,80","R$ 2.980,40 (estimado)","Entrega Já"],
+        "kinds": ["FACT","ESTIMATED"],
+        "notices": ["ESTIMATED","SAFE_MODE"],
+        "actions": [{"kind":"OPEN_INVOICE","targetName":"Aurora Platinum"}],
+        "textContains": ["Não consegui escrever uma explicação agora","Fatura atual de Aurora Platinum: R$ 3.412,80"],
+        "real": {"skip":true}
+      }
+    },
+    {
+      "id": "invalid-answer-output-falls-to-safe-mode",
+      "group": "insufficient-data",
+      "question": "Quanto está a fatura do Aurora Platinum?",
+      "fixtures": {
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label":"Fatura atual de cartao_1","value":"3412.80","unit":"MONEY","kind":"FACT","period":"2026-10"},
+            {"label":"Próxima fatura de cartao_1","value":"2980.40","unit":"MONEY","kind":"ESTIMATED","period":"2026-11"},
+            {"label":"Maior comerciante da fatura","value":"Entrega Já","unit":"TEXT","kind":"FACT","period":"2026-10"}
+          ],
+          "quality": {"monthsWithData":6,"partialPeriod":false,"freshness":"UP_TO_DATE","sources":["OFX"]},
+          "sources": [{"tool":"GetCardsSummary","version":"cards-v1"}],
+          "actions": [{"kind":"OPEN_INVOICE","target":"cartao_1"}]
+        }
+      },
+      "scripted": {"intent":{"intent":"CARDS","month":null,"category":null,"target":"cartao_1","scenario":null},"answers":[{"outcome":"INVALID_OUTPUT"}]},
+      "expect": {
+        "code": "SAFE_MODE",
+        "intent": "CARDS",
+        "validation": "SAFE_MODE",
+        "calls": ["INTENT","ANSWER"],
+        "confidence": "MEDIUM",
+        "refs": ["v1","v2","v3"],
+        "citedValues": ["R$ 3.412,80","R$ 2.980,40 (estimado)","Entrega Já"],
+        "kinds": ["FACT","ESTIMATED"],
+        "notices": ["ESTIMATED","SAFE_MODE"],
+        "actions": [{"kind":"OPEN_INVOICE","targetName":"Aurora Platinum"}],
+        "textContains": ["Não consegui escrever uma explicação agora","Fatura atual de Aurora Platinum: R$ 3.412,80"],
+        "real": {"skip":true}
+      }
+    },
+    {
+      "id": "regeneration-fails-at-the-provider-falls-to-safe-mode",
+      "group": "insufficient-data",
+      "note": "A primeira resposta reprova e a regeneração encontra o provedor fora.",
+      "question": "Quanto está a fatura do Aurora Platinum?",
+      "fixtures": {
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label":"Fatura atual de cartao_1","value":"3412.80","unit":"MONEY","kind":"FACT","period":"2026-10"},
+            {"label":"Próxima fatura de cartao_1","value":"2980.40","unit":"MONEY","kind":"ESTIMATED","period":"2026-11"},
+            {"label":"Maior comerciante da fatura","value":"Entrega Já","unit":"TEXT","kind":"FACT","period":"2026-10"}
+          ],
+          "quality": {"monthsWithData":6,"partialPeriod":false,"freshness":"UP_TO_DATE","sources":["OFX"]},
+          "sources": [{"tool":"GetCardsSummary","version":"cards-v1"}],
+          "actions": [{"kind":"OPEN_INVOICE","target":"cartao_1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent":"CARDS","month":null,"category":null,"target":"cartao_1","scenario":null},
+        "answers": [{"answer":"A fatura é de R$ 3.500,00.","type":"analysis","financialData":[],"explanation":[],"confidence":"high","actions":[],"sources":[]},{"outcome":"TIMEOUT"}]
+      },
+      "expect": {
+        "code": "SAFE_MODE",
+        "intent": "CARDS",
+        "validation": "SAFE_MODE",
+        "calls": ["INTENT","ANSWER","REGENERATE"],
+        "confidence": "MEDIUM",
+        "refs": ["v1","v2","v3"],
+        "citedValues": ["R$ 3.412,80","R$ 2.980,40 (estimado)","Entrega Já"],
+        "kinds": ["FACT","ESTIMATED"],
+        "notices": ["ESTIMATED","SAFE_MODE"],
+        "actions": [{"kind":"OPEN_INVOICE","targetName":"Aurora Platinum"}],
+        "textContains": ["Não consegui escrever uma explicação agora","Fatura atual de Aurora Platinum: R$ 3.412,80"],
+        "real": {"skip":true}
+      }
+    },
+    {
+      "id": "safe-mode-shows-at-most-eight-values",
+      "group": "insufficient-data",
+      "note": "O modo seguro mostra só os oito primeiros valores do contexto, na ordem de prioridade da intenção.",
+      "question": "Qual é o meu saldo?",
+      "fixtures": {
+        "tool": {
+          "source": "overview-v1",
+          "values": [
+            {"label":"Valor de apoio a","value":"100.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio b","value":"200.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio c","value":"300.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio d","value":"400.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio e","value":"500.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio f","value":"600.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio g","value":"700.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio h","value":"800.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio i","value":"900.00","unit":"MONEY","kind":"FACT","period":"2026-09"},
+            {"label":"Valor de apoio j","value":"1000.00","unit":"MONEY","kind":"FACT","period":"2026-09"}
+          ],
+          "quality": {"monthsWithData":6,"partialPeriod":false,"freshness":"UP_TO_DATE","sources":["OFX"]},
+          "sources": [{"tool":"GetOverview","version":"overview-v1"}]
+        }
+      },
+      "scripted": {"intent":{"intent":"OVERVIEW","month":null,"category":null,"target":null,"scenario":null},"answers":[{"outcome":"UNAVAILABLE"}]},
+      "expect": {"code":"SAFE_MODE","intent":"OVERVIEW","validation":"SAFE_MODE","calls":["INTENT","ANSWER"],"confidence":"HIGH","refs":["v1","v2","v3","v4","v5","v6","v7","v8"],"notices":["SAFE_MODE"],"real":{"skip":true}}
+    },
+    {
+      "id": "single-month-of-history-lowers-the-confidence",
+      "group": "insufficient-data",
+      "note": "Menos de dois meses de dados: a resposta sai, mas com confiança baixa calculada pelo sistema, não pelo modelo.",
+      "question": "Qual é o meu saldo?",
+      "fixtures": {
+        "tool": {
+          "source": "overview-v1",
+          "values": [{"label":"Valor de apoio a","value":"100.00","unit":"MONEY","kind":"FACT","period":"2026-09"},{"label":"Valor de apoio b","value":"200.00","unit":"MONEY","kind":"FACT","period":"2026-09"}],
+          "quality": {"monthsWithData":1,"partialPeriod":false,"freshness":"UP_TO_DATE","sources":["OFX"]},
+          "sources": [{"tool":"GetOverview","version":"overview-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent":"OVERVIEW","month":null,"category":null,"target":null,"scenario":null},
+        "answers": [
+          {
+            "answer": "O primeiro valor é {{v:v1}} e o segundo, {{v:v2}}.",
+            "type": "analysis",
+            "financialData": [{"ref":"v1","label":"A","kind":"FACT"},{"ref":"v2","label":"B","kind":"FACT"}],
+            "explanation": [],
+            "confidence": "high",
+            "actions": [],
+            "sources": []
+          }
+        ]
+      },
+      "expect": {"code":"OK","intent":"OVERVIEW","validation":"VALID","calls":["INTENT","ANSWER"],"confidence":"LOW","refs":["v1","v2"],"notices":[],"real":{"code":"OK"}}
+    },
+    {
+      "id": "read-model-updating-adds-the-notice",
+      "group": "insufficient-data",
+      "note": "Read model em atualização: aviso UPDATING e confiança média.",
+      "question": "Qual é o meu saldo?",
+      "fixtures": {
+        "tool": {
+          "source": "overview-v1",
+          "values": [{"label":"Valor de apoio a","value":"100.00","unit":"MONEY","kind":"FACT","period":"2026-09"},{"label":"Valor de apoio b","value":"200.00","unit":"MONEY","kind":"FACT","period":"2026-09"}],
+          "quality": {"monthsWithData":6,"partialPeriod":false,"freshness":"UPDATING","sources":["OFX"]},
+          "sources": [{"tool":"GetOverview","version":"overview-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent":"OVERVIEW","month":null,"category":null,"target":null,"scenario":null},
+        "answers": [
+          {
+            "answer": "O primeiro valor é {{v:v1}} e o segundo, {{v:v2}}.",
+            "type": "analysis",
+            "financialData": [{"ref":"v1","label":"A","kind":"FACT"},{"ref":"v2","label":"B","kind":"FACT"}],
+            "explanation": [],
+            "confidence": "high",
+            "actions": [],
+            "sources": []
+          }
+        ]
+      },
+      "expect": {"code":"OK","intent":"OVERVIEW","validation":"VALID","calls":["INTENT","ANSWER"],"confidence":"MEDIUM","refs":["v1","v2"],"notices":["UPDATING"]}
+    }
+  ]
+}

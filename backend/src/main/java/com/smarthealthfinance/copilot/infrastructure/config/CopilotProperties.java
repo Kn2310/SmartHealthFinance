@@ -37,7 +37,11 @@ public record CopilotProperties(
             @DefaultValue("") String apiKey,
             @DefaultValue("") String baseUrl,
             @DefaultValue("5s") Duration intentTimeout,
-            @DefaultValue("25s") Duration answerTimeout) {
+            @DefaultValue("25s") Duration answerTimeout,
+            @DefaultValue("false") boolean allowCustomBaseUrl) {
+
+        /** Padrão do SDK; com {@code baseUrl} vazio é este host que recebe a chave e as perguntas. */
+        public static final String OFFICIAL_HOST = "api.anthropic.com";
 
         public boolean hasApiKey() {
             return apiKey != null && !apiKey.isBlank();

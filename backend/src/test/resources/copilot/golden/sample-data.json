@@ -1,0 +1,389 @@
+{
+  "version": "golden-v1",
+  "group": "09-dados-de-exemplo",
+  "description": "Os exemplos com números de design/specs/09-dados-de-exemplo.md (Marina, 22 de setembro de 2026): fatura de R$ 3.412,80, fatores que somam R$ 520,60, parcelamento do notebook, delivery, reserva, Lisboa. Todos os dados são fictícios.",
+  "shared": {
+    "catalog": {
+      "currency": "BRL",
+      "categories": {"HOUSING": "Moradia", "FOOD_OUT": "Alimentação fora", "GROCERIES": "Mercado", "TRANSPORT": "Transporte", "SUBSCRIPTIONS": "Assinaturas", "OTHER": "Outros"},
+      "targets": [
+        {"kind": "GOAL", "id": "a0000000-0000-4000-8000-0000000000b1", "name": "Reserva de emergência", "descriptor": "EMERGENCY_FUND", "description": "objetivo EMERGENCY_FUND, prazo sem prazo, ACTIVE"},
+        {"kind": "GOAL", "id": "a0000000-0000-4000-8000-0000000000b2", "name": "Viagem para Lisboa", "descriptor": "TRAVEL", "description": "objetivo TRAVEL, prazo 2027-07, ACTIVE"},
+        {"kind": "GOAL", "id": "a0000000-0000-4000-8000-0000000000b3", "name": "Guardar a diferença do delivery", "descriptor": "SAVINGS", "description": "objetivo SAVINGS, prazo 2027-03, ACTIVE"},
+        {"kind": "CARD", "id": "a0000000-0000-4000-8000-0000000000c1", "name": "Aurora Platinum", "descriptor": "VISA", "description": "cartão VISA"},
+        {"kind": "CARD", "id": "a0000000-0000-4000-8000-0000000000c2", "name": "Horizonte Gold", "descriptor": "MASTERCARD", "description": "cartão MASTERCARD"}
+      ]
+    }
+  },
+  "cases": [
+    {
+      "id": "invoice-aurora-current-3412-80",
+      "group": "09-dados-de-exemplo",
+      "note": "Fatura atual do Aurora Platinum: R$ 3.412,80, fecha 28/09, vence 05/10, utilização 56% com R$ 3.360,00 de parcelas futuras.",
+      "question": "Quanto está a fatura atual do Aurora Platinum?",
+      "fixtures": {
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label": "Fatura atual de cartao_1", "value": "3412.80", "unit": "MONEY", "kind": "FACT", "period": "2026-10"},
+            {"label": "Fechamento da fatura de cartao_1", "value": "2026-09-28", "unit": "DATE", "kind": "FACT", "period": "2026-10"},
+            {"label": "Vencimento da fatura de cartao_1", "value": "2026-10-05", "unit": "DATE", "kind": "FACT", "period": "2026-10"},
+            {"label": "Parcelas futuras de cartao_1", "value": "3360.00", "unit": "MONEY", "kind": "FACT", "period": "2026-11..2027-05"},
+            {"label": "Limite utilizado de cartao_1", "value": "6772.80", "unit": "MONEY", "kind": "FACT"},
+            {"label": "Utilização do limite de cartao_1", "value": "56", "unit": "PERCENT", "kind": "FACT"},
+            {"label": "Limite total de cartao_1", "value": "12000.00", "unit": "MONEY", "kind": "FACT"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": true, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetCardsSummary", "version": "cards-v1"}],
+          "actions": [{"kind": "OPEN_INVOICE", "target": "cartao_1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CARDS", "month": null, "category": null, "target": "cartao_1", "scenario": null},
+        "answers": [
+          {"answer": "O valor atual da fatura de cartao_1 é {{v:v1}}. Ela fecha em {{v:v2}} e vence em {{v:v3}}. O limite utilizado é {{v:v5}}, equivalente a {{v:v6}}, incluindo {{v:v4}} de parcelas futuras.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Fatura", "kind": "FACT"}, {"ref": "v2", "label": "Fechamento", "kind": "FACT"}, {"ref": "v3", "label": "Vencimento", "kind": "FACT"}, {"ref": "v5", "label": "Utilizado", "kind": "FACT"}, {"ref": "v6", "label": "Utilização", "kind": "FACT"}, {"ref": "v4", "label": "Parcelas futuras", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [{"kind": "OPEN_INVOICE", "target": "cartao_1"}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CARDS", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3", "v5", "v6", "v4"],
+        "citedValues": ["R$ 3.412,80", "28/09/2026", "05/10/2026", "R$ 6.772,80", "56%", "R$ 3.360,00"],
+        "sources": ["cards-v1"], "kinds": ["FACT"], "notices": ["PARTIAL_PERIOD"],
+        "actions": [{"kind": "OPEN_INVOICE", "targetName": "Aurora Platinum"}],
+        "dataUsed": ["Fatura out/2026 a mai/2027 (parcial)"],
+        "textContains": ["O valor atual da fatura de Aurora Platinum é R$ 3.412,80."]
+      }
+    },
+    {
+      "id": "invoice-aurora-october-plus-520-60",
+      "group": "09-dados-de-exemplo",
+      "note": "Outubro 18% acima da média de R$ 2.892,20: +R$ 520,60 = alimentação fora +R$ 311,00, parcela do notebook +R$ 160,00 e transporte +R$ 49,60. Partindo da fatura aberta pelo contexto de entrada.",
+      "question": "Por que a fatura de outubro subiu?",
+      "context": {"kind": "INVOICE", "cardId": "a0000000-0000-4000-8000-0000000000c1", "month": "2026-10"},
+      "fixtures": {
+        "entry": {"targets": {"CARD": "cartao_1"}, "month": "2026-10", "screen": {"kind": "OPEN_INVOICE", "target": "cartao_1", "params": {"month": "2026-10"}}},
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label": "Total da fatura de cartao_1", "value": "3412.80", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-10"},
+            {"label": "Média das faturas anteriores de cartao_1", "value": "2892.20", "unit": "MONEY", "kind": "FACT", "period": "2026-07..2026-09"},
+            {"label": "Diferença da fatura de cartao_1 contra a média das anteriores", "value": "520.60", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-10"},
+            {"label": "Diferença percentual contra a média", "value": "18", "unit": "PERCENT", "kind": "ESTIMATED", "period": "2026-10"},
+            {"label": "Fator da diferença: alimentação fora", "value": "311.00", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-10"},
+            {"label": "Fator da diferença: parcela de compra parcelada", "value": "160.00", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-10"},
+            {"label": "Fator da diferença: transporte", "value": "49.60", "unit": "MONEY", "kind": "ESTIMATED", "period": "2026-10"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetCardsSummary", "version": "cards-v1"}],
+          "actions": [{"kind": "OPEN_INVOICE", "target": "cartao_1"}, {"kind": "OPEN_INSTALLMENTS", "target": "cartao_1"}],
+          "breakdown": {"title": "Fatores da diferença", "totalIndex": 2, "rows": [
+            {"label": "Alimentação fora", "valueIndex": 4},
+            {"label": "Parcela de Loja Tech (3/10)", "valueIndex": 5},
+            {"label": "Transporte", "valueIndex": 6}]}
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CARDS", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "A fatura de outubro de cartao_1 está {{v:v3}} acima da média das anteriores, ou seja, {{v:v4}} a mais. É uma estimativa baseada nos lançamentos já conhecidos.", "type": "explanation", "financialData": [{"ref": "v3", "label": "Diferença", "kind": "ESTIMATED"}, {"ref": "v4", "label": "Percentual", "kind": "ESTIMATED"}, {"ref": "v5", "label": "Alimentação fora", "kind": "ESTIMATED"}, {"ref": "v6", "label": "Parcela", "kind": "ESTIMATED"}, {"ref": "v7", "label": "Transporte", "kind": "ESTIMATED"}], "explanation": ["Alimentação fora contribuiu com {{v:v5}}.", "A parcela da compra parcelada subiu {{v:v6}} contra a média.", "O transporte somou {{v:v7}}."], "confidence": "medium", "actions": [{"kind": "OPEN_INVOICE", "target": "cartao_1"}, {"kind": "OPEN_INSTALLMENTS", "target": "cartao_1"}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CARDS", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v3", "v4", "v5", "v6", "v7"],
+        "citedValues": ["R$ 520,60 (estimado)", "18% (estimado)", "R$ 311,00 (estimado)", "R$ 160,00 (estimado)", "R$ 49,60 (estimado)"],
+        "sources": ["cards-v1"], "kinds": ["ESTIMATED"], "notices": ["ESTIMATED"],
+        "actions": [{"kind": "OPEN_INVOICE", "targetName": "Aurora Platinum"}, {"kind": "OPEN_INSTALLMENTS", "targetName": "Aurora Platinum"}],
+        "dataUsed": ["Fatura jul/2026 a out/2026"],
+        "breakdown": {"title": "Fatores da diferença", "total": "R$ 520,60 (estimado)", "rows": [
+          {"label": "Alimentação fora", "formatted": "R$ 311,00 (estimado)"},
+          {"label": "Parcela de Loja Tech (3/10)", "formatted": "R$ 160,00 (estimado)"},
+          {"label": "Transporte", "formatted": "R$ 49,60 (estimado)"}]},
+        "textContains": ["A fatura de outubro de Aurora Platinum está R$ 520,60 (estimado) acima da média"],
+        "modelInputExcludes": ["Loja Tech", "Fatores da diferença"]
+      }
+    },
+    {
+      "id": "installment-notebook-weight",
+      "group": "09-dados-de-exemplo",
+      "note": "Notebook em 10x R$ 480,00: parcela 3 em outubro, restam 7 (R$ 3.360,00); 14% da fatura atual e cerca de 7% da renda. Contexto de entrada: parcelamento.",
+      "question": "Quanto o parcelamento do notebook pesa na minha fatura?",
+      "context": {"kind": "INSTALLMENT_PLAN", "cardId": "a0000000-0000-4000-8000-0000000000c1", "planId": "a0000000-0000-4000-8000-0000000000e1"},
+      "fixtures": {
+        "entry": {"targets": {"CARD": "cartao_1"}, "screen": {"kind": "OPEN_INSTALLMENTS", "target": "cartao_1"}},
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label": "Valor da parcela do parcelamento de cartao_1", "value": "480.00", "unit": "MONEY", "kind": "FACT", "period": "2026-10"},
+            {"label": "Parcelas restantes do parcelamento", "value": "7", "unit": "COUNT", "kind": "FACT"},
+            {"label": "Saldo restante do parcelamento", "value": "3360.00", "unit": "MONEY", "kind": "FACT"},
+            {"label": "Peso da parcela na fatura atual", "value": "14", "unit": "PERCENT", "kind": "FACT", "period": "2026-10"},
+            {"label": "Peso da parcela na renda mensal", "value": "7", "unit": "PERCENT", "kind": "FACT", "period": "2026-10"},
+            {"label": "Utilização do limite sem as parcelas futuras", "value": "28", "unit": "PERCENT", "kind": "FACT"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "ListInstallmentPlans", "version": "cards-v1"}],
+          "actions": [{"kind": "OPEN_INSTALLMENTS", "target": "cartao_1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CARDS", "month": null, "category": null, "target": "cartao_1", "scenario": null},
+        "answers": [
+          {"answer": "A parcela é {{v:v1}} e pesa {{v:v4}} da fatura atual e cerca de {{v:v5}} da renda. Restam {{v:v2}} parcelas, somando {{v:v3}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Parcela", "kind": "FACT"}, {"ref": "v4", "label": "Peso na fatura", "kind": "FACT"}, {"ref": "v5", "label": "Peso na renda", "kind": "FACT"}, {"ref": "v2", "label": "Restantes", "kind": "FACT"}, {"ref": "v3", "label": "Saldo", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [{"kind": "OPEN_INSTALLMENTS", "target": "cartao_1"}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CARDS", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "HIGH",
+        "refs": ["v1", "v4", "v5", "v2", "v3"],
+        "citedValues": ["R$ 480,00", "14%", "7%", "7", "R$ 3.360,00"],
+        "kinds": ["FACT"], "notices": [],
+        "actions": [{"kind": "OPEN_INSTALLMENTS", "targetName": "Aurora Platinum"}]
+      }
+    },
+    {
+      "id": "delivery-share-of-food-out",
+      "group": "09-dados-de-exemplo",
+      "note": "Entrega Já R$ 447,00 (9 compras) = 35% da categoria; os quatro comerciantes somam R$ 1.284,00 em 25 compras.",
+      "question": "Quanto do gasto com alimentação fora é de delivery?",
+      "fixtures": {
+        "tool": {
+          "source": "merchant-v1",
+          "values": [
+            {"label": "Maior comerciante da categoria", "value": "Entrega Já", "unit": "TEXT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Gasto no maior comerciante", "value": "447.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Participação do maior comerciante na categoria", "value": "35", "unit": "PERCENT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Total gasto na categoria", "value": "1284.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Compras na categoria", "value": "25", "unit": "COUNT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Gasto no segundo maior comerciante", "value": "412.80", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Gasto no terceiro maior comerciante", "value": "238.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Gasto no quarto maior comerciante", "value": "186.20", "unit": "MONEY", "kind": "FACT", "period": "2026-09"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": true, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetMerchantAnalysis", "version": "merchant-v1"}],
+          "breakdown": {"title": "Comerciantes da categoria", "totalIndex": 3, "rows": [
+            {"label": "Entrega Já", "valueIndex": 1}, {"label": "Bistrô Lume", "valueIndex": 5},
+            {"label": "Pizzaria Forno", "valueIndex": 6}, {"label": "Café Grão", "valueIndex": 7}]}
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "MERCHANT", "month": "2026-09", "category": "FOOD_OUT", "target": null, "scenario": null},
+        "answers": [
+          {"answer": "{{v:v1}} concentra {{v:v3}} do gasto nessa categoria: {{v:v2}} de um total de {{v:v4}} em {{v:v5}} compras.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Comerciante", "kind": "FACT"}, {"ref": "v3", "label": "Participação", "kind": "FACT"}, {"ref": "v2", "label": "Gasto", "kind": "FACT"}, {"ref": "v4", "label": "Total", "kind": "FACT"}, {"ref": "v5", "label": "Compras", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "MERCHANT", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v3", "v2", "v4", "v5", "v6", "v7", "v8"],
+        "citedValues": ["Entrega Já", "35%", "R$ 447,00", "R$ 1.284,00", "25", "R$ 412,80", "R$ 238,00", "R$ 186,20"],
+        "sources": ["merchant-v1"], "kinds": ["FACT"], "notices": ["PARTIAL_PERIOD"],
+        "breakdown": {"title": "Comerciantes da categoria", "total": "R$ 1.284,00", "rows": [
+          {"label": "Entrega Já", "formatted": "R$ 447,00"}, {"label": "Bistrô Lume", "formatted": "R$ 412,80"},
+          {"label": "Pizzaria Forno", "formatted": "R$ 238,00"}, {"label": "Café Grão", "formatted": "R$ 186,20"}]},
+        "textContains": ["Entrega Já concentra 35% do gasto nessa categoria: R$ 447,00 de um total de R$ 1.284,00 em 25 compras."]
+      }
+    },
+    {
+      "id": "food-out-above-average-with-history",
+      "group": "09-dados-de-exemplo",
+      "note": "Alimentação fora R$ 1.284,00, +32% sobre a média de R$ 973,00 (abr 912, mai 1.004, jun 948, jul 1.021, ago 980).",
+      "question": "Por que o meu gasto com alimentação fora está tão alto?",
+      "fixtures": {
+        "tool": {
+          "source": "category-v1",
+          "values": [
+            {"label": "Categoria analisada", "value": "Alimentação fora", "unit": "TEXT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Gasto na categoria", "value": "1284.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Média mensal da categoria nos meses anteriores", "value": "973.00", "unit": "MONEY", "kind": "FACT", "period": "2026-04..2026-08"},
+            {"label": "Variação contra a média dos meses anteriores", "value": "32", "unit": "PERCENT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Gasto na categoria em abril", "value": "912.00", "unit": "MONEY", "kind": "FACT", "period": "2026-04"},
+            {"label": "Gasto na categoria em julho", "value": "1021.00", "unit": "MONEY", "kind": "FACT", "period": "2026-07"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": true, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetCategoryAnalysis", "version": "category-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CATEGORY", "month": "2026-09", "category": "FOOD_OUT", "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Em {{v:v1}} você gastou {{v:v2}} em setembro, {{v:v4}} acima da média de {{v:v3}} dos meses anteriores.", "type": "explanation", "financialData": [{"ref": "v1", "label": "Categoria", "kind": "FACT"}, {"ref": "v2", "label": "Gasto", "kind": "FACT"}, {"ref": "v4", "label": "Variação", "kind": "FACT"}, {"ref": "v3", "label": "Média", "kind": "FACT"}, {"ref": "v5", "label": "Abril", "kind": "FACT"}, {"ref": "v6", "label": "Julho", "kind": "FACT"}], "explanation": ["Nos meses anteriores o gasto variou entre {{v:v5}} e {{v:v6}}."], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CATEGORY", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v4", "v3", "v5", "v6"],
+        "citedValues": ["Alimentação fora", "R$ 1.284,00", "32%", "R$ 973,00", "R$ 912,00", "R$ 1.021,00"],
+        "sources": ["category-v1"], "kinds": ["FACT"], "notices": ["PARTIAL_PERIOD"],
+        "dataUsed": ["Gastos por categoria abr/2026 a set/2026 (parcial)"],
+        "textContains": ["Em Alimentação fora você gastou R$ 1.284,00 em setembro, 32% acima da média de R$ 973,00"]
+      }
+    },
+    {
+      "id": "emergency-reserve-goal",
+      "group": "09-dados-de-exemplo",
+      "note": "Reserva de emergência: R$ 10.000 de R$ 25.152 (6 x 4.192), aporte R$ 800/mês, previsão abr/2028.",
+      "question": "Como está a minha reserva de emergência?",
+      "fixtures": {
+        "tool": {
+          "source": "goals-v1",
+          "values": [
+            {"label": "Valor guardado em objetivo_1", "value": "10000.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09"},
+            {"label": "Alvo de objetivo_1", "value": "25152.00", "unit": "MONEY", "kind": "FACT"},
+            {"label": "Progresso de objetivo_1", "value": "39.8", "unit": "PERCENT", "kind": "FACT", "period": "2026-09"},
+            {"label": "Aporte mensal de objetivo_1", "value": "800.00", "unit": "MONEY", "kind": "FACT"},
+            {"label": "Conclusão prevista de objetivo_1", "value": "2028-04", "unit": "MONTH", "kind": "ESTIMATED", "period": "2028-04"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "ListGoals", "version": "goals-v1"}],
+          "actions": [{"kind": "OPEN_GOAL", "target": "objetivo_1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "GOALS", "month": null, "category": null, "target": "objetivo_1", "scenario": null},
+        "answers": [
+          {"answer": "objetivo_1 tem {{v:v1}} guardados de {{v:v2}}, ou seja, {{v:v3}}, com aporte mensal de {{v:v4}}. A previsão de conclusão é {{v:v5}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Guardado", "kind": "FACT"}, {"ref": "v2", "label": "Alvo", "kind": "FACT"}, {"ref": "v3", "label": "Progresso", "kind": "FACT"}, {"ref": "v4", "label": "Aporte", "kind": "FACT"}, {"ref": "v5", "label": "Conclusão", "kind": "ESTIMATED"}], "explanation": [], "confidence": "medium", "actions": [{"kind": "OPEN_GOAL", "target": "objetivo_1"}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "GOALS", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3", "v4", "v5"],
+        "citedValues": ["R$ 10.000,00", "R$ 25.152,00", "39,8%", "R$ 800,00", "abril de 2028 (estimado)"],
+        "kinds": ["FACT", "ESTIMATED"], "notices": ["ESTIMATED"],
+        "actions": [{"kind": "OPEN_GOAL", "targetName": "Reserva de emergência"}],
+        "dataUsed": ["Objetivos set/2026 a abr/2028"],
+        "textContains": ["Reserva de emergência tem R$ 10.000,00 guardados de R$ 25.152,00"]
+      }
+    },
+    {
+      "id": "lisbon-simulation-compare-700-780-900",
+      "group": "09-dados-de-exemplo",
+      "note": "Faltam R$ 7.700 a partir de out/2026: R$ 700 em 11 aportes (ago/2027), R$ 780 em 10 (jul/2027), R$ 900 em 9 (jun/2027).",
+      "question": "Quanto tempo leva para completar a viagem para Lisboa guardando 700, 780 ou 900 por mês?",
+      "fixtures": {
+        "tool": {
+          "source": "goal-simulation-v1",
+          "values": [
+            {"label": "Falta guardar para objetivo_2", "value": "7700.00", "unit": "MONEY", "kind": "FACT", "period": "2026-10"},
+            {"label": "Primeiro aporte mensal simulado", "value": "700.00", "unit": "MONEY", "kind": "SIMULATED", "period": "2026-10"},
+            {"label": "Conclusão com o primeiro aporte", "value": "2027-08", "unit": "MONTH", "kind": "SIMULATED", "period": "2027-08"},
+            {"label": "Segundo aporte mensal simulado", "value": "780.00", "unit": "MONEY", "kind": "SIMULATED", "period": "2026-10"},
+            {"label": "Conclusão com o segundo aporte", "value": "2027-07", "unit": "MONTH", "kind": "SIMULATED", "period": "2027-07"},
+            {"label": "Terceiro aporte mensal simulado", "value": "900.00", "unit": "MONEY", "kind": "SIMULATED", "period": "2026-10"},
+            {"label": "Conclusão com o terceiro aporte", "value": "2027-06", "unit": "MONTH", "kind": "SIMULATED", "period": "2027-06"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "SimulateGoal", "version": "goal-simulation-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "GOAL_SIMULATION", "month": null, "category": null, "target": "objetivo_2", "scenario": {"monthlyAmount": "700", "deadline": null, "reductionCategory": null, "reductionAmount": null}},
+        "answers": [
+          {"answer": "Faltam {{v:v1}} para objetivo_2. Com {{v:v2}} por mês, a conclusão seria em {{v:v3}}; com {{v:v4}}, em {{v:v5}}; e com {{v:v6}}, em {{v:v7}}. São simulações.", "type": "comparison", "financialData": [{"ref": "v1", "label": "Falta", "kind": "FACT"}, {"ref": "v2", "label": "Aporte 1", "kind": "SIMULATED"}, {"ref": "v3", "label": "Conclusão 1", "kind": "SIMULATED"}, {"ref": "v4", "label": "Aporte 2", "kind": "SIMULATED"}, {"ref": "v5", "label": "Conclusão 2", "kind": "SIMULATED"}, {"ref": "v6", "label": "Aporte 3", "kind": "SIMULATED"}, {"ref": "v7", "label": "Conclusão 3", "kind": "SIMULATED"}], "explanation": [], "confidence": "medium", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "GOAL_SIMULATION", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3", "v4", "v5", "v6", "v7"],
+        "citedValues": ["R$ 7.700,00", "R$ 700,00 (simulado)", "agosto de 2027 (simulado)", "R$ 780,00 (simulado)", "julho de 2027 (simulado)", "R$ 900,00 (simulado)", "junho de 2027 (simulado)"],
+        "kinds": ["FACT", "SIMULATED"], "notices": ["SIMULATED"],
+        "textContains": ["Faltam R$ 7.700,00 para Viagem para Lisboa."]
+      }
+    },
+    {
+      "id": "balance-by-account",
+      "group": "09-dados-de-exemplo",
+      "note": "Total R$ 18.420,35: Aurora R$ 6.240,35, reserva Norte R$ 10.000,00, Horizonte R$ 2.180,00.",
+      "question": "Quanto eu tenho em cada conta?",
+      "fixtures": {
+        "tool": {
+          "source": "overview-v1",
+          "values": [
+            {"label": "Saldo total das contas", "value": "18420.35", "unit": "MONEY", "kind": "FACT", "period": "2026-09-22"},
+            {"label": "Saldo da conta corrente", "value": "6240.35", "unit": "MONEY", "kind": "FACT", "period": "2026-09-22"},
+            {"label": "Saldo da conta de reserva", "value": "10000.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09-22"},
+            {"label": "Saldo da conta digital", "value": "2180.00", "unit": "MONEY", "kind": "FACT", "period": "2026-09-22"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX", "CSV", "MANUAL"]},
+          "sources": [{"tool": "GetOverview", "version": "overview-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "OVERVIEW", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Você tem {{v:v1}} no total: {{v:v2}} na conta corrente, {{v:v3}} na reserva e {{v:v4}} na conta digital.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Total", "kind": "FACT"}, {"ref": "v2", "label": "Conta corrente", "kind": "FACT"}, {"ref": "v3", "label": "Reserva", "kind": "FACT"}, {"ref": "v4", "label": "Conta digital", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "OVERVIEW", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "HIGH",
+        "refs": ["v1", "v2", "v3", "v4"],
+        "citedValues": ["R$ 18.420,35", "R$ 6.240,35", "R$ 10.000,00", "R$ 2.180,00"],
+        "kinds": ["FACT"], "notices": [],
+        "textContains": ["Você tem R$ 18.420,35 no total: R$ 6.240,35 na conta corrente, R$ 10.000,00 na reserva e R$ 2.180,00 na conta digital."]
+      }
+    },
+    {
+      "id": "average-monthly-surplus",
+      "group": "09-dados-de-exemplo",
+      "note": "Sobra média ≈ R$ 2.360/mês; renda média abr-set R$ 6.600; despesa média abr-ago R$ 4.192.",
+      "question": "Qual é a minha sobra média por mês?",
+      "fixtures": {
+        "tool": {
+          "source": "cashflow-v1",
+          "values": [
+            {"label": "Sobra média mensal", "value": "2360.00", "unit": "MONEY", "kind": "FACT", "period": "2026-04..2026-09"},
+            {"label": "Renda média mensal", "value": "6600.00", "unit": "MONEY", "kind": "FACT", "period": "2026-04..2026-09"},
+            {"label": "Despesa média mensal", "value": "4192.00", "unit": "MONEY", "kind": "FACT", "period": "2026-04..2026-08"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": false, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetCashFlow", "version": "cashflow-v1"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CASH_FLOW", "month": null, "category": null, "target": null, "scenario": null},
+        "answers": [
+          {"answer": "Sua sobra média é {{v:v1}} por mês, com renda média de {{v:v2}} e despesa média de {{v:v3}}.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Sobra", "kind": "FACT"}, {"ref": "v2", "label": "Renda", "kind": "FACT"}, {"ref": "v3", "label": "Despesa", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CASH_FLOW", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "HIGH",
+        "refs": ["v1", "v2", "v3"],
+        "citedValues": ["R$ 2.360,00", "R$ 6.600,00", "R$ 4.192,00"],
+        "kinds": ["FACT"], "notices": [],
+        "dataUsed": ["Fluxo de caixa abr/2026 a set/2026"]
+      }
+    },
+    {
+      "id": "invoice-horizonte-gold",
+      "group": "09-dados-de-exemplo",
+      "note": "Horizonte Gold: fatura R$ 1.020,40, fecha 05/10, vence 12/10, 17% do limite de R$ 6.000.",
+      "question": "E a fatura do Horizonte Gold, como está?",
+      "fixtures": {
+        "tool": {
+          "source": "cards-v1",
+          "values": [
+            {"label": "Fatura atual de cartao_2", "value": "1020.40", "unit": "MONEY", "kind": "FACT", "period": "2026-10"},
+            {"label": "Fechamento da fatura de cartao_2", "value": "2026-10-05", "unit": "DATE", "kind": "FACT", "period": "2026-10"},
+            {"label": "Vencimento da fatura de cartao_2", "value": "2026-10-12", "unit": "DATE", "kind": "FACT", "period": "2026-10"},
+            {"label": "Utilização do limite de cartao_2", "value": "17", "unit": "PERCENT", "kind": "FACT"}
+          ],
+          "quality": {"monthsWithData": 6, "partialPeriod": true, "freshness": "UP_TO_DATE", "sources": ["OFX"]},
+          "sources": [{"tool": "GetCardsSummary", "version": "cards-v1"}],
+          "actions": [{"kind": "OPEN_INVOICE", "target": "cartao_2"}]
+        }
+      },
+      "scripted": {
+        "intent": {"intent": "CARDS", "month": null, "category": null, "target": "cartao_2", "scenario": null},
+        "answers": [
+          {"answer": "A fatura de cartao_2 está em {{v:v1}}, fecha em {{v:v2}} e vence em {{v:v3}}. O limite está {{v:v4}} utilizado.", "type": "analysis", "financialData": [{"ref": "v1", "label": "Fatura", "kind": "FACT"}, {"ref": "v2", "label": "Fechamento", "kind": "FACT"}, {"ref": "v3", "label": "Vencimento", "kind": "FACT"}, {"ref": "v4", "label": "Utilização", "kind": "FACT"}], "explanation": [], "confidence": "high", "actions": [{"kind": "OPEN_INVOICE", "target": "cartao_2"}], "sources": []}
+        ]
+      },
+      "expect": {
+        "code": "OK", "intent": "CARDS", "validation": "VALID", "calls": ["INTENT", "ANSWER"], "confidence": "MEDIUM",
+        "refs": ["v1", "v2", "v3", "v4"],
+        "citedValues": ["R$ 1.020,40", "05/10/2026", "12/10/2026", "17%"],
+        "kinds": ["FACT"], "notices": ["PARTIAL_PERIOD"],
+        "actions": [{"kind": "OPEN_INVOICE", "targetName": "Horizonte Gold"}],
+        "textContains": ["A fatura de Horizonte Gold está em R$ 1.020,40"]
+      }
+    }
+  ]
+}
