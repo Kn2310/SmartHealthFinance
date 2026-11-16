@@ -213,6 +213,8 @@ public final class GoldenHarness {
             if (status != Status.DATA) {
                 return Result.of(status);
             }
+            fixture.assigns().forEach(target -> request.pseudonyms().assign(PseudonymKind.valueOf(target.kind()),
+                    target.id(), target.descriptor(), target.name()));
             List<ContextValue> values = fixture.values().stream().map(value -> ContextValue.draft(value.label(),
                     value.value(), ValueUnit.valueOf(value.unit()), ValueKind.valueOf(value.kind()), value.period(),
                     value.source() != null ? value.source() : fixture.source())).toList();

@@ -10,6 +10,10 @@ Referência: ADR-0039 (modelo de IA), ADR-0038 (consentimentos). Configuração 
 - **A chave do provedor só entra por variável de ambiente ou secret** (`ANTHROPIC_API_KEY`). Nunca em arquivo
   versionado, log, issue ou PR. CI e testes usam sempre o provedor simulado.
 - Logs, métricas e traces nunca levam pergunta, contexto ou resposta: só ids, códigos, tokens, custo e latência.
+- **Nenhum nome de comerciante vai ao modelo** (adendo de 2026-11-16 ao ADR-0039 §3): todo comerciante, inclusive
+  destinatário de Pix/TED/DOC e MEI com nome de pessoa, vai como `comerciante_N` e volta com o nome só na tela. Uma
+  regressão aparece no golden set (grupo `privacy`, `MODEL_INPUT_LEAK`) e no `CopilotPipelineTest`; não há métrica
+  para isso em produção, porque nada do conteúdo é medido. A pergunta continua indo como a pessoa digitou.
 
 ## Desligar o Copilot
 
@@ -127,7 +131,9 @@ order by custo_usd desc;
   orçamento de 30 s acabou. A pessoa recebe os valores calculados, sem texto do modelo. Um aumento de
   `shf.copilot.validation{status="SAFE_MODE"}` depois de trocar prompt ou modelo indica regressão.
 - **Prompts:** `backend/src/main/resources/copilot/prompts/*-vN.md` e `.../schemas/*.json`. Nunca edite um arquivo
-  publicado: crie `-v2`, troque o nome em `ClasspathCopilotPrompts` e rode a suíte de avaliação (8.2).
+  publicado: crie `-v2`, troque o nome em `ClasspathCopilotPrompts` e rode a suíte de avaliação (8.2). Em uso:
+  `intent-v2` e `answer-v3` (desde 2026-11-16, comerciantes como pseudônimos). Para comparar antes e depois, agrupe
+  o ledger por `prompt_version` (consulta abaixo).
 
 | Métrica | Tags |
 |---|---|
@@ -314,6 +320,8 @@ vale com `COPILOT_PROVIDER=simulated`.
   mesmo e mede custo e qualidade.
 - Com `COPILOT_PROVIDER=anthropic` e sem chave, a API não sobe, mesmo com `COPILOT_ENABLED=false`. Para desligar sem
   chave, volte também a `COPILOT_PROVIDER=simulated`.
+- ~~Destinatário de Pix/TED/DOC como comerciante no prompt~~: resolvido em 2026-11-16 (todo comerciante vira
+  `comerciante_N`, adendo ao ADR-0039 §3).
 - DPA com o provedor: retenção, zero data retention, cláusulas de transferência internacional.
 - PIA (05.12).
 - Calibrar quotas e preços no M12.

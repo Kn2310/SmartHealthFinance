@@ -2,6 +2,7 @@ package com.smarthealthfinance.copilot.domain.service;
 
 import com.smarthealthfinance.copilot.domain.enums.ActionKind;
 import com.smarthealthfinance.copilot.domain.enums.AnswerType;
+import com.smarthealthfinance.copilot.domain.enums.ValueUnit;
 import com.smarthealthfinance.copilot.domain.model.AnswerDraft;
 import com.smarthealthfinance.copilot.domain.model.AnswerSegment;
 import com.smarthealthfinance.copilot.domain.model.ContextValue;
@@ -59,7 +60,20 @@ public final class AnswerRenderer {
     /** Um valor do contexto como a tela mostra; usado também pelo modo seguro. */
     public static RenderedAnswer.Value value(ContextValue value, CopilotContext context, Pseudonyms pseudonyms) {
         return new RenderedAnswer.Value(value.ref(), pseudonyms.toDisplay(value.label()),
-                ValueFormatter.format(value, context.currency()), value.kind(), value.period(), value.source());
+                formatted(value, context, pseudonyms), value.kind(), value.period(), value.source());
+    }
+
+    /**
+     * O valor formatado para a tela. Um texto que é inteiro um pseudônimo conhecido ({@code comerciante_1}, adendo de
+     * 2026-11-16 ao ADR-0039 §3) vira o nome que a pessoa conhece; qualquer outro texto entra literal, sem procurar
+     * pseudônimos ou refs dentro dele, e o nome não passa por mais nenhuma substituição.
+     */
+    private static String formatted(ContextValue value, CopilotContext context, Pseudonyms pseudonyms) {
+        String formatted = ValueFormatter.format(value, context.currency());
+        if (value.unit() != ValueUnit.TEXT) {
+            return formatted;
+        }
+        return pseudonyms.find(formatted).map(Pseudonyms.Entry::displayName).orElse(formatted);
     }
 
     /** Resolve as ações oferecidas para ids reais; usado também pelo modo seguro. */
@@ -95,7 +109,7 @@ public final class AnswerRenderer {
             if (matcher.group(1) != null) {
                 ContextValue value = context.find(matcher.group(1)).orElseThrow();
                 cited.add(value.ref());
-                plain.append(ValueFormatter.format(value, context.currency()));
+                plain.append(formatted(value, context, pseudonyms));
                 segments.value(value.ref());
             } else {
                 String name = pseudonyms.find(matcher.group(2)).map(Pseudonyms.Entry::displayName)

@@ -56,7 +56,7 @@ class CopilotGoldenSetTest {
         List<GoldenSet.File> files = GoldenSet.load();
 
         assertThat(files).extracting(GoldenSet.File::group)
-                .contains("intents", "09-dados-de-exemplo", "adversarial", "insufficient-data", "continuity");
+                .contains("intents", "09-dados-de-exemplo", "adversarial", "insufficient-data", "continuity", "privacy");
         assertThat(GoldenSet.duplicatedIds(files)).isEmpty();
         assertThat(files).allSatisfy(file -> assertThat(file.cases()).isNotEmpty());
     }

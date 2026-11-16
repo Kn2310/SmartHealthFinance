@@ -102,9 +102,13 @@ public class CategoryTool implements FinancialTool {
         for (int i = 0; i < merchants.size(); i++) {
             AnalysisViews.MerchantAmount merchant = merchants.get(i);
             String ordinal = ToolSupport.ordinal(i);
-            values.text("Comerciante " + ordinal + " da categoria " + pseudonym, merchant.merchantName(), period)
-                    .money("Valor no comerciante " + ordinal + " da categoria " + pseudonym, merchant.amount(),
-                            period)
+            if (merchant.merchantKey() != null && merchant.merchantName() != null) {
+                String merchantPseudonym = ToolValues.merchant(request.pseudonyms(), merchant.merchantKey(),
+                        detail.categoryCode(), merchant.merchantName());
+                values.merchant("Comerciante " + ordinal + " da categoria " + pseudonym, request.pseudonyms(),
+                        merchantPseudonym, period);
+            }
+            values.money("Valor no comerciante " + ordinal + " da categoria " + pseudonym, merchant.amount(), period)
                     .count("Transações no comerciante " + ordinal + " da categoria " + pseudonym,
                             merchant.transactionCount(), period);
         }

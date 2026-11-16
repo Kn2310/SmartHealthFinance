@@ -59,10 +59,11 @@ public record GoldenCase(String id, String group, String note, String question, 
     }
 
     /** O que a tool de qualquer intenção com dados devolve (valores na ordem de prioridade: v1, v2, ...). */
-    public record Tool(String status, String failure, String source, List<Value> values, Quality quality,
-                       List<Source> sources, List<Offer> actions, Breakdown breakdown) {
+    public record Tool(String status, String failure, String source, List<Target> assigns, List<Value> values,
+                       Quality quality, List<Source> sources, List<Offer> actions, Breakdown breakdown) {
 
         public Tool {
+            assigns = assigns == null ? List.of() : List.copyOf(assigns);
             values = values == null ? List.of() : List.copyOf(values);
             sources = sources == null ? List.of() : List.copyOf(sources);
             actions = actions == null ? List.of() : List.copyOf(actions);

@@ -114,6 +114,33 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
   **Pendente (2026-11-12, aprovado pelo usuário):** a analytics só guarda o nome já normalizado, sem a origem; a
   implementação exige marcar a origem de transferência na projeção (migration e adendo ao ADR-0013) e vai num PR
   próprio, bloqueante de produção. Até lá o Copilot roda só com o adapter simulado (local e CI).
+- **Adendo (2026-11-16, Fase 9 Parte A, aprovado pelo usuário): todo comerciante vira `comerciante_N`.** Substitui o
+  plano de marcar só as transferências (adendo e pendência de 2026-11-12). Detectar Pix, TED e DOC pela descrição não
+  garante que nenhum nome de pessoa saia: descrições de OFX sem o rótulo ("ENVIO PIX MARIA") e MEI com nome de pessoa
+  ("JOAO DA SILVA ME" → "Joao Da Silva") escapariam.
+  - **Vai ao LLM:** o pseudônimo `comerciante_N` (novo `PseudonymKind.MERCHANT`) no lugar do nome normalizado, em todas
+    as tools que o levavam: `MERCHANT`, os comerciantes do detalhe de `CATEGORY` e o assunto do insight
+    `NEW_RECURRING_MERCHANT` (pela `merchantKey`; sem chave, o assunto não vai). A categoria do catálogo continua indo.
+  - **Nunca vai:** nenhum nome de comerciante, destinatário, remetente ou MEI; nem a chave de agrupamento (ADR-0013 §1).
+    O mapa (chave → nome) fica só em memória durante a pergunta, como os demais pseudônimos.
+  - **Estabilidade:** por pergunta. A numeração segue a ordem em que a tool lê os comerciantes (por valor); como as
+    respostas anteriores nunca voltam ao modelo (§9), não há o que manter entre perguntas. Nada é gravado.
+  - **Citado na pergunta:** se o nome que a pessoa vê aparece na pergunta (sem acento, sem pontuação, sem diferença de
+    caixa, como palavra ou frase inteira, com pelo menos três letras), a tool acrescenta o valor
+    `comerciante_N citado na pergunta` = `sim`. Determinístico; só liga o nome que a pessoa já escreveu ao pseudônimo.
+  - **Renderização:** o pseudônimo no texto e um valor de texto que é inteiro um pseudônimo viram o nome na tela, numa
+    passada só (§7.2); qualquer outro texto continua literal. Histórico, quadro de fatores e modo seguro mostram o nome.
+  - **Prompt:** `answer-v3` (regra 4: comerciantes como pseudônimos, nunca adivinhar quem é, e o valor de citação).
+    Intenção sem mudança (`intent-v2`): o catálogo nunca levou comerciantes.
+  - **Sem migration, rebuild, evento ou mudança de contrato.** ADR-0013 e ADR-0014 não mudam.
+  - **Etapa opcional futura (não aprovada):** marcar a origem de transferência (normalizador v3 só para classificar,
+    coluna em `transactions`, projeção v3 com rebuild e adendos ao ADR-0013/0014) para o modelo distinguir
+    `destinatario_N` de `comerciante_N`. Só se o golden set real mostrar perda de qualidade.
+  - **Risco residual:** a pergunta vai ao modelo como a pessoa digitou (este §): um nome que ela escrever ("quanto
+    mandei para a Maria?") chega ao provedor. Documentado na PIA.
+  - Testes: tools, renderer e `Pseudonyms` (unitários); o pipeline com a `MerchantTool` real e um gateway que guarda
+    cada `AiRequest` (intenção, resposta e regeneração) sem nenhum nome; cinco casos novos no golden set (grupo
+    `privacy`, ADR-0042 §1).
 - **Logs, métricas e traces:** nunca levam pergunta, resposta, contexto, valores ou nomes. Só ids internos (em log),
   códigos, contagens, tokens, custo, latência e versões.
 - **Treinamento:** opt-out por padrão do provedor (API comercial), registrado no runbook com o item do DPA a conferir.
@@ -287,6 +314,9 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
   - pedido de transferir;
   - tentativa de citar número inexistente.
   Todos devem terminar em resposta válida ou em modo seguro.
+- **Adendo (2026-11-16, §3):** o nome do comerciante deixou de ir ao modelo (`comerciante_N`), então uma descrição
+  importada com "ignore as instruções…" não chega mais ao prompt por essa via. Os textos que ainda vão como dado são
+  os nomes do catálogo de categorias, os textos fixos das tools e a pergunta. As defesas acima continuam valendo.
 
 ### 9. Memória
 

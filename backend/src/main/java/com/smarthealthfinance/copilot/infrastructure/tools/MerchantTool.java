@@ -14,8 +14,9 @@ import java.util.Set;
 
 /**
  * {@code MERCHANT} (ADR-0039 §4) sobre {@link AnalysisQueries#merchants}: até 10 comerciantes do mês por valor, cada
- * um com o nome normalizado (texto, tratado como dado), a categoria do catálogo, o valor, o número de transações e a
- * variação contra o mês anterior, mais o total sem comerciante identificado. Chave e descrição crua nunca entram.
+ * um como {@code comerciante_N} (o nome pode ser de pessoa e nunca vai ao modelo; adendo de 2026-11-16 ao §3), com a
+ * categoria do catálogo, o valor, o número de transações e a variação contra o mês anterior, mais o total sem
+ * comerciante identificado. Nome, chave e descrição crua nunca entram.
  * Percentual de variação já vem em pontos percentuais do caso de uso.
  */
 @Component
@@ -49,8 +50,12 @@ public class MerchantTool implements FinancialTool {
         for (int i = 0; i < lines.size(); i++) {
             AnalysisViews.MerchantLine line = lines.get(i);
             String ordinal = ToolSupport.ordinal(i);
-            values.text("Comerciante " + ordinal + " por valor", line.merchantName(), period)
-                    .text("Categoria do comerciante " + ordinal,
+            if (line.merchantKey() != null && line.merchantName() != null) {
+                String merchant = ToolValues.merchant(request.pseudonyms(), line.merchantKey(), line.categoryCode(),
+                        line.merchantName());
+                values.merchant("Comerciante " + ordinal + " por valor", request.pseudonyms(), merchant, period);
+            }
+            values.text("Categoria do comerciante " + ordinal,
                             line.categoryCode() == null ? CategoryTool.NO_CATEGORY_NAME
                                     : request.categoryName(line.categoryCode()), period)
                     .money("Despesa no comerciante " + ordinal, line.amount(), period)

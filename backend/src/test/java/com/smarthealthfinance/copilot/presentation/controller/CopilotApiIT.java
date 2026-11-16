@@ -97,7 +97,7 @@ class CopilotApiIT extends IntegrationTest {
         assertThat(JsonPath.<String>read(body, "$.answer.type")).isEqualTo("analysis");
         assertThat(JsonPath.<String>read(body, "$.validation")).isEqualTo("VALID");
         assertThat(JsonPath.<String>read(body, "$.confidence")).isIn("high", "medium", "low");
-        assertThat(JsonPath.<String>read(body, "$.versions.answerPrompt")).matches("answer-v2@[0-9a-f]{8}");
+        assertThat(JsonPath.<String>read(body, "$.versions.answerPrompt")).matches("answer-v3@[0-9a-f]{8}");
         assertThat(JsonPath.<String>read(body, "$.versions.intentPrompt")).matches("intent-v2@[0-9a-f]{8}");
         assertThat(JsonPath.<String>read(body, "$.createdAt")).isNotBlank();
         assertThat(JsonPath.<List<String>>read(body, "$.notices")).isNotNull();

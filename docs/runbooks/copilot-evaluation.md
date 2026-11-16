@@ -85,7 +85,7 @@ nunca texto de pergunta, resposta ou contexto. Pode ser colado em PR e issue.
 | `quality.regenerated`, `regeneratedRate` | respostas aprovadas só na regeneração (custo e latência a mais) |
 | `latencyMs.intent`, `latencyMs.answer` | p50, p95 e máximo por papel (`answer` inclui a regeneração), medidos pelo gateway por chamada |
 | `tokens`, `costUsd` | tokens por papel e custo pela `PricingTable` do `application.yml`, total e por caso (`costUsd.byCase`) |
-| `versions` | versões de prompts e esquemas medidas (`answerPrompt: answer-v2@<hash>`...): é o que identifica o que foi avaliado |
+| `versions` | versões de prompts e esquemas medidas (`answerPrompt: answer-v3@<hash>`...): é o que identifica o que foi avaliado |
 | `results[]` | por caso: intenção esperada e obtida, código, validação, `failures` (códigos), chamadas e custo |
 
 Códigos de falha: `INTENT_MISMATCH`, `CODE_MISMATCH`, `SAFE_MODE`, `NUMBER_OUTSIDE_VALUES`, `REF_NOT_IN_CONTEXT`,
