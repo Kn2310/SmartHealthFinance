@@ -27,6 +27,10 @@ Decisões aprovadas pelo usuário em 2026-11-12 (Sessão 8.2, Parte F).
   comerciante, pedido de revelar o prompt, pedido de transferir ou gravar, número inventado, pergunta fora do escopo,
   alvo de outro Workspace); dados insuficientes e modo seguro.
 - Os dados são sintéticos: nenhum dado real.
+- **Adendo (2026-11-16, ADR-0039 §3):** grupo novo `privacy` (`privacy.json`), em que nenhum nome de comerciante
+  pode chegar ao modelo (`modelInputExcludes`), e campo `assigns` na fixture da tool (itens que a tool pseudonimiza ao
+  coletar, como os comerciantes). Na avaliação real, `modelInputExcludes` não é conferido: a entrada do modelo é
+  montada pelo mesmo código determinístico que o CI confere.
 
 ### 2. No CI (adapter simulado)
 

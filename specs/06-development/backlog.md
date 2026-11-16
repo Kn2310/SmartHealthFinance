@@ -437,9 +437,11 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
   relatório sem conteúdo; painel Grafana e alertas Prometheus versionados em `infrastructure/observability/copilot/`;
   custo por Workspace e por dia pelo ledger; revisão de segurança e privacidade (validação da pergunta antes da
   admissão e corpo até 16 KB, revogação apaga só até o evento, `baseUrl` do provedor restrito)
-  - **bloqueante de produção:** destinatário de Pix/TED/DOC ainda vai ao modelo como comerciante; pseudonimizar como
-    `destinatario_N` exige marcar a origem de transferência na projeção da analytics (migration, adendo ADR-0013;
-    PR próprio, aprovado em 2026-11-12)
+  - [x] ~~**bloqueante de produção:** destinatário de Pix/TED/DOC ainda vai ao modelo como comerciante~~ — resolvido
+    na Fase 9, Parte A (2026-11-16, adendo ADR-0039 §3/§8): **todo** comerciante vai como `comerciante_N` (sem
+    migration nem rebuild; a marcação de origem de transferência e `destinatario_N` ficam como etapa opcional, não
+    aprovada); comerciante citado na pergunta marcado pelo servidor; prompt `answer-v3`; grupo `privacy` no golden
+    set. Risco residual: a pergunta vai como a pessoa digitou (PIA)
   - dívidas: rodar o golden set real e calibrar os limiares do runbook de avaliação e dos alertas; criar o secret
     `ANTHROPIC_API_KEY` no repositório; scan de dependências e CVEs (`anthropic-java`, Resilience4j, Jackson 2 do SDK);
     feedback do Copilot e `ai_usage` sem exclusão na revogação (só metadados; retenção do ledger no M13); entre a
@@ -469,6 +471,10 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
 - [ ] performance
 
 ## M14 Release
+
+Fase 9 (pré-produção e staging, iniciada em 2026-11-16, antecipa parte do M14; ADRs a partir do ADR-0043):
+A pseudonimização de comerciantes (feita) → B IdP de produção → C arquitetura de staging e deploy → D implementação
+do staging → E validação do Copilot com a chave real → F PIA e checklist do DPA. Fora: M12, M13 completo, produção.
 
 - [ ] staging
 - [ ] production
