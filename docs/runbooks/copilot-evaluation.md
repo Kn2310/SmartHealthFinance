@@ -63,8 +63,11 @@ são pulados; restam 70. O perfil usa os modelos, timeouts e preços de `applica
 
 `.github/workflows/copilot-eval.yml`, só `workflow_dispatch`: nunca roda em push nem em pull request.
 
-1. Crie o secret (uma vez, o dono do repositório): Settings → Secrets and variables → Actions → New repository secret,
-   nome `ANTHROPIC_API_KEY`, valor a sua chave. Prefira uma chave dedicada, com limite de gasto no console da Anthropic.
+1. Crie o secret (uma vez, o dono do repositório) no **Environment `copilot-eval`**: Settings → Environments → New
+   environment `copilot-eval` → Required reviewers: você; Deployment branches: só `main` → Add secret
+   `ANTHROPIC_API_KEY`. Use a chave **dedicada à avaliação** (workspace `shf-eval` no Console da Anthropic, limite de
+   US$ 10/mês; `copilot-real-validation.md`). Não crie o secret no nível do repositório: lá qualquer workflow o leria.
+   Cada execução espera a sua aprovação no Environment antes de qualquer passo.
 2. Actions → "Copilot evaluation" → Run workflow. Entradas: `cases` (mesma sintaxe da seção 2; vazio = todos) e
    `max_usd` (padrão `2.00`).
 3. Sem o secret, o job falha logo no primeiro passo, sem tentar nada. A chave só entra nos dois passos que a usam e

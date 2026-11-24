@@ -2,7 +2,9 @@
 # publica o relatório (acerto por intenção, violações, modo seguro, latência, tokens e custo) como artefato.
 #
 # SÓ MANUAL (Actions → Copilot evaluation → Run workflow). Nunca roda em push nem em pull request: gasta tokens
-# reais e usa o secret ANTHROPIC_API_KEY, que o dono do repositório cria em Settings → Secrets and variables → Actions.
+# reais e usa o secret ANTHROPIC_API_KEY do Environment `copilot-eval` (revisor obrigatório: o dono do repositório;
+# só a branch main), criado em Settings → Environments. Cada execução espera a aprovação antes de qualquer passo.
+# A chave é dedicada à avaliação (workspace próprio no Console da Anthropic, com limite de gasto): Fase 9, Parte E.
 # O CI normal (ci.yml) roda o mesmo golden set com o adapter simulado, sem chave.
 #
 # A chave só existe nos dois passos que a usam, nunca é impressa e não entra no relatório; o relatório tem só ids de
@@ -37,6 +39,8 @@ jobs:
     name: evaluate
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # O secret só existe neste Environment: nenhum outro workflow o lê, e a execução pede aprovação.
+    environment: copilot-eval
     defaults:
       run:
         working-directory: backend
@@ -50,7 +54,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "::error::O secret ANTHROPIC_API_KEY não está definido. Crie-o em Settings > Secrets and variables > Actions (veja docs/runbooks/copilot-evaluation.md)."
+            echo "::error::O secret ANTHROPIC_API_KEY não está definido no Environment copilot-eval. Crie-o em Settings > Environments > copilot-eval (veja docs/runbooks/copilot-evaluation.md)."
             exit 1
           fi
 

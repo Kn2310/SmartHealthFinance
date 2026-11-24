@@ -52,6 +52,11 @@ tanto em `./mvnw test` quanto no `verify`; não existe `CopilotGoldenSetIT`.
   resposta** (só ids de caso e códigos).
 - Workflow `copilot-eval.yml` só com `workflow_dispatch`, usando o secret `ANTHROPIC_API_KEY` que o usuário cria, e o
   relatório como artefato. Nunca roda em push ou PR.
+  - **Adendo (2026-11-24, Fase 9, Parte E):** o secret fica no **Environment `copilot-eval`**, não no repositório.
+    O Environment tem o usuário como revisor obrigatório e só a `main`: cada execução pede aprovação, e nenhum outro
+    workflow lê a chave. A chave é dedicada à avaliação: workspace `shf-eval` no Console da Anthropic, separado do
+    `shf-staging`, cada um com limite de gasto mensal (US$ 10 e US$ 20). Procedimento:
+    `docs/runbooks/copilot-real-validation.md`.
 
 ### 4. Observabilidade
 
