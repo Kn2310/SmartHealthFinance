@@ -1,0 +1,81 @@
+#!/bin/bash
+# Seed fictício do staging (ADR-0044 §2 item 8 e §8 item 35).
+#   sudo shf-seed
+# 1. cria (se ausentes) os usuários sintéticos @example.com no realm, com e-mail verificado;
+# 2. liga o client shf-staging-seed, roda o seed pela API (rede interna) e DESLIGA o client — inclusive em falha.
+# Idempotente: rodar de novo não duplica dados (o seed pula a usuária que já tem contas).
+#
+# Nenhuma senha passa por argumento de processo (visível no `ps` do host): o docker recebe só os NOMES das
+# variáveis (-e NOME), o kcadm lê a senha do admin de KC_CLI_PASSWORD e o usuário é criado por JSON no stdin.
+set -euo pipefail
+umask 077
+
+# shellcheck source=lib.sh
+source /opt/shf/bin/lib.sh
+shf_require_root
+shf_check_secret_file "$SHF_ENV_FILE"
+
+for key in SEED_MARINA_USERNAME SEED_BRUNO_USERNAME; do
+	[[ "$(shf_env_value "$key")" == *@example.com ]] || shf_die "$key precisa ser um endereço @example.com"
+done
+
+export SEED_MARINA_USERNAME SEED_MARINA_PASSWORD SEED_BRUNO_USERNAME SEED_BRUNO_PASSWORD
+SEED_MARINA_USERNAME=$(shf_env_value SEED_MARINA_USERNAME)
+SEED_MARINA_PASSWORD=$(shf_env_value SEED_MARINA_PASSWORD)
+SEED_BRUNO_USERNAME=$(shf_env_value SEED_BRUNO_USERNAME)
+SEED_BRUNO_PASSWORD=$(shf_env_value SEED_BRUNO_PASSWORD)
+
+# Script executado DENTRO do container do Keycloak (rede interna; o realm master não é publicado pelo proxy).
+# $1 = ensure-users | enable | disable
+read -r -d '' KC_SCRIPT <<'KCSH' || true
+set -euo pipefail
+kc() { /opt/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm.config; }
+export KC_CLI_PASSWORD="$KC_BOOTSTRAP_ADMIN_PASSWORD"
+/opt/keycloak/bin/kcadm.sh config credentials --config /tmp/kcadm.config --server http://127.0.0.1:8080 \
+	--realm master --user "$KC_BOOTSTRAP_ADMIN_USERNAME" >/dev/null
+trap 'rm -f /tmp/kcadm.config' EXIT
+realm=smart-health-finance
+json_escape() { local s=${1//\\/\\\\}; s=${s//\"/\\\"}; printf '%s' "$s"; }
+case "$1" in
+	ensure-users)
+		for who in MARINA BRUNO; do
+			user_var=SEED_${who}_USERNAME; pass_var=SEED_${who}_PASSWORD
+			username=${!user_var}; password=${!pass_var}
+			existing=$(kc get users -r "$realm" -q username="$username" -q exact=true --fields id --format csv --noquotes)
+			if [ -n "$existing" ]; then echo "já existe: ${who,,}"; continue; fi
+			printf '{"username":"%s","email":"%s","emailVerified":true,"enabled":true,"firstName":"%s","lastName":"Staging","credentials":[{"type":"password","value":"%s","temporary":false}]}' \
+				"$(json_escape "$username")" "$(json_escape "$username")" "${who^}" "$(json_escape "$password")" \
+				| kc create users -r "$realm" -f - >/dev/null
+			echo "criado: ${who,,}"
+		done
+		;;
+	enable|disable)
+		enabled=false; [ "$1" = enable ] && enabled=true
+		id=$(kc get clients -r "$realm" -q clientId=shf-staging-seed --fields id --format csv --noquotes)
+		[ -n "$id" ] || { echo "client shf-staging-seed não encontrado no realm" >&2; exit 1; }
+		kc update "clients/$id" -r "$realm" -s enabled=$enabled
+		;;
+esac
+KCSH
+
+kc_run() {
+	shf_compose exec -T -e SEED_MARINA_USERNAME -e SEED_MARINA_PASSWORD -e SEED_BRUNO_USERNAME -e SEED_BRUNO_PASSWORD \
+		keycloak bash -c "$KC_SCRIPT" kc "$1"
+}
+
+shf_log "garantindo os usuários sintéticos"
+kc_run ensure-users
+
+disable_client() {
+	if kc_run disable; then
+		shf_log "client de seed desligado"
+	else
+		shf_log "ATENÇÃO: não consegui desligar o client de seed; desligue no console (túnel SSH, 127.0.0.1:8180)"
+	fi
+}
+trap disable_client EXIT
+
+kc_run enable
+shf_log "client de seed ligado; rodando o seed"
+shf_compose --profile seed run --rm --no-deps seed
+shf_log "seed concluído"

@@ -83,6 +83,10 @@ subida), em vez da profundidade da fila.
 provisionados como código. Os alertas são do Grafana Alerting e vão para um bot do Telegram. A mensagem leva só
 nome, prioridade, resumo e runbook. A Parte D da Fase 9 mapeia os nomes das métricas exportadas por OTLP para os
 usados nas regras, com teste. A observabilidade de produção é decidida no M14.
+**Adendo (2026-11-16, implementação na Parte D, ADR-0044 §7):** as métricas entram por scrape do
+`/actuator/prometheus`, então os nomes são os mesmos
+do `alerts.yml` e não há mapeamento. O teste `StagingObservabilityAssetsTest` garante que as regras do Grafana são a
+conversão fiel do `alerts.yml` (adendo no ADR-0044 §7).
 
 ### 5. Revisão de segurança e privacidade
 

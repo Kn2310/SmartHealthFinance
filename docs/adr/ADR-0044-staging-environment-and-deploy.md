@@ -155,6 +155,14 @@ rede interna (sem portas no host):
     3. conecta por SSH ao host com a chave do Environment e o `known_hosts` fixado (sem `StrictHostKeyChecking=no`);
     4. executa `deploy <sha> <digest-api> <digest-web>`;
     5. roda o smoke test externo e publica o resultado no resumo, sem dados.
+    - **Adendo (2026-11-16, implementação na Parte D):** o digest **não** vem da tag `sha-<sha>`, que é mutável.
+      Ele vem do artefato `image-digest-{api,web}` do run do `Images` em push na `main`.
+      - Esse run só publica o artefato depois do push e de um segundo scan, feito sobre o **digest publicado** no
+        registry. Assim, a imagem implantada é exatamente a escaneada.
+      - O `Images` só faz push na `main` e em tags `v*`.
+      - Se os arquivos montados (Caddyfile, observabilidade, realm) mudaram desde o último deploy, o `shf-deploy`
+        recria caddy, lgtm e keycloak.
+      - Uma queda do SSH no meio não interrompe o deploy. O resultado fica no `deployments.log`.
 23. **SSH restrito para o deploy.** Usuário `deploy` no host, sem senha, sem shell interativo e **fora do grupo
     `docker`**.
     - A chave pública no `authorized_keys` tem `command="/usr/local/bin/shf-deploy-gate"` e
@@ -239,6 +247,24 @@ rede interna (sem portas no host):
 34. Logs continuam JSON, sem dados financeiros sensíveis nem tokens (05.9). Os logs do Keycloak ficam no host e não
     vão para artefatos de CI.
 
+**Adendo (2026-11-16, implementação na Parte D):**
+- **Métricas por scrape, não por OTLP.** O Prometheus do otel-lgtm raspa o `/actuator/prometheus` da API
+  (`api:8081`), e a exportação OTLP de métricas fica desligada no staging
+  (`MANAGEMENT_OTLP_METRICS_EXPORT_ENABLED=false`). Traces e logs continuam por OTLP. Os nomes ficam idênticos aos do
+  `alerts.yml`, então o mapeamento OTLP do item 33 não é necessário. O teste `StagingObservabilityAssetsTest`
+  garante a paridade das regras convertidas e que só métricas existentes são citadas.
+- **Filas e DLQs:** o plugin `rabbitmq_prometheus`, já ligado na imagem oficial, é raspado na rede interna (família
+  por fila, sem dado de usuário). Novo alerta `DeadLetterQueueNotEmpty` (P2) para filas `*.dlq`.
+- **p95 da API:** o staging liga os buckets de `http.server.requests` por variável de ambiente, sem mudar o
+  `application.yml`.
+- **Sem CPU e memória por container:** o painel mostra heap da JVM e CPU do processo da API. Um cAdvisor fica para
+  o M14.
+- **Retenção:** 15 dias de métricas (flag do Prometheus). Loki e Tempo ficam com a configuração da imagem, sem
+  retenção definida. O volume de logs do staging é pequeno, mas o disco deve ser acompanhado. Definir a retenção
+  fica para o M14, com a observabilidade de produção.
+- **Painel do Copilot:** o provisioning por arquivo não resolve `${DS_PROMETHEUS}`, então o staging usa uma cópia
+  com o datasource resolvido. Um teste exige que a cópia seja o original com essa única transformação.
+
 ### 8. Dados
 
 35. **Seed fictício** a partir de `design/specs/09-dados-de-exemplo.md`, carregado **pela API** (rede interna,
@@ -269,6 +295,10 @@ rede interna (sem portas no host):
     - no GitHub, a aprovação de cada execução do Environment.
 42. Nenhum serviço interno (PostgreSQL, Redis, RabbitMQ, Grafana, Mailpit, admin do Keycloak, actuator) tem porta no
     host. O acesso administrativo é por túnel SSH (`ssh -L`).
+    - **Adendo (2026-11-16, implementação na Parte D):** o túnel exige uma porta no host. Grafana (3001), Mailpit
+      (8025) e o console do Keycloak (8180) escutam **só em `127.0.0.1`**, e o firewall do Lightsail também os
+      bloqueia. PostgreSQL, Redis, RabbitMQ, API, web e actuator não têm porta nenhuma no host. O workflow `Images`
+      confere que nenhum serviço além do Caddy publica fora do loopback.
 
 ### 10. Feature flags
 

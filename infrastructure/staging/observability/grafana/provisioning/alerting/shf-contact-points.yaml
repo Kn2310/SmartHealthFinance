@@ -1,0 +1,22 @@
+# Canal de alertas do staging: bot do Telegram (ADR-0044 §7, item 33).
+# Token e chat id vêm do ambiente do container (env file do host) por interpolação do provisionamento do Grafana;
+# nunca literais aqui. A mensagem leva só nome, prioridade, resumo e runbook: nenhum label arbitrário nem valor.
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: shf-telegram
+    receivers:
+      - uid: shf-telegram
+        type: telegram
+        disableResolveMessage: false
+        settings:
+          bottoken: $TELEGRAM_BOT_TOKEN
+          chatid: $TELEGRAM_CHAT_ID
+          parse_mode: None
+          disable_web_page_preview: true
+          message: |-
+            {{ range .Alerts }}[{{ .Status }}] {{ .Labels.alertname }} ({{ .Labels.severity }})
+            {{ .Annotations.summary }}
+            Runbook: {{ .Annotations.runbook }}
+            {{ end }}

@@ -1,0 +1,33 @@
+#!/bin/bash
+# Zera o staging (ADR-0044 §8 item 38): apaga PostgreSQL (aplicação e Keycloak) e RabbitMQ, reimporta o realm
+# e roda o seed. Preserva certificados (caddy-data) e telemetria (lgtm-data). Pede confirmação digitada.
+#   sudo shf-reset
+# Se algum dado real for encontrado no staging, este é o procedimento (05.11): zere sem exceção.
+set -euo pipefail
+
+# shellcheck source=lib.sh
+source /opt/shf/bin/lib.sh
+shf_require_root
+shf_check_secret_file "$SHF_ENV_FILE"
+[[ -f "$SHF_IMAGES_FILE" ]] || shf_die "nenhum deploy registrado ainda ($SHF_IMAGES_FILE ausente)"
+[[ -t 0 ]] || shf_die "o reset exige um terminal interativo"
+
+echo "Isto APAGA todos os dados do staging (banco da aplicação, Keycloak e filas)."
+read -r -p "Digite 'zerar staging' para continuar: " answer
+[[ "$answer" == "zerar staging" ]] || shf_die "cancelado"
+
+# Mesmo lock do shf-deploy: reset e deploy nunca rodam juntos.
+exec 9>/run/shf-deploy.lock
+flock -n 9 || shf_die "um deploy está em andamento; tente depois"
+
+shf_record "RESET start"
+shf_log "backup antes do reset"
+/usr/local/bin/shf-backup || shf_log "backup falhou; seguindo com o reset (staging não tem dados reais)"
+
+shf_compose down --timeout 30
+docker volume rm shf-staging_postgres-data shf-staging_rabbitmq-data
+
+shf_compose up -d --wait --wait-timeout 600 || shf_die "o ambiente não subiu depois do reset"
+/usr/local/bin/shf-seed
+shf_record "RESET OK"
+shf_log "staging zerado e com seed novo"

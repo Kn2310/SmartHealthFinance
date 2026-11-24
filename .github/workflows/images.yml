@@ -1,0 +1,231 @@
+# Imagens da API e do web (ADR-0044 §4): build → scan → push no GHCR por SHA, com SBOM e provenance.
+#
+# - pull_request: build + scan, SEM push (detecta Dockerfile quebrado ou vulnerabilidade antes do merge).
+# - push na main / tag v*: build + scan + push (tags sha-<sha> e vX.Y.Z). O deploy usa sempre o digest.
+# - Sem actions de terceiros: docker buildx do runner (BuildKit fixado por digest) e Trivy pela imagem oficial
+#   fixada por digest (a aquasecurity/trivy-action teve tags comprometidas em 2026-03: CVE-2026-33634).
+# - Vulnerabilidade HIGH/CRITICAL com correção disponível ou segredo na imagem falham o job (exceções só no
+#   .trivyignore, revisado em PR, com justificativa e expiração).
+# - Também valida os arquivos do staging (gate de deploy, scripts e compose) sem segredos.
+
+name: Images
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: images-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # moby/buildkit:v0.26.3
+  BUILDKIT_IMAGE: moby/buildkit@sha256:5601811fde88bb9e8a577bfe804af82bccb712e1cd07ff94663bded5e628cf75
+  # aquasec/trivy:0.76.1
+  TRIVY_IMAGE: aquasec/trivy@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+
+jobs:
+  staging-config:
+    name: staging-config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Gate do deploy (injeções recusadas)
+        run: bash infrastructure/staging/tests/gate.test.sh
+
+      - name: ShellCheck dos scripts do host
+        run: |
+          shellcheck --version | head -2
+          shellcheck -x -P infrastructure/staging/bin \
+            infrastructure/staging/bin/* infrastructure/staging/*.sh \
+            infrastructure/staging/postgres-init/*.sh infrastructure/staging/tests/*.sh
+
+      - name: Compose do staging com valores fictícios
+        run: |
+          env_file=$(mktemp); images_file=$(mktemp)
+          sed 's/CHANGE_ME[A-Z0-9_]*/placeholder/g' infrastructure/.env.staging.example > "$env_file"
+          printf 'SHF_SHA=%s\nAPI_IMAGE=%s\nWEB_IMAGE=%s\n' "$(printf '0%.0s' {1..40})" \
+            "ghcr.io/example/api@sha256:$(printf '0%.0s' {1..64})" "ghcr.io/example/web@sha256:$(printf '0%.0s' {1..64})" \
+            > "$images_file"
+          docker compose -p shf-staging --project-directory infrastructure/staging -f infrastructure/staging/compose.yml \
+            --env-file "$env_file" --env-file "$images_file" config --quiet
+          # Só o caddy publica portas para fora do host; o resto, no máximo em 127.0.0.1.
+          docker compose -p shf-staging --project-directory infrastructure/staging -f infrastructure/staging/compose.yml \
+            --env-file "$env_file" --env-file "$images_file" config --format json \
+            | jq -e '[.services | to_entries[] | select(.key != "caddy") | .value.ports // [] | .[]
+                      | select(.host_ip != "127.0.0.1")] | length == 0' > /dev/null
+          rm -f "$env_file" "$images_file"
+
+      - name: Seed (testes sem rede)
+        run: node --test infrastructure/staging/seed/seed.test.mjs
+
+  image:
+    name: image (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write # push no GHCR; só usado fora de pull_request
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            context: backend
+            dockerfile: backend/Dockerfile
+          - name: web
+            context: .
+            dockerfile: frontend/Dockerfile
+    env:
+      # Push só da main e de tags SemVer: um run de outra branch (inclusive workflow_dispatch) nunca publica.
+      PUSH: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Nomes e tags
+        id: meta
+        run: |
+          owner=${GITHUB_REPOSITORY_OWNER,,}
+          repository="ghcr.io/$owner/smart-health-finance-${{ matrix.name }}"
+          tags="--tag $repository:sha-$GITHUB_SHA"
+          if [[ "$GITHUB_REF" =~ ^refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            tags="$tags --tag $repository:${GITHUB_REF#refs/tags/}"
+          fi
+          {
+            echo "repository=$repository"
+            echo "tags=$tags"
+            echo "scan_ref=shf-${{ matrix.name }}:scan"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Builder BuildKit (fixado por digest)
+        run: |
+          docker buildx create --name shf --driver docker-container \
+            --driver-opt "image=$BUILDKIT_IMAGE" --use --bootstrap
+
+      - name: Build para scan
+        run: |
+          docker buildx build --load \
+            --file "${{ matrix.dockerfile }}" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --tag "${{ steps.meta.outputs.scan_ref }}" \
+            --cache-to type=local,dest=/tmp/buildx-cache,mode=max \
+            "${{ matrix.context }}"
+
+      # Falha rápida antes de publicar. Quem vale para o deploy é o scan do digest PUBLICADO, mais abaixo.
+      - name: Trivy (vulnerabilidades corrigíveis HIGH/CRITICAL e segredos)
+        run: |
+          mkdir -p "$HOME/.cache/trivy"
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock:ro \
+            -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            -v "$GITHUB_WORKSPACE/.trivyignore:/work/.trivyignore:ro" \
+            "$TRIVY_IMAGE" image \
+              --scanners vuln,secret \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --ignorefile /work/.trivyignore \
+              --exit-code 1 \
+              --timeout 15m \
+              --no-progress \
+              "${{ steps.meta.outputs.scan_ref }}"
+
+      - name: Login no GHCR
+        if: env.PUSH == 'true'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Push com SBOM e provenance
+        if: env.PUSH == 'true'
+        run: |
+          # shellcheck disable=SC2086 # tags é uma lista de "--tag x"
+          docker buildx build --push \
+            --file "${{ matrix.dockerfile }}" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --sbom=true --provenance=mode=max \
+            --cache-from type=local,src=/tmp/buildx-cache \
+            --metadata-file /tmp/metadata.json \
+            ${{ steps.meta.outputs.tags }} \
+            "${{ matrix.context }}"
+          digest=$(jq -r '."containerimage.digest"' /tmp/metadata.json)
+          [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "digest não encontrado nos metadados" >&2; exit 1; }
+          echo "DIGEST=$digest" >> "$GITHUB_ENV"
+
+      # A imagem que o deploy usa é exatamente esta: o scan roda sobre o digest no registry, não sobre o build local.
+      - name: Trivy no digest publicado
+        if: env.PUSH == 'true'
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          docker run --rm \
+            -e TRIVY_USERNAME -e TRIVY_PASSWORD \
+            -v "$HOME/.cache/trivy:/root/.cache/trivy" \
+            -v "$GITHUB_WORKSPACE/.trivyignore:/work/.trivyignore:ro" \
+            "$TRIVY_IMAGE" image \
+              --scanners vuln,secret \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --ignorefile /work/.trivyignore \
+              --exit-code 1 \
+              --timeout 15m \
+              --no-progress \
+              "${{ steps.meta.outputs.repository }}@$DIGEST"
+
+      # Fonte do digest para o deploy (ADR-0044 §5): só existe se o push e o scan do digest publicado passaram,
+      # e o deploy só aceita o artefato de um run deste workflow em push na main.
+      - name: Digest aprovado (artefato)
+        if: env.PUSH == 'true'
+        run: |
+          mkdir -p /tmp/digest
+          printf '%s\n' "$DIGEST" > "/tmp/digest/${{ matrix.name }}.txt"
+          echo "### ${{ matrix.name }}: \`${{ steps.meta.outputs.repository }}@$DIGEST\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar o digest aprovado
+        if: env.PUSH == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: image-digest-${{ matrix.name }}
+          path: /tmp/digest/${{ matrix.name }}.txt
+          retention-days: 90
+          if-no-files-found: error
+
+      - name: Logout do GHCR
+        if: always() && env.PUSH == 'true'
+        run: docker logout ghcr.io
+
+  third-party:
+    name: third-party images (relatório)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Trivy nas imagens de terceiros do staging (não bloqueia)
+        run: |
+          mkdir -p "$HOME/.cache/trivy"
+          echo "## Imagens de terceiros (HIGH/CRITICAL corrigíveis)" >> "$GITHUB_STEP_SUMMARY"
+          grep -oE '^\s+image: [a-z0-9./_-]+@sha256:[0-9a-f]{64}' infrastructure/staging/compose.yml \
+            | awk '{print $2}' | sort -u | while read -r image; do
+              echo "### \`$image\`" >> "$GITHUB_STEP_SUMMARY"
+              docker run --rm -v "$HOME/.cache/trivy:/root/.cache/trivy" "$TRIVY_IMAGE" image \
+                --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 --timeout 15m --no-progress \
+                --format table "$image" > /tmp/report.txt 2>&1 || true
+              { echo '```'; tail -n 40 /tmp/report.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            done

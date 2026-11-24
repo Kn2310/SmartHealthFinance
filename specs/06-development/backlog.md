@@ -489,9 +489,17 @@ do staging → E validação do Copilot com a chave real → F PIA e checklist d
     smoke test;
   - observabilidade: otel-lgtm com alertas no Telegram;
   - dados: seed fictício pela API, `pg_dump` diário mais snapshots do Lightsail, teste de restore.
-- [ ] Implementação do staging (Parte D, `feature/staging-environment`): Dockerfile do frontend, compose e Caddyfile
-  de staging, workflows `images.yml` e `deploy-staging.yml`, scripts de deploy, backup, restore, reset e seed,
-  provisionamento do Grafana, `.env.staging.example` e runbooks.
+- [x] Implementação do staging (Parte D, `feature/staging-environment`, 2026-11-16):
+  - imagens: `frontend/Dockerfile` (standalone, não-root, sem npm no runtime); bases do backend por digest; Spring
+    Boot 4.1.2 e amqp-client 5.37.0 (CVEs de Tomcat, Jackson e amqp-client achados pelo scan);
+  - `infrastructure/staging/`: compose, Caddyfile, realm endurecido, gate SSH, deploy por digest, backup, teste de
+    restore, reset, seed pela API, `install.sh` e `harden-host.sh`;
+  - workflows `Images` (buildx, Trivy fixado, SBOM e provenance, validação do staging) e `Deploy staging`;
+  - Grafana provisionado com painéis do Copilot e de saúde e 14 alertas para o Telegram;
+  - runbooks `staging`, `staging-deploy`, `staging-backup-restore` e `keycloak`.
+  - Pendente com o usuário: conta AWS e instância, DNS, env file, bot do Telegram, Environment `staging`, pacotes
+    públicos no GHCR, primeiro deploy, seed, teste de restore e verificações do Keycloak (logout por back-channel).
+  - Para o M14: CPU e memória por container (cAdvisor), retenção de Loki e Tempo, instrumentação OTel do BFF.
 
 - [ ] staging
 - [ ] production

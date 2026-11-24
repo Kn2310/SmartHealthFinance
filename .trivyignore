@@ -1,0 +1,4 @@
+# Exceções do scan de imagens (ADR-0044 §4 item 18). Começa vazio.
+# Cada exceção: só para vulnerabilidade da imagem base sem atualização utilizável, revisada em PR, no formato
+#   CVE-AAAA-NNNNN exp:AAAA-MM-DD  # imagem afetada · motivo · como será removida
+# Remova a linha assim que a base for corrigida. Nunca use exceção para segredo encontrado na imagem.

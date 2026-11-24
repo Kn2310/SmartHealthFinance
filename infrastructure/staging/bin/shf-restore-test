@@ -1,0 +1,58 @@
+#!/bin/bash
+# Teste de restore (ADR-0044 §8 item 37). Restaura o dump mais recente da aplicação num database temporário,
+# compara contagens e o saldo derivado por conta com o banco em uso e apaga o temporário.
+#   sudo shf-restore-test
+# Resultado no terminal (sem valores: só "confere"/"diverge" e contagens). Registre-o no runbook.
+set -euo pipefail
+umask 077
+
+# shellcheck source=lib.sh
+source /opt/shf/bin/lib.sh
+shf_require_root
+shf_check_secret_file "$SHF_ENV_FILE"
+
+db_name=$(shf_env_value DB_NAME)
+db_user=$(shf_env_value DB_USERNAME)
+temp_db=shf_restore_test
+
+latest=$(find "$SHF_BACKUP_DIR" -maxdepth 1 -type f -name '*-app.dump' | sort | tail -1)
+[[ -n "$latest" ]] || shf_die "nenhum dump da aplicação em $SHF_BACKUP_DIR (rode sudo shf-backup)"
+shf_log "restaurando $(basename "$latest") em $temp_db"
+
+psql_in() { shf_compose exec -T postgres psql -v ON_ERROR_STOP=1 -U "$db_user" -At "$@"; }
+
+cleanup() { psql_in -d postgres -c "DROP DATABASE IF EXISTS $temp_db" >/dev/null || true; }
+trap cleanup EXIT
+
+cleanup
+psql_in -d postgres -c "CREATE DATABASE $temp_db" >/dev/null
+shf_compose exec -T postgres pg_restore -U "$db_user" -d "$temp_db" --no-owner --exit-on-error <"$latest"
+
+# Contagens por tabela + impressão digital das transações (id, tipo, direção, valor numeric(19,4), status, data):
+# os saldos são derivados delas, então dump e banco em uso com a mesma impressão têm os mesmos saldos.
+check_sql=$(cat <<'SQL'
+SELECT 'users', count(*) FROM users
+UNION ALL SELECT 'workspaces', count(*) FROM workspaces
+UNION ALL SELECT 'accounts', count(*) FROM accounts
+UNION ALL SELECT 'transactions', count(*) FROM transactions
+UNION ALL SELECT 'credit_cards', count(*) FROM credit_cards
+UNION ALL SELECT 'goals', count(*) FROM goals
+UNION ALL SELECT 'flyway', count(*) FROM flyway_schema_history
+ORDER BY 1;
+SQL
+)
+balances_sql="SELECT md5(coalesce(string_agg(concat_ws(':', id, account_id, destination_account_id, type, adjustment_direction, amount, status, occurred_on), ',' ORDER BY id), '')) FROM transactions;"
+
+restored=$(psql_in -d "$temp_db" -c "$check_sql")
+live=$(psql_in -d "$db_name" -c "$check_sql")
+restored_balances=$(psql_in -d "$temp_db" -c "$balances_sql")
+live_balances=$(psql_in -d "$db_name" -c "$balances_sql")
+
+echo "tabela|restaurado|em uso"
+join -t '|' <(echo "$restored") <(echo "$live")
+if [[ "$restored" == "$live" && "$restored_balances" == "$live_balances" ]]; then
+	shf_log "restore test: CONFERE (contagens e transações (base dos saldos) iguais ao banco em uso)"
+else
+	shf_log "restore test: DIVERGE — esperado se houve escrita depois do dump; rode logo após um shf-backup sem uso"
+	exit 2
+fi

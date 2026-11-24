@@ -1,0 +1,47 @@
+# Proxy reverso do staging (ADR-0044 §2). Único serviço com portas publicadas (80/443).
+# TLS automático (Let's Encrypt). Nomes vêm do env file: STAGING_APP_HOST, STAGING_AUTH_HOST, ACME_EMAIL.
+# O Caddy não confia em X-Forwarded-* vindos do cliente: ele mesmo os define para o upstream.
+{
+	email {$ACME_EMAIL}
+	admin off
+	servers {
+		protocols h1 h2
+	}
+}
+
+(security) {
+	header {
+		# Sem includeSubDomains nem preload: o domínio é do usuário e pode ter outros usos (ADR-0044 §2 item 4).
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+	log {
+		output stdout
+		# Só método, caminho, status e duração; sem cabeçalhos (cookies, Authorization) nem query string.
+		format filter {
+			request>headers delete
+			resp_headers delete
+			request>uri regexp "\?.*" "?REDACTED"
+			request>remote_ip delete
+			request>client_ip delete
+		}
+	}
+}
+
+{$STAGING_APP_HOST} {
+	import security
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+{$STAGING_AUTH_HOST} {
+	import security
+	# Só o realm da aplicação e os recursos das telas. O realm master, /admin, /metrics e /health ficam fora.
+	@public path /realms/smart-health-finance/* /resources/*
+	handle @public {
+		reverse_proxy keycloak:8080
+	}
+	handle {
+		respond 404
+	}
+}

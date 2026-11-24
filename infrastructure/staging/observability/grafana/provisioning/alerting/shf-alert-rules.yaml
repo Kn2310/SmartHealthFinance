@@ -1,0 +1,445 @@
+# Regras de alerta gerenciadas pelo Grafana (ADR-0044 §7, itens 31-33). Provisionamento de alerting, apiVersion 1.
+# O grupo shf-copilot é a conversão de infrastructure/observability/copilot/alerts.yml (a fonte): mesmos nomes,
+# expressões PromQL, "for", severidade, summary e runbook; StagingObservabilityAssetsTest garante a paridade.
+# Cada regra: A = consulta PromQL instantânea; B = último valor (descarta NaN); C = "B > -1". Como as expressões
+# são filtros (só devolvem série quando a condição vale) e todos os valores são >= 0, existir série equivale a disparar.
+# Sem série (condição falsa ou sem tráfego) = Normal (noDataState OK), como no Prometheus.
+# Datasource: uid "prometheus", provisionado pela imagem grafana/otel-lgtm.
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: shf-copilot
+    folder: Smart Health Finance
+    interval: 1m
+    rules:
+      - uid: shf-copilot-success-below-slo
+        title: CopilotSuccessBelowSlo
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                (
+                  (sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE|INSUFFICIENT_DATA|OUT_OF_SCOPE"}[1h])) or vector(0))
+                  /
+                  sum(increase(shf_copilot_pipeline_total{code!~"CONSENT_REQUIRED|RATE_LIMITED|QUOTA_EXCEEDED"}[1h]))
+                ) < 0.98
+                and sum(increase(shf_copilot_pipeline_total[1h])) > 20
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: P2
+        annotations:
+          summary: "Copilot abaixo do SLO de sucesso (98%) na última hora"
+          runbook: "docs/runbooks/copilot.md#alertas"
+      - uid: shf-copilot-provider-unavailable
+        title: CopilotProviderUnavailable
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                (
+                  (sum(increase(shf_copilot_pipeline_total{code="PROVIDER_UNAVAILABLE"}[15m])) or vector(0))
+                  /
+                  sum(increase(shf_copilot_pipeline_total[15m]))
+                ) > 0.05
+                or max(resilience4j_circuitbreaker_state{name="copilot-ai", state="open"}) > 0
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: P2
+        annotations:
+          summary: "Provedor de IA indisponível ou circuito do Copilot aberto"
+          runbook: "docs/runbooks/copilot.md#alertas"
+      - uid: shf-copilot-safe-mode-high
+        title: CopilotSafeModeHigh
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                (
+                  (sum(increase(shf_copilot_pipeline_total{code="SAFE_MODE"}[1h])) or vector(0))
+                  /
+                  sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE"}[1h]))
+                ) > 0.10
+                and sum(increase(shf_copilot_pipeline_total{code=~"OK|SAFE_MODE"}[1h])) > 20
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        labels:
+          severity: P3
+        annotations:
+          summary: "Mais de 10% das respostas do Copilot em modo seguro"
+          runbook: "docs/runbooks/copilot.md#alertas"
+      - uid: shf-copilot-claim-violations-high
+        title: CopilotClaimViolationsHigh
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                (
+                  (sum(increase(shf_copilot_validation_violation_total[1h])) or vector(0))
+                  /
+                  sum(increase(shf_copilot_validation_total[1h]))
+                ) > 0.20
+                and sum(increase(shf_copilot_validation_total[1h])) > 20
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        labels:
+          severity: P3
+        annotations:
+          summary: "Violações da claim validation acima de 20% das respostas do modelo"
+          runbook: "docs/runbooks/copilot.md#alertas"
+      - uid: shf-copilot-latency-high
+        title: CopilotLatencyHigh
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                histogram_quantile(0.95, sum by (le) (rate(shf_copilot_pipeline_latency_seconds_bucket[15m]))) > 20
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        labels:
+          severity: P3
+        annotations:
+          summary: "p95 do pipeline do Copilot acima de 20 s"
+          runbook: "docs/runbooks/copilot.md#alertas"
+      - uid: shf-copilot-throttling-high
+        title: CopilotThrottlingHigh
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                (
+                  (sum(increase(shf_copilot_admission_total{code=~"RATE_LIMITED|QUOTA_EXCEEDED"}[1h])) or vector(0))
+                  /
+                  sum(increase(shf_copilot_admission_total[1h]))
+                ) > 0.20
+                and sum(increase(shf_copilot_admission_total[1h])) > 20
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 30m
+        labels:
+          severity: P4
+        annotations:
+          summary: "Mais de 20% das perguntas barradas por rate limit ou quota"
+          runbook: "docs/runbooks/copilot.md#alertas"
+      - uid: shf-copilot-daily-cost-high
+        title: CopilotDailyCostHigh
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                sum(increase(shf_copilot_ai_cost_usd_total[24h])) > 20
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: P3
+        annotations:
+          summary: "Custo do Copilot acima de US$ 20 nas últimas 24 h (por Workspace: consulta do ledger no runbook)"
+          runbook: "docs/runbooks/copilot.md#custo-por-workspace-e-por-dia"
+      - uid: shf-copilot-unpriced-model
+        title: CopilotUnpricedModel
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                sum(shf_copilot_ai_unpriced_total) > 0
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: P3
+        annotations:
+          summary: "Chamada a um modelo sem preço na tabela versionada: o custo do ledger fica zerado"
+          runbook: "docs/runbooks/copilot.md#trocar-de-provedor-ou-de-modelo"
+      - uid: shf-copilot-revocation-dead-lettered
+        title: CopilotRevocationDeadLettered
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                sum(increase(shf_copilot_history_dead_lettered_total[15m])) > 0
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        labels:
+          severity: P2
+        annotations:
+          summary: "consent.revoked do Copilot na DLQ: histórico da pessoa ainda não foi apagado"
+          runbook: "docs/runbooks/copilot.md#consumidor-de-consentrevoked-e-dlq"
+
+  - orgId: 1
+    name: shf-health
+    folder: Smart Health Finance
+    interval: 1m
+    rules:
+      - uid: shf-api-high5xx-rate
+        title: ApiHigh5xxRate
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                (
+                  (sum(increase(http_server_requests_seconds_count{status=~"5.."}[10m])) or vector(0))
+                  /
+                  sum(increase(http_server_requests_seconds_count[10m]))
+                ) > 0.01
+                and sum(increase(http_server_requests_seconds_count[10m])) > 20
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: P2
+        annotations:
+          summary: "Mais de 1% das requisições da API com 5xx nos últimos 10 minutos"
+          runbook: "docs/runbooks/staging.md#alertas-de-saude"
+      - uid: shf-api-scrape-down
+        title: ApiScrapeDown
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                up{job="shf-api"} == 0
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: Alerting
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: P1
+        annotations:
+          summary: "A API não responde ao scrape do actuator (job shf-api) há 5 minutos"
+          runbook: "docs/runbooks/staging.md#alertas-de-saude"
+      - uid: shf-outbox-backlog
+        title: OutboxBacklog
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                max(shf_outbox_oldest_pending_age_seconds) > 300
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: P2
+        annotations:
+          summary: "Evento da outbox pendente há mais de 5 minutos: o relay não está publicando"
+          runbook: "docs/runbooks/analytics-rebuild.md"
+      - uid: shf-read-model-freshness-stale
+        title: ReadModelFreshnessStale
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                max(shf_health_snapshot_freshness_seconds) > 300
+                or max(shf_forecast_snapshot_freshness_seconds) > 300
+                or max(shf_insights_generation_freshness_seconds) > 300
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        labels:
+          severity: P3
+        annotations:
+          summary: "Frescor de Health, Forecast ou Insights acima de 300 s"
+          runbook: "docs/runbooks/health-rebuild.md#sinais"
+      - uid: shf-dead-letter-queue-not-empty
+        title: DeadLetterQueueNotEmpty
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange: { from: 600, to: 0 }
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              expr: |
+                sum by (queue) (rabbitmq_detailed_queue_messages{queue=~".+\.dlq"}) > 0
+          - refId: B
+            datasourceUid: __expr__
+            model: { refId: B, type: reduce, expression: A, reducer: last, settings: { mode: dropNN } }
+          - refId: C
+            datasourceUid: __expr__
+            model: { refId: C, type: threshold, expression: B, conditions: [{ evaluator: { type: gt, params: [-1] } }] }
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: P2
+        annotations:
+          summary: "Há mensagens em uma DLQ (*.dlq) há 5 minutos"
+          runbook: "docs/runbooks/staging.md#alertas-de-saude"

@@ -4,7 +4,8 @@
 # Testes NÃO rodam aqui: o pipeline de CI executa unit/architecture/integration antes do build da imagem.
 
 # ---------- build ----------
-FROM eclipse-temurin:25-jdk AS build
+# Bases fixadas por digest (ADR-0044 §3); atualizar só por PR revisado. Tags: 25-jdk e 25-jre.
+FROM eclipse-temurin:25-jdk@sha256:b8705e936964c228dfce359e63dbf08f6c69cb380ed1d576b1f6b1064f15567d AS build
 WORKDIR /workspace
 
 COPY .mvn/ .mvn/
@@ -18,7 +19,7 @@ RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q package -DskipTests \
 	&& java -Djarmode=tools -jar app.jar extract --layers --launcher --destination extracted
 
 # ---------- runtime ----------
-FROM eclipse-temurin:25-jre AS runtime
+FROM eclipse-temurin:25-jre@sha256:a640968ae55027b322cedd5f8228b01a84baff0b9e9360e47601c6a111ba1699 AS runtime
 
 RUN groupadd --system app && useradd --system --gid app --no-create-home --shell /usr/sbin/nologin app
 WORKDIR /app
@@ -35,6 +36,7 @@ ENV TZ=UTC \
 	JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
 
 # 8080: API. 8081: actuator quando MANAGEMENT_SERVER_PORT=8081 (não publicado pelo proxy).
+# Healthcheck no compose (ADR-0044 §3): a porta 8081 só existe quando o ambiente a define.
 EXPOSE 8080 8081
 
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

@@ -2,6 +2,8 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Imagem de staging/produção (frontend/Dockerfile, ADR-0044 §3): só o servidor mínimo e as dependências rastreadas.
+  output: 'standalone',
   poweredByHeader: false,
   async headers() {
     return [
