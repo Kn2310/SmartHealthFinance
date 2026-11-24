@@ -311,6 +311,12 @@ vale com `COPILOT_PROVIDER=simulated`.
 
 ## Antes de produção (pendente, ADR-0039)
 
+- **Validação com a chave real (Fase 9, Parte E):** passo a passo em `copilot-real-validation.md`, que cobre:
+  - chaves dedicadas por workspace (`shf-eval` e `shf-staging`), com limite de gasto;
+  - o secret no Environment `copilot-eval`;
+  - smoke de autenticação, golden set completo e roteiro ponta a ponta no staging.
+
+  Resultados em `docs/evaluations/copilot-real-validation-2026-11.md`.
 - **Smoke test com a chave real.** O `anthropic-java` 3.7.0, com `.apiKey(...)`, manda a chave em
   `Authorization: Bearer <chave>` e não em `x-api-key`, verificado contra o servidor falso do
   `AnthropicAiProviderTest`. A aceitação pela API real ainda não foi conferida. Com `COPILOT_PROVIDER=anthropic` e a

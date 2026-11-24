@@ -159,7 +159,7 @@ para fora do host.
 
 `COPILOT_ENABLED` e `COPILOT_PROVIDER` ficam no env file. Depois de mudar, aplique com um redeploy do SHA atual
 (Actions → Deploy staging) ou, no host, `sudo shf-deploy <sha> <digest-api> <digest-web>` com os valores da última
-linha `OK` do `deployments.log`. O provedor real (`anthropic`) só na Parte E, por você.
+linha `OK` do `deployments.log`. O provedor real (`anthropic`) só na Parte E, por você: `copilot-real-validation.md`.
 
 ### Atualizar arquivos do host (compose, Caddyfile, scripts, observabilidade)
 

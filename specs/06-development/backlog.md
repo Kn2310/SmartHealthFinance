@@ -500,6 +500,17 @@ do staging → E validação do Copilot com a chave real → F PIA e checklist d
   - Pendente com o usuário: conta AWS e instância, DNS, env file, bot do Telegram, Environment `staging`, pacotes
     públicos no GHCR, primeiro deploy, seed, teste de restore e verificações do Keycloak (logout por back-channel).
   - Para o M14: CPU e memória por container (cAdvisor), retenção de Loki e Tempo, instrumentação OTel do BFF.
+- [ ] Validação do Copilot com a chave real (Parte E, `chore/copilot-real-validation`, 2026-11-24; adendo ADR-0042
+  §3). Preparado:
+  - runbook `copilot-real-validation.md`;
+  - registro `docs/evaluations/copilot-real-validation-2026-11.md`;
+  - secret do golden set no Environment `copilot-eval`, com aprovação;
+  - chaves dedicadas por workspace (`shf-eval` US$ 10/mês e `shf-staging` US$ 20/mês).
+  - Pendente com o usuário:
+    - smoke de autenticação (o SDK manda `Authorization: Bearer`; um 401 exige ajuste no adapter);
+    - golden set completo;
+    - staging com `COPILOT_PROVIDER=anthropic` e o roteiro de 16 passos.
+  - Depois: preencher o registro e calibrar os limiares do critério e dos alertas em adendo datado.
 
 - [ ] staging
 - [ ] production
