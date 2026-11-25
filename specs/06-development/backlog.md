@@ -463,7 +463,18 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
 
 - [ ] security
 - [ ] privacy
+  - Fase 9, Parte F (RIPD em `docs/privacy/ripd.md`): **bloqueantes de produção** a fazer no M13:
+    - criptografia em repouso (disco, volume e backups; avaliar campo) (R4);
+    - teste de ausência de dado no log de exceção do `GlobalExceptionHandler` (R6);
+    - prazos de retenção propostos no RIPD §8, depois de aprovados (R7);
+    - feedback do Copilot apagado na revogação;
+    - processo de incidente (art. 48, Res. ANPD 15/2024);
+    - termo do Copilot `copilot-data-v2` e política de privacidade: provedor de IA nos EUA, o que vai ao modelo, pergunta
+      literal, retenção; aviso fixo na tela do Copilot. O termo vigente diz que o Copilot "só lê dados dentro do app"
+      (R14; exige aprovação de texto e UX; expira os consentimentos v1, ADR-0038).
 - [ ] deletion/export
+  - **bloqueante de produção** (RIPD R5): exclusão de conta (aplicação, Keycloak, derivados, backups por expiração) e
+    exportação autenticada, expirável e auditada.
 - [ ] rate limits
 - [ ] backup
 - [ ] restore test
@@ -511,6 +522,14 @@ do staging → E validação do Copilot com a chave real → F PIA e checklist d
     - golden set completo;
     - staging com `COPILOT_PROVIDER=anthropic` e o roteiro de 16 passos.
   - Depois: preencher o registro e calibrar os limiares do critério e dos alertas em adendo datado.
+- [x] PIA e checklist do DPA (Parte F, `docs/privacy-pia-dpa`, 2026-11-25; adendo ADR-0039 §1):
+  - documentos em `docs/privacy/`: `ripd.md` (plataforma e Copilot, 13 riscos), `registro-de-tratamento.md` (art. 37) e
+    `dpa-checklist.md` (Anthropic, AWS, Telegram, GitHub);
+  - decisões: ZDR pedido antes de produção; cláusulas-padrão da ANPD na transferência internacional; prazos de
+    retenção propostos; criptografia em repouso, exclusão e exportação, log de exceção e o novo termo do Copilot (R14) como
+    bloqueantes de produção.
+  - Pendente com o usuário: aprovar o RIPD; designar o encarregado; validação jurídica das bases legais; aceitar o
+    DPA e pedir ZDR à Anthropic; DPA da AWS.
 
 - [ ] staging
 - [ ] production

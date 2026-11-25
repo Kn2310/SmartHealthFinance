@@ -32,6 +32,16 @@ Regra de ouro: **a IA interpreta; o sistema calcula.** Toda decisão abaixo serv
   - Inferência: `inference_geo` só oferece `global` ou `us`; não há região Brasil. É transferência internacional (LGPD
     art. 33), coberta por cláusulas contratuais no DPA e pelo consentimento do ADR-0038. A PIA (05.12) é pré-requisito
     de produção.
+  - **Adendo (2026-11-25, Fase 9, Parte F):** a PIA está em `docs/privacy/ripd.md`, como proposta pendente de
+    aprovação. Decisões do controlador:
+    - **pedir zero data retention por acordo antes de produção**;
+    - mecanismo de transferência pelas **cláusulas-padrão da ANPD** (Res. CD/ANPD nº 19/2024) no DPA.
+    Checklist em `docs/privacy/dpa-checklist.md` §1. Até lá, só dados fictícios chegam ao modelo. A pergunta literal
+    continua como risco residual aceito (R1 do RIPD).
+    - O termo vigente (`copilot-data-v1`) **não** informa o envio ao provedor nos EUA nem o risco da pergunta literal.
+      Por isso, "coberta pelo consentimento do ADR-0038", na transferência acima, só vale depois de um termo novo.
+    - O termo novo é o `copilot-data-v2`, com aviso fixo na tela do Copilot. Pela regra do ADR-0038, ele expira os
+      consentimentos v1. É bloqueante de produção (R14 do RIPD) e exige aprovação de texto e UX.
 - **Roteamento de modelos** (ids exatos, sem sufixo de data):
   - Intenção: `claude-haiku-5-5` ($0,10 / $0,50 por MTok; até 100K tokens de prompt), esforço `low`, saída
     estruturada com o enum de intenções.
