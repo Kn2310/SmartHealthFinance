@@ -63,10 +63,10 @@ class ConsentApiIT extends IntegrationTest {
         Instant now = Instant.now();
 
         transactions.executeWithoutResult(status -> consents.add(Consent.grant(ConsentId.generate(now), workspaceId,
-                userId, ConsentPurpose.COPILOT_DATA_USE, "copilot-data-v1", now)));
+                userId, ConsentPurpose.COPILOT_DATA_USE, "copilot-data-v2", now)));
 
         assertThatThrownBy(() -> transactions.executeWithoutResult(status -> consents.add(Consent.grant(
-                ConsentId.generate(now), workspaceId, userId, ConsentPurpose.COPILOT_DATA_USE, "copilot-data-v1",
+                ConsentId.generate(now), workspaceId, userId, ConsentPurpose.COPILOT_DATA_USE, "copilot-data-v2",
                 now)))).isInstanceOf(OptimisticLockingFailureException.class);
         assertThat(jdbc.queryForObject("select count(*) from consents", Integer.class)).isEqualTo(1);
     }
@@ -80,14 +80,14 @@ class ConsentApiIT extends IntegrationTest {
                 .containsExactly("COPILOT_DATA_USE", "COPILOT_HISTORY");
         assertThat((List<String>) read(result, "$.items[*].state")).containsOnly("PENDING");
         assertThat((List<String>) read(result, "$.items[*].currentTermsVersion"))
-                .containsExactly("copilot-data-v1", "copilot-history-v1");
+                .containsExactly("copilot-data-v2", "copilot-history-v1");
         assertThat((List<Object>) read(result, "$.items[1].requires")).containsExactly("COPILOT_DATA_USE");
         assertThat((Object) read(result, "$.items[0].grantedAt")).isNull();
     }
 
     @Test
     void grantThenCascadingRevocation() throws Exception {
-        assertThat(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}"))
+        assertThat(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}"))
                 .hasStatus(HttpStatus.OK);
         MvcTestResult history = put("COPILOT_HISTORY",
                 "{\"granted\": true, \"termsVersion\": \"copilot-history-v1\"}");
@@ -108,12 +108,49 @@ class ConsentApiIT extends IntegrationTest {
 
     @Test
     void repeatingTheSameGrantDoesNotAuditTwice() {
-        String body = "{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}";
+        String body = "{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}";
         assertThat(put("COPILOT_DATA_USE", body)).hasStatus(HttpStatus.OK);
         assertThat(put("COPILOT_DATA_USE", body)).hasStatus(HttpStatus.OK);
 
         assertThat(jdbc.queryForObject("select count(*) from consent_audit", Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("select count(*) from consents", Integer.class)).isEqualTo(1);
+    }
+
+    /**
+     * Troca do termo para {@code copilot-data-v2} (RIPD R14): quem concedeu na v1 (que não informava o provedor de IA
+     * nos EUA) passa a {@code EXPIRED} sem job nem migration, e só a v2 é aceita. O histórico (v1) continua ativo.
+     */
+    @Test
+    void grantOnTheV1TermExpiresAndOnlyV2IsAccepted() throws Exception {
+        // A linha concedida na v1, como ficou no banco antes da troca (o domínio já não aceita conceder na v1).
+        UUID userId = jdbc.queryForObject("select id from users", UUID.class);
+        jdbc.update("""
+                insert into consents (id, workspace_id, user_id, purpose, status, terms_version, granted_at, created_at,
+                                      updated_at)
+                values (?, ?, ?, ?, 'ACTIVE', ?, now(), now(), now())
+                """, UUID.randomUUID(), UUID.fromString(workspace), userId, "COPILOT_DATA_USE", "copilot-data-v1");
+        jdbc.update("""
+                insert into consents (id, workspace_id, user_id, purpose, status, terms_version, granted_at, created_at,
+                                      updated_at)
+                values (?, ?, ?, ?, 'ACTIVE', ?, now(), now(), now())
+                """, UUID.randomUUID(), UUID.fromString(workspace), userId, "COPILOT_HISTORY", "copilot-history-v1");
+
+        MvcTestResult list = mvc.get().uri(CONSENTS, workspace).with(ana()).exchange();
+        assertThat((Object) read(list, "$.items[0].state")).isEqualTo("EXPIRED");
+        assertThat((Object) read(list, "$.items[1].state")).isEqualTo("ACTIVE");
+        assertThat((Object) read(list, "$.items[0].termsVersion")).isEqualTo("copilot-data-v1");
+        assertThat((Object) read(list, "$.items[0].currentTermsVersion")).isEqualTo("copilot-data-v2");
+
+        assertError(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}"),
+                HttpStatus.CONFLICT, "CONSENT_TERMS_OUTDATED");
+        MvcTestResult regranted = put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}");
+        assertThat(regranted).hasStatus(HttpStatus.OK);
+        assertThat((Object) read(regranted, "$.items[0].state")).isEqualTo("ACTIVE");
+        assertThat((Object) read(regranted, "$.items[0].termsVersion")).isEqualTo("copilot-data-v2");
+        // O histórico (termo v1, que não mudou) seguiu ativo o tempo todo: nada foi apagado pela troca do termo.
+        assertThat((Object) read(regranted, "$.items[1].state")).isEqualTo("ACTIVE");
+        assertThat(jdbc.queryForObject("select count(*) from consent_audit where action = 'REVOKED'", Integer.class))
+                .isZero();
     }
 
     @Test
@@ -125,7 +162,7 @@ class ConsentApiIT extends IntegrationTest {
                 HttpStatus.CONFLICT, "CONSENT_PREREQUISITE_MISSING");
         assertError(put("INSIGHTS_GENERATION", "{\"granted\": true, \"termsVersion\": \"x\"}"),
                 HttpStatus.NOT_FOUND, "CONSENT_PURPOSE_NOT_FOUND");
-        assertError(put("COPILOT_DATA_USE", "{\"termsVersion\": \"copilot-data-v1\"}"), HttpStatus.BAD_REQUEST,
+        assertError(put("COPILOT_DATA_USE", "{\"termsVersion\": \"copilot-data-v2\"}"), HttpStatus.BAD_REQUEST,
                 "VALIDATION_FAILED");
 
         assertThat(jdbc.queryForObject("select count(*) from consents", Integer.class)).isZero();
@@ -134,7 +171,7 @@ class ConsentApiIT extends IntegrationTest {
 
     @Test
     void auditTrailIsAppendOnly() {
-        assertThat(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}"))
+        assertThat(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}"))
                 .hasStatus(HttpStatus.OK);
 
         assertThatThrownBy(() -> jdbc.update("update consent_audit set cause = 'CASCADE'"))
@@ -143,7 +180,7 @@ class ConsentApiIT extends IntegrationTest {
 
     @Test
     void anotherPersonCannotSeeOrChangeTheConsents() {
-        assertThat(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}"))
+        assertThat(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}"))
                 .hasStatus(HttpStatus.OK);
         mvc.post().uri(ME).with(bob()).exchange();
 
@@ -157,7 +194,7 @@ class ConsentApiIT extends IntegrationTest {
 
     @Test
     void eventPayloadCarriesOnlyIdsAndCodes() {
-        assertThat(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}"))
+        assertThat(put("COPILOT_DATA_USE", "{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}"))
                 .hasStatus(HttpStatus.OK);
 
         Map<String, Object> row = jdbc.queryForMap(

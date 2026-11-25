@@ -72,19 +72,19 @@ describe('PUT /api/bff/consents/{purpose}', () => {
   it('conceder repassa só granted e termsVersion', async () => {
     PUT_BACKEND.mockResolvedValue({ data: items, response: new Response(null, { status: 200 }) })
 
-    const response = await change(put({ granted: true, termsVersion: 'copilot-data-v1', extra: 'x' }), params())
+    const response = await change(put({ granted: true, termsVersion: 'copilot-data-v2', extra: 'x' }), params())
 
     expect(response.status).toBe(200)
     expect(PUT_BACKEND).toHaveBeenCalledWith('/api/v1/workspaces/{workspaceId}/consents/{purpose}', {
       params: { path: { workspaceId: 'ws-da-sessao', purpose: 'COPILOT_DATA_USE' } },
-      body: { granted: true, termsVersion: 'copilot-data-v1' },
+      body: { granted: true, termsVersion: 'copilot-data-v2' },
     })
   })
 
   it('revogar nunca leva versão', async () => {
     PUT_BACKEND.mockResolvedValue({ data: items, response: new Response(null, { status: 200 }) })
 
-    await change(put({ granted: false, termsVersion: 'copilot-data-v1' }), params())
+    await change(put({ granted: false, termsVersion: 'copilot-data-v2' }), params())
 
     expect(PUT_BACKEND.mock.calls[0]![1].body).toEqual({ granted: false })
   })
@@ -93,7 +93,7 @@ describe('PUT /api/bff/consents/{purpose}', () => {
     expect((await change(put({ granted: true }, { origin: 'http://evil.test' }), params())).status).toBe(403)
     expect((await change(put({ granted: true }), params('INSIGHTS_GENERATION'))).status).toBe(404)
     expect((await change(put('não é json'), params())).status).toBe(400)
-    const missing = await change(put({ termsVersion: 'copilot-data-v1' }), params())
+    const missing = await change(put({ termsVersion: 'copilot-data-v2' }), params())
     expect(missing.status).toBe(400)
     expect(await missing.json()).toEqual({ code: 'VALIDATION_FAILED', details: [{ field: 'granted', code: 'REQUIRED' }] })
     expect((await change(put({ granted: true }), params())).status).toBe(409)
@@ -105,7 +105,7 @@ describe('PUT /api/bff/consents/{purpose}', () => {
       error: { code: 'CONSENT_PREREQUISITE_MISSING', message: 'm', traceId: 't' },
       response: new Response(null, { status: 409 }),
     })
-    const conflict = await change(put({ granted: true, termsVersion: 'copilot-data-v1' }), params())
+    const conflict = await change(put({ granted: true, termsVersion: 'copilot-data-v2' }), params())
     expect(conflict.status).toBe(409)
     expect(await conflict.json()).toEqual({ code: 'CONSENT_PREREQUISITE_MISSING' })
 
@@ -113,6 +113,6 @@ describe('PUT /api/bff/consents/{purpose}', () => {
       error: { code: 'SOMETHING_ELSE', message: 'm' },
       response: new Response(null, { status: 409 }),
     })
-    expect((await change(put({ granted: true, termsVersion: 'copilot-data-v1' }), params())).status).toBe(502)
+    expect((await change(put({ granted: true, termsVersion: 'copilot-data-v2' }), params())).status).toBe(502)
   })
 })

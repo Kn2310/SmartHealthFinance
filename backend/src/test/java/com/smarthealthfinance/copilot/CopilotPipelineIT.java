@@ -246,7 +246,7 @@ class CopilotPipelineIT extends IntegrationTest {
     private void grantConsent(String subject, String email, String workspace) {
         assertThat(mvc.put().uri("/api/v1/workspaces/{id}/consents/COPILOT_DATA_USE", workspace)
                 .with(request(subject, email)).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}")).hasStatus(HttpStatus.OK);
+                .content("{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}")).hasStatus(HttpStatus.OK);
     }
 
     private String provision(String subject, String email) throws Exception {

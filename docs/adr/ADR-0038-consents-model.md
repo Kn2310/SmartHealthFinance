@@ -36,6 +36,26 @@ Decisões aprovadas pelo usuário em 2026-11-09 (Sessão 8.1, Parte 0).
   três). Dívida registrada no backlog.
 - O termo vigente de cada finalidade é uma constante versionada no código (`copilot-data-v1`). O texto do termo vive
   no frontend, junto da versão que ele representa.
+- **Adendo (2026-11-25, RIPD R14, Fase 9):** `COPILOT_DATA_USE` passa ao termo **`copilot-data-v2`**. O v1 dizia que
+  "o Copilot só lê dados dentro do app" e não informava o envio ao provedor de IA. Texto aprovado pelo usuário:
+  - linha curta: "suas perguntas e um resumo dos seus números vão a um provedor de IA nos EUA";
+  - bloco "O que é enviado", visível antes de conceder e anunciado junto do switch:
+    - a Anthropic, nos EUA, recebe a pergunta literal, até 3 perguntas anteriores e um resumo calculado;
+    - contas, cartões, objetivos e comerciantes vão como apelidos genéricos; nunca vão nome, e-mail, número de
+      cartão ou identificadores;
+    - o app calcula e a IA só explica;
+    - a Anthropic pode guardar até 30 dias para segurança e não usa os dados para treinar modelos;
+    - não escrever na pergunta nomes de terceiros, CPF ou senhas;
+    - a revogação apaga o histórico.
+  - aviso fixo abaixo do campo do Copilot, em toda conversa, com link para Consentimentos.
+
+  Efeitos da troca:
+  - pelo §3, todo consentimento v1 passa a `EXPIRED` na leitura, sem migration nem job, e o Copilot volta a pedir
+    consentimento;
+  - `COPILOT_HISTORY` continua em `copilot-history-v1`, porque o histórico fica no app;
+  - sem mudança de contrato (a versão é uma string), de payload de evento ou de schema.
+
+  Quando o ZDR com a Anthropic entrar, a frase de retenção muda e o termo passa a `copilot-data-v3`.
 
 ### 3. Estados e transições
 

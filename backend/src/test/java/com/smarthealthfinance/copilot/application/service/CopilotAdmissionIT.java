@@ -62,7 +62,7 @@ class CopilotAdmissionIT extends IntegrationTest {
 
         assertThat(mvc.put().uri("/api/v1/workspaces/{id}/consents/COPILOT_DATA_USE", anasWorkspace)
                 .with(request("sub-ana", "ana@example.com")).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}")).hasStatus(HttpStatus.OK);
+                .content("{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}")).hasStatus(HttpStatus.OK);
         actAs("sub-ana"); // a requisição MockMvc limpa o contexto de segurança ao terminar
 
         for (int i = 0; i < 3; i++) {

@@ -12,7 +12,7 @@ import java.util.Optional;
  */
 public enum ConsentPurpose {
 
-    COPILOT_DATA_USE("copilot-data-v1", null),
+    COPILOT_DATA_USE("copilot-data-v2", null),
     COPILOT_HISTORY("copilot-history-v1", COPILOT_DATA_USE);
 
     private final String currentTermsVersion;

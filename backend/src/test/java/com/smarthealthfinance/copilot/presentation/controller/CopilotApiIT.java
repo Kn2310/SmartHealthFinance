@@ -473,7 +473,7 @@ class CopilotApiIT extends IntegrationTest {
     private void grantConsent(String subject, String email, String workspace) {
         assertThat(mvc.put().uri(WS + "/consents/COPILOT_DATA_USE", workspace).with(request(subject, email))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"granted\": true, \"termsVersion\": \"copilot-data-v1\"}")).hasStatus(HttpStatus.OK);
+                .content("{\"granted\": true, \"termsVersion\": \"copilot-data-v2\"}")).hasStatus(HttpStatus.OK);
     }
 
     private String get(String uri, String workspace) {

@@ -115,6 +115,7 @@ export function ConsentsView() {
               const copy = CONSENT_COPY[consent.purpose]
               const labelId = `consent-${consent.purpose}-label`
               const metaId = `consent-${consent.purpose}-meta`
+              const detailsId = `consent-${consent.purpose}-details`
               const blocked =
                 consent.state !== 'ACTIVE' &&
                 consent.requires.some((required) => !isActive(consents.data.find((c) => c.purpose === required)))
@@ -127,6 +128,14 @@ export function ConsentsView() {
                     <span id={metaId} className={styles.meta}>
                       {metaLine(consent, consents.data)}
                     </span>
+                    {copy.details ? (
+                      <div id={detailsId} className={styles.details}>
+                        <span className={styles.detailsTitle}>{copy.details.title}</span>
+                        {copy.details.paragraphs.map((paragraph) => (
+                          <p key={paragraph}>{paragraph}</p>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                   <button
                     ref={(element) => {
@@ -136,7 +145,7 @@ export function ConsentsView() {
                     role="switch"
                     aria-checked={consent.state === 'ACTIVE'}
                     aria-labelledby={labelId}
-                    aria-describedby={metaId}
+                    aria-describedby={copy.details ? `${metaId} ${detailsId}` : metaId}
                     className={styles.switch}
                     disabled={blocked || busy !== null || pending !== null}
                     onClick={() => toggle(consent, consents.data)}

@@ -173,7 +173,7 @@ class CopilotHistoryApiIT extends IntegrationTest {
 
     @Test
     void withoutHistoryNothingIsStoredAndTheConversationRoutesAreNotFound() throws Exception {
-        grantConsent("sub-ana", "ana@example.com", anasWorkspace, "COPILOT_DATA_USE", "copilot-data-v1");
+        grantConsent("sub-ana", "ana@example.com", anasWorkspace, "COPILOT_DATA_USE", "copilot-data-v2");
         String foreign = UUID.randomUUID().toString();
 
         MvcTestResult asked = ask(anasWorkspace, key(), BALANCE);
@@ -352,8 +352,8 @@ class CopilotHistoryApiIT extends IntegrationTest {
 
     @Test
     void feedbackIsAnUpsertOfTheLatestAndOnlyForTheOwnQuestions() throws Exception {
-        grantConsent("sub-ana", "ana@example.com", anasWorkspace, "COPILOT_DATA_USE", "copilot-data-v1");
-        grantConsent("sub-bob", "bob@example.com", bobsWorkspace, "COPILOT_DATA_USE", "copilot-data-v1");
+        grantConsent("sub-ana", "ana@example.com", anasWorkspace, "COPILOT_DATA_USE", "copilot-data-v2");
+        grantConsent("sub-bob", "bob@example.com", bobsWorkspace, "COPILOT_DATA_USE", "copilot-data-v2");
         String anasRequest = JsonPath.read(body(ask(anasWorkspace, key(), BALANCE)), "$.requestId");
         String bobsRequest = JsonPath.read(body(askAs(bob(), bobsWorkspace, key(), BALANCE)), "$.requestId");
 
@@ -563,7 +563,7 @@ class CopilotHistoryApiIT extends IntegrationTest {
     }
 
     private void grantHistory(String subject, String email, String workspace) {
-        grantConsent(subject, email, workspace, "COPILOT_DATA_USE", "copilot-data-v1");
+        grantConsent(subject, email, workspace, "COPILOT_DATA_USE", "copilot-data-v2");
         grantConsent(subject, email, workspace, "COPILOT_HISTORY", "copilot-history-v1");
     }
 

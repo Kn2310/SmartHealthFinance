@@ -19,7 +19,7 @@ const data = (overrides: Partial<Consent> = {}): Consent => ({
   purpose: 'COPILOT_DATA_USE',
   state: 'PENDING',
   termsVersion: null,
-  currentTermsVersion: 'copilot-data-v1',
+  currentTermsVersion: 'copilot-data-v2',
   grantedAt: null,
   revokedAt: null,
   requires: [],
@@ -44,6 +44,54 @@ const revoked = (consent: Consent): Consent => ({
 const body = (init: RequestInit | undefined) => JSON.parse(String(init?.body)) as unknown
 
 afterEach(() => vi.unstubAllGlobals())
+
+describe('/profile/consents — termo copilot-data-v2 (RIPD R14)', () => {
+  it('explica antes de conceder o que vai ao provedor de IA nos EUA, e o switch o anuncia', async () => {
+    stubBff({ 'GET /api/bff/consents': () => json({ items: [data(), history()] }) })
+    const { container } = render(
+      <ProfileFrame>
+        <ConsentsView />
+      </ProfileFrame>,
+    )
+
+    const dataSwitch = await screen.findByRole('switch', { name: 'Permitir que o Copilot use meus dados' })
+    expect(screen.getByText('Não concedido · suas perguntas e um resumo dos seus números vão a um provedor de IA nos EUA'))
+      .toBeInTheDocument()
+    expect(screen.getByText('O que é enviado')).toBeInTheDocument()
+    expect(screen.getByText(/envia à Anthropic, provedora de IA nos Estados Unidos: a sua pergunta, como você a escreveu/))
+      .toBeInTheDocument()
+    expect(screen.getByText(/Nunca vão seu nome, e-mail, número de cartão ou identificadores\./)).toBeInTheDocument()
+    expect(screen.getByText(/pode guardar esses dados por até 30 dias para segurança e não os usa para treinar modelos/))
+      .toBeInTheDocument()
+    expect(screen.getByText('Não escreva na pergunta nomes de outras pessoas, CPF ou senhas.')).toBeInTheDocument()
+    // O leitor de tela ouve o termo junto do switch, antes de conceder.
+    expect(dataSwitch).toHaveAccessibleDescription(/provedora de IA nos Estados Unidos/)
+    // O histórico continua no termo v1, sem bloco de envio (fica no app).
+    expect(screen.getAllByText('O que é enviado')).toHaveLength(1)
+    expect(await axeViolations(container)).toEqual([])
+  })
+
+  it('quem concedeu na v1 vê "os termos mudaram" e concede de novo na v2', async () => {
+    const calls = stubBff({
+      'GET /api/bff/consents': () =>
+        json({ items: [data({ state: 'EXPIRED', termsVersion: 'copilot-data-v1', grantedAt: '2026-04-02T15:00:00Z' }), history()] }),
+      'PUT /api/bff/consents/COPILOT_DATA_USE': () => json({ items: [active(data()), history()] }),
+    })
+    const user = userEvent.setup()
+    render(
+      <ProfileFrame>
+        <ConsentsView />
+      </ProfileFrame>,
+    )
+
+    const dataSwitch = await screen.findByRole('switch', { name: 'Permitir que o Copilot use meus dados' })
+    expect(screen.getByText('Os termos mudaram · conceda de novo para continuar')).toBeInTheDocument()
+    expect(dataSwitch).toHaveAttribute('aria-checked', 'false')
+    await user.click(dataSwitch)
+    await waitFor(() => expect(dataSwitch).toHaveAttribute('aria-checked', 'true'))
+    expect(body(calls.find((c) => c.method === 'PUT')?.init)).toEqual({ granted: true, termsVersion: 'copilot-data-v2' })
+  })
+})
 
 describe('/profile/consents — D-ProfileConsents', () => {
   it('mostra os dois consentimentos do Copilot, pendentes, com o histórico bloqueado até o uso de dados', async () => {
@@ -83,8 +131,8 @@ describe('/profile/consents — D-ProfileConsents', () => {
         'true',
       ),
     )
-    expect(body(calls.find((c) => c.method === 'PUT')?.init)).toEqual({ granted: true, termsVersion: 'copilot-data-v1' })
-    expect(screen.getByText('Concedido em 02 abr 2026 · o Copilot só lê dados dentro do app')).toBeInTheDocument()
+    expect(body(calls.find((c) => c.method === 'PUT')?.init)).toEqual({ granted: true, termsVersion: 'copilot-data-v2' })
+    expect(screen.getByText('Concedido em 02 abr 2026 · suas perguntas e um resumo dos seus números vão a um provedor de IA nos EUA')).toBeInTheDocument()
     expect(screen.getByRole('switch', { name: 'Guardar histórico de conversas do Copilot' })).toBeEnabled()
   })
 
@@ -106,7 +154,7 @@ describe('/profile/consents — D-ProfileConsents', () => {
       expect(screen.getAllByRole('switch').map((s) => s.getAttribute('aria-checked'))).toEqual(['false', 'false']),
     )
     expect(body(calls.find((c) => c.method === 'PUT')?.init)).toEqual({ granted: false })
-    expect(screen.getByText('Revogado em 09 nov 2026 · o Copilot só lê dados dentro do app')).toBeInTheDocument()
+    expect(screen.getByText('Revogado em 09 nov 2026 · suas perguntas e um resumo dos seus números vão a um provedor de IA nos EUA')).toBeInTheDocument()
   })
 
   it('revogar o histórico pede confirmação; cancelar mantém tudo', async () => {

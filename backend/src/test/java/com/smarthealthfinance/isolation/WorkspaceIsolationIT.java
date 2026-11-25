@@ -771,7 +771,7 @@ class WorkspaceIsolationIT extends IntegrationTest {
             assertThat(mvc.put().uri(CONSENTS + "/{purpose}", workspace, consent).with(who)
                     .contentType(MediaType.APPLICATION_JSON).content("""
                             {"granted": true, "termsVersion": "%s"}
-                            """.formatted(consent.equals("COPILOT_DATA_USE") ? "copilot-data-v1" : "copilot-history-v1"))
+                            """.formatted(consent.equals("COPILOT_DATA_USE") ? "copilot-data-v2" : "copilot-history-v1"))
                     .exchange()).hasStatus(HttpStatus.OK);
         }
         String[] copilot = seedCopilot(workspace, description);
