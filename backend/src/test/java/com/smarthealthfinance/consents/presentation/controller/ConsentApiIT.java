@@ -127,11 +127,17 @@ class ConsentApiIT extends IntegrationTest {
         jdbc.update("""
                 insert into consents (id, workspace_id, user_id, purpose, status, terms_version, granted_at, created_at,
                                       updated_at)
-                values (?, ?, ?, 'COPILOT_DATA_USE', 'ACTIVE', 'copilot-data-v1', now(), now(), now())
-                """, UUID.randomUUID(), UUID.fromString(workspace), userId);
+                values (?, ?, ?, ?, 'ACTIVE', ?, now(), now(), now())
+                """, UUID.randomUUID(), UUID.fromString(workspace), userId, "COPILOT_DATA_USE", "copilot-data-v1");
+        jdbc.update("""
+                insert into consents (id, workspace_id, user_id, purpose, status, terms_version, granted_at, created_at,
+                                      updated_at)
+                values (?, ?, ?, ?, 'ACTIVE', ?, now(), now(), now())
+                """, UUID.randomUUID(), UUID.fromString(workspace), userId, "COPILOT_HISTORY", "copilot-history-v1");
 
         MvcTestResult list = mvc.get().uri(CONSENTS, workspace).with(ana()).exchange();
         assertThat((Object) read(list, "$.items[0].state")).isEqualTo("EXPIRED");
+        assertThat((Object) read(list, "$.items[1].state")).isEqualTo("ACTIVE");
         assertThat((Object) read(list, "$.items[0].termsVersion")).isEqualTo("copilot-data-v1");
         assertThat((Object) read(list, "$.items[0].currentTermsVersion")).isEqualTo("copilot-data-v2");
 
@@ -141,6 +147,10 @@ class ConsentApiIT extends IntegrationTest {
         assertThat(regranted).hasStatus(HttpStatus.OK);
         assertThat((Object) read(regranted, "$.items[0].state")).isEqualTo("ACTIVE");
         assertThat((Object) read(regranted, "$.items[0].termsVersion")).isEqualTo("copilot-data-v2");
+        // O histórico (termo v1, que não mudou) seguiu ativo o tempo todo: nada foi apagado pela troca do termo.
+        assertThat((Object) read(regranted, "$.items[1].state")).isEqualTo("ACTIVE");
+        assertThat(jdbc.queryForObject("select count(*) from consent_audit where action = 'REVOKED'", Integer.class))
+                .isZero();
     }
 
     @Test

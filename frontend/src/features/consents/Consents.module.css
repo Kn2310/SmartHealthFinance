@@ -74,6 +74,8 @@ a.navItem:hover { background: var(--color-neutral-subtle); }
   overflow-wrap: anywhere;
 }
 .details p { margin: 0; }
+/* Com o bloco do termo a linha fica alta: o switch acompanha o rótulo, no topo. */
+.row:has(.details) { align-items: flex-start; }
 .detailsTitle { color: var(--color-neutral-text); font-weight: 600; }
 
 /* Switch do DS: 42×24, trilho Navy (on) / Border Strong (off) */
