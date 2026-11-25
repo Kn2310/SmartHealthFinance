@@ -27,7 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @ExtendWith(OutputCaptureExtension.class)
 class ChangeConsentTest {
 
-    private static final ChangeConsent.Command GRANT_DATA = new ChangeConsent.Command(true, "copilot-data-v1");
+    private static final ChangeConsent.Command GRANT_DATA = new ChangeConsent.Command(true, "copilot-data-v2");
     private static final ChangeConsent.Command GRANT_HISTORY = new ChangeConsent.Command(true, "copilot-history-v1");
     private static final ChangeConsent.Command REVOKE = new ChangeConsent.Command(false, null);
 
@@ -50,7 +50,7 @@ class ChangeConsentTest {
         assertThat(views).extracting(ConsentView::state).containsOnly(ConsentState.PENDING);
         assertThat(of(views, ConsentPurpose.COPILOT_HISTORY).requires())
                 .containsExactly(ConsentPurpose.COPILOT_DATA_USE);
-        assertThat(of(views, ConsentPurpose.COPILOT_DATA_USE).currentTermsVersion()).isEqualTo("copilot-data-v1");
+        assertThat(of(views, ConsentPurpose.COPILOT_DATA_USE).currentTermsVersion()).isEqualTo("copilot-data-v2");
     }
 
     @Test
@@ -60,7 +60,7 @@ class ChangeConsentTest {
         ConsentView data = of(views, ConsentPurpose.COPILOT_DATA_USE);
         assertThat(data.state()).isEqualTo(ConsentState.ACTIVE);
         assertThat(data.grantedAt()).isEqualTo(NOW);
-        assertThat(data.termsVersion()).isEqualTo("copilot-data-v1");
+        assertThat(data.termsVersion()).isEqualTo("copilot-data-v2");
         assertThat(ctx.consents.audit).singleElement().satisfies(entry -> {
             assertThat(entry.action()).isEqualTo(ConsentAction.GRANTED);
             assertThat(entry.cause()).isEqualTo(ConsentCause.USER);
@@ -69,7 +69,7 @@ class ChangeConsentTest {
         assertThat(event.eventType()).isEqualTo("consent.granted");
         assertThat(event.workspaceId()).isEqualTo(ctx.anasWorkspaceId());
         assertThat(event.payload()).containsEntry("purpose", "COPILOT_DATA_USE")
-                .containsEntry("termsVersion", "copilot-data-v1").containsEntry("cause", "USER")
+                .containsEntry("termsVersion", "copilot-data-v2").containsEntry("cause", "USER")
                 .containsEntry("userId", ctx.ana.id().value().toString())
                 .containsOnlyKeys("consentId", "userId", "purpose", "termsVersion", "cause");
         assertThat(ctx.reader.isActive(ctx.anasWorkspace.id(), ctx.ana.id(), ConsentPurpose.COPILOT_DATA_USE))

@@ -55,7 +55,7 @@ export const GOAL_MAX_SCENARIOS = 5
 export const CONSENT_PURPOSES = ['COPILOT_DATA_USE', 'COPILOT_HISTORY'] as const
 export const CONSENT_STATES = ['PENDING', 'ACTIVE', 'EXPIRED', 'REVOKED', 'FAILED'] as const
 export const CONSENT_TERMS_VERSIONS = {
-  COPILOT_DATA_USE: 'copilot-data-v1',
+  COPILOT_DATA_USE: 'copilot-data-v2',
   COPILOT_HISTORY: 'copilot-history-v1',
 } as const satisfies Record<(typeof CONSENT_PURPOSES)[number], string>
 

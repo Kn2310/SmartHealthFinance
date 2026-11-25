@@ -24,7 +24,7 @@ class ConsentTest {
 
     private static Consent granted() {
         return Consent.grant(ConsentId.generate(T0), WORKSPACE, USER, ConsentPurpose.COPILOT_DATA_USE,
-                "copilot-data-v1", T0);
+                "copilot-data-v2", T0);
     }
 
     @Test
@@ -55,7 +55,7 @@ class ConsentTest {
         assertThat(consent.revoke(T1.plusSeconds(1))).isFalse();
         assertThat(consent.state()).isEqualTo(ConsentState.REVOKED);
         assertThat(consent.revokedAt()).contains(T1);
-        assertThat(consent.termsVersion()).isEqualTo("copilot-data-v1");
+        assertThat(consent.termsVersion()).isEqualTo("copilot-data-v2");
     }
 
     @Test
@@ -63,7 +63,7 @@ class ConsentTest {
         Consent consent = granted();
         consent.revoke(T1);
 
-        assertThat(consent.regrant("copilot-data-v1", T1.plusSeconds(60))).isTrue();
+        assertThat(consent.regrant("copilot-data-v2", T1.plusSeconds(60))).isTrue();
         assertThat(consent.state()).isEqualTo(ConsentState.ACTIVE);
         assertThat(consent.grantedAt()).isEqualTo(T1.plusSeconds(60));
         assertThat(consent.revokedAt()).isEmpty();
@@ -73,7 +73,7 @@ class ConsentTest {
     void regrantOfAnActiveConsentChangesNothing() {
         Consent consent = granted();
 
-        assertThat(consent.regrant("copilot-data-v1", T1)).isFalse();
+        assertThat(consent.regrant("copilot-data-v2", T1)).isFalse();
         assertThat(consent.grantedAt()).isEqualTo(T0);
     }
 
@@ -84,7 +84,7 @@ class ConsentTest {
 
         assertThat(consent.state()).isEqualTo(ConsentState.EXPIRED);
         assertThat(consent.isActive()).isFalse();
-        assertThat(consent.regrant("copilot-data-v1", T1)).isTrue();
+        assertThat(consent.regrant("copilot-data-v2", T1)).isTrue();
         assertThat(consent.state()).isEqualTo(ConsentState.ACTIVE);
     }
 

@@ -75,6 +75,12 @@ export const LOADING = 'Analisando seus dados…'
 export const READY = 'Resposta pronta'
 export const LOADING_SLOW = 'Ainda calculando. Pode levar alguns segundos.'
 
+/** Aviso fixo abaixo do campo de pergunta (termo `copilot-data-v2`; RIPD R14). */
+export const PROVIDER_NOTICE = {
+  text: 'Sua pergunta vai a um provedor de IA nos EUA. Não inclua nomes de outras pessoas, CPF ou senhas.',
+  action: 'Saiba mais',
+}
+
 export const CONSENT_REQUIRED = {
   text: 'Para responder, o Copilot precisa usar seus dados financeiros. Você decide em Consentimentos.',
   action: 'Rever consentimentos',

@@ -76,6 +76,18 @@ describe('/copilot — D-Copilot, M-Copilot (início)', () => {
     expect(await axeViolations(container)).toEqual([])
   })
 
+  it('aviso fixo do provedor de IA abaixo do campo, descrevendo a pergunta e levando a Consentimentos (RIPD R14)', async () => {
+    stubBff(base())
+    const { container } = render(<CopilotView entry={null} />)
+
+    const input = await screen.findByRole('textbox', { name: 'Pergunta para o Copilot' })
+    expect(input).toHaveAccessibleDescription(
+      'Sua pergunta vai a um provedor de IA nos EUA. Não inclua nomes de outras pessoas, CPF ou senhas. Saiba mais',
+    )
+    expect(screen.getByRole('link', { name: 'Saiba mais' })).toHaveAttribute('href', '/profile/consents')
+    expect(await axeViolations(container)).toEqual([])
+  })
+
   it('primeiro uso: sem perguntas no mês e sem histórico', async () => {
     stubBff({
       'GET /api/bff/copilot/usage': () => json(usage({ month: { used: 0, limit: 100, resetsAt: '2026-11-01T03:00:00Z' } })),

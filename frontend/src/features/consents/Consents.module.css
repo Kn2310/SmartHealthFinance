@@ -63,6 +63,18 @@ a.navItem:hover { background: var(--color-neutral-subtle); }
 .text { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
 .label { font: var(--type-body-s); font-weight: 600; overflow-wrap: anywhere; }
 .meta { color: var(--color-neutral-muted); font: var(--type-caption); overflow-wrap: anywhere; }
+/* Termo do Copilot (copilot-data-v2): o que é enviado ao provedor de IA, sempre visível antes de conceder. */
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+  color: var(--color-neutral-text-secondary);
+  font: var(--type-caption);
+  overflow-wrap: anywhere;
+}
+.details p { margin: 0; }
+.detailsTitle { color: var(--color-neutral-text); font-weight: 600; }
 
 /* Switch do DS: 42×24, trilho Navy (on) / Border Strong (off) */
 .switch {

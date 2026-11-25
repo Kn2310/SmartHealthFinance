@@ -19,6 +19,7 @@ import {
   HISTORY_OFF,
   LOADING,
   LOADING_SLOW,
+  PROVIDER_NOTICE,
   errorMessage,
   quotaMessage,
   rateLimitedMessage,
@@ -31,6 +32,7 @@ export const Composer = forwardRef<
   HTMLInputElement,
   { value: string; busy: boolean; onChange: (value: string) => void; onSubmit: () => void; sticky: boolean }
 >(function Composer({ value, busy, onChange, onSubmit, sticky }, ref) {
+  const noticeId = useId()
   return (
     <form
       className={`${styles.composer} ${sticky ? styles.composerChat : ''}`}
@@ -49,12 +51,20 @@ export const Composer = forwardRef<
         autoComplete="off"
         placeholder="Pergunta para o Copilot"
         maxLength={COPILOT_QUESTION_MAX_LENGTH}
+        aria-describedby={noticeId}
         value={value}
         onChange={(event) => onChange(event.target.value)}
       />
       <button type="submit" className={styles.send} aria-label="Enviar pergunta" disabled={busy || value.trim() === ''}>
         <ArrowUp size={20} strokeWidth={1.75} aria-hidden="true" />
       </button>
+      {/* Aviso fixo do termo copilot-data-v2 (RIPD R14): em toda conversa, no momento em que a pessoa digita. */}
+      <p id={noticeId} className={styles.composerNotice}>
+        {PROVIDER_NOTICE.text}{' '}
+        <Link href="/profile/consents" className={styles.composerNoticeLink}>
+          {PROVIDER_NOTICE.action}
+        </Link>
+      </p>
     </form>
   )
 })
