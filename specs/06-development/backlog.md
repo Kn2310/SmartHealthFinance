@@ -453,6 +453,17 @@ conciliação do pagamento importado, saldo devedor inicial, feriados, `health-v
 
 ## M12 Monetization
 
+Fase 10 (iniciada em 2026-11-26; ADRs a partir do ADR-0045): A modelo → B módulo e entitlements → C provedor de
+billing (sandbox) → D UI de plano e uso → E operação, staging e privacidade.
+
+- [x] modelo de monetização (Parte A, ADR-0045, `docs/monetization-model`): assinatura do Workspace (gerida pelo
+  `OWNER`); catálogo `plans-v1` (`COPILOT` + limites, `INSIGHTS_FULL`, `OPEN_FINANCE` reservado); Free com os 3
+  primeiros insights + 1 alerta de risco (D14 vencida ou D15), só na leitura; Plus 10/dia, 100/mês, 1M tokens, 3/min
+  e R$ 29,90; Pro 5× e 6/min, R$ 79,90 (provisórios, custo estimado); trial de 10 dias de Plus opt-in, uma vez por
+  Workspace; carência de 7 dias; sem créditos avulsos; porta `EntitlementReader` sem cache; CPF só no checkout do
+  provedor; retenção de 5 anos
+  - pendente: calibrar limites e preços com o golden set real; validação jurídica e contábil (tributos, NFS-e,
+    retenção)
 - [ ] plans
 - [ ] subscriptions
 - [ ] entitlements
