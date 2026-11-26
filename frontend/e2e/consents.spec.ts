@@ -18,7 +18,7 @@ test('consentimentos do Copilot: conceder, pré-requisito, revogar em cascata e 
 
   await data.click()
   await expect(data).toHaveAttribute('aria-checked', 'true')
-  await expect(page.getByText(/^Concedido em \d{2} [a-z]{3} \d{4} · o Copilot só lê dados dentro do app$/)).toBeVisible()
+  await expect(page.getByText(/^Concedido em \d{2} [a-z]{3} \d{4} · suas perguntas e um resumo dos seus números vão a um provedor de IA nos EUA$/)).toBeVisible()
   await expect(history).toBeEnabled()
 
   await history.click()
